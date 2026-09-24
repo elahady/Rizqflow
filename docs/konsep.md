@@ -48,7 +48,7 @@ Masuk:
 Sengaja tidak masuk (agar tidak melebar):
 - Sinkronisasi rekening bank
 - Fitur investasi lengkap / portofolio saham
-- Sinkronisasi server (baru di fase 2, sebagai langganan Sync). Masuk dengan akun Google dan akun lokal (nama pengguna dan sandi) sudah ada sejak 2026-09-21 tetapi hanya identitas lokal, tanpa server ([auth-google.md](auth-google.md))
+- ~~Sinkronisasi server (fase 2)~~ **Diubah 2026-09-24:** server, Sync sebagai langganan, dan ruang keluarga bersama ikut rilis pertama (Tahap 9 di [roadmap.md](roadmap.md)). Masuk dengan akun Google dan akun lokal (nama pengguna dan sandi) sejak 2026-09-21 masih identitas lokal saja; menyambungkannya ke akun server adalah bagian Tahap 9 ([auth-google.md](auth-google.md))
 
 ## Disiplin mencatat
 
@@ -78,7 +78,7 @@ Semua mekanisme mengikuti prinsip "tenang, bukan panik": tanpa streak, tanpa war
 ## Arsitektur (arah)
 
 - **Rule engine alokasi** dengan strategi yang bisa ditukar. Modul Memberi punya dua strategi (`zakat-haul-hijri`, `percentage`), dan ruang lain bisa ditambah tanpa mengubah inti.
-- **Offline-first**, data disimpan lokal. Data keuangan itu sensitif, dan untuk portofolio pendekatan ini menghindari urusan keamanan server.
+- **Offline-first**, data disimpan lokal dan aplikasi berfungsi penuh tanpa jaringan. **Server ikut rilis 1** (diputuskan pemilik 2026-09-24) untuk akun, verifikasi pembelian, metrik pengguna, dan sync antar-perangkat serta ruang keluarga. Karena data keuangan itu sensitif, server hanya menyimpan data terenkripsi ujung ke ujung: kunci ada di perangkat pengguna dan server tidak bisa membacanya. Server berjalan di VPS milik pemilik. Stack backend dan model kunci belum diputuskan (Tahap 9).
 - Penamaan internal kode **netral** (`allocation`, `room`, `giving-module`), bukan istilah Islami, supaya konsisten dengan posisi "inti universal + modul".
 - Logika inti (alokasi, nisab, haul) dibuat bisa diuji unit, dengan pendekatan yang sama seperti alkaukabaandroid.
 
@@ -144,7 +144,7 @@ Kesimpulan awal: **Rizqflow masih layak dipakai**. **Rizqly bukan cadangan yang 
 - Nama: **Rizqflow** (akar r-z-q dari "Roziq" = rezeki, ditambah "flow" untuk aliran alokasi). Cadangan: *Rizqly* (lihat Cek nama: bentrok dengan aplikasi keuangan yang sudah ada).
 - Posisi: inti universal + modul Islami opsional.
 - Data: offline-first.
-- Monetisasi: freemium; Pro sekali bayar; Sync sebagai langganan fase 2; tanpa iklan. Detail di [monetisasi.md](monetisasi.md).
+- Monetisasi: freemium; Pro sekali bayar; Sync sebagai langganan sejak rilis pertama (2026-09-24); tanpa iklan. Detail di [monetisasi.md](monetisasi.md).
 - Keamanan, ekspor data, dan dasar zakat selalu gratis.
 - Platform: **Android saja**, dirilis di Google Play Store (2026-09-19). Web tidak dibuat; landing page dan case study tetap di roziqrizal.com. Pembelian lewat Google Play Billing.
 - Stack: **Kotlin + Jetpack Compose + Room** (2026-09-19). Compose dipilih untuk kartu ruang, cincin progres, dan animasi aliran; alkaukabaandroid memakai Views/XML, jadi ada kurva belajar yang diterima.

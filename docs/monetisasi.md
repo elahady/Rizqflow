@@ -6,6 +6,8 @@ Dokumen ini mencatat model bisnis yang sudah disepakati (2026-09-19). Angka harg
 
 **Freemium dengan Pro sekali bayar.** Langganan hanya muncul untuk Sync (fase 2), karena hanya di situ ada biaya server yang berulang.
 
+**Pembaruan 2026-09-24:** server dan langganan Sync ikut **rilis pertama**, bukan fase 2 (lihat Tahap 9 di [roadmap.md](roadmap.md)). Pro tetap sekali bayar lewat Google Play Billing; Sync langganan lewat produk langganan Play dengan verifikasi di server. Baris "fase 2" di bawah dibaca sebagai "rilis 1".
+
 ## Prinsip pembagian
 
 1. **Versi gratis harus membuktikan janji utama.** Pengguna gratis bisa membagi rezeki ke hak-hak dan melihat denahnya. Kalau tidak, konsepnya tidak pernah terasa.

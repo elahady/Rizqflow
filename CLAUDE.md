@@ -17,7 +17,8 @@ Aplikasi finansial berbasis "hak": rezeki yang masuk dialirkan ke ruang-ruang (M
 - **Inti universal, Islami sebagai modul opsional** (zakat/haul). Penamaan internal kode netral (`allocation`, `room`, `giving-module`), bukan istilah Islami.
 - **Uang = bilangan bulat dalam satuan terkecil** (value object `Money`). Tidak pernah floating point.
 - **Android saja**: UI mengikuti konvensi Android (bottom navigation, FAB, bottom sheet, snackbar); pembelian lewat Google Play Billing.
-- **Offline-first**: data lokal. Backup terenkripsi wajib ada.
+- **Offline-first**: data lokal, aplikasi berfungsi penuh tanpa jaringan. Backup terenkripsi wajib ada.
+- **Server ikut rilis 1** (diputuskan 2026-09-24, Tahap 9): akun, verifikasi pembelian, metrik, sync, dan ruang keluarga. **Server tidak boleh bisa membaca data keuangan** (enkripsi ujung ke ujung, kunci di perangkat). Data keuangan tidak dikirim ke server dalam bentuk terbaca, dan metrik hanya anonim tanpa nominal atau isi transaksi.
 - **Semua penguncian fitur lewat satu lapisan entitlement**, tidak ada pengecekan Pro yang tersebar.
 - **Selalu gratis**: keamanan (PIN/biometrik), ekspor data, dan dasar zakat. **Tanpa iklan.**
 - **Tenang, bukan panik**: peringatan lembut, tidak pernah memblokir; status selalu ikon plus teks, bukan hanya warna.
@@ -39,7 +40,8 @@ Aplikasi finansial berbasis "hak": rezeki yang masuk dialirkan ke ruang-ruang (M
 - Catat progres lewat skill **`/pengembangan-rizqflow`** (Notion + dokumentasi repo). Detail mapping dan ID database ada di skill itu.
 - Platform: **Android saja**, dirilis di Google Play Store. Stack: **Kotlin + Jetpack Compose + Room** (diputuskan 2026-09-19). Web tidak dibuat.
 - Arah visual: **opsi A**, pakai ulang identitas homepage roziqrizal.com (diputuskan 2026-09-19); warna dan font disimpan sebagai design tokens, angka besar selalu Manrope.
-- Detail stack **disetujui 2026-09-20** (`docs/konsep.md`): modul `:domain`/`:data`/`:app`, min SDK 26, DI manual, backup AES-GCM, tanpa SQLCipher untuk v1. Masih terbuka: kalender Hijriyah untuk haul dan verifikasi asumsi fikih dengan kitab. Jangan memutuskan sendiri; tanyakan dulu.
+- Detail stack **disetujui 2026-09-20** (`docs/konsep.md`): modul `:domain`/`:data`/`:app`, min SDK 26, DI manual, backup AES-GCM, tanpa SQLCipher untuk v1. Masih terbuka: kalender Hijriyah untuk haul dan verifikasi asumsi fikih dengan kitab (dikaji lebih jauh nanti). Jangan memutuskan sendiri; tanyakan dulu.
+- **Keputusan 2026-09-24:** akun keuangan (tunai, bank, e-wallet) tidak dibatasi, batas ruang gratis tetap 5. Server di VPS milik pemilik ikut rilis pertama dengan cakupan penuh (sync, ruang keluarga, notifikasi) dan Sync dijual sebagai langganan sejak rilis. Bot WhatsApp dan input AI LLM sesudah rilis. **Masih terbuka (jangan dipilih sendiri):** stack backend, hosting VPS, model kunci enkripsi ujung ke ujung dan pemulihannya, model konflik sync, dan apakah Firebase Analytics dipakai. Rincian di Tahap 9 [docs/roadmap.md](docs/roadmap.md).
 
 ## Konvensi
 

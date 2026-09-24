@@ -20,15 +20,15 @@ T3 --> T4["4 Dashboard Denah"]
 T4 --> T5["5 Modul Memberi"]
 T5 --> T6["6 Keamanan, data, polish"]
 T6 --> T7["7 Monetisasi dan Pro"]
-T7 --> T8["8 Rilis dan portofolio"]
-T8 -.-> T9["9 Sync (fase 2)"]
+T7 --> T9["9 Server, Sync, ruang keluarga"]
+T9 --> T8["8 Rilis dan portofolio"]
 ```
 
 - Platform: **Android saja**, rilis di Google Play Store. Stack: **Kotlin + Jetpack Compose + Room** (2026-09-19).
 - Arah visual: **opsi A**, pakai ulang identitas homepage roziqrizal.com (2026-09-19).
 - Detail stack **disetujui 2026-09-20**: tiga modul Gradle (`:domain`, `:data`, `:app`), min SDK 26, DI manual, backup AES-GCM, tanpa SQLCipher untuk v1 (lihat [konsep.md](konsep.md)).
 - Tahap 1 (desain) dan Tahap 2 (inti domain) bisa berjalan paralel setelah Tahap 0 selesai.
-- Tahap 9 sengaja opsional: mulai hanya bila ada sinyal kebutuhan dari pengguna nyata.
+- **Server ikut rilis pertama** (diputuskan pemilik 2026-09-24): Tahap 9 tidak lagi opsional dan dikerjakan sebelum Tahap 8. Cakupan rilis 1: akun server, langganan Sync sejak rilis, sync terenkripsi antar-perangkat, ruang keluarga bersama, peran anggota, dan notifikasi anggota mencatat. Bot WhatsApp dan input AI berbasis LLM tetap sesudah rilis. Server di VPS milik pemilik.
 - Tahap 10 (fitur wajib dari riset pasar) dan Tahap 11 (input cerdas on-device) ditambahkan 2026-09-23. Keduanya tidak bergantung pada Tahap 8; urutan terhadap rilis ditentukan pemilik (usulan: butir High Tahap 10 sebelum rilis, sisanya sesudah).
 
 ## Tahap 0 — Fondasi dan keputusan (In Progress)
@@ -168,17 +168,23 @@ Pembeda utama produk.
 - [ ] Store listing
 - [ ] Case study di roziqrizal.com, README Inggris, video demo
 
-## Tahap 9 — Fase 2: Sync dan ruang keluarga (Backlog, opsional)
+## Tahap 9 — Server, Sync, dan ruang keluarga (Planning, wajib sebelum rilis)
 
-- [ ] Riset arsitektur sync terenkripsi end-to-end dan biaya
-- [ ] Ruang keluarga bersama
-- [ ] Langganan Sync dan backend minimal
-- [ ] Peran anggota keluarga (pengelola, pemberi jatah, anggota pencatat, anak) dan amplop uang bulanan
-- [ ] Notifikasi saat anggota keluarga mencatat (push dari backend sync)
-- [ ] Bot WhatsApp resmi tersinkron ke aplikasi (WhatsApp Business API; riset biaya dan verifikasi bisnis dulu)
-- [ ] Input AI berbasis LLM dengan kuota per paket, hanya bila parser on-device Tahap 11 belum cukup
+Diputuskan pemilik 2026-09-24: server ikut rilis pertama, dengan cakupan penuh (ruang keluarga) dan Sync dijual sebagai langganan sejak rilis. Alasan: pemilik butuh angka pengguna, Pro, dan Sync, dan sync keluarga memang butuh server; lebih baik dibangun sekali daripada rilis dua kali dengan janji privasi yang berubah. Prinsip yang tetap: aplikasi tetap berfungsi penuh offline, dan server tidak boleh bisa membaca data keuangan (enkripsi ujung ke ujung).
 
-Jangan dimulai sebelum Pro terbit dan ada sinyal bahwa pengguna memang butuh berbagi data antar-perangkat atau antar-anggota keluarga.
+- [ ] Putuskan stack backend, hosting VPS, dan model keamanan server (High, keputusan pemilik; jangan dipilih sendiri)
+- [ ] Riset arsitektur sync terenkripsi end-to-end dan biaya: model kunci, cara anggota keluarga menerima kunci, pemulihan bila sandi lupa, model konflik data (High)
+- [ ] Akun server: verifikasi ID token Google, hapus akun dari dalam aplikasi dan lewat web (syarat Play bila ada pembuatan akun) (High)
+- [ ] Langganan Sync dan backend minimal: backup dan sinkron antar-perangkat terenkripsi (High)
+- [ ] Catat dan verifikasi pembelian Pro dan langganan Sync di server (Play Developer API, notifikasi waktu nyata) (High)
+- [ ] Ruang keluarga bersama (High)
+- [ ] Peran anggota keluarga (pengelola, pemberi jatah, anggota pencatat, anak) dan amplop uang bulanan (Medium)
+- [ ] Notifikasi saat anggota keluarga mencatat (push dari backend sync) (Medium)
+- [ ] Metrik pengguna anonim: jumlah pengguna, Pro, dan Sync (Medium)
+
+Sesudah rilis (tidak masuk rilis 1): bot WhatsApp resmi tersinkron ke aplikasi (WhatsApp Business API; riset biaya dan verifikasi bisnis dulu) dan input AI berbasis LLM dengan kuota per paket, hanya bila parser on-device Tahap 11 belum cukup.
+
+**Konsekuensi yang harus diikuti tahap lain:** Tahap 8 (Data safety dan kebijakan privasi menyebut server, UU PDP, dan Google Play mewajibkan hapus akun bila ada pembuatan akun); Tahap 7 (Google Play Billing untuk langganan Sync selain produk Pro); skema Room perlu dirancang ulang untuk sync (penanda waktu ubah, penanda hapus, pengenal perangkat) dan itu menyentuh hampir semua tabel; `auth-google.md` dan teks "Datamu tetap di ponselmu" di halaman masuk.
 
 ## Tahap 10 — Celah riset: fitur wajib (Backlog)
 
