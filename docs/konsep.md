@@ -78,7 +78,7 @@ Semua mekanisme mengikuti prinsip "tenang, bukan panik": tanpa streak, tanpa war
 ## Arsitektur (arah)
 
 - **Rule engine alokasi** dengan strategi yang bisa ditukar. Modul Memberi punya dua strategi (`zakat-haul-hijri`, `percentage`), dan ruang lain bisa ditambah tanpa mengubah inti.
-- **Offline-first**, data disimpan lokal dan aplikasi berfungsi penuh tanpa jaringan. **Server ikut rilis 1** (diputuskan pemilik 2026-09-24) untuk akun, verifikasi pembelian, metrik pengguna, dan sync antar-perangkat serta ruang keluarga. Karena data keuangan itu sensitif, server hanya menyimpan data terenkripsi ujung ke ujung: kunci ada di perangkat pengguna dan server tidak bisa membacanya. Server berjalan di VPS milik pemilik. Stack backend dan model kunci belum diputuskan (Tahap 9).
+- **Offline-first**, data disimpan lokal dan aplikasi berfungsi penuh tanpa jaringan. **Server ikut rilis 1** (diputuskan pemilik 2026-09-24) untuk akun, verifikasi pembelian, metrik pengguna, dan sync antar-perangkat serta ruang keluarga. Karena data keuangan itu sensitif, server hanya menyimpan data terenkripsi ujung ke ujung: kunci ada di perangkat pengguna dan server tidak bisa membacanya. Server berjalan di VPS milik pemilik. Diputuskan 2026-09-24: server berjalan di VPS Al-Kaukaba yang sudah ada dengan aplikasi Laravel terpisah, dan model kunci ujung ke ujung memakai kode pemulihan wajib dan kunci per ruang keluarga (rincian di [server-sync.md](server-sync.md), Tahap 12 dan 13).
 - Penamaan internal kode **netral** (`allocation`, `room`, `giving-module`), bukan istilah Islami, supaya konsisten dengan posisi "inti universal + modul".
 - Logika inti (alokasi, nisab, haul) dibuat bisa diuji unit, dengan pendekatan yang sama seperti alkaukabaandroid.
 
@@ -182,6 +182,6 @@ Kesimpulan awal: **Rizqflow masih layak dipakai**. **Rizqly bukan cadangan yang 
 
 - **Domain sendiri:** rizqflow.com dipegang pihak lain; .app dan .id bebas. Landing page bisa berada di roziqrizal.com, jadi domain sendiri belum tentu perlu.
 - **Haul saat harta turun di bawah nisab di tengah tahun:** terputus lalu mulai dari nol (bawaan sementara), atau hanya diperiksa di awal dan akhir haul (pendapat lain). Keduanya sudah ada sebagai `HaulBreakPolicy`; menunggu verifikasi kitab oleh pemilik.
-- **Harga final** Pro dan Sync, berdasarkan uji minat.
+- **Harga final Pro**, berdasarkan uji minat. Harga awal Sync sudah disetujui 2026-09-24 ([monetisasi.md](monetisasi.md)).
 - **Pengingat malam:** jam bawaan dan kapan izin notifikasi Android 13+ diminta. Usulan: pukul 21.00, dan izin diminta setelah transaksi pertama disimpan, bukan di awal onboarding.
 - **Aplikasi bank dan e-wallet yang didukung lebih dulu** untuk tangkap otomatis. Usulan: yang paling sering dipakai, dilihat dari Transaksi Harian di Ruang Finansial.

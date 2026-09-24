@@ -20,7 +20,7 @@ Dokumen ini mencatat model bisnis yang sudah disepakati (2026-09-19). Angka harg
 |---|---|---|
 | **Gratis** | Tiga ruang inti (Memberi, Diri, Keluarga) plus beberapa ruang peran; transaksi tak terbatas; aturan alokasi persentase dasar; dashboard Denah; nisab dan haul untuk satu profil harta (harga emas input manual); mode donasi persentase; PIN/biometrik; ekspor CSV; backup lokal terenkripsi | Rp 0 |
 | **Pro** (sekali bayar) | Ruang peran tak terbatas dengan sistem khusus per peran (Trader: batas risiko per trade, Investor: jadwal DCA); aturan alokasi lanjutan (prioritas, batas atas, sisa mengalir ke ruang lain); multi-profil haul dengan pengingat; harga emas otomatis; laporan dan insight bulanan/tahunan (PDF); multi-mata uang; widget dan tema; tangkap otomatis dari notifikasi (v1.1) | Rp 99–149 ribu |
-| **Sync** (langganan, fase 2) | Backup dan sinkron antar-perangkat terenkripsi; ruang keluarga bersama (suami-istri) | Rp 15–25 ribu per bulan atau Rp 149 ribu per tahun |
+| **Sync** (langganan, sejak rilis 1) | Backup dan sinkron antar-perangkat terenkripsi; ruang keluarga bersama (suami-istri) | **Rp 19.000 per bulan atau Rp 149.000 per tahun**, satu langganan untuk keluarga sampai 5 anggota, trial 7 hari (disetujui pemilik 2026-09-24 sebagai harga awal) |
 
 Yang **sengaja tidak** dipaywall:
 
@@ -57,7 +57,8 @@ Aplikasi niche seperti ini kemungkinan menghasilkan uang kecil. Anggap monetisas
 - [x] **Batas ruang gratis: 5 ruang** total (3 inti + 2 peran), disetujui pemilik 2026-09-21.
 - [x] **Akun (tunai, bank, e-wallet) tidak dibatasi** (diputuskan pemilik 2026-09-24, menggantikan batas 3 akun dari 2026-09-21). Alasan: riset pasar menyebut multi-dompet yang dikunci premium adalah keluhan khas pengguna Indonesia, dan pengguna rata-rata memegang 2–4 e-wallet ([research.md](research-market/research.md)). Yang dijual Pro tetap ruang, aturan, dan profil, bukan dompet. Kategori juga tidak dibatasi. Kalau nanti ada batas jumlah anggota keluarga, itu bagian Sync (ruang keluarga bersama), bukan akun keuangan.
 - [x] **Widget catat kilat**: masuk Pro (2026-09-20). Pintasan ikon, tile Quick Settings, dan balasan notifikasi tetap gratis karena mencatat dengan cepat adalah janji utama (lihat "Disiplin mencatat" di [konsep.md](konsep.md)).
-- [ ] **Harga final Pro dan Sync**, sebaiknya berdasarkan uji minat (landing page atau daftar tunggu) sebelum banyak kode ditulis.
+- [x] **Harga awal Sync** (2026-09-24, disetujui pemilik): Rp 19.000 per bulan atau Rp 149.000 per tahun (diskon sekitar 35% untuk tahunan), **satu langganan per keluarga sampai 5 anggota, bukan per orang** karena nilai jualnya ruang keluarga; trial 7 hari lewat Play Billing. Cadangan lokal terenkripsi dan ekspor data tetap gratis; yang berbayar hanya sync antar-perangkat dan ruang keluarga. **Langganan Sync tidak otomatis memberi fitur Pro**, supaya Pro sekali bayar tetap masuk akal. Harga disimpan di Play Console, bukan di kode. Dasar hitung: Play memotong sekitar 15% untuk langganan (cek ulang di Play Console), jadi Rp 149.000 per tahun menyisakan sekitar Rp 127.000; biaya per pengguna hampir nol karena yang disimpan hanya blob kecil.
+- [ ] **Harga final Pro** (placeholder Rp 129.000) dan konfirmasi harga Sync, sebaiknya berdasarkan uji minat (landing page atau daftar tunggu). Harga Pro dan Sync tahunan berdekatan, jadi perlu diuji bersama.
 - [x] **Platform**: Android saja (2026-09-19), jadi pembelian lewat Google Play Billing: produk in-app sekali beli untuk Pro, langganan untuk Sync di fase 2.
 - [ ] **Kewajiban di luar kode**: akun developer, profil pembayaran, dan pajak atas pendapatan aplikasi (lihat [roadmap.md](roadmap.md), Tahap 8).
 

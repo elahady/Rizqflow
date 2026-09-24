@@ -28,7 +28,7 @@ T9 --> T8["8 Rilis dan portofolio"]
 - Arah visual: **opsi A**, pakai ulang identitas homepage roziqrizal.com (2026-09-19).
 - Detail stack **disetujui 2026-09-20**: tiga modul Gradle (`:domain`, `:data`, `:app`), min SDK 26, DI manual, backup AES-GCM, tanpa SQLCipher untuk v1 (lihat [konsep.md](konsep.md)).
 - Tahap 1 (desain) dan Tahap 2 (inti domain) bisa berjalan paralel setelah Tahap 0 selesai.
-- **Server ikut rilis pertama** (diputuskan pemilik 2026-09-24): Tahap 9 tidak lagi opsional dan dikerjakan sebelum Tahap 8. Cakupan rilis 1: akun server, langganan Sync sejak rilis, sync terenkripsi antar-perangkat, ruang keluarga bersama, peran anggota, dan notifikasi anggota mencatat. Bot WhatsApp dan input AI berbasis LLM tetap sesudah rilis. Server di VPS milik pemilik.
+- **Server ikut rilis pertama** (diputuskan pemilik 2026-09-24): Tahap 9 tidak lagi opsional dan dikerjakan sebelum Tahap 8. Cakupan rilis 1: akun server, langganan Sync sejak rilis, sync terenkripsi antar-perangkat, ruang keluarga bersama, peran anggota, dan notifikasi anggota mencatat. Bot WhatsApp dan input AI berbasis LLM tetap sesudah rilis. Server di VPS milik pemilik (VPS Al-Kaukaba dulu, lihat [server-sync.md](server-sync.md)). Tahap 12 (infrastruktur server, dijalankan pemilik) dan Tahap 13 (enkripsi dan kunci) ditambahkan 2026-09-24 dan mendahului Tahap 9.
 - Tahap 10 (fitur wajib dari riset pasar) dan Tahap 11 (input cerdas on-device) ditambahkan 2026-09-23. Keduanya tidak bergantung pada Tahap 8; urutan terhadap rilis ditentukan pemilik (usulan: butir High Tahap 10 sebelum rilis, sisanya sesudah).
 
 ## Tahap 0 — Fondasi dan keputusan (In Progress)
@@ -172,10 +172,10 @@ Pembeda utama produk.
 
 Diputuskan pemilik 2026-09-24: server ikut rilis pertama, dengan cakupan penuh (ruang keluarga) dan Sync dijual sebagai langganan sejak rilis. Alasan: pemilik butuh angka pengguna, Pro, dan Sync, dan sync keluarga memang butuh server; lebih baik dibangun sekali daripada rilis dua kali dengan janji privasi yang berubah. Prinsip yang tetap: aplikasi tetap berfungsi penuh offline, dan server tidak boleh bisa membaca data keuangan (enkripsi ujung ke ujung).
 
-- [ ] Putuskan stack backend, hosting VPS, dan model keamanan server (High, keputusan pemilik; jangan dipilih sendiri)
-- [ ] Riset arsitektur sync terenkripsi end-to-end dan biaya: model kunci, cara anggota keluarga menerima kunci, pemulihan bila sandi lupa, model konflik data (High)
+- [x] Putuskan stack backend, hosting VPS, dan model keamanan server (2026-09-24): Laravel di VPS Al-Kaukaba yang sudah ada, dengan pemisahan aplikasi, database, PHP-FPM, dan Nginx; pelaksanaannya di Tahap 12 ([server-sync.md](server-sync.md))
+- [ ] Riset arsitektur sync terenkripsi end-to-end: model kunci sudah diputuskan (2026-09-24, dikerjakan di Tahap 13); sisa: model konflik data dan aturan akun lintas ruang (High)
 - [ ] Akun server: verifikasi ID token Google, hapus akun dari dalam aplikasi dan lewat web (syarat Play bila ada pembuatan akun) (High)
-- [ ] Langganan Sync dan backend minimal: backup dan sinkron antar-perangkat terenkripsi (High)
+- [ ] Langganan Sync dan backend minimal: backup dan sinkron antar-perangkat terenkripsi (High). Harga awal disetujui 2026-09-24: Rp 19.000 per bulan atau Rp 149.000 per tahun, satu langganan untuk keluarga sampai 5 anggota, trial 7 hari ([monetisasi.md](monetisasi.md))
 - [ ] Catat dan verifikasi pembelian Pro dan langganan Sync di server (Play Developer API, notifikasi waktu nyata) (High)
 - [ ] Ruang keluarga bersama (High)
 - [ ] Peran anggota keluarga (pengelola, pemberi jatah, anggota pencatat, anak) dan amplop uang bulanan (Medium)
@@ -213,6 +213,34 @@ Mengurangi friksi input tanpa server, sesuai temuan riset bahwa input manual ada
 - [ ] OCR screenshot mutasi e-wallet dan bank serta e-statement PDF (Pro, Medium)
 
 **Selesai bila:** hasil parse, suara, dan OCR selalu lewat layar konfirmasi sebelum tersimpan; tidak ada data keuangan keluar dari perangkat; akurasi OCR diukur pada sekitar 30 contoh nyata dan dicatat.
+
+## Tahap 12 — Infrastruktur server dan deploy (Backlog, dijalankan pemilik)
+
+Ditambahkan 2026-09-24 sebagai pelaksanaan keputusan "mulai di VPS Al-Kaukaba, mudah pindah ke VPS khusus" ([server-sync.md](server-sync.md)). Sebagian besar butir dijalankan **pemilik sendiri di VPS**, terpisah dari pekerjaan kode, dan mendahului atau berjalan bersama Tahap 9. Claude tidak menyentuh VPS produksi tanpa izin eksplisit.
+
+- [ ] Cek spesifikasi VPS (`free -m`, `df -h`, swap) dan putuskan apakah muat untuk aplikasi ketiga (High, pemilik)
+- [ ] Subdomain API Rizqflow: DNS dan SSL Certbot (High, pemilik)
+- [ ] Aplikasi Laravel Rizqflow terpisah dengan database dan pengguna MySQL sendiri, pool PHP-FPM dan pengguna sistem sendiri, dan `.env` sendiri (High, pemilik)
+- [ ] Konfigurasi Nginx dan skrip deploy disimpan di repo, bukan hanya di `/etc/nginx/` (High)
+- [ ] Backup database Rizqflow terjadwal dan uji restore (High, pemilik)
+- [ ] Token API yang kedaluwarsa dan bisa dicabut, tidak meniru token permanen Al-Kaukaba (High)
+- [ ] Alamat API di aplikasi bisa dikonfigurasi supaya pindah ke VPS khusus mudah (Medium)
+
+**Selesai bila:** API Rizqflow terjangkau lewat subdomain dengan SSL, terisolasi dari aplikasi lain di VPS, bisa dideploy ulang lewat skrip di repo, dan backup-nya terbukti bisa dipulihkan.
+
+## Tahap 13 — Enkripsi ujung ke ujung dan kunci (Backlog)
+
+Ditambahkan 2026-09-24; rancangannya disetujui pemilik dan tertulis di [server-sync.md](server-sync.md). Dijalankan nanti, sebelum Tahap 9 membangun sync sungguhan.
+
+- [ ] Kunci akun acak di perangkat, disimpan di Android Keystore, memakai Google Tink (High)
+- [ ] Kode pemulihan wajib saat Sync diaktifkan (24 kata, ditampilkan sekali); salinan kunci akun terbungkus kode itu di server (High)
+- [ ] Kunci terpisah per ruang keluarga yang dibagi, supaya ruang pribadi tidak ikut terbuka (High)
+- [ ] Undang pasangan lewat pemindaian QR bertemu langsung (High)
+- [ ] Keluarkan anggota: ganti kunci ruang untuk data berikutnya dan jelaskan ke pengguna bahwa data lama tetap terbaca (Medium)
+- [ ] Notifikasi push generik tanpa nominal; isi diambil dan didekripsi di aplikasi (Medium)
+- [ ] Putuskan aturan tampilan akun lintas ruang di ruang keluarga (High, keputusan pemilik)
+
+**Selesai bila:** server terbukti tidak menyimpan kunci atau data terbaca; kunci bisa dipulihkan dengan kode pemulihan di perangkat baru; ruang pribadi tidak pernah terbuka bagi anggota keluarga; pengeluaran anggota dari ruang bersama muncul tanpa membocorkan nominal lewat notifikasi.
 
 ## Versi 1.1 setelah rilis: tangkap otomatis (Pro)
 

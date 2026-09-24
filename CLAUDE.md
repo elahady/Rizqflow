@@ -10,6 +10,7 @@ Aplikasi finansial berbasis "hak": rezeki yang masuk dialirkan ke ruang-ruang (M
 - [docs/ui-flow.md](docs/ui-flow.md) — layar S01–S28 dan flow F1–F9
 - [docs/wireframe.md](docs/wireframe.md) — wireframe teks seluruh layar (butir "Usulan" belum diputuskan)
 - [docs/auth-google.md](docs/auth-google.md) — masuk dengan Google dan Gmail: yang sudah ada, penyiapan Google Cloud, risiko
+- [docs/server-sync.md](docs/server-sync.md) — server di VPS Al-Kaukaba, model kunci enkripsi ujung ke ujung, dan yang belum diputuskan
 - [docs/design/README.md](docs/design/README.md) — design tokens (`tokens.css`) dan prototipe klik; sumber tunggal warna, font, dan jarak
 
 ## Prinsip yang tidak boleh dilanggar
@@ -41,7 +42,7 @@ Aplikasi finansial berbasis "hak": rezeki yang masuk dialirkan ke ruang-ruang (M
 - Platform: **Android saja**, dirilis di Google Play Store. Stack: **Kotlin + Jetpack Compose + Room** (diputuskan 2026-09-19). Web tidak dibuat.
 - Arah visual: **opsi A**, pakai ulang identitas homepage roziqrizal.com (diputuskan 2026-09-19); warna dan font disimpan sebagai design tokens, angka besar selalu Manrope.
 - Detail stack **disetujui 2026-09-20** (`docs/konsep.md`): modul `:domain`/`:data`/`:app`, min SDK 26, DI manual, backup AES-GCM, tanpa SQLCipher untuk v1. Masih terbuka: kalender Hijriyah untuk haul dan verifikasi asumsi fikih dengan kitab (dikaji lebih jauh nanti). Jangan memutuskan sendiri; tanyakan dulu.
-- **Keputusan 2026-09-24:** akun keuangan (tunai, bank, e-wallet) tidak dibatasi, batas ruang gratis tetap 5. Server di VPS milik pemilik ikut rilis pertama dengan cakupan penuh (sync, ruang keluarga, notifikasi) dan Sync dijual sebagai langganan sejak rilis. Bot WhatsApp dan input AI LLM sesudah rilis. **Masih terbuka (jangan dipilih sendiri):** stack backend, hosting VPS, model kunci enkripsi ujung ke ujung dan pemulihannya, model konflik sync, dan apakah Firebase Analytics dipakai. Rincian di Tahap 9 [docs/roadmap.md](docs/roadmap.md).
+- **Keputusan 2026-09-24:** akun keuangan (tunai, bank, e-wallet) tidak dibatasi, batas ruang gratis tetap 5. Server di VPS milik pemilik ikut rilis pertama dengan cakupan penuh (sync, ruang keluarga, notifikasi) dan Sync dijual sebagai langganan sejak rilis. Bot WhatsApp dan input AI LLM sesudah rilis. **Sudah diputuskan 2026-09-24:** backend Laravel di VPS Al-Kaukaba yang sudah ada (aplikasi, database, PHP-FPM, dan Nginx terpisah; konfigurasi dan skrip deploy di repo; alamat API bisa dikonfigurasi di aplikasi); model kunci ujung ke ujung (Tink, kode pemulihan wajib, kunci per ruang keluarga, undangan lewat QR); harga Sync Rp 19.000 per bulan atau Rp 149.000 per tahun untuk keluarga sampai 5 anggota, trial 7 hari, tidak termasuk Pro. Rincian di [docs/server-sync.md](docs/server-sync.md), Tahap 9, 12, dan 13 [docs/roadmap.md](docs/roadmap.md). **Masih terbuka (jangan dipilih sendiri):** model konflik sync, aturan akun lintas ruang di ruang keluarga, dan apakah Firebase Analytics dipakai. Claude tidak menyentuh VPS produksi tanpa izin eksplisit.
 
 ## Konvensi
 
