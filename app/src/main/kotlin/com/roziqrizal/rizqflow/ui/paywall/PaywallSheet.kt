@@ -39,7 +39,6 @@ private val DEFAULT_HIGHLIGHTS = listOf(Feature.UNLIMITED_ROOMS, Feature.ADVANCE
 private val Feature.benefitText: Int
     get() = when (this) {
         Feature.UNLIMITED_ROOMS -> R.string.pro_benefit_unlimited_rooms
-        Feature.UNLIMITED_ACCOUNTS -> R.string.pro_benefit_unlimited_accounts
         Feature.ADVANCED_ALLOCATION_RULES -> R.string.pro_benefit_advanced_rules
         Feature.ROLE_SYSTEMS -> R.string.pro_benefit_role_systems
         Feature.MULTI_ZAKAT_PROFILE -> R.string.pro_benefit_multi_zakat

@@ -1,7 +1,6 @@
 package com.roziqrizal.rizqflow.domain.ledger
 
 import com.roziqrizal.rizqflow.domain.auth.runSuspend
-import com.roziqrizal.rizqflow.domain.entitlement.PlanEntitlements
 import com.roziqrizal.rizqflow.domain.model.TransactionKind
 import java.time.LocalDate
 import java.time.YearMonth
@@ -13,8 +12,7 @@ class DemoDataTest {
 
     private fun seeded(today: LocalDate = LocalDate.of(2026, 9, 21)): LedgerFixture {
         val f = LedgerFixture()
-        val entitlements = PlanEntitlements()
-        val management = ManagementService(f.store, f.store, entitlements, f.newId)
+        val management = ManagementService(f.store, f.store, f.newId)
         val favorites = FavoriteService(f.store, f.store, f.store, f.ledger, f.newId) { f.now }
         runSuspend { DemoData(f.setup, f.ledger, management, favorites, f.store).seed(today) }
         return f

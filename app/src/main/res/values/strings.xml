@@ -272,7 +272,6 @@
     <string name="manage_tab_categories">Kategori</string>
     <string name="manage_tab_favorites">Favorit</string>
     <string name="manage_add_account">Tambah akun</string>
-    <string name="manage_account_limit">%1$d dari %2$d akun gratis</string>
     <string name="manage_archived">Diarsipkan (%1$d)</string>
     <string name="manage_new_account">Akun baru</string>
     <string name="manage_edit_account">Ubah akun</string>
@@ -300,7 +299,6 @@
     <string name="manage_err_taken">Nama itu sudah dipakai.</string>
     <string name="manage_err_name">Nama tidak boleh kosong atau terlalu panjang.</string>
     <string name="manage_err_amount">Nominal harus lebih dari nol.</string>
-    <string name="manage_err_account_limit">Batas akun paket gratis (3) tercapai. Akun tak terbatas ada di Rizqflow Pro.</string>
     <string name="manage_err_last_account">Harus ada satu akun aktif. Tambah akun lain dulu sebelum mengarsipkan ini.</string>
     <string name="manage_err_last_category">Ruang harus punya satu kategori aktif. Tambah kategori lain dulu.</string>
     <string name="manage_err_system">Kategori sistem tidak bisa diubah.</string>
@@ -430,7 +428,6 @@
     <string name="pro_footer">Fitur dasar dan zakat tetap gratis.</string>
     <string name="pro_purchase_unavailable">Pembelian Rizqflow Pro belum tersedia. Menyusul setelah aplikasi dirilis di Play Store.</string>
     <string name="pro_benefit_unlimited_rooms">Ruang peran tak terbatas dengan sistem per peran</string>
-    <string name="pro_benefit_unlimited_accounts">Akun tak terbatas</string>
     <string name="pro_benefit_advanced_rules">Aturan alokasi lanjutan: prioritas, batas atas, sisa mengalir ke ruang lain</string>
     <string name="pro_benefit_multi_zakat">Multi-profil zakat dengan pengingat</string>
     <string name="pro_benefit_gold_price">Harga emas otomatis</string>

@@ -270,7 +270,6 @@
     <string name="manage_tab_categories">Categories</string>
     <string name="manage_tab_favorites">Favorites</string>
     <string name="manage_add_account">Add account</string>
-    <string name="manage_account_limit">%1$d of %2$d free accounts</string>
     <string name="manage_archived">Archived (%1$d)</string>
     <string name="manage_new_account">New account</string>
     <string name="manage_edit_account">Edit account</string>
@@ -298,7 +297,6 @@
     <string name="manage_err_taken">That name is already used.</string>
     <string name="manage_err_name">Name can\'t be empty or too long.</string>
     <string name="manage_err_amount">Amount must be greater than zero.</string>
-    <string name="manage_err_account_limit">Free plan account limit (3) reached. Unlimited accounts are in Rizqflow Pro.</string>
     <string name="manage_err_last_account">There must be at least one active account. Add another account before archiving this one.</string>
     <string name="manage_err_last_category">A room must have at least one active category. Add another category first.</string>
     <string name="manage_err_system">System categories can\'t be changed.</string>
@@ -428,7 +426,6 @@
     <string name="pro_footer">Core features and zakat stay free.</string>
     <string name="pro_purchase_unavailable">Rizqflow Pro isn\'t available for purchase yet. Coming after the app launches on Play Store.</string>
     <string name="pro_benefit_unlimited_rooms">Unlimited role rooms with per-role systems</string>
-    <string name="pro_benefit_unlimited_accounts">Unlimited accounts</string>
     <string name="pro_benefit_advanced_rules">Advanced allocation rules: priority, caps, overflow to other rooms</string>
     <string name="pro_benefit_multi_zakat">Multiple zakat profiles with reminders</string>
     <string name="pro_benefit_gold_price">Automatic gold price</string>

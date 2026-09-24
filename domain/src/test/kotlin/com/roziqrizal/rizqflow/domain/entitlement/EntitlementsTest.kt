@@ -58,23 +58,6 @@ class EntitlementsTest {
     }
 
     @Test
-    fun `pengguna gratis dibatasi tiga akun dan Pro tidak dibatasi`() {
-        val gratis = PlanEntitlements()
-
-        assertEquals(3, gratis.accountLimit)
-        assertTrue(gratis.canAddAccount(currentAccountCount = 2))
-        assertFalse(gratis.canAddAccount(currentAccountCount = 3))
-        assertNull(PlanEntitlements(setOf(Plan.PRO)).accountLimit)
-        assertTrue(PlanEntitlements(setOf(Plan.PRO)).canAddAccount(currentAccountCount = 50))
-    }
-
-    @Test
-    fun `batas akun gratis bisa diatur dan paket Sync tidak membukanya`() {
-        assertEquals(1, PlanEntitlements(freeAccountLimit = 1).accountLimit)
-        assertEquals(3, PlanEntitlements(setOf(Plan.SYNC)).accountLimit)
-    }
-
-    @Test
     fun `LivePlanEntitlements membaca ulang paket tiap dipanggil, bukan potret sekali dibuat`() {
         var owned = emptySet<Plan>()
         val live = LivePlanEntitlements { owned }

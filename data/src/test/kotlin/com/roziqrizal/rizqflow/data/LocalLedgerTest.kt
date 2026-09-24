@@ -742,7 +742,7 @@ class LocalLedgerTest {
     @Test
     fun `kelola kategori di Room menyimpan tambah ubah nama dan arsip`() {
         standard()
-        val management = ManagementService(local.accounts, local.rooms, PlanEntitlements(), newId)
+        val management = ManagementService(local.accounts, local.rooms, newId)
         val keluarga = room("Keluarga").id
 
         val baru = runBlocking { (management.addCategory(keluarga, "Transportasi") as LedgerResult.Success).value }
@@ -757,19 +757,19 @@ class LocalLedgerTest {
     }
 
     @Test
-    fun `kelola akun di Room menghitung saldo dan membatasi tiga akun aktif`() {
+    fun `kelola akun di Room menghitung saldo dan menerima lebih dari tiga akun aktif`() {
         standard()
         income(1_000_000)
-        val management = ManagementService(local.accounts, local.rooms, PlanEntitlements(), newId)
+        val management = ManagementService(local.accounts, local.rooms, newId)
         runBlocking { management.addAccount(NewAccount("Bank", AccountKind.BANK, rupiah(250_000))) }
         runBlocking { management.addAccount(NewAccount("GoPay", AccountKind.EWALLET, rupiah(0))) }
 
         val hasil = runBlocking { management.addAccount(NewAccount("Cadangan", AccountKind.CASH, rupiah(0))) }
-        assertEquals(LedgerError.ACCOUNT_LIMIT_REACHED, (hasil as LedgerResult.Failure).error)
+        assertTrue(hasil is LedgerResult.Success)
 
         val overview = runBlocking { management.accountOverview() }
-        assertEquals(listOf("Dompet", "Bank", "GoPay"), overview.active.map { it.account.name })
-        assertEquals(listOf(1_500_000L, 250_000L, 0L), overview.active.map { it.balance.minor })
+        assertEquals(listOf("Dompet", "Bank", "GoPay", "Cadangan"), overview.active.map { it.account.name })
+        assertEquals(listOf(1_500_000L, 250_000L, 0L, 0L), overview.active.map { it.balance.minor })
 
         runBlocking { management.archiveAccount(overview.active[1].account.id) }
         assertEquals(listOf("Bank"), runBlocking { management.accountOverview() }.archived.map { it.account.name })

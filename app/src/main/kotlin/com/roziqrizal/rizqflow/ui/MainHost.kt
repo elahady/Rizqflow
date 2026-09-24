@@ -552,10 +552,7 @@ fun MainHost(
     } else if (kelola) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Box {
-                KelolaScreen(
-                    workspace = workspace, notifier = notifier, onClose = { kelola = false }, onChanged = { version++ },
-                    onOpenPaywall = { openPaywall(Feature.UNLIMITED_ACCOUNTS) },
-                )
+                KelolaScreen(workspace = workspace, notifier = notifier, onClose = { kelola = false }, onChanged = { version++ })
                 SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
             }
         }

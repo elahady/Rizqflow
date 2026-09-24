@@ -151,7 +151,7 @@ class FavoritesTest {
     fun `favorit yang tujuannya terarsip ditandai tidak bisa dipakai dan pemakaiannya ditolak`() {
         val f = LedgerFixture().standard()
         val id = create(f, "Kopi").value().id
-        runSuspend { ManagementService(f.store, f.store, com.roziqrizal.rizqflow.domain.entitlement.PlanEntitlements(), f.newId).archiveCategory(f.category("Keluarga", "Lain-lain").id) }
+        runSuspend { ManagementService(f.store, f.store, f.newId).archiveCategory(f.category("Keluarga", "Lain-lain").id) }
 
         val baris = runSuspend { service(f).list() }.single()
         assertFalse(baris.usable)

@@ -1,8 +1,6 @@
 package com.roziqrizal.rizqflow.domain.ledger
 
 import com.roziqrizal.rizqflow.domain.auth.runSuspend
-import com.roziqrizal.rizqflow.domain.entitlement.Plan
-import com.roziqrizal.rizqflow.domain.entitlement.PlanEntitlements
 import com.roziqrizal.rizqflow.domain.model.AccountKind
 import com.roziqrizal.rizqflow.domain.money.Money
 import kotlin.test.Test
@@ -16,8 +14,7 @@ class ManagementTest {
 
     private fun rupiah(n: Long) = Money.rupiah(n)
 
-    private fun service(f: LedgerFixture, plans: Set<Plan> = emptySet()) =
-        ManagementService(f.store, f.store, PlanEntitlements(plans), f.newId)
+    private fun service(f: LedgerFixture) = ManagementService(f.store, f.store, f.newId)
 
     private fun <T> LedgerResult<T>.error(): LedgerError = (this as LedgerResult.Failure).error
 
@@ -26,7 +23,7 @@ class ManagementTest {
     // ------------------------------------------------------------------ akun
 
     @Test
-    fun `daftar akun memuat saldo menurut catatan dan batas paket`() {
+    fun `daftar akun memuat saldo menurut catatan`() {
         val f = LedgerFixture().standard()
         f.income(1_000_000)
 
@@ -34,8 +31,6 @@ class ManagementTest {
 
         assertEquals(listOf("Dompet"), overview.active.map { it.account.name })
         assertEquals(rupiah(1_500_000), overview.active.single().balance)
-        assertEquals(3, overview.accountLimit)
-        assertTrue(overview.canAdd)
     }
 
     @Test
@@ -52,27 +47,28 @@ class ManagementTest {
     }
 
     @Test
-    fun `akun keempat ditolak untuk paket gratis dan diterima untuk Pro`() {
+    fun `jumlah akun tidak dibatasi untuk paket apa pun`() {
         val f = LedgerFixture().standard()
         val s = service(f)
-        assertIs<LedgerResult.Success<*>>(runSuspend { s.addAccount(newAccount("Bank")) })
-        assertIs<LedgerResult.Success<*>>(runSuspend { s.addAccount(newAccount("GoPay", kind = AccountKind.EWALLET)) })
 
-        assertEquals(LedgerError.ACCOUNT_LIMIT_REACHED, runSuspend { s.addAccount(newAccount("Cadangan")) }.error())
-        assertIs<LedgerResult.Success<*>>(runSuspend { service(f, setOf(Plan.PRO)).addAccount(newAccount("Cadangan")) })
+        repeat(10) { i ->
+            assertIs<LedgerResult.Success<*>>(runSuspend { s.addAccount(newAccount("Akun $i")) })
+        }
+
+        assertEquals(11, runSuspend { s.accountOverview() }.active.size)
     }
 
     @Test
-    fun `akun terarsip tidak menghabiskan batas tetapi memulihkannya diperiksa`() {
+    fun `akun terarsip bisa dipulihkan tanpa batas`() {
         val f = LedgerFixture().standard()
         val s = service(f)
         val bank = (runSuspend { s.addAccount(newAccount("Bank")) } as LedgerResult.Success).value
-        runSuspend { s.addAccount(newAccount("GoPay")) }
         runSuspend { s.archiveAccount(bank) }
-        val baru = runSuspend { s.addAccount(newAccount("Cadangan")) }
-        assertIs<LedgerResult.Success<*>>(baru)
+        runSuspend { s.addAccount(newAccount("GoPay")) }
+        runSuspend { s.addAccount(newAccount("Cadangan")) }
 
-        assertEquals(LedgerError.ACCOUNT_LIMIT_REACHED, runSuspend { s.restoreAccount(bank) }.error())
+        assertIs<LedgerResult.Success<*>>(runSuspend { s.restoreAccount(bank) })
+        assertEquals(4, runSuspend { s.accountOverview() }.active.size)
     }
 
     @Test

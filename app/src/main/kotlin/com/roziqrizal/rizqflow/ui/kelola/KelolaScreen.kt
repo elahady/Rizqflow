@@ -77,11 +77,10 @@ import kotlinx.coroutines.launch
 /**
  * S13 Kelola akun, kategori, dan favorit. Tiga tab; akun dan kategori hanya diarsipkan, tidak dihapus,
  * karena riwayat transaksi tetap memakai namanya. Perubahan diteruskan lewat [onChanged] supaya layar
- * lain (Denah, Transaksi, Catat) memuat ulang. Batas gratis 3 akun: tercapai membuka paywall Pro (S21)
- * lewat [onOpenPaywall].
+ * lain (Denah, Transaksi, Catat) memuat ulang. Jumlah akun tidak dibatasi.
  */
 @Composable
-fun KelolaScreen(workspace: AccountWorkspace, notifier: Notifier, onClose: () -> Unit, onChanged: () -> Unit, onOpenPaywall: () -> Unit = {}) {
+fun KelolaScreen(workspace: AccountWorkspace, notifier: Notifier, onClose: () -> Unit, onChanged: () -> Unit) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var version by remember { mutableIntStateOf(0) }
     val spacing = MaterialTheme.spacing
@@ -104,7 +103,7 @@ fun KelolaScreen(workspace: AccountWorkspace, notifier: Notifier, onClose: () ->
             }
         }
         when (tab) {
-            0 -> AccountsTab(workspace, notifier, version, ::changed, onOpenPaywall)
+            0 -> AccountsTab(workspace, notifier, version, ::changed)
             1 -> CategoriesTab(workspace, notifier, version, ::changed)
             else -> FavoritesTab(workspace, notifier, version, ::changed)
         }
@@ -116,7 +115,6 @@ internal fun manageErrorText(context: Context, error: LedgerError): String = con
         LedgerError.NAME_TAKEN -> R.string.manage_err_taken
         LedgerError.INVALID_NAME -> R.string.manage_err_name
         LedgerError.AMOUNT_NOT_POSITIVE -> R.string.manage_err_amount
-        LedgerError.ACCOUNT_LIMIT_REACHED -> R.string.manage_err_account_limit
         LedgerError.LAST_ACCOUNT -> R.string.manage_err_last_account
         LedgerError.LAST_CATEGORY -> R.string.manage_err_last_category
         LedgerError.CATEGORY_IS_SYSTEM -> R.string.manage_err_system
@@ -177,7 +175,7 @@ private sealed interface AccountSheet {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AccountsTab(workspace: AccountWorkspace, notifier: Notifier, version: Int, changed: () -> Unit, onOpenPaywall: () -> Unit) {
+private fun AccountsTab(workspace: AccountWorkspace, notifier: Notifier, version: Int, changed: () -> Unit) {
     var overview by remember { mutableStateOf<AccountOverview?>(null) }
     var sheet by remember { mutableStateOf<AccountSheet?>(null) }
     var showArchived by rememberSaveable { mutableStateOf(false) }
@@ -194,21 +192,11 @@ private fun AccountsTab(workspace: AccountWorkspace, notifier: Notifier, version
             HorizontalDivider()
         }
         Button(
-            onClick = {
-                if (data.canAdd) sheet = AccountSheet.New else onOpenPaywall()
-            },
+            onClick = { sheet = AccountSheet.New },
             modifier = Modifier.padding(top = spacing.s4).fillMaxWidth().height(52.dp),
         ) {
             Icon(RizqflowIcons.Tambah, contentDescription = null, modifier = Modifier.size(20.dp))
             Text(stringResource(R.string.manage_add_account), modifier = Modifier.padding(start = spacing.s2))
-        }
-        data.accountLimit?.let {
-            Text(
-                stringResource(R.string.manage_account_limit, data.active.size, it),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = spacing.s2).align(Alignment.CenterHorizontally),
-            )
         }
 
         if (data.archived.isNotEmpty()) {

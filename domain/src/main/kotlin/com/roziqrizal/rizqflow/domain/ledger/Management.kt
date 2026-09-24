@@ -1,6 +1,5 @@
 package com.roziqrizal.rizqflow.domain.ledger
 
-import com.roziqrizal.rizqflow.domain.entitlement.Entitlements
 import com.roziqrizal.rizqflow.domain.model.AccountId
 import com.roziqrizal.rizqflow.domain.model.AccountKind
 import com.roziqrizal.rizqflow.domain.model.CategoryId
@@ -19,24 +18,20 @@ data class NewAccount(val name: String, val kind: AccountKind, val openingBalanc
 
 data class AccountRow(val account: Account, val balance: Money)
 
-/** Daftar akun S13. [accountLimit]: batas akun aktif paket ini; null bila tak terbatas. */
-data class AccountOverview(val active: List<AccountRow>, val archived: List<AccountRow>, val accountLimit: Int?) {
-    val canAdd: Boolean get() = accountLimit == null || active.size < accountLimit
-}
+/** Daftar akun S13. Jumlah akun tidak dibatasi. */
+data class AccountOverview(val active: List<AccountRow>, val archived: List<AccountRow>)
 
 /** Kategori satu ruang aktif untuk S13; [categories] yang aktif, [archived] yang disembunyikan. */
 data class RoomCategories(val room: Room, val categories: List<Category>, val archived: List<Category>)
 
 /**
  * Kelola akun dan kategori (S13). Akun dan kategori tidak pernah dihapus, hanya diarsipkan,
- * karena riwayat transaksi tetap memakai namanya. Batas gratis akun (3) lewat [Entitlements];
- * kategori tidak dibatasi. Kategori sistem `Zakat mal` dan `Tak terlacak` tidak bisa diubah atau
+ * karena riwayat transaksi tetap memakai namanya. Akun dan kategori tidak dibatasi. Kategori sistem `Zakat mal` dan `Tak terlacak` tidak bisa diubah atau
  * diarsipkan, dan namanya tidak boleh dipakai kategori lain.
  */
 class ManagementService(
     private val accounts: AccountRepository,
     private val rooms: RoomRepository,
-    private val entitlements: Entitlements,
     private val newId: () -> String,
 ) {
     // ------------------------------------------------------------------ akun
@@ -47,7 +42,6 @@ class ManagementService(
         return AccountOverview(
             active = all.filter { !it.archived }.map { row(it) },
             archived = all.filter { it.archived }.map { row(it) },
-            accountLimit = entitlements.accountLimit,
         )
     }
 
@@ -57,7 +51,6 @@ class ManagementService(
         if (command.openingBalance.isNegative) return failure(LedgerError.AMOUNT_NOT_POSITIVE)
         val all = accounts.allAccounts()
         if (all.any { it.name.equals(name, ignoreCase = true) }) return failure(LedgerError.NAME_TAKEN)
-        if (!entitlements.canAddAccount(all.count { !it.archived })) return failure(LedgerError.ACCOUNT_LIMIT_REACHED)
 
         val account = Account(
             id = AccountId(newId()),
@@ -91,7 +84,6 @@ class ManagementService(
     suspend fun restoreAccount(id: AccountId): LedgerResult<Unit> {
         val account = accounts.find(id) ?: return failure(LedgerError.ACCOUNT_NOT_FOUND)
         if (!account.archived) return LedgerResult.Success(Unit)
-        if (!entitlements.canAddAccount(accounts.activeAccounts().size)) return failure(LedgerError.ACCOUNT_LIMIT_REACHED)
         accounts.save(account.copy(archived = false))
         return LedgerResult.Success(Unit)
     }

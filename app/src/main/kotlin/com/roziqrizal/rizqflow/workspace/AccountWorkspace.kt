@@ -42,7 +42,7 @@ class AccountWorkspace private constructor(private val local: LocalLedger, val p
     // supaya perubahan paket langsung berlaku tanpa membuka ulang ruang kerja ini.
     private val entitlements: Entitlements = LivePlanEntitlements { purchases.plans.value }
     val rules = RuleService(local.rooms, entitlements, newId)
-    val management = ManagementService(local.accounts, local.rooms, entitlements, newId)
+    val management = ManagementService(local.accounts, local.rooms, newId)
     val favorites = FavoriteService(local.favorites, local.accounts, local.rooms, ledger, newId, System::currentTimeMillis)
     val zakat = ZakatService(local.rooms, local.transactions, local.zakat, ledger, newId, entitlements = entitlements)
     val reconciliation = ReconciliationService(local.accounts, local.rooms, local.transactions, ledger)
