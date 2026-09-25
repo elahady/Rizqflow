@@ -186,7 +186,7 @@ Sesudah rilis (tidak masuk rilis 1): bot WhatsApp resmi tersinkron ke aplikasi (
 
 **Konsekuensi yang harus diikuti tahap lain:** Tahap 8 (Data safety dan kebijakan privasi menyebut server, UU PDP, dan Google Play mewajibkan hapus akun bila ada pembuatan akun); Tahap 7 (Google Play Billing untuk langganan Sync selain produk Pro); skema Room perlu dirancang ulang untuk sync (penanda waktu ubah, penanda hapus, pengenal perangkat) dan itu menyentuh hampir semua tabel; `auth-google.md` dan teks "Datamu tetap di ponselmu" di halaman masuk.
 
-## Tahap 10 — Celah riset: fitur wajib (Backlog)
+## Tahap 10 — Celah riset: fitur wajib (In Progress)
 
 Menutup kesenjangan fitur wajib dari [riset pasar](research-market/research.md) (kecocokan sekitar 47% sebelum tahap ini, target sekitar 65–70%). Semua tanpa server. Ditambahkan 2026-09-23; disarankan selesai sebelum Tahap 8, atau minimal butir prioritas High.
 
@@ -202,12 +202,12 @@ Menutup kesenjangan fitur wajib dari [riset pasar](research-market/research.md) 
 
 **Selesai bila:** transaksi berulang tidak menggandakan transaksi saat aplikasi lama tidak dibuka; utang-piutang bisa dicatat, dilunasi, dan piutang lancar mengalir ke harta zakat; sisa aman hari ini benar untuk bulan kosong dan jatah terlampaui; penguncian tetap lewat lapisan entitlement.
 
-## Tahap 11 — Input cerdas on-device (Backlog)
+## Tahap 11 — Input cerdas on-device (In Progress)
 
 Mengurangi friksi input tanpa server, sesuai temuan riset bahwa input manual adalah penyebab utama berhenti. Ditambahkan 2026-09-23. Tangkap otomatis dari notifikasi tetap di v1.1 di bawah.
 
-- [ ] Parser bahasa natural Indonesia ("gojek 23rb dari gopay") di `:domain` dengan golden test (High; tier Gratis adalah usulan)
-- [ ] Layar konfirmasi hasil input cerdas, memakai ulang pola Draf S27 (High)
+- [x] Parser bahasa natural Indonesia ("gojek 23rb dari gopay") di `:domain` dengan golden test (High; tier Gratis adalah usulan) (2026-09-24): `SmartInputParser` berbasis aturan tanpa jaringan, hasilnya hanya mengisi draf; 54 golden test
+- [x] Layar konfirmasi hasil input cerdas, memakai ulang pola Draf S27 (High) (2026-09-24): sheet satu baris dengan pratinjau langsung dari ikon Catat cerdas di layar Catat, mengisi ulang draf yang sama sehingga semua kolom bisa diubah sebelum Simpan; teruji di emulator
 - [ ] Input suara lewat `SpeechRecognizer` (Pro, Medium)
 - [ ] OCR struk on-device dengan ML Kit (Pro, Medium)
 - [ ] OCR screenshot mutasi e-wallet dan bank serta e-statement PDF (Pro, Medium)
