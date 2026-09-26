@@ -49,6 +49,8 @@ Batas yang perlu dipahami:
 
 Proyek Google Cloud **rizqflow** (`rizqflow-509308`) sudah dibuat. Klien Web (`232915442214-5fusjgtntn65tdg34km2ppra9ee6k1ka`) sudah ditempel ke `google_auth.xml`; klien Android (`232915442214-rn110tas126b9e7m5c6s7pq3lb1ojml0`, package `com.roziqrizal.rizqflow`, SHA-1 debug PC ini) terdaftar dan tidak dipakai di kode. **Masuk dengan Google sudah diuji berhasil di emulator** (pilih akun, lalu langsung ke menu utama; Lainnya menampilkan nama dan email, dan riwayat masuk tersimpan tanpa token). Gmail (Data Access dan Gmail API) belum disiapkan dan belum diuji.
 
+**Catatan 2026-09-26:** kunci debug di PC ini sekarang ber-SHA-1 `F2:C2:22:E0:...:4F:3F:7B`, berbeda dari SHA-1 `8A:63:D7:...` yang didaftarkan 2026-09-21 (kunci debug lama). APK debug yang dibangun sekarang ditandatangani kunci baru itu, jadi klien Android di Google Cloud perlu ditambah untuk SHA-1 baru (satu klien Android hanya menampung satu SHA-1, jadi buat klien Android kedua dengan package yang sama). Google Play Console tidak dibutuhkan untuk masuk dengan Google di build debug; itu baru relevan untuk SHA-1 kunci rilis.
+
 ## Yang harus Anda siapkan di Google Cloud
 
 Tombol Google menampilkan "belum disiapkan" sampai ini selesai. Saya tidak bisa membuatnya untuk Anda: klien OAuth Web dan Android hanya bisa dibuat lewat console dengan akun Google Anda (tidak ada perintah gcloud atau API untuk itu). Yang sudah saya siapkan: kodenya, nilai yang perlu Anda salin (di bawah), pemeriksa bentuk ID, dan catatan kegagalan di Logcat.
@@ -58,7 +60,7 @@ Tombol Google menampilkan "belum disiapkan" sampai ini selesai. Saya tidak bisa 
 | Isian | Nilai |
 |---|---|
 | Package name | `com.roziqrizal.rizqflow` |
-| SHA-1 debug (PC ini) | `8A:63:D7:61:0E:42:F4:71:45:01:87:22:F0:42:A9:5A:6C:22:7F:95` |
+| SHA-1 debug (PC ini, dicek 2026-09-26 lewat `signingReport`) | `F2:C2:22:E0:BE:26:B2:F6:E5:FC:47:68:79:95:6C:83:77:4F:3F:7B` |
 | Scope Gmail (opsional) | `https://www.googleapis.com/auth/gmail.readonly` |
 | Nama aplikasi di consent screen | Rizqflow |
 
