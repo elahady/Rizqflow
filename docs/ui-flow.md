@@ -556,7 +556,7 @@ Aturan turunan:
 - Semua warna dan font disimpan sebagai **design tokens**, bukan ditulis langsung di layar.
 - **Angka besar selalu Manrope**, bukan serif: hero "Rezeki bulan ini", nilai di cincin progres, dan nominal di kartu. Libre Caslon hanya untuk judul.
 - Status tidak boleh bergantung pada warna saja (apalagi merah/hijau): selalu ikon plus teks.
-- **Warna identitas ruang** (bar alokasi, cincin) diambil dari palet data yang divalidasi, bukan dari palet sage untuk chrome, karena sage terlalu pucat untuk membedakan tiga ruang.
+- **Warna identitas ruang** (bar alokasi, cincin) diambil dari palet data yang divalidasi, bukan dari palet sage untuk chrome, karena sage terlalu pucat untuk membedakan tiga ruang. Ada **8 slot** (2026-09-26): slot 1–3 untuk ruang inti, slot 4–8 untuk ruang custom, ruang ke-9 dan seterusnya netral. Warna melekat pada ruang, bar alokasi diurutkan menurut slot, dan identitas selalu disertai ikon dan nama. Aturan lengkap dan hasil validasi di [design/README.md](design/README.md#warna-ruang-custom-slot-4-sampai-8).
 - **Teks besar ikut skala pengguna**, kecuali angka hero (dibatasi 1,25x) dan label navigasi (1,3x); kartu ruang menjadi 1 kolom di 150% ke atas.
 
 Token dan prototipe klik untuk layar kunci ada di [design/README.md](design/README.md).

@@ -78,7 +78,7 @@ Langsung ke layar tertentu lewat parameter URL: `prototype.html?screen=denah&the
 
 ## Keputusan desain
 
-- **Chrome dari homepage, warna data terpisah.** Warna latar, teks, tombol, dan kartu memakai palet sage homepage. Warna identitas tiga ruang (bar alokasi dan cincin) datang dari palet data yang divalidasi, karena sage yang pucat tidak cukup untuk membedakan tiga ruang.
+- **Chrome dari homepage, warna data terpisah.** Warna latar, teks, tombol, dan kartu memakai palet sage homepage. Warna identitas ruang (bar alokasi dan cincin; 3 slot inti plus 5 slot custom) datang dari palet data yang divalidasi, karena sage yang pucat tidak cukup untuk membedakan tiga ruang.
 - **Tenang, bukan panik.** Peringatan memakai kuning lembut dengan ikon dan teks, bukan merah. Melewati jatah tidak memblokir.
 - **Status = ikon + teks.** Terpenuhi (centang), Berjalan (jam), Perlu perhatian (segitiga). Warna hanya penguat.
 - **Angka besar selalu Manrope**, bukan serif; Libre Caslon Text hanya untuk judul layar dan judul bagian.
@@ -99,6 +99,41 @@ Dijalankan dengan `validate_palette.js` (skill visualisasi data), bentuk `--pair
 Kontras teks (WCAG, target ≥ 4,5:1): teks utama di kartu terang 17,1; teks sekunder 9,4; sage utama di kartu terang 6,5; di mode gelap teks utama 12,8, teks sekunder 9,6, sage utama 9,6. Semua lolos.
 
 Status memakai palet tetap yang reserved (good `#0ca30c`, warning `#fab219`, serious `#ec835a`, critical `#d03b3b`), selalu dengan ikon dan label. Prototipe hanya memakai good dan warning; critical sengaja tidak dipakai.
+
+### Warna ruang custom: slot 4 sampai 8
+
+**Diputuskan 2026-09-26.** Ruang custom (yang dibuat pengguna) mendapat 5 slot warna tambahan, jadi total 8 slot. Hue sengaja menghindari hijau (bentrok dengan sage chrome dan status good) dan merah kritis (status critical).
+
+| Slot | Nama | Terang | Gelap |
+|---|---|---|---|
+| 4 | Violet | `#af6dec` | `#7547ee` |
+| 5 | Plum | `#a04177` | `#aa558d` |
+| 6 | Langit | `#099acf` | `#1fa3bb` |
+| 7 | Emas tua | `#998214` | `#966c13` |
+| 8 | Mawar | `#de4f74` | `#db426d` |
+
+Validasi (`validate_palette.js`, permukaan terang `#ffffff` dan `#faf9f7`, gelap `#1e201e`):
+
+| Cakupan | Mode | Hasil | CVD terburuk | Normal terburuk | Kontras |
+|---|---|---|---|---|---|
+| Slot 1–5, `--pairs all` | Terang | Lolos semua | ΔE 8,9 | ΔE 15,8 | semua ≥ 3:1 |
+| Slot 1–5, `--pairs all` | Gelap | Lolos semua | ΔE 8,4 | ΔE 15,5 | semua ≥ 3:1 |
+| Slot 1–8, adjacent | Terang | Lolos semua | ΔE 8,2 | ΔE 18,9 | semua ≥ 3:1 (di kedua permukaan terang) |
+| Slot 1–8, adjacent | Gelap | Lolos semua | ΔE 8,6 | ΔE 18,9 | semua ≥ 3:1 |
+| Slot 1–8, `--pairs all` | Terang dan gelap | **Gagal** (dua warna bisa sulit dibedakan) | ΔE 1,9 terang, 2,7 gelap | ΔE 10,7 terang, 9,8 gelap | — |
+
+Artinya: slot 1–5 aman bersebelahan di urutan apa pun, dan itu persis batas ruang Gratis (5 ruang). Slot 6–8 hanya aman bila bersebelahan dengan tetangga slotnya. Delapan warna tidak mungkin semuanya lolos all-pairs pada batas ini (batas metode, bukan salah pilih), jadi aturan di bawah wajib diikuti.
+
+**Aturan warna ruang**
+
+1. **Warna melekat pada ruang, bukan pada urutan.** Slot disimpan di ruang itu (`colorSlot`) dan tidak berubah saat ruang lain ditambah, diurutkan, atau diarsipkan.
+2. **Ruang inti** memakai slot 1–3 secara tetap (Memberi, Diri, Keluarga).
+3. **Ruang custom** otomatis mendapat slot bebas terkecil di antara 4–8. Di layar S10, pengguna boleh mengganti ke slot bebas lain lewat pemilih lima titik. Tidak ada pemilih warna bebas; hanya slot yang sudah divalidasi. Slot yang sedang dipakai ruang aktif tidak muncul di pemilih, jadi tidak ada dua ruang aktif dengan warna sama.
+4. **Mengarsipkan ruang membebaskan slotnya.** Riwayat ruang yang diarsipkan tampil netral dengan nama dan ikon, bukan warna lama. Memulihkan ruang mengambil slot bebas terkecil.
+5. **Ruang ke-9 dan seterusnya (Pro)** memakai warna netral `--rf-room-neutral` dengan ikon dan nama sebagai identitas. Warna tidak pernah diputar ulang atau dibuat otomatis.
+6. **Bar alokasi selalu diurutkan menurut slot**, bukan menurut urutan kustom pengguna di Denah. Dengan begitu segmen bersebelahan hanya pasangan adjacent yang sudah lolos. Ruang netral digabung menjadi satu segmen "Ruang lain".
+7. **Identitas tidak boleh hanya lewat warna.** Setiap ruang selalu tampil dengan ikon dan nama (kartu, legenda, dan label langsung di bar). Ruang custom wajib punya ikon (usulan: dipilih dari daftar bawaan di S10, dengan ikon bawaan bila tidak dipilih).
+8. **Warna ruang tidak dipakai untuk status.** Status tetap memakai palet status dan ikon plus teks.
 
 ## Peta ke Jetpack Compose
 
@@ -128,7 +163,7 @@ val RizqflowLight = lightColorScheme(
 
 | Token | Di Compose |
 |---|---|
-| `--rf-room-1..3`, `--rf-status-*` | Objek tersendiri lewat `CompositionLocal` (bukan bagian `ColorScheme`); nilai terang dan gelap berbeda |
+| `--rf-room-1..8`, `--rf-room-neutral`, `--rf-status-*` | Objek tersendiri lewat `CompositionLocal` (bukan bagian `ColorScheme`); nilai terang dan gelap berbeda |
 | `--rf-font-ui` (Manrope), `--rf-font-display` (Libre Caslon Text) | `FontFamily` dari berkas font atau Google Fonts (lisensi OFL); `display` hanya untuk judul |
 | `--rf-size-*` | `sp` di `Typography`; angka hero dibatasi dengan `Density(fontScale = min(fontScale, 1.25f))` |
 | Bar tumpuk | `Row` dengan `weight` per segmen dan `Arrangement.spacedBy(2.dp)` |
@@ -137,14 +172,13 @@ val RizqflowLight = lightColorScheme(
 
 ## Yang perlu dikonfirmasi setelah melihat prototipe
 
-**Prototipe disetujui pemilik pada 2026-09-20.** Butir di bawah tetap dicatat sebagai asumsi yang ikut menjadi dasar; warna ruang ke-4 dan seterusnya belum tervalidasi dan perlu dibereskan sebelum layar ruang dikerjakan (Tahap 3).
+**Prototipe disetujui pemilik pada 2026-09-20.** Butir di bawah tetap dicatat sebagai asumsi yang ikut menjadi dasar; warna ruang ke-4 dan seterusnya sudah divalidasi dan diputuskan 2026-09-26 (lihat bagian Warna ruang custom di bawah). Aplikasi Android dan prototipe masih memakai warna netral untuk slot 4 ke atas.
 
 1. **Mode gelap.** Ini turunan dari palet sage karena homepage belum punya mode gelap. Nilainya bisa diubah di satu blok di `tokens.css`.
-2. **Warna ruang ke-4 dan seterusnya (Pro: ruang tak terbatas).** Hanya tiga slot pertama yang tervalidasi. Usulan: ruang 4 dan seterusnya memakai cincin sage netral dengan nama sebagai identitas, atau slot berikutnya dari palet dokumentasi yang divalidasi dulu untuk bentuk yang dipakai.
-3. **Ambang 85%** untuk Perlu perhatian di ruang Mencukupi: sudah dikonfirmasi 2026-09-20.
-4. **Tanggal Hijriyah** pada layar S05 dan S16 hanyalah perkiraan; metode kalender masih keputusan terbuka.
-5. **Semua angka** (harga emas, harta, harga Pro Rp 129.000) hanya contoh.
-6. **Kemudahan mencatat (S24–S28)**: jumlah favorit, isi teks Koreksi saldo yang menghindari kesan menghakimi, dan apakah notifikasi malam perlu kolom balasan langsung.
+2. **Ambang 85%** untuk Perlu perhatian di ruang Mencukupi: sudah dikonfirmasi 2026-09-20.
+3. **Tanggal Hijriyah** pada layar S05 dan S16 hanyalah perkiraan; metode kalender masih keputusan terbuka.
+4. **Semua angka** (harga emas, harta, harga Pro Rp 129.000) hanya contoh.
+5. **Kemudahan mencatat (S24–S28)**: jumlah favorit, isi teks Koreksi saldo yang menghindari kesan menghakimi, dan apakah notifikasi malam perlu kolom balasan langsung.
 
 ## Keterbatasan
 

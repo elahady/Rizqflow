@@ -416,6 +416,9 @@
          Google Play Billing; see PaywallSheet.kt and MainHost.kt. -->
     <string name="menu_pro">Rizqflow Pro</string>
     <string name="menu_pro_sub_owned">Active</string>
+    <string name="menu_pro_debug">Pro (test, debug only)</string>
+    <string name="menu_pro_debug_on">Pro is on without payment. Tap to go back to Free.</string>
+    <string name="menu_pro_debug_off">Free. Tap to turn on Pro without payment.</string>
     <string name="menu_pro_sub_free">Unlock more rooms, rules, and features</string>
     <string name="pro_title">Rizqflow Pro</string>
     <string name="pro_price">%1$s one-time</string>

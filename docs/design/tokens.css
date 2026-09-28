@@ -51,10 +51,19 @@
   --rf-inverse-surface: #30312f;
   --rf-inverse-on-surface: #f2f0ee;
 
-  /* ---- Data: identitas ruang (kategorikal, slot 1..3, tervalidasi) ---- */
-  --rf-room-1: #3b6fa8; /* ruang ke-1 (Memberi) */
-  --rf-room-2: #c4653a; /* ruang ke-2 (Diri) */
-  --rf-room-3: #2a9a80; /* ruang ke-3 (Keluarga) */
+  /* ---- Data: identitas ruang (kategorikal, slot 1..8, tervalidasi) ----
+   * Slot 1-3 = ruang inti; slot 4-8 = ruang custom. Aturan pemakaian: docs/design/README.md.
+   * Slot 1-5 lolos all-pairs (aman di urutan apa pun); slot 6-8 hanya lolos adjacent,
+   * jadi bar alokasi selalu diurutkan menurut slot. Ruang ke-9 dan seterusnya = --rf-room-neutral. */
+  --rf-room-1: #3b6fa8; /* ruang inti: Memberi */
+  --rf-room-2: #c4653a; /* ruang inti: Diri */
+  --rf-room-3: #2a9a80; /* ruang inti: Keluarga */
+  --rf-room-4: #af6dec; /* custom: violet */
+  --rf-room-5: #a04177; /* custom: plum */
+  --rf-room-6: #099acf; /* custom: langit */
+  --rf-room-7: #998214; /* custom: emas tua */
+  --rf-room-8: #de4f74; /* custom: mawar */
+  --rf-room-neutral: var(--rf-outline); /* ruang ke-9+ (Pro): netral, identitas lewat ikon dan nama */
 
   /* ---- Status (tetap, tidak ikut tema; selalu dipasangkan ikon + teks) ---- */
   --rf-status-good: #0ca30c;
@@ -133,6 +142,11 @@
   --rf-room-1: #4384d0;
   --rf-room-2: #cf6a3a;
   --rf-room-3: #22a37a;
+  --rf-room-4: #7547ee;
+  --rf-room-5: #aa558d;
+  --rf-room-6: #1fa3bb;
+  --rf-room-7: #966c13;
+  --rf-room-8: #db426d;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -175,5 +189,10 @@
     --rf-room-1: #4384d0;
     --rf-room-2: #cf6a3a;
     --rf-room-3: #22a37a;
+    --rf-room-4: #7547ee;
+    --rf-room-5: #aa558d;
+    --rf-room-6: #1fa3bb;
+    --rf-room-7: #966c13;
+    --rf-room-8: #db426d;
   }
 }

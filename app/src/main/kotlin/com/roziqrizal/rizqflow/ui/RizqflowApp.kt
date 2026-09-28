@@ -98,6 +98,8 @@ fun RizqflowApp(
     onOpenReport: (() -> Unit)? = null,
     /** Paket Pro sudah dimiliki perangkat ini (lihat `PurchaseStore`); menentukan subjudul baris Rizqflow Pro. */
     proOwned: Boolean = false,
+    /** Saklar Pro untuk uji; hanya diisi di build debug (null = baris tidak tampil). */
+    onToggleProDebug: (() -> Unit)? = null,
 ) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
@@ -153,7 +155,7 @@ fun RizqflowApp(
             TopTab.entries.forEach { tab ->
                 composable(tab.route) {
                     if (tab == TopTab.Lainnya && account != null) {
-                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport)
+                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport, onToggleProDebug)
                     } else if (tab == TopTab.Transaksi && transaksiContent != null) {
                         transaksiContent()
                     } else if (tab == TopTab.Ruang && ruangContent != null) {
@@ -241,6 +243,7 @@ private fun LainnyaScreen(
     onOpenBills: (() -> Unit)? = null,
     onOpenDebts: (() -> Unit)? = null,
     onOpenReport: (() -> Unit)? = null,
+    onToggleProDebug: (() -> Unit)? = null,
 ) {
     val spacing = MaterialTheme.spacing
     Column(
@@ -281,6 +284,13 @@ private fun LainnyaScreen(
                 stringResource(R.string.menu_pro),
                 stringResource(if (proOwned) R.string.menu_pro_sub_owned else R.string.menu_pro_sub_free),
                 onOpenPaywall,
+            )
+        }
+        if (onToggleProDebug != null) {
+            MenuRow(
+                stringResource(R.string.menu_pro_debug),
+                stringResource(if (proOwned) R.string.menu_pro_debug_on else R.string.menu_pro_debug_off),
+                onToggleProDebug,
             )
         }
         Text(

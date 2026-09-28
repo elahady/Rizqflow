@@ -53,7 +53,7 @@ Saldo menurut catatan = `opening_balance` + pemasukan ke akun − pengeluaran da
 |---|---|---|
 | name | teks | |
 | kind | teks | `MENUNAIKAN`, `MENUMBUHKAN`, `MENCUKUPI` (menentukan arti "terpenuhi") |
-| icon_key, color_slot | teks, Int | Slot 1 sampai 3 tervalidasi; ruang ke-4 dan seterusnya belum |
+| icon_key, color_slot | teks, Int | Slot 1 sampai 8 tervalidasi (1–3 ruang inti, 4–8 ruang custom, [aturan](design/README.md#warna-ruang-custom-slot-4-sampai-8)); ruang ke-9 dan seterusnya netral |
 | sort_order | Int | **Juga prioritas**: pemutus seri pembulatan alokasi (mode persentase) dan urutan pengisian (mode lanjutan/waterfall, Pro) |
 | archived | boolean | Tidak tampil di Denah dan tidak menerima alokasi baru; riwayat tetap |
 | giving_mode | teks, boleh kosong | Hanya ruang Memberi: `zakat-haul-hijri` atau `percentage` |

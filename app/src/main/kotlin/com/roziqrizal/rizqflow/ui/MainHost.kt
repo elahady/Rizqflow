@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
+import com.roziqrizal.rizqflow.BuildConfig
 import com.roziqrizal.rizqflow.domain.allocation.AllocationRule
 import com.roziqrizal.rizqflow.ui.denah.DenahScreen
 import com.roziqrizal.rizqflow.ui.kelola.KelolaScreen
@@ -391,6 +392,11 @@ fun MainHost(
         onOpenReport = { reportOpen = true },
         onOpenPaywall = { openPaywall() },
         proOwned = Plan.PRO in ownedPlans,
+        onToggleProDebug = if (BuildConfig.DEBUG) {
+            { if (Plan.PRO in ownedPlans) workspace.purchases.revoke(Plan.PRO) else workspace.purchases.grant(Plan.PRO) }
+        } else {
+            null
+        },
     )
     if (tampilanOpen) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {

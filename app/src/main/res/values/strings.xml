@@ -418,6 +418,9 @@
          Play Billing sungguhan; lihat PaywallSheet.kt dan MainHost.kt. -->
     <string name="menu_pro">Rizqflow Pro</string>
     <string name="menu_pro_sub_owned">Aktif</string>
+    <string name="menu_pro_debug">Pro (uji, khusus debug)</string>
+    <string name="menu_pro_debug_on">Pro menyala tanpa pembayaran. Ketuk untuk kembali ke Gratis.</string>
+    <string name="menu_pro_debug_off">Gratis. Ketuk untuk menyalakan Pro tanpa pembayaran.</string>
     <string name="menu_pro_sub_free">Buka ruang, aturan, dan fitur lain</string>
     <string name="pro_title">Rizqflow Pro</string>
     <string name="pro_price">%1$s sekali bayar</string>

@@ -178,6 +178,8 @@ Kesimpulan awal: **Rizqflow masih layak dipakai**. **Rizqly bukan cadangan yang 
 - **Pengingat haul (2026-09-24):** tetap gratis untuk satu profil; pengingat untuk profil tambahan masuk Pro bersama multi-profil haul ([monetisasi.md](monetisasi.md)).
 - **compileSdk dan targetSdk 37** (2026-09-20): Compose terbaru (BOM 2026.09) menuntut compileSdk 37, dan target mengikuti keputusan "target SDK terbaru yang stabil". Emulator yang ada baru API 36, jadi perlu image API 37 sebelum rilis. Tes `:domain` memakai JUnit Jupiter (alkaukabaandroid memakai JUnit 4) supaya golden test bertabel bisa memakai tes berparameter.
 
+- **Warna ruang custom** (2026-09-26): ruang custom mendapat 5 slot warna tambahan (slot 4–8, total 8 slot) dari palet yang divalidasi; ruang ke-9+ netral. Warna melekat pada ruang, tidak diputar ulang. Aturan dan validasi di [design/README.md](design/README.md#warna-ruang-custom-slot-4-sampai-8).
+
 ## Keputusan yang masih terbuka
 
 - **Domain sendiri:** rizqflow.com dipegang pihak lain; .app dan .id bebas. Landing page bisa berada di roziqrizal.com, jadi domain sendiri belum tentu perlu.
