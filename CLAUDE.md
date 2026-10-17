@@ -6,21 +6,23 @@ Aplikasi finansial berbasis "hak": rezeki yang masuk dialirkan ke ruang-ruang (M
 
 _Diperbarui 17 Oktober 2026. **Direkonstruksi dari `git log` dan dokumen repo, belum diverifikasi pemilik** — koreksi butir yang keliru. Potret keadaan sekarang, bukan log: ubah di tempat setiap selesai pekerjaan nyata (skill `catat-progres`); riwayat ada di `git log`._
 
-**Sumber status hidup: Notion** (hub di bagian "Status dan tracking" di bawah) dan [docs/roadmap.md](docs/roadmap.md), yang hanya snapshot per 2026-09-23. Bagian ini ringkasan untuk yang membuka repo tanpa Notion.
+**Sumber status hidup: Notion** (hub di bagian "Status dan tracking" di bawah) dan [docs/roadmap.md](docs/roadmap.md) (snapshot terakhir disinkronkan 2026-09-25). Bagian ini ringkasan untuk yang membuka repo tanpa Notion. Commit terakhir: 2026-09-28.
 
 ### Sudah selesai
 - Tahap 1 (desain UI/UX), 2 (inti domain), 3 (layar inti), 4 (dashboard Denah), 5 (modul Memberi: zakat dan haul) berstatus Selesai di roadmap.
-- Sesudah snapshot itu, dikerjakan butir Tahap 10 dan 11: utang-piutang (domain, Room skema v6, layar), laporan bulanan dasar, pintasan folder cadangan, usulan pos lokal, parser bahasa natural Indonesia, layar konfirmasi input cerdas; juga saklar Pro (uji) di build debug dan animasi splash. Commit terakhir lokal: 2026-09-26.
+- Tahap 10 dan 11 sudah berjalan: utang-piutang (domain, Room skema v6, layar), laporan bulanan dasar, pintasan folder cadangan, usulan pos lokal, parser bahasa natural Indonesia, layar konfirmasi input cerdas; akun gratis tak terbatas; saklar Pro (uji) di build debug.
+- Keputusan 2026-09-24/25: server di VPS pemilik **ikut rilis pertama** (Tahap 9 naik sebelum rilis), sync sebagai langganan sejak rilis, server tidak boleh bisa membaca data keuangan (lihat [docs/server-sync.md](docs/server-sync.md)).
 
 ### Belum selesai / berikutnya
-1. **Tahap 0** masih In Progress: tinggal validasi minat lewat landing page dan daftar tunggu.
+1. **Tahap 0** In Progress: tinggal validasi minat lewat landing page dan daftar tunggu.
 2. **Tahap 6** (keamanan, data, polish) dan **Tahap 7** (monetisasi dan Pro) In Progress. Terbuka di Tahap 7: integrasi Google Play Billing (butuh produk in-app dari Tahap 8), harga emas otomatis (riset API), uji alur pembelian dengan penguji lisensi.
-3. **Tahap 8** (rilis dan portofolio) Backlog: akun developer, kebijakan privasi dan data safety, uji tertutup Play Console, store listing, case study di roziqrizal.com.
-4. Tahap 9 (sync) dan sisa Tahap 10–11 (input suara, OCR struk, parser notifikasi) Backlog.
-5. **Keputusan terbuka, jangan diputuskan sendiri:** verifikasi asumsi fikih zakat dengan kitab; urutan Tahap 10 terhadap rilis pertama.
+3. **Tahap 9** (server, sync, ruang keluarga) Planning, wajib sebelum rilis; **Tahap 12** (infrastruktur server dan deploy, dijalankan pemilik) dan **Tahap 13** (enkripsi ujung ke ujung dan kunci) Backlog.
+4. **Tahap 8** (rilis dan portofolio) Backlog: akun developer, kebijakan privasi dan data safety, uji tertutup Play Console, store listing, case study di roziqrizal.com.
+5. Sisa Tahap 10–11 (input suara, OCR struk, parser notifikasi) masih terbuka.
+6. **Keputusan terbuka, jangan diputuskan sendiri:** verifikasi asumsi fikih zakat dengan kitab; hal yang masih ditandai belum diputuskan di [docs/server-sync.md](docs/server-sync.md).
 
 ### Catatan penting
-- **Repo lokal tertinggal 6 commit dari `origin/main`** (per 17 Oktober 2026; terbaru 2026-09-28). Isinya keputusan yang belum ada di sini: akun gratis tak terbatas (batas 3 dicabut), server ikut rilis pertama dan Tahap 9 dinaikkan sebelum rilis, keputusan VPS/model kunci/harga Sync, Tahap 12–13 baru. `git pull` dulu (dua berkas Gradle tampak berubah hanya karena akhir baris) sebelum menganggap roadmap di atas mutakhir.
+- Dua berkas Gradle (`app/build.gradle.kts`, `settings.gradle.kts`) tampak "berubah" di working tree hanya karena akhir baris (LF/CRLF), bukan isi; jangan ikut di-commit.
 - Aturan repo ini: stage file satu per satu, **jangan push** tanpa diminta.
 
 ## Baca dulu sebelum mengerjakan apa pun
