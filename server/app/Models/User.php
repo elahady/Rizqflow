@@ -3,6 +3,8 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\Entitlements;
+use App\Support\Plan;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -24,6 +26,7 @@ class User extends Authenticatable
         'email',
         'google_sub',
         'password',
+        'plans',
     ];
 
     /**
@@ -46,7 +49,21 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'plans' => 'array',
         ];
+    }
+
+    /** Satu-satunya tempat yang menjawab "boleh atau tidak" — lihat App\Support\Entitlements. */
+    public function entitlements(): Entitlements
+    {
+        $plans = array_map(fn (string $value) => Plan::from($value), $this->plans ?? []);
+
+        return new Entitlements($plans);
+    }
+
+    public function isPro(): bool
+    {
+        return in_array(Plan::Pro->value, $this->plans ?? [], true);
     }
 
     public function rooms(): HasMany

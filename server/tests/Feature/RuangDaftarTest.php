@@ -75,6 +75,53 @@ class RuangDaftarTest extends TestCase
         $this->assertSame(['Lain-lain', 'Tak terlacak'], $room->categories()->orderBy('sort_order')->pluck('name')->all());
     }
 
+    public function test_free_plan_cannot_add_a_sixth_active_room(): void
+    {
+        for ($i = 1; $i <= 5; $i++) {
+            $this->room(['name' => "Ruang $i", 'slot' => $i + 3, 'sort_order' => $i]);
+        }
+
+        Livewire::actingAs($this->user)
+            ->test(RuangDaftar::class)
+            ->set('name', 'Ruang ke-6')
+            ->call('addRoom')
+            ->assertSet('error', 'Ruang gratis paling banyak 5. Upgrade ke Pro untuk ruang tak terbatas.');
+
+        $this->assertSame(5, Room::count());
+    }
+
+    public function test_archiving_a_room_frees_up_a_slot_under_the_free_limit(): void
+    {
+        for ($i = 1; $i <= 5; $i++) {
+            $this->room(['name' => "Ruang $i", 'slot' => $i + 3, 'sort_order' => $i]);
+        }
+        Room::where('name', 'Ruang 1')->first()->update(['archived' => true]);
+
+        Livewire::actingAs($this->user)
+            ->test(RuangDaftar::class)
+            ->set('name', 'Ruang baru')
+            ->call('addRoom')
+            ->assertSet('error', null);
+
+        $this->assertSame(6, Room::count());
+    }
+
+    public function test_pro_plan_can_add_more_than_five_active_rooms(): void
+    {
+        $this->user->update(['plans' => ['pro']]);
+        for ($i = 1; $i <= 5; $i++) {
+            $this->room(['name' => "Ruang $i", 'slot' => $i + 3, 'sort_order' => $i]);
+        }
+
+        Livewire::actingAs($this->user)
+            ->test(RuangDaftar::class)
+            ->set('name', 'Ruang ke-6')
+            ->call('addRoom')
+            ->assertSet('error', null);
+
+        $this->assertSame(6, Room::count());
+    }
+
     public function test_adding_a_room_without_a_name_shows_an_error_and_saves_nothing(): void
     {
         Livewire::actingAs($this->user)

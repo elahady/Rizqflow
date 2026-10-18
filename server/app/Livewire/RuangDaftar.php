@@ -4,12 +4,15 @@ namespace App\Livewire;
 
 use App\Models\Category;
 use App\Models\Room;
+use App\Support\Entitlements;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
 /**
  * Daftar dan kelola ruang (S10): tambah, urutkan (naik/turun = prioritas sisa pembulatan), dan
  * arsipkan. Ruang terarsip dipulihkan dari bagian "Diarsipkan"; riwayat transaksinya tidak hilang.
+ * Batas 5 ruang gratis (Entitlements::FREE_ROOM_LIMIT) ditegakkan di addRoom() — sebelumnya dicatat
+ * sebagai keterbatasan sementara di roadmap.md, sekarang ditutup lewat App\Support\Entitlements.
  */
 class RuangDaftar extends Component
 {
@@ -41,6 +44,14 @@ class RuangDaftar extends Component
         }
 
         $user = auth()->user();
+        $activeCount = $user->rooms()->active()->count();
+
+        if (! $user->entitlements()->canAddRoom($activeCount)) {
+            $this->error = 'Ruang gratis paling banyak '.Entitlements::FREE_ROOM_LIMIT.'. Upgrade ke Pro untuk ruang tak terbatas.';
+
+            return;
+        }
+
         $maxSort = (int) $user->rooms()->max('sort_order');
 
         // Slot 1–3 untuk ruang inti (dibuat lewat seed/onboarding), 4–8 untuk ruang custom, ruang
