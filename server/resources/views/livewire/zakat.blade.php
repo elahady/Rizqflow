@@ -4,14 +4,64 @@
 
     <div><a href="{{ route('denah') }}" style="font-size:13px; font-weight:600; color:var(--rf-on-surface-variant);">← Kembali ke Denah</a></div>
 
-    @if (! $profile)
+    @if (! $profile && ! $editingProfile)
         <div class="rf-card">
-            <p style="color:var(--rf-on-surface-variant); font-size:14px;">Belum ada profil harta. Tambahkan dari ruang Memberi untuk mulai memantau zakat.</p>
+            <p style="color:var(--rf-on-surface-variant); font-size:14px; margin-bottom:14px;">Belum ada profil harta. Tambahkan untuk mulai memantau zakat.</p>
+            <button type="button" wire:click="startEditProfile" class="rf-btn primary">+ Profil harta</button>
         </div>
-    @else
-        <div>
-            <div style="font-size:13px; color:var(--rf-on-surface-variant); margin-bottom:4px;">Ruang Memberi</div>
-            <h1 class="rf-serif" style="font-size:28px;">Zakat mal</h1>
+    @endif
+
+    @if ($editingProfile)
+        <form wire:submit="saveProfile" class="rf-card">
+            <h2 class="rf-serif" style="font-size:18px; margin-bottom:14px;">{{ $profile ? 'Ubah profil harta' : 'Profil harta baru' }}</h2>
+            <div class="rf-field">
+                <label for="zakat-name">Nama profil</label>
+                <input type="text" id="zakat-name" wire:model="name" maxlength="40" autofocus>
+            </div>
+            <div class="rf-field">
+                <label for="zakat-wealth">Harta bersih</label>
+                <input type="number" id="zakat-wealth" wire:model="netWealth" min="0">
+            </div>
+            <div class="rf-field">
+                <label for="zakat-nisab">Nisab hari ini</label>
+                <input type="number" id="zakat-nisab" wire:model="nisab" min="0">
+            </div>
+            <div class="rf-field">
+                <label for="zakat-haul-started">Mulai haul (label, opsional)</label>
+                <input type="text" id="zakat-haul-started" wire:model="haulStartedLabel" maxlength="40" placeholder="1 Muharram 1448">
+            </div>
+            <div class="rf-field">
+                <label for="zakat-haul-due">Jatuh tempo (label, opsional)</label>
+                <input type="text" id="zakat-haul-due" wire:model="haulDueLabel" maxlength="40" placeholder="1 Muharram 1449">
+            </div>
+            <div style="display:flex; gap:12px;">
+                <div class="rf-field" style="flex:1;">
+                    <label for="zakat-haul-day">Hari ke- (opsional)</label>
+                    <input type="number" id="zakat-haul-day" wire:model="haulDay" min="0">
+                </div>
+                <div class="rf-field" style="flex:1;">
+                    <label for="zakat-haul-total">Dari total hari (opsional)</label>
+                    <input type="number" id="zakat-haul-total" wire:model="haulTotalDays" min="1">
+                </div>
+            </div>
+            <p style="font-size:12.5px; color:var(--rf-on-surface-variant); margin:4px 0 0;">Haul di sini masih isian manual — perhitungan otomatis dari kalender Hijriyah menyusul.</p>
+            @if ($profileError)
+                <p class="error-text">{{ $profileError }}</p>
+            @endif
+            <div style="display:flex; gap:12px; margin-top:12px;">
+                <button type="submit" class="rf-btn primary">Simpan</button>
+                <button type="button" wire:click="cancelEditProfile" class="rf-btn tonal">Batal</button>
+            </div>
+        </form>
+    @endif
+
+    @if ($profile && ! $editingProfile)
+        <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+            <div>
+                <div style="font-size:13px; color:var(--rf-on-surface-variant); margin-bottom:4px;">Ruang Memberi</div>
+                <h1 class="rf-serif" style="font-size:28px;">Zakat mal</h1>
+            </div>
+            <button type="button" wire:click="startEditProfile" class="rf-btn tonal">Ubah profil harta</button>
         </div>
 
         @php
@@ -59,13 +109,40 @@
             </div>
         </div>
 
-        <div class="rf-card" style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
-            <div>
-                <div style="font-weight:700; font-size:15px; margin-bottom:4px;">Tunaikan zakat</div>
-                <div style="font-size:13px; color:var(--rf-on-surface-variant);">2,5% dari harta bersih — bisa diubah sebelum disimpan</div>
+        @if (! $payingZakat)
+            <div class="rf-card" style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+                <div>
+                    <div style="font-weight:700; font-size:15px; margin-bottom:4px;">Tunaikan zakat</div>
+                    <div style="font-size:13px; color:var(--rf-on-surface-variant);">2,5% dari harta bersih — bisa diubah sebelum disimpan</div>
+                </div>
+                <button type="button" wire:click="startPayZakat" class="rf-btn primary">Tunaikan {{ Rupiah::format($profile->suggestedZakatMinor()) }}</button>
             </div>
-            <button type="button" class="rf-btn primary" disabled>Tunaikan {{ Rupiah::format($profile->suggestedZakatMinor()) }}</button>
-        </div>
+        @else
+            <form wire:submit="payZakat" class="rf-card">
+                <h2 class="rf-serif" style="font-size:18px; margin-bottom:14px;">Tunaikan zakat</h2>
+                <div class="rf-field">
+                    <label for="zakat-amount">Jumlah zakat</label>
+                    <input type="number" id="zakat-amount" wire:model="zakatAmount" min="1" autofocus>
+                </div>
+                <div class="rf-field">
+                    <label for="zakat-account">Akun sumber</label>
+                    <select id="zakat-account" wire:model="zakatAccountId">
+                        <option value="">Pilih akun</option>
+                        @foreach ($accounts as $account)
+                            <option value="{{ $account->id }}">{{ $account->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <p style="font-size:12.5px; color:var(--rf-on-surface-variant); margin:4px 0 0;">Tercatat sebagai pengeluaran kategori Zakat mal di ruang Memberi, lalu haul baru dimulai.</p>
+                @if ($payError)
+                    <p class="error-text">{{ $payError }}</p>
+                @endif
+                <div style="display:flex; gap:12px; margin-top:12px;">
+                    <button type="submit" class="rf-btn primary">Konfirmasi tunaikan</button>
+                    <button type="button" wire:click="cancelPayZakat" class="rf-btn tonal">Batal</button>
+                </div>
+            </form>
+        @endif
 
         <div style="display:flex; gap:12px; align-items:flex-start; padding:4px 4px 8px; font-size:12.5px; color:var(--rf-on-surface-variant); line-height:1.6;">
             <span>⚠</span>
