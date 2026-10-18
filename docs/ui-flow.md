@@ -4,7 +4,7 @@ Spesifikasi teks tampilan dan alur pengguna. Tata letak seluruh layar ada di [wi
 
 - Platform: **Android** (diputuskan 2026-09-19). Pola di bawah mengikuti konvensi Android: bottom navigation, FAB, bottom sheet, snackbar.
 - Semua angka pada wireframe hanya **contoh**, bukan saran keuangan.
-- Kode layar (S01–S28) dan flow (F1–F9) dipakai bersama di Notion dan dokumen ini.
+- Kode layar (S01–S28) dan flow (F1–F9) dipakai juga di [roadmap.md](roadmap.md) untuk menandai task per tahap.
 
 ## Prinsip UI
 

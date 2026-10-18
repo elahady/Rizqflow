@@ -1,10 +1,6 @@
 # Rizqflow — Roadmap
 
-Breakdown proyek menjadi 10 tahap yang diselesaikan berurutan. **Status hidup ada di Notion**; dokumen ini adalah snapshot per 2026-09-23 untuk yang membaca kode langsung.
-
-- Hub proyek: [Rizqflow di Ruang Finansial](https://app.notion.com/p/3e0edbb47c0b8184a091ddcf591766fd)
-- Database tahap: [🧩 Tahap Rizqflow](https://app.notion.com/p/b5cf720718084e19a4cbb89a738c17ef)
-- Database tugas dan log: [🚀 Pengembangan Rizqflow](https://app.notion.com/p/508597e5fd2c4424b9002c1956f02c5c)
+Breakdown proyek menjadi 15 tahap (0–14, plus v1.1 pasca-rilis). **File ini adalah status hidup** (diputuskan 2026-10-18, menggantikan tracking Notion): setiap pekerjaan nyata (commit, keputusan, riset, desain) langsung mengubah checkbox dan menambah catatan di sini, bukan di tempat lain.
 
 Catatan progres dilakukan lewat skill `pengembangan-rizqflow` (lihat [CLAUDE.md](../CLAUDE.md)).
 
@@ -39,7 +35,7 @@ Menetapkan keputusan yang menentukan arah teknis dan bisnis sebelum kode ditulis
 - [x] Buat repo dan dokumen konsep awal
 - [x] Rumuskan model bisnis freemium ([monetisasi.md](monetisasi.md))
 - [x] Susun breakdown tahap, spesifikasi layar, dan flow UI
-- [x] Pasang tracking Notion, skill `pengembangan-rizqflow`, dan CLAUDE.md repo
+- [x] Pasang tracking Notion, skill `pengembangan-rizqflow`, dan CLAUDE.md repo (tracking Notion **dihentikan 2026-10-18**, diganti markdown repo — lihat CLAUDE.md bagian "Status dan tracking")
 - [x] Putuskan platform: Android, rilis di Play Store (2026-09-19); **diperluas 2026-10-18** — web juga dibuat, lihat Tahap 14
 - [x] Putuskan stack Android: Kotlin + Jetpack Compose + Room (2026-09-19)
 - [x] Setujui detail stack Android: modul, min SDK 26, DI manual, enkripsi (2026-09-20)
@@ -142,7 +138,7 @@ Pembeda utama produk.
 
 **Selesai bila:** PIN/biometrik tidak bisa dilewati; backup lalu restore di perangkat lain menghasilkan data identik; koreksi saldo mencatat selisih dengan benar untuk akun tunai, e-wallet, dan bank.
 
-**Status 2026-09-23:** seluruh tugas terdaftar di atas sudah selesai (termasuk butir Denah terakhir). Dua kriteria masih menunggu verifikasi manual yang belum tercatat dilakukan (lihat checklist "Kriteria selesai" di halaman Tahap 6 Notion): **restore di perangkat fisik lain** (baru diuji bolak-balik di emulator/`BackupCryptoTest`, belum lintas perangkat) dan **berkas ekspor CSV dibuka di aplikasi spreadsheet sungguhan** (baru diperiksa isinya di emulator, belum di Sheets/Excel). PIN/biometrik dan koreksi saldo sudah terverifikasi sesuai kriteria.
+**Status 2026-09-23:** seluruh tugas terdaftar di atas sudah selesai (termasuk butir Denah terakhir). Dua dari lima kriteria "Selesai bila" di atas masih menunggu verifikasi manual: **restore di perangkat fisik lain** (baru diuji bolak-balik di emulator/`BackupCryptoTest`, belum lintas perangkat) dan **berkas ekspor CSV dibuka di aplikasi spreadsheet sungguhan** (baru diperiksa isinya di emulator, belum di Sheets/Excel). PIN/biometrik dan koreksi saldo sudah terverifikasi sesuai kriteria.
 
 ## Tahap 7 — Monetisasi dan Pro (In Progress)
 
@@ -252,7 +248,35 @@ Ditambahkan 2026-10-18: web dibuat (seperti habitflow.roziqrizal.com), membatalk
 - [x] Halaman Denah (S05), Transaksi (S08, panel catat baru tampilan), Ruang (S11 disederhanakan), Zakat (S14/S16) dengan data contoh/seed
 - [x] Breakdown Pos di halaman Ruang (2026-10-18): tabel `categories` (pos per ruang, bobot, pos sistem, arsip) dan `transactions.category_id`; `Room::categoryBreakdown` mengikuti `RoomDetailLoader` di `:domain` (pos berbobot dibanding irisan jatah ruang, tanpa bobot dibanding seluruh jatah, pos terarsip dan sistem hanya tampil bila dipakai bulan itu, urut dari pengeluaran terbesar). Seed Keluarga berbobot 5:2:3 (80%, 113%, 55%), Memberi dan Diri tanpa bobot; 7 tes fitur
 - [ ] Sinkron ke data asli lewat protokol Tahap 9 — browser perlu mendekripsi data e2e, mekanismenya belum diputuskan
-- [ ] **Scope diperluas 2026-10-18**: web jadi dashboard monitoring dan analisa penuh (mobile tetap fokus catat kilat). Porting fitur manajemen mobile yang belum ada di web (daftar ruang, aturan alokasi, akun/kategori/favorit, edit transaksi, profil harta zakat, transaksi berulang, tagihan dan cicilan, utang-piutang, backup dan ekspor CSV, pencarian lintas tahun) plus fitur analisa web-only (grafik tren multi-tahun, proyeksi cashflow, kekayaan bersih sepanjang waktu, heatmap kalender pencatatan, bandingkan dua periode, ekspor PDF, impor CSV massal). Lihat [konsep.md](konsep.md) dan [monetisasi.md](monetisasi.md) untuk pembagian tier; 20 task rincian di Notion (Backlog, Tahap 14), urutan kerja belum ditentukan
+- [ ] **Scope diperluas 2026-10-18**: web jadi dashboard monitoring dan analisa penuh (mobile tetap fokus catat kilat). 20 task rincian di bawah (dipindah dari Notion ke sini 2026-10-18); urutan kerja belum ditentukan pemilik, prioritas tercantum per butir.
+
+  Porting fitur manajemen mobile (Gratis):
+  - [ ] Daftar dan kelola ruang (tambah, urutkan, arsipkan) (High)
+  - [ ] Aturan alokasi persentase dasar (High)
+  - [ ] Kelola akun, kategori, dan favorit (High)
+  - [ ] Edit dan hapus transaksi (detail transaksi) (High)
+  - [ ] Profil harta zakat (profil pertama) dan tunaikan zakat (Medium)
+  - [ ] Transaksi berulang (Medium)
+  - [ ] Tagihan dan cicilan (Medium)
+  - [ ] Utang-piutang (Medium)
+  - [ ] Backup, restore, dan ekspor CSV (Medium)
+  - [ ] Pencarian dan filter transaksi lintas tahun (Low) — tetap Gratis karena ini akses ke data milik pengguna sendiri, bukan insight premium
+
+  Porting fitur lanjutan (Pro, konsisten dengan tier yang sama di mobile):
+  - [ ] Aturan alokasi lanjutan (prioritas dan batas atas) (Low)
+  - [ ] Multi-profil harta zakat (Low)
+  - [ ] Ruang peran tak terbatas dan sistem per peran (Trader/Investor) (Low)
+
+  Fitur analisa baru yang web-only, tidak ada padanan di mobile (Pro, sejalan dengan "laporan dan insight bulanan/tahunan, PDF" yang sudah Pro di monetisasi.md):
+  - [ ] Grafik tren pengeluaran dan pemasukan multi-bulan/tahun per ruang dan kategori (Medium)
+  - [ ] Proyeksi cashflow dari transaksi berulang dan tagihan terjadwal (Medium)
+  - [ ] Kekayaan bersih (net worth) sepanjang waktu, gabungan semua akun dan profil harta zakat (Medium)
+  - [ ] Heatmap kalender pencatatan setahun (gaya kontribusi GitHub) (Low)
+  - [ ] Ekspor laporan PDF (Low)
+  - [ ] Impor transaksi massal dari CSV mutasi bank/e-wallet (Low)
+  - [ ] Bandingkan dua periode berdampingan (bulan/tahun ini vs lalu) (Low)
+
+  Yang sengaja **tidak** dipindah 1:1 ke web: catat kilat (S24, didesain untuk jempol), notifikasi malam dan tangkap otomatis (S26–S28, soal perangkat Android), onboarding pola ruang pertama kali (S01–S04). Detail keputusan di [konsep.md](konsep.md) bagian "Posisi web diperluas".
 - [x] Autentikasi web final (2026-10-18): **ikut akun Google Android** (keputusan pemilik). Tombol Google Identity Services memakai client ID Web yang sama dengan Android; server memverifikasi ID token lewat `google/apiclient` di balik `GoogleIdTokenVerifier`, akun dikenali dari `sub` (akun lama dengan email sama dihubungkan). Daftar dan email+sandi dihapus; masuk demo hanya di lingkungan lokal. 7 tes fitur. Origin produksi sudah ditambahkan pemilik dan masuk dengan Google teruji berhasil di https://rizqflow.roziqrizal.com (2026-10-18)
 - [x] Deploy produksi (2026-10-18, **live** di https://rizqflow.roziqrizal.com; DNS Cloudflare dan JavaScript origin Google sudah diisi pemilik, dicek dari luar: http 301 ke https, `/` 302 ke `/login`, `/login` 200 lewat Cloudflare dengan cookie `secure`, tombol Google tampil; **masuk dengan Google sungguhan berhasil** oleh pemilik, akun produksi pertama tercipta dengan `google_sub` tanpa sandi dan tanpa galat di log): VPS IDCloudHost `103.54.170.198` bersama roziqrizal.com dan habitflow (bukan VPS Al-Kaukaba, sesuai aturan di repo build-server), domain `rizqflow.roziqrizal.com`. Container `rizqflow` healthy di `127.0.0.1:8082`, database `rizqflow` di `shared-mysql`, nginx site siap; langkah di [server/DEPLOY.md](../server/DEPLOY.md). **Sisa pemilik:** DNS A record di Cloudflare dan Authorized JavaScript origin `https://rizqflow.roziqrizal.com` di klien Web Google Cloud. Catatan: deploy pertama sempat menimpa container habitflow sekitar 2 menit karena nama project compose bentrok; sudah dipulihkan dan diperbaiki (`name: rizqflow`)
 

@@ -1,12 +1,12 @@
 # Rizqflow
 
-Aplikasi finansial berbasis "hak": rezeki yang masuk dialirkan ke ruang-ruang (Memberi, Diri, Keluarga, dan peran lain) lewat aturan alokasi. Produk dari bagian jurnal di **Ruang Finansial** (Notion). Tujuan: portofolio dan monetisasi (freemium). Bagian dari tema situs roziqrizal.com: satu orang, banyak ruang, satu sistem.
+Aplikasi finansial berbasis "hak": rezeki yang masuk dialirkan ke ruang-ruang (Memberi, Diri, Keluarga, dan peran lain) lewat aturan alokasi. Ide produk berasal dari bagian jurnal di **Ruang Finansial** (Notion pribadi pemilik) — itu sumber inspirasi awal saja, bukan tempat tracking proyek ini (lihat "Status dan tracking" di bawah). Tujuan: portofolio dan monetisasi (freemium). Bagian dari tema situs roziqrizal.com: satu orang, banyak ruang, satu sistem.
 
 ## Status Pengembangan
 
 _Diperbarui 18 Oktober 2026 (bagian web diverifikasi langsung; sisanya masih rekonstruksi 17 Oktober)._ _Asal: 17 Oktober 2026. **Direkonstruksi dari `git log` dan dokumen repo, belum diverifikasi pemilik** — koreksi butir yang keliru. Potret keadaan sekarang, bukan log: ubah di tempat setiap selesai pekerjaan nyata (skill `catat-progres`); riwayat ada di `git log`._
 
-**Sumber status hidup: Notion** (hub di bagian "Status dan tracking" di bawah) dan [docs/roadmap.md](docs/roadmap.md) (snapshot terakhir disinkronkan 2026-09-25). Bagian ini ringkasan untuk yang membuka repo tanpa Notion. Commit terakhir: 2026-09-28.
+**Sumber status hidup: [docs/roadmap.md](docs/roadmap.md)** (diputuskan 2026-10-18, menggantikan tracking Notion — lihat "Status dan tracking" di bawah). Bagian ini ringkasan; detail dan checklist lengkap selalu ada di roadmap.md. Commit terakhir: 2026-09-28.
 
 ### Sudah selesai
 - Tahap 1 (desain UI/UX), 2 (inti domain), 3 (layar inti), 4 (dashboard Denah), 5 (modul Memberi: zakat dan haul) berstatus Selesai di roadmap.
@@ -37,7 +37,7 @@ _Diperbarui 18 Oktober 2026 (bagian web diverifikasi langsung; sisanya masih rek
 
 - [docs/konsep.md](docs/konsep.md) — posisi produk, MVP, arsitektur, model data, keputusan (sudah dan terbuka)
 - [docs/monetisasi.md](docs/monetisasi.md) — pembagian Gratis / Pro / Sync
-- [docs/roadmap.md](docs/roadmap.md) — 10 tahap pengerjaan
+- [docs/roadmap.md](docs/roadmap.md) — 15 tahap pengerjaan (0–14 plus v1.1), status hidup satu-satunya (bukan Notion)
 - [docs/ui-flow.md](docs/ui-flow.md) — layar S01–S28 dan flow F1–F9
 - [docs/wireframe.md](docs/wireframe.md) — wireframe teks seluruh layar (butir "Usulan" belum diputuskan)
 - [docs/auth-google.md](docs/auth-google.md) — masuk dengan Google dan Gmail: yang sudah ada, penyiapan Google Cloud, risiko
@@ -77,8 +77,9 @@ _Diperbarui 18 Oktober 2026 (bagian web diverifikasi langsung; sisanya masih rek
 
 ## Status dan tracking
 
-- Notion: hub **Rizqflow** di dalam Ruang Finansial, berisi database "🧩 Tahap Rizqflow" (bagian-bagian besar) dan "🚀 Pengembangan Rizqflow" (tugas dan log). Hub: https://app.notion.com/p/3e0edbb47c0b8184a091ddcf591766fd
-- Catat progres lewat skill **`/pengembangan-rizqflow`** (Notion + dokumentasi repo). Detail mapping dan ID database ada di skill itu.
+- **Tidak ada tracking di Notion untuk proyek ini** (diputuskan pemilik 2026-10-18, menggantikan database Notion "🧩 Tahap Rizqflow" dan "🚀 Pengembangan Rizqflow" yang dipakai sampai saat itu). Seluruh tahapan, task, dan statusnya disimpan sebagai markdown di repo: **[docs/roadmap.md](docs/roadmap.md)** adalah satu-satunya sumber hidup (15 tahap 0–14 plus v1.1 pasca-rilis, tiap tahap dengan checklist task `- [ ]`/`- [x]` dan baris "Selesai bila"). Jangan buat ulang tracking di Notion, spreadsheet, atau tempat lain untuk proyek ini.
+- Catat progres lewat skill **`/pengembangan-rizqflow`**: baca `docs/roadmap.md`, centang/tambah butir dengan tanggal dan catatan ringkas, lalu commit dan push. Tidak ada lagi langkah sinkron ke sistem eksternal.
+- Riwayat lama di Notion (sebelum 2026-10-18) dibiarkan ada sebagai arsip pasif, tidak dihapus, tapi tidak lagi dibaca atau diupdate oleh Claude untuk proyek ini.
 - Platform: **Android**, dirilis di Google Play Store. Stack: **Kotlin + Jetpack Compose + Room** (diputuskan 2026-09-19). **Web juga dibuat** (diputuskan 2026-10-18): `server/` (Laravel 12 + Livewire 4 + Blade), scaffold awal pakai data contoh, lihat "Sudah selesai" di atas dan `docs/konsep.md`.
 - Arah visual: **opsi A**, pakai ulang identitas homepage roziqrizal.com (diputuskan 2026-09-19); warna dan font disimpan sebagai design tokens, angka besar selalu Manrope.
 - Detail stack **disetujui 2026-09-20** (`docs/konsep.md`): modul `:domain`/`:data`/`:app`, min SDK 26, DI manual, backup AES-GCM, tanpa SQLCipher untuk v1. Masih terbuka: kalender Hijriyah untuk haul dan verifikasi asumsi fikih dengan kitab (dikaji lebih jauh nanti). Jangan memutuskan sendiri; tanyakan dulu.
@@ -87,5 +88,5 @@ _Diperbarui 18 Oktober 2026 (bagian web diverifikasi langsung; sisanya masih rek
 ## Konvensi
 
 - Bahasa dokumen dan pesan commit: **Indonesia**.
-- Perubahan dokumentasi ditulis di `docs/`; jangan biarkan Notion dan repo saling bertentangan (spesifikasi UI penuh di `docs/ui-flow.md`, ringkasannya di halaman Tahap Notion).
+- Perubahan dokumentasi ditulis di `docs/`. Spesifikasi UI penuh ada di `docs/ui-flow.md`; status tahapan dan task penuh ada di `docs/roadmap.md` (bukan Notion, lihat "Status dan tracking" di atas).
 - Setiap perubahan, sekecil apa pun, **langsung di-commit lalu di-push** ke `origin main` begitu selesai — tidak menunggu diminta (diputuskan 2026-10-18, biar kerjaan tidak hilang kalau PC/VM bermasalah). Stage file satu per satu (bukan `git add -A`). Satu perubahan logis = satu commit.
