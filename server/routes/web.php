@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GoogleLoginController;
+use App\Http\Controllers\TransactionExportController;
 use App\Livewire\AturanAlokasi;
 use App\Livewire\Denah;
 use App\Livewire\Kelola;
@@ -31,6 +32,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/', Denah::class);
     Route::get('/denah', Denah::class)->name('denah');
     Route::get('/transaksi', Transaksi::class)->name('transaksi');
+    Route::get('/transaksi/ekspor', [TransactionExportController::class, 'csv'])->name('transaksi.ekspor');
     Route::get('/transaksi/berulang', TransaksiBerulang::class)->name('transaksi.berulang');
     Route::get('/tagihan', Tagihan::class)->name('tagihan');
     Route::get('/utang-piutang', UtangPiutang::class)->name('utang-piutang');

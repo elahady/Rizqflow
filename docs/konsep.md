@@ -185,7 +185,7 @@ Kesimpulan awal: **Rizqflow masih layak dipakai**. **Rizqly bukan cadangan yang 
 
 ## Keputusan yang masih terbuka
 
-- **Cara web membaca data sync terenkripsi:** model e2e Tahap 9 berarti server tidak bisa membaca data keuangan, jadi web dashboard perlu mendekripsi di browser untuk menampilkan data asli. Mekanisme derivasi/penyimpanan kunci di browser belum diputuskan — tunggu Tahap 9 selesai di Android dan server dulu. (Autentikasi web sudah diputuskan 2026-10-18: ikut akun Google Android.)
+- **Cara web membaca data sync terenkripsi:** model e2e Tahap 9 berarti server tidak bisa membaca data keuangan, jadi web dashboard perlu mendekripsi di browser untuk menampilkan data asli. Mekanisme derivasi/penyimpanan kunci di browser belum diputuskan — tunggu Tahap 9 selesai di Android dan server dulu. (Autentikasi web sudah diputuskan 2026-10-18: ikut akun Google Android.) Blocker yang sama menahan task "Backup dan restore terenkripsi" web di Tahap 14 roadmap.md (ekspor CSV di task itu sudah selesai, tidak terhambat karena tidak butuh enkripsi).
 - **Domain sendiri:** rizqflow.com dipegang pihak lain; .app dan .id bebas. Landing page bisa berada di roziqrizal.com, jadi domain sendiri belum tentu perlu.
 - **Haul saat harta turun di bawah nisab di tengah tahun:** terputus lalu mulai dari nol (bawaan sementara), atau hanya diperiksa di awal dan akhir haul (pendapat lain). Keduanya sudah ada sebagai `HaulBreakPolicy`; menunggu verifikasi kitab oleh pemilik.
 - **Harga final Pro**, berdasarkan uji minat. Harga awal Sync sudah disetujui 2026-09-24 ([monetisasi.md](monetisasi.md)).

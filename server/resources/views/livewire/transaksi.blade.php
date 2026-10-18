@@ -8,6 +8,7 @@
             <a href="{{ route('transaksi.berulang') }}" class="rf-btn tonal">Berulang</a>
             <a href="{{ route('tagihan') }}" class="rf-btn tonal">Tagihan</a>
             <a href="{{ route('utang-piutang') }}" class="rf-btn tonal">Utang-piutang</a>
+            <a href="{{ route('transaksi.ekspor') }}" class="rf-btn tonal">Ekspor CSV</a>
         </div>
     </div>
 
