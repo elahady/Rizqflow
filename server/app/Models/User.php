@@ -111,4 +111,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(ZakatProfile::class);
     }
+
+    public function netWorthSnapshots(): HasMany
+    {
+        return $this->hasMany(NetWorthSnapshot::class);
+    }
 }

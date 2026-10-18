@@ -7,6 +7,7 @@
 
     @foreach ([
         ['route' => 'laporan.tren', 'title' => 'Grafik tren', 'desc' => 'Pemasukan dan pengeluaran multi-bulan/tahun, per ruang dan kategori.'],
+        ['route' => 'laporan.kekayaan-bersih', 'title' => 'Kekayaan bersih', 'desc' => 'Gabungan saldo akun dan harta zakat dari hari ke hari.'],
     ] as $card)
         <a href="{{ route($card['route']) }}" class="rf-card" style="display:flex; align-items:center; justify-content:space-between; gap:16px; color:inherit; text-decoration:none;">
             <div>

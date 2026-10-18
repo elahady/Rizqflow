@@ -6,6 +6,7 @@ use App\Http\Controllers\TransactionExportController;
 use App\Livewire\AturanAlokasi;
 use App\Livewire\Denah;
 use App\Livewire\GrafikTren;
+use App\Livewire\KekayaanBersih;
 use App\Livewire\Kelola;
 use App\Livewire\Laporan;
 use App\Livewire\Ruang;
@@ -46,4 +47,5 @@ Route::middleware('auth')->group(function () {
     Route::get('/akun', Kelola::class)->name('kelola');
     Route::get('/laporan', Laporan::class)->name('laporan');
     Route::get('/laporan/tren', GrafikTren::class)->name('laporan.tren');
+    Route::get('/laporan/kekayaan-bersih', KekayaanBersih::class)->name('laporan.kekayaan-bersih');
 });

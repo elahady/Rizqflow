@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Support\NetWorthSnapshotter;
 use App\Support\RecurringRunner;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
@@ -20,13 +21,17 @@ class Denah extends Component
      */
     public function mount(): void
     {
-        $result = RecurringRunner::runDue(auth()->user());
+        $user = auth()->user();
+        $result = RecurringRunner::runDue($user);
 
         if ($result['recorded'] > 0) {
             $this->recurringBanner = $result['recorded'].' transaksi berulang dicatat.';
         } elseif ($result['blocked'] !== []) {
             $this->recurringBanner = count($result['blocked']).' aturan berulang tertahan — akun, ruang, atau kategorinya sudah diarsipkan.';
         }
+
+        // Dicatat untuk semua user (bukan hanya Pro) supaya riwayat sudah ada begitu upgrade.
+        NetWorthSnapshotter::captureIfMissing($user);
     }
 
     public function render(): View
