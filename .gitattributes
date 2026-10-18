@@ -2,3 +2,6 @@
 gradlew text eol=lf
 *.bat text eol=crlf
 *.jar binary
+
+# Wordlist kode pemulihan (Tahap 13) harus tetap identik byte-demi-byte dengan sumber resminya.
+domain/src/main/resources/bip39-english.txt text eol=lf

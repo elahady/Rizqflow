@@ -18,4 +18,12 @@ interface SyncAead {
 interface AccountKeyProvider {
     /** Membuat kunci akun bila belum ada, atau memuat yang sudah tersimpan. Aman dipanggil berulang. */
     fun getOrCreateAccountKey(): SyncAead
+
+    /**
+     * Bentuk kunci akun yang bisa diekspor, hanya dipakai sesaat untuk dibungkus kode pemulihan
+     * lewat [AccountKeyRecoveryCrypto.wrap] sebelum dikirim ke server — tidak pernah disimpan
+     * sendiri dalam bentuk terbuka. Isinya buram bagi `:domain` (format sungguhan ditentukan
+     * implementasi di `:data`).
+     */
+    fun exportAccountKeyForRecovery(): ByteArray
 }

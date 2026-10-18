@@ -2,6 +2,13 @@ package com.roziqrizal.rizqflow.data.crypto
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.google.crypto.tink.Aead
+import com.google.crypto.tink.InsecureSecretKeyAccess
+import com.google.crypto.tink.RegistryConfiguration
+import com.google.crypto.tink.TinkProtoKeysetFormat
+import com.roziqrizal.rizqflow.domain.sync.AccountKeyRecoveryCrypto
+import com.roziqrizal.rizqflow.domain.sync.RecoveryCode
+import com.roziqrizal.rizqflow.domain.sync.RecoveryCodeInvalid
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -53,5 +60,32 @@ class AndroidKeystoreAccountKeyProviderTest {
         val provider = newProvider()
 
         assertSame(provider.getOrCreateAccountKey(), provider.getOrCreateAccountKey())
+    }
+
+    @Test
+    fun `keyset yang diekspor lalu dibungkus kode pemulihan bisa dipulihkan jadi aead yang setara`() {
+        val provider = newProvider()
+        val original = provider.getOrCreateAccountKey()
+        val recoveryCode = RecoveryCode.generate()
+
+        val wrapped = AccountKeyRecoveryCrypto.wrap(provider.exportAccountKeyForRecovery(), recoveryCode)
+        val restoredKeyset = AccountKeyRecoveryCrypto.unwrap(wrapped, recoveryCode)
+        val restoredHandle = TinkProtoKeysetFormat.parseKeyset(restoredKeyset, InsecureSecretKeyAccess.get(), RegistryConfiguration.get())
+        val restoredAead = restoredHandle.getPrimitive(RegistryConfiguration.get(), Aead::class.java)
+
+        val plaintext = "dompet dipulihkan dari kode pemulihan".toByteArray()
+        val noAssociatedData = ByteArray(0)
+        assertContentEquals(plaintext, restoredAead.decrypt(original.encrypt(plaintext), noAssociatedData))
+        assertContentEquals(plaintext, original.decrypt(restoredAead.encrypt(plaintext, noAssociatedData)))
+    }
+
+    @Test
+    fun `ekspor dibungkus kode pemulihan yang salah tidak bisa dibuka`() {
+        val provider = newProvider()
+        val wrapped = AccountKeyRecoveryCrypto.wrap(provider.exportAccountKeyForRecovery(), RecoveryCode.generate())
+
+        assertFailsWith<RecoveryCodeInvalid> {
+            AccountKeyRecoveryCrypto.unwrap(wrapped, RecoveryCode.generate())
+        }
     }
 }
