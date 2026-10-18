@@ -100,6 +100,75 @@ class AturanAlokasiTest extends TestCase
             ->assertSee('Belum ada ruang untuk diatur alokasinya.');
     }
 
+    // --- Mode lanjutan (Pro) ---
+
+    public function test_a_free_user_cannot_switch_to_the_advanced_mode(): void
+    {
+        $this->room(['name' => 'Memberi', 'sort_order' => 1]);
+        $this->room(['name' => 'Diri', 'sort_order' => 2]);
+
+        Livewire::actingAs($this->user)
+            ->test(AturanAlokasi::class)
+            ->call('switchMode', 'lanjutan')
+            ->assertSet('mode', 'persentase')
+            ->assertSet('error', 'Mode prioritas dan batas atas adalah fitur Pro.');
+    }
+
+    public function test_a_pro_user_can_switch_to_the_advanced_mode_and_save_caps(): void
+    {
+        $this->user->update(['plans' => ['pro']]);
+        $memberi = $this->room(['name' => 'Memberi', 'sort_order' => 1]);
+        $diri = $this->room(['name' => 'Diri', 'sort_order' => 2]);
+        $keluarga = $this->room(['name' => 'Keluarga', 'sort_order' => 3]);
+
+        Livewire::actingAs($this->user)
+            ->test(AturanAlokasi::class)
+            ->call('switchMode', 'lanjutan')
+            ->assertSet('mode', 'lanjutan')
+            ->assertSet('error', null)
+            ->set("caps.{$memberi->id}", '300000')
+            ->set("caps.{$diri->id}", '500000')
+            ->call('save')
+            ->assertSet('error', null);
+
+        $this->assertSame(300_000, $memberi->refresh()->allocation_cap_minor);
+        $this->assertSame(500_000, $diri->refresh()->allocation_cap_minor);
+        // Ruang terakhir selalu tak terbatas, sama seperti mode persentase.
+        $this->assertNull($keluarga->refresh()->allocation_cap_minor);
+        $this->assertSame('lanjutan', $this->user->refresh()->allocation_mode);
+    }
+
+    public function test_leaving_a_cap_blank_means_unlimited(): void
+    {
+        $this->user->update(['plans' => ['pro']]);
+        $memberi = $this->room(['name' => 'Memberi', 'sort_order' => 1, 'allocation_cap_minor' => 100_000]);
+        $this->room(['name' => 'Diri', 'sort_order' => 2]);
+
+        Livewire::actingAs($this->user)
+            ->test(AturanAlokasi::class)
+            ->call('switchMode', 'lanjutan')
+            ->set("caps.{$memberi->id}", '')
+            ->call('save');
+
+        $this->assertNull($memberi->refresh()->allocation_cap_minor);
+    }
+
+    public function test_a_negative_cap_is_rejected(): void
+    {
+        $this->user->update(['plans' => ['pro']]);
+        $memberi = $this->room(['name' => 'Memberi', 'sort_order' => 1]);
+        $this->room(['name' => 'Diri', 'sort_order' => 2]);
+
+        Livewire::actingAs($this->user)
+            ->test(AturanAlokasi::class)
+            ->call('switchMode', 'lanjutan')
+            ->set("caps.{$memberi->id}", '-5000')
+            ->call('save')
+            ->assertSet('error', 'Batas atas tidak boleh negatif.');
+
+        $this->assertNull($memberi->refresh()->allocation_cap_minor);
+    }
+
     public function test_cannot_change_another_users_room_allocation(): void
     {
         $other = User::factory()->create();

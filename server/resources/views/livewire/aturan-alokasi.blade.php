@@ -8,6 +8,13 @@
 
     <h1 class="rf-serif" style="font-size:26px;">Aturan alokasi</h1>
 
+    <div style="display:flex; gap:8px;">
+        <button type="button" wire:click="switchMode('persentase')" class="rf-btn {{ $mode === 'persentase' ? 'primary' : 'tonal' }}" style="flex:1;">Persentase</button>
+        <button type="button" wire:click="switchMode('lanjutan')" class="rf-btn {{ $mode === 'lanjutan' ? 'primary' : 'tonal' }}" style="flex:1;">
+            Prioritas dan batas atas @unless ($canUseAdvanced) (Pro) @endunless
+        </button>
+    </div>
+
     @if ($editableRooms->isEmpty() && ! $lastRoom)
         <div class="rf-card" style="text-align:center; padding:40px 26px;">
             <p style="font-size:14px; color:var(--rf-on-surface-variant);">Belum ada ruang untuk diatur alokasinya.</p>
@@ -19,7 +26,7 @@
                 <strong style="color:var(--rf-on-background);">{{ $lastRoom->name }}</strong> satu-satunya ruang aktif, jadi otomatis menerima seluruh rezeki yang masuk (100%). Tambah ruang lain dulu di halaman Ruang untuk membagi persentase.
             </p>
         </div>
-    @else
+    @elseif ($mode === 'persentase')
         <form wire:submit="save" class="rf-card">
             <p style="font-size:13px; color:var(--rf-on-surface-variant); margin-bottom:18px;">
                 Tiap ruang mendapat persentase dari rezeki yang masuk. Berlaku untuk pemasukan berikutnya; transaksi yang sudah tercatat tidak berubah.
@@ -56,6 +63,39 @@
             @endif
 
             <button type="submit" class="rf-btn primary" style="margin-top:18px;" @disabled($remaining < 0 || ! $isDirty)>Simpan</button>
+        </form>
+    @else
+        <form wire:submit="save" class="rf-card">
+            <p style="font-size:13px; color:var(--rf-on-surface-variant); margin-bottom:18px;">
+                Ruang diisi berurutan menurut prioritas (urutan di halaman Ruang) sampai batas atasnya, lalu kelebihannya mengalir ke ruang berikutnya. Berlaku untuk pemasukan berikutnya; transaksi yang sudah tercatat tidak berubah.
+            </p>
+
+            @foreach ($editableRooms as $room)
+                @php $color = $roomColors[$room->slot] ?? '#727874'; @endphp
+                <div class="rf-field" style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                    <span style="width:10px; height:10px; border-radius:3px; background:{{ $color }}; flex-shrink:0;" aria-hidden="true"></span>
+                    <label for="cap-{{ $room->id }}" style="flex:1; margin:0; font-size:14px; font-weight:600; color:var(--rf-on-background); text-transform:none;">{{ $room->name }}</label>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:13px; color:var(--rf-on-surface-variant);">Rp</span>
+                        <input type="number" id="cap-{{ $room->id }}" wire:model.live.debounce.300ms="caps.{{ $room->id }}" min="0" placeholder="Tak terbatas" style="width:120px; text-align:right;">
+                    </div>
+                </div>
+            @endforeach
+
+            @if ($lastRoom)
+                <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-top:1px solid var(--rf-outline-variant); margin-top:4px;">
+                    @php $color = $roomColors[$lastRoom->slot] ?? '#727874'; @endphp
+                    <span style="width:10px; height:10px; border-radius:3px; background:{{ $color }};" aria-hidden="true"></span>
+                    <span style="flex:1; font-size:14px; font-weight:600;">{{ $lastRoom->name }}</span>
+                    <span style="font-size:13px; color:var(--rf-on-surface-variant);">Sisa, tak terbatas</span>
+                </div>
+            @endif
+
+            @if ($error)
+                <p class="error-text">{{ $error }}</p>
+            @endif
+
+            <button type="submit" class="rf-btn primary" style="margin-top:18px;" @disabled(! $isDirty)>Simpan</button>
         </form>
     @endif
 

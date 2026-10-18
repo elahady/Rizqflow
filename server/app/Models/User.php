@@ -27,6 +27,7 @@ class User extends Authenticatable
         'google_sub',
         'password',
         'plans',
+        'allocation_mode',
     ];
 
     /**

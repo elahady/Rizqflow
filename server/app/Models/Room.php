@@ -15,7 +15,7 @@ class Room extends Model
 
     protected $fillable = [
         'user_id', 'name', 'icon', 'type', 'slot',
-        'allocation_percent', 'budget_minor', 'used_minor', 'sort_order', 'archived',
+        'allocation_percent', 'allocation_cap_minor', 'budget_minor', 'used_minor', 'sort_order', 'archived',
     ];
 
     protected $casts = [
