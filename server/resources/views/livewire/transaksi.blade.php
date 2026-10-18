@@ -4,7 +4,10 @@
 
     <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
         <h1 class="rf-serif" style="font-size:28px;">Transaksi</h1>
-        <a href="{{ route('transaksi.berulang') }}" class="rf-btn tonal">Berulang</a>
+        <div style="display:flex; gap:10px;">
+            <a href="{{ route('transaksi.berulang') }}" class="rf-btn tonal">Berulang</a>
+            <a href="{{ route('tagihan') }}" class="rf-btn tonal">Tagihan</a>
+        </div>
     </div>
 
     <div style="display:flex; flex-wrap:wrap; gap:24px;">

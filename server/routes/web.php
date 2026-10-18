@@ -7,6 +7,7 @@ use App\Livewire\Denah;
 use App\Livewire\Kelola;
 use App\Livewire\Ruang;
 use App\Livewire\RuangDaftar;
+use App\Livewire\Tagihan;
 use App\Livewire\Transaksi;
 use App\Livewire\TransaksiBerulang;
 use App\Livewire\TransaksiDetail;
@@ -30,6 +31,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/denah', Denah::class)->name('denah');
     Route::get('/transaksi', Transaksi::class)->name('transaksi');
     Route::get('/transaksi/berulang', TransaksiBerulang::class)->name('transaksi.berulang');
+    Route::get('/tagihan', Tagihan::class)->name('tagihan');
     Route::get('/transaksi/{transaction}', TransaksiDetail::class)->name('transaksi.detail');
     Route::get('/ruang', RuangDaftar::class)->name('ruang');
     Route::get('/ruang/aturan', AturanAlokasi::class)->name('aturan-alokasi');
