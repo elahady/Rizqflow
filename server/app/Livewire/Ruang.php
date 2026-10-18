@@ -7,36 +7,28 @@ use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
 /**
- * Detail ruang (S11): jatah vs terpakai, pos-pos bulan ini, transaksi terbaru. Tanpa {room}, tampilkan
- * ruang pertama milik user (dipakai juga sebagai target link umum "Lihat ruang").
+ * Detail ruang (S11): jatah vs terpakai, pos-pos bulan ini, transaksi terbaru. Daftar dan kelola
+ * ruang (S10, tambah/urutkan/arsipkan) ada di RuangDaftar lewat route('ruang') tanpa parameter.
  */
 class Ruang extends Component
 {
-    public ?int $roomId = null;
+    public Room $room;
 
-    public function mount(?Room $room = null): void
+    public function mount(Room $room): void
     {
-        $this->roomId = $room?->id;
+        abort_unless($room->user_id === auth()->id(), 403);
+
+        $this->room = $room;
     }
 
     public function render(): View
     {
-        $user = auth()->user();
-        $room = $this->roomId
-            ? $user->rooms()->findOrFail($this->roomId)
-            : $user->rooms()->first();
-
-        // Akun Google baru belum punya ruang: data asli baru datang lewat sync (Tahap 9).
-        if (! $room) {
-            return view('livewire.ruang-kosong')->layout('components.layout', ['title' => 'Ruang — Rizqflow']);
-        }
-
-        $transactions = $room->transactions()->orderByDesc('occurred_on')->limit(5)->get();
+        $transactions = $this->room->transactions()->orderByDesc('occurred_on')->limit(5)->get();
 
         return view('livewire.ruang', [
-            'room' => $room,
-            'categories' => $room->categoryBreakdown(now()),
+            'room' => $this->room,
+            'categories' => $this->room->categoryBreakdown(now()),
             'transactions' => $transactions,
-        ])->layout('components.layout', ['title' => $room->name.' — Rizqflow']);
+        ])->layout('components.layout', ['title' => $this->room->name.' — Rizqflow']);
     }
 }

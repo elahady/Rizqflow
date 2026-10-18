@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GoogleLoginController;
 use App\Livewire\Denah;
 use App\Livewire\Ruang;
+use App\Livewire\RuangDaftar;
 use App\Livewire\Transaksi;
 use App\Livewire\Zakat;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +25,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/', Denah::class);
     Route::get('/denah', Denah::class)->name('denah');
     Route::get('/transaksi', Transaksi::class)->name('transaksi');
-    Route::get('/ruang/{room?}', Ruang::class)->name('ruang');
+    Route::get('/ruang', RuangDaftar::class)->name('ruang');
+    Route::get('/ruang/{room}', Ruang::class)->name('ruang.detail');
     Route::get('/zakat', Zakat::class)->name('zakat');
 });

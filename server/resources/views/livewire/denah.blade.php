@@ -59,7 +59,7 @@
                     $color = $roomColors[$room->slot] ?? '#727874';
                     $ringColor = $status === 'perlu_perhatian' ? 'var(--rf-status-warning)' : $color;
                 @endphp
-                <a href="{{ route('ruang', $room) }}" style="display:block; background:var(--rf-surface-lowest); border:1px solid var(--rf-outline-variant); border-radius:16px; padding:20px; color:inherit;">
+                <a href="{{ route('ruang.detail', $room) }}" style="display:block; background:var(--rf-surface-lowest); border:1px solid var(--rf-outline-variant); border-radius:16px; padding:20px; color:inherit;">
                     <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
                         <div style="width:34px; height:34px; border-radius:10px; background:{{ $color }}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700;">{{ mb_substr($room->name, 0, 1) }}</div>
                         <span style="font-weight:700; font-size:15px;">{{ $room->name }}</span>

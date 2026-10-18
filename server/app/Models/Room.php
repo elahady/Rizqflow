@@ -15,12 +15,24 @@ class Room extends Model
 
     protected $fillable = [
         'user_id', 'name', 'icon', 'type', 'slot',
-        'allocation_percent', 'budget_minor', 'used_minor', 'sort_order',
+        'allocation_percent', 'budget_minor', 'used_minor', 'sort_order', 'archived',
+    ];
+
+    protected $casts = [
+        'archived' => 'boolean',
     ];
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Ruang yang belum diarsipkan — dipakai di Denah, S10, dan S11.
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('archived', false);
     }
 
     public function transactions(): HasMany

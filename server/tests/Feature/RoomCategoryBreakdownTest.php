@@ -115,7 +115,7 @@ class RoomCategoryBreakdownTest extends TestCase
         $this->spend($this->pos('Belanja bulanan', null), 600_000);
 
         $this->actingAs($this->user)
-            ->get(route('ruang', $this->room))
+            ->get(route('ruang.detail', $this->room))
             ->assertOk()
             ->assertSeeInOrder(['Pos', 'Belanja bulanan', '20%', 'Transaksi terbaru']);
     }
@@ -138,8 +138,15 @@ class RoomCategoryBreakdownTest extends TestCase
     public function test_room_page_shows_empty_state_without_pos(): void
     {
         $this->actingAs($this->user)
-            ->get(route('ruang', $this->room))
+            ->get(route('ruang.detail', $this->room))
             ->assertOk()
             ->assertSee('Belum ada pos di ruang ini.');
+    }
+
+    public function test_detail_page_rejects_another_users_room(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->get(route('ruang.detail', $this->room))
+            ->assertForbidden();
     }
 }

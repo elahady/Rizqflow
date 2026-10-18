@@ -17,7 +17,7 @@ class Denah extends Component
         $month = now()->startOfMonth();
 
         $summary = $user->monthlySummaries()->whereDate('month', $month)->first();
-        $rooms = $user->rooms;
+        $rooms = $user->rooms()->active()->get();
 
         $attention = [];
         foreach ($rooms as $room) {
