@@ -252,7 +252,7 @@ Ditambahkan 2026-10-18: web dibuat (seperti habitflow.roziqrizal.com), membatalk
 - [x] Halaman Denah (S05), Transaksi (S08, panel catat baru tampilan), Ruang (S11 disederhanakan), Zakat (S14/S16) dengan data contoh/seed
 - [x] Breakdown Pos di halaman Ruang (2026-10-18): tabel `categories` (pos per ruang, bobot, pos sistem, arsip) dan `transactions.category_id`; `Room::categoryBreakdown` mengikuti `RoomDetailLoader` di `:domain` (pos berbobot dibanding irisan jatah ruang, tanpa bobot dibanding seluruh jatah, pos terarsip dan sistem hanya tampil bila dipakai bulan itu, urut dari pengeluaran terbesar). Seed Keluarga berbobot 5:2:3 (80%, 113%, 55%), Memberi dan Diri tanpa bobot; 7 tes fitur
 - [ ] Sinkron ke data asli lewat protokol Tahap 9 — browser perlu mendekripsi data e2e, mekanismenya belum diputuskan
-- [ ] Autentikasi web final (email+sandi scaffold ini sementara; apakah ikut akun Google Android atau terpisah belum diputuskan)
+- [x] Autentikasi web final (2026-10-18): **ikut akun Google Android** (keputusan pemilik). Tombol Google Identity Services memakai client ID Web yang sama dengan Android; server memverifikasi ID token lewat `google/apiclient` di balik `GoogleIdTokenVerifier`, akun dikenali dari `sub` (akun lama dengan email sama dihubungkan). Daftar dan email+sandi dihapus; masuk demo hanya di lingkungan lokal. 7 tes fitur. Sisa pemilik: tambah Authorized JavaScript origins di klien Web Google Cloud ([auth-google.md](auth-google.md) bagian Web), lalu uji tombolnya di browser
 - [ ] Deploy produksi: domain dan VPS tujuan belum diputuskan (kandidat: VPS Al-Kaukaba, mengikuti Tahap 9)
 
 **Selesai bila:** halaman web menampilkan data sync asli milik pengguna (bukan seed), autentikasi final terpasang, dan sudah live di domain produksi.

@@ -91,6 +91,19 @@ Setelah client ID ditempel: `./gradlew :app:assembleDebug`, pasang, tekan tombol
 
 Client ID adalah pengenal publik, bukan rahasia, jadi aman masuk ke git.
 
+## Web (`server/`)
+
+Diputuskan 2026-10-18: **web ikut akun Google Android.** Halaman masuk web hanya punya tombol Google (Google Identity Services); tidak ada daftar atau email+sandi, kecuali masuk demo di `APP_ENV=local`.
+
+| Hal | Isi |
+|---|---|
+| Client ID | **Klien Web yang sama** dengan Android (`232915442214-5fusjgtntn65tdg34km2ppra9ee6k1ka`), di `GOOGLE_CLIENT_ID` (`.env`). Karena satu klien, ID token dari Android dan web punya audiens sama, dan server cukup memeriksa satu client ID |
+| Verifikasi | Tombol mengirim ID token ke `POST /auth/google`; server memeriksa tanda tangan, penerbit, audiens, dan masa berlaku lewat `google/apiclient` (`GoogleApiIdTokenVerifier`). Email harus sudah diverifikasi Google. Tidak ada client secret, dan token Google tidak disimpan |
+| Identitas | Kolom `users.google_sub` (klaim `sub`), bukan email, karena email bisa berganti. Akun lama dengan email sama dan belum punya `sub` dihubungkan otomatis |
+| Akun lokal Android | Akun nama pengguna dan sandi di Android **tidak bisa masuk web**: identitasnya hanya ada di ponsel. Menghubungkannya ke akun Google adalah pekerjaan Tahap 9 |
+
+**Yang harus Anda siapkan** supaya tombolnya muncul dan bekerja: Google Cloud, proyek `rizqflow`, Clients, buka klien **Web** di atas, lalu di **Authorized JavaScript origins** tambahkan `http://localhost` dan `http://localhost:8000` (alamat `php artisan serve`). Nanti tambahkan domain produksi web. Tanpa ini tombol Google menolak dengan "origin is not allowed". Proyek masih berstatus Testing, jadi hanya Test user yang bisa masuk.
+
 ## Risiko yang perlu diketahui sebelum rilis
 
 1. **Izin baca Gmail adalah cakupan "restricted" di Google.** Selama proyek berstatus Testing, hanya sampai 100 pengguna uji yang terdaftar, dan izinnya kedaluwarsa tiap 7 hari. Untuk rilis publik, Google mewajibkan **verifikasi OAuth dan penilaian keamanan tahunan** oleh penilai pihak ketiga, yang butuh waktu dan biaya. Ini bisa menunda rilis pertama. Saran: rilis pertama **tanpa** tombol Gmail (sudah terpisah dari tombol Google), Gmail menyusul setelah verifikasi.

@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Auth\GoogleApiIdTokenVerifier;
+use App\Auth\GoogleIdTokenVerifier;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -11,7 +13,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(GoogleIdTokenVerifier::class, fn () => new GoogleApiIdTokenVerifier(
+            (string) config('services.google.client_id'),
+        ));
     }
 
     /**

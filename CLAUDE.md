@@ -62,10 +62,10 @@ _Diperbarui 17 Oktober 2026. **Direkonstruksi dari `git log` dan dokumen repo, b
 ## Proyek Web (`server/`)
 
 - Laravel 12 + Livewire 4 (class-based, pola `app/Livewire/*.php` + `resources/views/livewire/*.blade.php`, sama seperti `habitflow/server`), Blade, SQLite untuk dev lokal (`database/database.sqlite`, tidak di-commit).
-- Halaman: `Denah` (beranda, S05), `Transaksi` (S08, panel catat di scaffold ini baru tampilan), `Ruang` (detail per ruang, S11 disederhanakan — belum ada breakdown Pos), `Zakat` (S14/S16). Layout bersama di `resources/views/components/layout.blade.php`, token warna/font disalin dari `docs/design/tokens.css` (samakan manual bila tokens.css berubah).
-- **Data masih contoh/seed** (`database/seeders/DatabaseSeeder.php`), bukan data sungguhan. Auth email+sandi sementara (bukan keputusan final — lihat `docs/konsep.md`). Login demo: `demo@rizqflow.test` / `password`.
+- Halaman: `Denah` (beranda, S05), `Transaksi` (S08, panel catat di scaffold ini baru tampilan), `Ruang` (detail per ruang, S11 disederhanakan, dengan rincian Pos), `Zakat` (S14/S16). Layout bersama di `resources/views/components/layout.blade.php`, token warna/font disalin dari `docs/design/tokens.css` (samakan manual bila tokens.css berubah).
+- **Data masih contoh/seed** (`database/seeders/DatabaseSeeder.php`), bukan data sungguhan. Auth **ikut akun Google Android** (diputuskan 2026-10-18): Masuk dengan Google memakai client ID Web yang sama dengan Android (`GOOGLE_CLIENT_ID` di `.env`), akun dikenali dari `sub`, verifikasi ID token di `app/Auth/`. Masuk demo email+sandi hanya di `APP_ENV=local`: `demo@rizqflow.test` / `password`.
 - Jalankan: `php artisan serve` dari `server/`. Setup awal: `composer install`, `cp .env.example .env`, `php artisan key:generate`, `php artisan migrate --seed`.
-- **Belum dikerjakan**: sinkron ke data asli (tunggu Tahap 9), deploy produksi (domain/VPS belum diputuskan), breakdown Pos di Ruang, autentikasi final.
+- **Belum dikerjakan**: sinkron ke data asli (tunggu Tahap 9), deploy produksi (domain/VPS belum diputuskan).
 
 ## Status dan tracking
 
