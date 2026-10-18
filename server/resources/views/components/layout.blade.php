@@ -74,6 +74,7 @@
                 <a href="{{ route('ruang') }}" class="{{ request()->routeIs('ruang*') ? 'on' : '' }}">Ruang</a>
                 <a href="{{ route('zakat') }}" class="{{ request()->routeIs('zakat') ? 'on' : '' }}">Zakat</a>
                 <a href="{{ route('kelola') }}" class="{{ request()->routeIs('kelola') ? 'on' : '' }}">Akun</a>
+                <a href="{{ route('laporan') }}" class="{{ request()->routeIs('laporan*') ? 'on' : '' }}">Laporan</a>
             </nav>
         </div>
         <div style="display:flex; align-items:center; gap:14px;">
@@ -100,5 +101,6 @@
 @endauth
 
 @livewireScripts
+@stack('scripts')
 </body>
 </html>

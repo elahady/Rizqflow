@@ -5,7 +5,9 @@ use App\Http\Controllers\Auth\GoogleLoginController;
 use App\Http\Controllers\TransactionExportController;
 use App\Livewire\AturanAlokasi;
 use App\Livewire\Denah;
+use App\Livewire\GrafikTren;
 use App\Livewire\Kelola;
+use App\Livewire\Laporan;
 use App\Livewire\Ruang;
 use App\Livewire\RuangDaftar;
 use App\Livewire\Tagihan;
@@ -42,4 +44,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/ruang/{room}', Ruang::class)->name('ruang.detail');
     Route::get('/zakat', Zakat::class)->name('zakat');
     Route::get('/akun', Kelola::class)->name('kelola');
+    Route::get('/laporan', Laporan::class)->name('laporan');
+    Route::get('/laporan/tren', GrafikTren::class)->name('laporan.tren');
 });
