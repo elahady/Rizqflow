@@ -15,7 +15,7 @@ class Transaksi extends Component
     {
         $user = auth()->user();
 
-        $transactions = $user->transactions()->with('room')->orderByDesc('occurred_on')->get()->groupBy(
+        $transactions = $user->transactions()->with(['room', 'account'])->orderByDesc('occurred_on')->get()->groupBy(
             fn ($t) => $t->occurred_on->translatedFormat('j F')
         );
 

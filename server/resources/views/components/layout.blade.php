@@ -73,6 +73,7 @@
                 <a href="{{ route('transaksi') }}" class="{{ request()->routeIs('transaksi') ? 'on' : '' }}">Transaksi</a>
                 <a href="{{ route('ruang') }}" class="{{ request()->routeIs('ruang*') ? 'on' : '' }}">Ruang</a>
                 <a href="{{ route('zakat') }}" class="{{ request()->routeIs('zakat') ? 'on' : '' }}">Zakat</a>
+                <a href="{{ route('kelola') }}" class="{{ request()->routeIs('kelola') ? 'on' : '' }}">Akun</a>
             </nav>
         </div>
         <div style="display:flex; align-items:center; gap:14px;">

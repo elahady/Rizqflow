@@ -11,8 +11,8 @@ class Transaction extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'room_id', 'category_id', 'type', 'amount_minor',
-        'category', 'account', 'note', 'occurred_on',
+        'user_id', 'room_id', 'category_id', 'account_id', 'type', 'amount_minor',
+        'category', 'note', 'occurred_on',
     ];
 
     protected $casts = [
@@ -27,5 +27,10 @@ class Transaction extends Model
     public function room(): BelongsTo
     {
         return $this->belongsTo(Room::class);
+    }
+
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class);
     }
 }

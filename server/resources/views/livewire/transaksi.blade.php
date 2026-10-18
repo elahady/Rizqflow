@@ -19,7 +19,7 @@
                                 <div style="font-size:12px; color:var(--rf-on-surface-variant); margin-top:2px;">
                                     {{ $t->room?->name ?? ($t->type === 'pemasukan' ? 'Belum dialirkan' : '') }}
                                     @if ($t->category) · {{ $t->category }} @endif
-                                    @if ($t->account) · {{ $t->account }} @endif
+                                    @if ($t->account) · {{ $t->account->name }} @endif
                                 </div>
                             </div>
                             <div style="text-align:right; flex-shrink:0; font-weight:700; font-size:15px; {{ $t->type === 'pemasukan' ? 'color:#275c3f;' : '' }}">

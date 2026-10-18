@@ -2,8 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Models\Account;
 use App\Models\Category;
 use App\Models\MonthlySummary;
+use App\Models\QuickEntry;
 use App\Models\Room;
 use App\Models\Transaction;
 use App\Models\User;
@@ -72,13 +74,17 @@ class DatabaseSeeder extends Seeder
             'unallocated_minor' => 1_200_000,
         ]);
 
+        $bankJago = Account::create(['user_id' => $user->id, 'name' => 'Bank Jago', 'type' => 'bank', 'balance_minor' => 4_500_000, 'sort_order' => 1]);
+        $tunai = Account::create(['user_id' => $user->id, 'name' => 'Tunai', 'type' => 'tunai', 'balance_minor' => 250_000, 'sort_order' => 2]);
+        Account::create(['user_id' => $user->id, 'name' => 'GoPay', 'type' => 'e_wallet', 'balance_minor' => 180_000, 'sort_order' => 3]);
+
         Transaction::create([
             'user_id' => $user->id,
             'room_id' => null,
+            'account_id' => $bankJago->id,
             'type' => 'pemasukan',
             'amount_minor' => 8_500_000,
             'category' => 'Gaji',
-            'account' => 'Bank Jago',
             'note' => 'Gaji September',
             'occurred_on' => now()->startOfMonth(),
         ]);
@@ -103,26 +109,29 @@ class DatabaseSeeder extends Seeder
         $sekolah = $pos($keluarga, 'Sekolah', 3, 3);
 
         // Jumlah pengeluaran tiap ruang sama dengan used_minor-nya di atas.
-        $spend = fn (Category $category, int $amount, string $note, string $account, int $day) => Transaction::create([
+        $spend = fn (Category $category, int $amount, string $note, Account $account, int $day) => Transaction::create([
             'user_id' => $user->id,
             'room_id' => $category->room_id,
             'category_id' => $category->id,
+            'account_id' => $account->id,
             'type' => 'pengeluaran',
             'amount_minor' => $amount,
             'category' => $category->name,
-            'account' => $account,
             'note' => $note,
             'occurred_on' => now()->startOfMonth()->addDays($day),
         ]);
 
-        $spend($sedekah, 200_000, 'Sedekah Jumat', 'Tunai', 3);
-        $spend($investasi, 2_000_000, 'Reksa dana bulanan', 'Bank Jago', 1);
-        $spend($tabungan, 550_000, 'Tabungan darurat', 'Bank Jago', 1);
-        $spend($sekolah, 1_020_000, 'SPP dan buku', 'Bank Jago', 4);
-        $spend($belanja, 1_050_000, 'Belanja bulanan', 'Bank Jago', 2);
-        $spend($listrik, 130_000, 'Tagihan PDAM', 'Bank Jago', 9);
-        $spend($belanja, 150_000, 'Belanja pasar', 'Bank Jago', 17);
-        $spend($listrik, 200_000, 'Token listrik', 'Tunai', 16);
+        $spend($sedekah, 200_000, 'Sedekah Jumat', $tunai, 3);
+        $spend($investasi, 2_000_000, 'Reksa dana bulanan', $bankJago, 1);
+        $spend($tabungan, 550_000, 'Tabungan darurat', $bankJago, 1);
+        $spend($sekolah, 1_020_000, 'SPP dan buku', $bankJago, 4);
+        $spend($belanja, 1_050_000, 'Belanja bulanan', $bankJago, 2);
+        $spend($listrik, 130_000, 'Tagihan PDAM', $bankJago, 9);
+        $spend($belanja, 150_000, 'Belanja pasar', $bankJago, 17);
+        $spend($listrik, 200_000, 'Token listrik', $tunai, 16);
+
+        QuickEntry::create(['user_id' => $user->id, 'name' => 'Kopi', 'amount_minor' => 15_000, 'category_id' => $belanja->id, 'account_id' => $tunai->id]);
+        QuickEntry::create(['user_id' => $user->id, 'name' => 'Parkir', 'amount_minor' => 3_000, 'category_id' => $belanja->id, 'account_id' => $tunai->id]);
 
         ZakatProfile::create([
             'user_id' => $user->id,

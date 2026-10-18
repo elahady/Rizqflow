@@ -54,6 +54,16 @@ class User extends Authenticatable
         return $this->hasMany(Room::class)->orderBy('sort_order');
     }
 
+    public function accounts(): HasMany
+    {
+        return $this->hasMany(Account::class)->orderBy('sort_order');
+    }
+
+    public function quickEntries(): HasMany
+    {
+        return $this->hasMany(QuickEntry::class)->orderBy('id');
+    }
+
     public function transactions(): HasMany
     {
         return $this->hasMany(Transaction::class)->orderByDesc('occurred_on');
