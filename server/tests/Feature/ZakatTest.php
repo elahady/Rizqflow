@@ -185,4 +185,133 @@ class ZakatTest extends TestCase
             ->assertOk()
             ->assertSee('Belum ada profil harta');
     }
+
+    // --- Multi-profil harta zakat (Pro) ---
+
+    public function test_the_first_profile_is_free_even_without_pro(): void
+    {
+        Livewire::actingAs($this->user)
+            ->test(Zakat::class)
+            ->call('startAddProfile')
+            ->assertSet('profileError', null)
+            ->assertSet('editingProfile', true);
+    }
+
+    public function test_a_free_user_cannot_add_a_second_profile(): void
+    {
+        ZakatProfile::create(['user_id' => $this->user->id, 'name' => 'Utama']);
+
+        Livewire::actingAs($this->user)
+            ->test(Zakat::class)
+            ->call('startAddProfile')
+            ->assertSet('profileError', 'Profil harta lebih dari satu adalah fitur Pro.')
+            ->assertSet('editingProfile', false);
+
+        $this->assertSame(1, ZakatProfile::count());
+    }
+
+    public function test_a_pro_user_can_add_a_second_profile(): void
+    {
+        $this->user->update(['plans' => ['pro']]);
+        ZakatProfile::create(['user_id' => $this->user->id, 'name' => 'Utama']);
+
+        Livewire::actingAs($this->user)
+            ->test(Zakat::class)
+            ->call('startAddProfile')
+            ->set('name', 'Istri')
+            ->set('netWealth', '50000000')
+            ->set('nisab', '141100000')
+            ->call('saveProfile')
+            ->assertSet('profileError', null);
+
+        $this->assertSame(2, ZakatProfile::count());
+    }
+
+    public function test_selecting_a_profile_switches_the_displayed_haul_and_wealth(): void
+    {
+        $first = ZakatProfile::create(['user_id' => $this->user->id, 'name' => 'Utama', 'net_wealth_minor' => 200_000_000]);
+        $second = ZakatProfile::create(['user_id' => $this->user->id, 'name' => 'Istri', 'net_wealth_minor' => 50_000_000]);
+
+        Livewire::actingAs($this->user)
+            ->test(Zakat::class)
+            ->assertSet('selectedProfileId', $first->id)
+            ->call('selectProfile', $second->id)
+            ->assertSet('selectedProfileId', $second->id)
+            ->assertSee('Rp 50.000.000');
+    }
+
+    public function test_the_last_active_profile_cannot_be_archived(): void
+    {
+        $profile = ZakatProfile::create(['user_id' => $this->user->id, 'name' => 'Utama']);
+
+        Livewire::actingAs($this->user)
+            ->test(Zakat::class)
+            ->call('archiveProfile', $profile->id)
+            ->assertSet('profileError', 'Profil harta aktif terakhir tidak bisa diarsipkan.');
+
+        $this->assertFalse($profile->refresh()->archived);
+    }
+
+    public function test_archiving_one_of_several_profiles_switches_selection_to_another(): void
+    {
+        $first = ZakatProfile::create(['user_id' => $this->user->id, 'name' => 'Utama']);
+        $second = ZakatProfile::create(['user_id' => $this->user->id, 'name' => 'Istri']);
+
+        Livewire::actingAs($this->user)
+            ->test(Zakat::class)
+            ->call('selectProfile', $first->id)
+            ->call('archiveProfile', $first->id)
+            ->assertSet('selectedProfileId', $second->id);
+
+        $this->assertTrue($first->refresh()->archived);
+    }
+
+    public function test_restoring_a_profile_makes_it_selectable_again(): void
+    {
+        $profile = ZakatProfile::create(['user_id' => $this->user->id, 'name' => 'Utama', 'archived' => true]);
+        ZakatProfile::create(['user_id' => $this->user->id, 'name' => 'Istri']);
+
+        Livewire::actingAs($this->user)->test(Zakat::class)->call('restoreProfile', $profile->id);
+
+        $this->assertFalse($profile->refresh()->archived);
+    }
+
+    public function test_payment_note_mentions_the_profile_name_only_when_there_is_more_than_one(): void
+    {
+        $profile = ZakatProfile::create(['user_id' => $this->user->id, 'name' => 'Utama', 'net_wealth_minor' => 200_000_000]);
+
+        Livewire::actingAs($this->user)
+            ->test(Zakat::class)
+            ->call('startPayZakat')
+            ->set('zakatAccountId', $this->account->id)
+            ->call('payZakat');
+
+        $this->assertSame('Zakat mal', Transaction::first()->note);
+
+        ZakatProfile::create(['user_id' => $this->user->id, 'name' => 'Istri']);
+
+        Livewire::actingAs($this->user)
+            ->test(Zakat::class)
+            ->call('selectProfile', $profile->id)
+            ->call('startPayZakat')
+            ->set('zakatAccountId', $this->account->id)
+            ->call('payZakat');
+
+        $this->assertSame('Zakat mal — Utama', Transaction::latest('id')->first()->note);
+    }
+
+    public function test_cannot_select_or_archive_another_users_profile(): void
+    {
+        $otherUser = User::factory()->create();
+        $otherProfile = ZakatProfile::create(['user_id' => $otherUser->id, 'name' => 'Lain']);
+        ZakatProfile::create(['user_id' => $this->user->id, 'name' => 'Utama']);
+
+        Livewire::actingAs($this->user)
+            ->test(Zakat::class)
+            ->call('selectProfile', $otherProfile->id)
+            ->assertSet('selectedProfileId', fn ($id) => $id !== $otherProfile->id)
+            ->call('archiveProfile', $otherProfile->id);
+
+        $this->assertFalse($otherProfile->refresh()->archived);
+    }
 }

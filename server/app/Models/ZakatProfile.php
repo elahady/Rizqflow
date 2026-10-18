@@ -12,8 +12,17 @@ class ZakatProfile extends Model
 
     protected $fillable = [
         'user_id', 'name', 'net_wealth_minor', 'nisab_minor',
-        'haul_started_label', 'haul_due_label', 'haul_day', 'haul_total_days', 'status',
+        'haul_started_label', 'haul_due_label', 'haul_day', 'haul_total_days', 'status', 'archived',
     ];
+
+    protected $casts = [
+        'archived' => 'boolean',
+    ];
+
+    public function scopeActive($query)
+    {
+        return $query->where('archived', false);
+    }
 
     public function user(): BelongsTo
     {

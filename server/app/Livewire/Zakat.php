@@ -5,13 +5,17 @@ namespace App\Livewire;
 use App\Models\Category;
 use App\Models\Transaction;
 use App\Models\ZakatProfile;
+use App\Support\Feature;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
 use Livewire\Component;
 
 /**
- * Beranda zakat + kartu haul (S14/S16) dan profil harta (S15), tunaikan zakat (S17). Profil harta
- * tunggal untuk scaffold ini — multi-profil harta (Pro) belum diimplementasikan.
+ * Beranda zakat + kartu haul (S14/S16) dan profil harta (S15), tunaikan zakat (S17). Profil
+ * pertama selalu Gratis; profil tambahan butuh Feature::MultiZakatProfile (Pro) — satu chip per
+ * profil, "+ Profil" ditolak tanpa Pro begitu sudah ada satu. Profil yang diarsipkan tidak
+ * terkunci saat turun paket (datanya tetap ada), hanya disembunyikan dari daftar chip; profil
+ * aktif terakhir tidak bisa diarsipkan.
  *
  * Haul (S16): web belum punya tanggal mulai haul sungguhan karena metode kalender Hijriyah belum
  * diputuskan (lihat docs/konsep.md), jadi `haul_day`/`haul_total_days`/label mulai-jatuh tempo di
@@ -21,7 +25,11 @@ use Livewire\Component;
  */
 class Zakat extends Component
 {
+    public ?int $selectedProfileId = null;
+
     public bool $editingProfile = false;
+
+    public ?int $editingProfileId = null;
 
     public string $name = 'Utama';
 
@@ -47,14 +55,60 @@ class Zakat extends Component
 
     public ?string $payError = null;
 
+    public function mount(): void
+    {
+        $this->selectedProfileId = $this->activeProfiles()->first()?->id;
+    }
+
+    private function activeProfiles()
+    {
+        return auth()->user()->zakatProfiles()->active()->orderBy('id')->get();
+    }
+
     private function profile(): ?ZakatProfile
     {
-        return auth()->user()->zakatProfiles()->first();
+        if ($this->selectedProfileId === null) {
+            return null;
+        }
+
+        return auth()->user()->zakatProfiles()->find($this->selectedProfileId);
+    }
+
+    public function selectProfile(int $profileId): void
+    {
+        $profile = auth()->user()->zakatProfiles()->active()->find($profileId);
+        if ($profile) {
+            $this->selectedProfileId = $profile->id;
+            $this->payingZakat = false;
+            $this->editingProfile = false;
+        }
+    }
+
+    public function startAddProfile(): void
+    {
+        $this->profileError = null;
+
+        if (auth()->user()->zakatProfiles()->count() >= 1 && ! auth()->user()->entitlements()->isEnabled(Feature::MultiZakatProfile)) {
+            $this->profileError = 'Profil harta lebih dari satu adalah fitur Pro.';
+
+            return;
+        }
+
+        $this->editingProfileId = null;
+        $this->name = 'Utama';
+        $this->netWealth = '0';
+        $this->nisab = '0';
+        $this->haulStartedLabel = '';
+        $this->haulDueLabel = '';
+        $this->haulDay = '';
+        $this->haulTotalDays = '';
+        $this->editingProfile = true;
     }
 
     public function startEditProfile(): void
     {
         $profile = $this->profile();
+        $this->editingProfileId = $profile?->id;
         $this->name = $profile?->name ?? 'Utama';
         $this->netWealth = (string) ($profile?->net_wealth_minor ?? 0);
         $this->nisab = (string) ($profile?->nisab_minor ?? 0);
@@ -94,7 +148,6 @@ class Zakat extends Component
             default => 'haul_berjalan',
         };
 
-        $profile = $this->profile();
         $data = [
             'name' => $name,
             'net_wealth_minor' => $netWealth,
@@ -106,13 +159,43 @@ class Zakat extends Component
             'status' => $status,
         ];
 
+        $profile = $this->editingProfileId ? auth()->user()->zakatProfiles()->find($this->editingProfileId) : null;
+
         if ($profile) {
             $profile->update($data);
         } else {
-            ZakatProfile::create($data + ['user_id' => auth()->id()]);
+            $profile = ZakatProfile::create($data + ['user_id' => auth()->id()]);
         }
 
+        $this->selectedProfileId = $profile->id;
         $this->editingProfile = false;
+    }
+
+    public function archiveProfile(int $profileId): void
+    {
+        $this->profileError = null;
+        $profile = auth()->user()->zakatProfiles()->active()->find($profileId);
+        if (! $profile) {
+            return;
+        }
+
+        if ($this->activeProfiles()->count() <= 1) {
+            $this->profileError = 'Profil harta aktif terakhir tidak bisa diarsipkan.';
+
+            return;
+        }
+
+        $profile->update(['archived' => true]);
+
+        if ($this->selectedProfileId === $profileId) {
+            $this->selectedProfileId = $this->activeProfiles()->first()?->id;
+        }
+    }
+
+    public function restoreProfile(int $profileId): void
+    {
+        $profile = auth()->user()->zakatProfiles()->where('archived', true)->find($profileId);
+        $profile?->update(['archived' => false]);
     }
 
     public function startPayZakat(): void
@@ -167,6 +250,9 @@ class Zakat extends Component
             return;
         }
 
+        // Nama profil disebut di catatan hanya bila ada lebih dari satu, sesuai docs/ui-flow.md S14.
+        $note = $user->zakatProfiles()->count() > 1 ? 'Zakat mal — '.$profile->name : 'Zakat mal';
+
         Transaction::create([
             'user_id' => $user->id,
             'room_id' => $category->room_id,
@@ -175,7 +261,7 @@ class Zakat extends Component
             'type' => 'pengeluaran',
             'amount_minor' => $amount,
             'category' => $category->name,
-            'note' => 'Zakat mal — '.$profile->name,
+            'note' => $note,
             'occurred_on' => now(),
         ]);
 
@@ -197,7 +283,10 @@ class Zakat extends Component
         $user = auth()->user();
 
         return view('livewire.zakat', [
+            'profiles' => $this->activeProfiles(),
+            'archivedProfiles' => $user->zakatProfiles()->where('archived', true)->orderBy('id')->get(),
             'profile' => $this->profile(),
+            'canAddProfile' => $user->zakatProfiles()->count() === 0 || $user->entitlements()->isEnabled(Feature::MultiZakatProfile),
             'accounts' => $user->accounts()->where('archived', false)->orderBy('sort_order')->get(),
         ])->layout('components.layout', ['title' => 'Zakat dan Haul — Rizqflow']);
     }

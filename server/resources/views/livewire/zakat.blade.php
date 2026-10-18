@@ -4,10 +4,36 @@
 
     <div><a href="{{ route('denah') }}" style="font-size:13px; font-weight:600; color:var(--rf-on-surface-variant);">← Kembali ke Denah</a></div>
 
+    @if ($profiles->isNotEmpty() && ! $editingProfile)
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            @foreach ($profiles as $p)
+                <button type="button" wire:click="selectProfile({{ $p->id }})" class="rf-btn {{ $profile?->id === $p->id ? 'primary' : 'tonal' }}" style="padding:8px 16px; border-radius:999px;">{{ $p->name }}</button>
+            @endforeach
+            <button type="button" wire:click="startAddProfile" class="rf-btn tonal" style="padding:8px 16px; border-radius:999px;">+ Profil @unless ($canAddProfile) (Pro) @endunless</button>
+        </div>
+        @if ($profileError)
+            <p class="error-text">{{ $profileError }}</p>
+        @endif
+    @endif
+
+    @if ($archivedProfiles->isNotEmpty() && ! $editingProfile)
+        <details class="rf-card">
+            <summary style="cursor:pointer; font-weight:700; font-size:14px;">Profil diarsipkan ({{ $archivedProfiles->count() }})</summary>
+            <div style="margin-top:16px; display:flex; flex-direction:column; gap:12px;">
+                @foreach ($archivedProfiles as $p)
+                    <div style="display:flex; align-items:center; gap:14px; padding:10px 0; border-top:1px solid var(--rf-outline-variant);">
+                        <span style="flex:1; font-size:14px; color:var(--rf-on-surface-variant);">{{ $p->name }}</span>
+                        <button type="button" wire:click="restoreProfile({{ $p->id }})" class="rf-btn tonal" style="padding:8px 14px;">Pulihkan</button>
+                    </div>
+                @endforeach
+            </div>
+        </details>
+    @endif
+
     @if (! $profile && ! $editingProfile)
         <div class="rf-card">
             <p style="color:var(--rf-on-surface-variant); font-size:14px; margin-bottom:14px;">Belum ada profil harta. Tambahkan untuk mulai memantau zakat.</p>
-            <button type="button" wire:click="startEditProfile" class="rf-btn primary">+ Profil harta</button>
+            <button type="button" wire:click="startAddProfile" class="rf-btn primary">+ Profil harta</button>
         </div>
     @endif
 
@@ -61,7 +87,10 @@
                 <div style="font-size:13px; color:var(--rf-on-surface-variant); margin-bottom:4px;">Ruang Memberi</div>
                 <h1 class="rf-serif" style="font-size:28px;">Zakat mal</h1>
             </div>
-            <button type="button" wire:click="startEditProfile" class="rf-btn tonal">Ubah profil harta</button>
+            <div style="display:flex; gap:10px;">
+                <button type="button" wire:click="startEditProfile" class="rf-btn tonal">Ubah profil harta</button>
+                <button type="button" wire:click="archiveProfile({{ $profile->id }})" wire:confirm="Arsipkan profil {{ $profile->name }}?" class="rf-btn tonal">Arsipkan</button>
+            </div>
         </div>
 
         @php
