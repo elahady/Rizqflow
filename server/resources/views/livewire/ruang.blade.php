@@ -69,13 +69,13 @@
         </div>
 
         @forelse ($transactions as $t)
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 0; border-bottom:1px solid var(--rf-outline-variant);">
+            <a href="{{ route('transaksi.detail', $t) }}" style="display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 0; border-bottom:1px solid var(--rf-outline-variant); color:inherit; text-decoration:none;">
                 <div>
                     <div style="font-weight:600; font-size:14px;">{{ $t->note ?? $t->category }}</div>
                     <div style="font-size:12px; color:var(--rf-on-surface-variant); margin-top:2px;">{{ $t->occurred_on->translatedFormat('j M') }} · {{ $t->category }}</div>
                 </div>
                 <div style="font-weight:700; font-size:14px;">− {{ Rupiah::format($t->amount_minor) }}</div>
-            </div>
+            </a>
         @empty
             <p style="padding:16px 0; color:var(--rf-on-surface-variant); font-size:14px;">Belum ada transaksi di ruang ini.</p>
         @endforelse

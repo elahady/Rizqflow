@@ -13,7 +13,7 @@
                 @forelse ($transactions as $dateLabel => $items)
                     <div style="font-size:12px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase; color:var(--rf-on-surface-variant); padding:14px 0 8px;">{{ $dateLabel }}</div>
                     @foreach ($items as $t)
-                        <div style="display:flex; align-items:flex-start; gap:14px; padding:13px 0; border-bottom:1px solid var(--rf-outline-variant);">
+                        <a href="{{ route('transaksi.detail', $t) }}" style="display:flex; align-items:flex-start; gap:14px; padding:13px 0; border-bottom:1px solid var(--rf-outline-variant); color:inherit; text-decoration:none;">
                             <div style="flex:1; min-width:0;">
                                 <div style="font-weight:600; font-size:14px;">{{ $t->note ?? $t->category }}</div>
                                 <div style="font-size:12px; color:var(--rf-on-surface-variant); margin-top:2px;">
@@ -25,7 +25,7 @@
                             <div style="text-align:right; flex-shrink:0; font-weight:700; font-size:15px; {{ $t->type === 'pemasukan' ? 'color:#275c3f;' : '' }}">
                                 {{ $t->type === 'pengeluaran' ? '−' : ($t->type === 'pemasukan' ? '+' : '') }} {{ Rupiah::format($t->amount_minor) }}
                             </div>
-                        </div>
+                        </a>
                     @endforeach
                 @empty
                     <p style="padding:20px 0; color:var(--rf-on-surface-variant); font-size:14px;">Belum ada transaksi.</p>

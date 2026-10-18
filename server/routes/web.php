@@ -8,6 +8,7 @@ use App\Livewire\Kelola;
 use App\Livewire\Ruang;
 use App\Livewire\RuangDaftar;
 use App\Livewire\Transaksi;
+use App\Livewire\TransaksiDetail;
 use App\Livewire\Zakat;
 use Illuminate\Support\Facades\Route;
 
@@ -27,6 +28,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/', Denah::class);
     Route::get('/denah', Denah::class)->name('denah');
     Route::get('/transaksi', Transaksi::class)->name('transaksi');
+    Route::get('/transaksi/{transaction}', TransaksiDetail::class)->name('transaksi.detail');
     Route::get('/ruang', RuangDaftar::class)->name('ruang');
     Route::get('/ruang/aturan', AturanAlokasi::class)->name('aturan-alokasi');
     Route::get('/ruang/{room}', Ruang::class)->name('ruang.detail');
