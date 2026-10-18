@@ -217,7 +217,7 @@ Mengurangi friksi input tanpa server, sesuai temuan riset bahwa input manual ada
 
 ## Tahap 12 — Infrastruktur server dan deploy (Backlog, dijalankan pemilik)
 
-Ditambahkan 2026-09-24 sebagai pelaksanaan keputusan "mulai di VPS Al-Kaukaba, mudah pindah ke VPS khusus" ([server-sync.md](server-sync.md)). Sebagian besar butir dijalankan **pemilik sendiri di VPS**, terpisah dari pekerjaan kode, dan mendahului atau berjalan bersama Tahap 9. Claude tidak menyentuh VPS produksi tanpa izin eksplisit.
+Ditambahkan 2026-09-24 sebagai pelaksanaan keputusan "mulai di VPS Al-Kaukaba, mudah pindah ke VPS khusus" ([server-sync.md](server-sync.md)). **Diganti:** VPS tujuan sekarang IDCloudHost `103.54.170.198` (Docker, bersama habitflow), dicatat di repo build-server; web sudah ter-deploy di sana 2026-10-18 (Tahap 14). Butir di bawah yang menyebut PHP-FPM, Certbot, dan Nginx per aplikasi berganti padanan Docker, Cloudflare Origin Certificate, dan nginx host. Sebagian besar butir dijalankan **pemilik sendiri di VPS**, terpisah dari pekerjaan kode, dan mendahului atau berjalan bersama Tahap 9. Claude tidak menyentuh VPS produksi tanpa izin eksplisit.
 
 - [ ] Cek spesifikasi VPS (`free -m`, `df -h`, swap) dan putuskan apakah muat untuk aplikasi ketiga (High, pemilik)
 - [ ] Subdomain API Rizqflow: DNS dan SSL Certbot (High, pemilik)
@@ -253,7 +253,7 @@ Ditambahkan 2026-10-18: web dibuat (seperti habitflow.roziqrizal.com), membatalk
 - [x] Breakdown Pos di halaman Ruang (2026-10-18): tabel `categories` (pos per ruang, bobot, pos sistem, arsip) dan `transactions.category_id`; `Room::categoryBreakdown` mengikuti `RoomDetailLoader` di `:domain` (pos berbobot dibanding irisan jatah ruang, tanpa bobot dibanding seluruh jatah, pos terarsip dan sistem hanya tampil bila dipakai bulan itu, urut dari pengeluaran terbesar). Seed Keluarga berbobot 5:2:3 (80%, 113%, 55%), Memberi dan Diri tanpa bobot; 7 tes fitur
 - [ ] Sinkron ke data asli lewat protokol Tahap 9 — browser perlu mendekripsi data e2e, mekanismenya belum diputuskan
 - [x] Autentikasi web final (2026-10-18): **ikut akun Google Android** (keputusan pemilik). Tombol Google Identity Services memakai client ID Web yang sama dengan Android; server memverifikasi ID token lewat `google/apiclient` di balik `GoogleIdTokenVerifier`, akun dikenali dari `sub` (akun lama dengan email sama dihubungkan). Daftar dan email+sandi dihapus; masuk demo hanya di lingkungan lokal. 7 tes fitur. Sisa pemilik: tambah Authorized JavaScript origins di klien Web Google Cloud ([auth-google.md](auth-google.md) bagian Web), lalu uji tombolnya di browser
-- [ ] Deploy produksi: domain dan VPS tujuan belum diputuskan (kandidat: VPS Al-Kaukaba, mengikuti Tahap 9)
+- [ ] Deploy produksi (2026-10-18, hampir selesai): VPS IDCloudHost `103.54.170.198` bersama roziqrizal.com dan habitflow (bukan VPS Al-Kaukaba, sesuai aturan di repo build-server), domain `rizqflow.roziqrizal.com`. Container `rizqflow` healthy di `127.0.0.1:8082`, database `rizqflow` di `shared-mysql`, nginx site siap; langkah di [server/DEPLOY.md](../server/DEPLOY.md). **Sisa pemilik:** DNS A record di Cloudflare dan Authorized JavaScript origin `https://rizqflow.roziqrizal.com` di klien Web Google Cloud. Catatan: deploy pertama sempat menimpa container habitflow sekitar 2 menit karena nama project compose bentrok; sudah dipulihkan dan diperbaiki (`name: rizqflow`)
 
 **Selesai bila:** halaman web menampilkan data sync asli milik pengguna (bukan seed), autentikasi final terpasang, dan sudah live di domain produksi.
 

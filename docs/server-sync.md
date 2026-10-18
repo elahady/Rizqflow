@@ -5,7 +5,7 @@ Keputusan pemilik 2026-09-24. Ringkasan alasannya ada di [konsep.md](konsep.md) 
 ## Ringkasan keputusan
 
 - Server ikut **rilis pertama** dengan cakupan penuh: akun, verifikasi pembelian, metrik, sync antar-perangkat, ruang keluarga, notifikasi anggota.
-- Server berjalan di **VPS Al-Kaukaba yang sudah ada**, sebagai aplikasi **Laravel** ketiga (bersama Al-Kaukaba dan roziqrizal.com), dengan pemisahan di bawah. Pindah ke VPS khusus dipermudah lewat alamat API yang bisa dikonfigurasi.
+- ~~Server berjalan di VPS Al-Kaukaba yang sudah ada~~ **Diganti (keputusan pemilik, dicatat di repo build-server):** server berjalan di **VPS IDCloudHost `103.54.170.198`** bersama roziqrizal.com dan habitflow, sebagai container Docker (pola habitflow), bukan di VPS Al-Kaukaba. Web Rizqflow sudah ter-deploy di sana 2026-10-18 (`server/DEPLOY.md`). Pemisahan di bawah tetap berlaku, dengan padanan Docker: container dan volume sendiri, database dan pengguna sendiri di `shared-mysql`, `.env.production` sendiri. Pindah ke VPS khusus tetap dipermudah lewat alamat API yang bisa dikonfigurasi.
 - **Server tidak boleh bisa membaca data keuangan.** Data disimpan terenkripsi ujung ke ujung; kunci ada di perangkat.
 - **Data di ponsel adalah sumber kebenaran**; server hanya menyimpan salinan terenkripsi. Aplikasi tetap berfungsi penuh offline.
 - **Sync dijual sebagai langganan sejak rilis** (harga di [monetisasi.md](monetisasi.md)).
