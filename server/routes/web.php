@@ -9,6 +9,7 @@ use App\Livewire\BandingkanPeriode;
 use App\Livewire\Denah;
 use App\Livewire\GrafikTren;
 use App\Livewire\HeatmapPencatatan;
+use App\Livewire\ImporCsv;
 use App\Livewire\KekayaanBersih;
 use App\Livewire\Kelola;
 use App\Livewire\Laporan;
@@ -56,4 +57,5 @@ Route::middleware('auth')->group(function () {
     Route::get('/laporan/bandingkan/pdf', [ReportPdfController::class, 'bandingkanPeriode'])->name('laporan.bandingkan.pdf');
     Route::get('/laporan/cashflow', ProyeksiCashflow::class)->name('laporan.cashflow');
     Route::get('/laporan/heatmap', HeatmapPencatatan::class)->name('laporan.heatmap');
+    Route::get('/laporan/impor-csv', ImporCsv::class)->name('laporan.impor-csv');
 });

@@ -11,6 +11,7 @@
         ['route' => 'laporan.bandingkan', 'title' => 'Bandingkan periode', 'desc' => 'Dua bulan atau tahun berdampingan, per ruang dan kategori.'],
         ['route' => 'laporan.cashflow', 'title' => 'Proyeksi cashflow', 'desc' => 'Perkiraan saldo ke depan dari transaksi berulang dan tagihan.'],
         ['route' => 'laporan.heatmap', 'title' => 'Heatmap pencatatan', 'desc' => 'Kebiasaan mencatat setahun terakhir, gaya kontribusi GitHub.'],
+        ['route' => 'laporan.impor-csv', 'title' => 'Impor CSV', 'desc' => 'Impor banyak transaksi sekaligus dari mutasi bank atau e-wallet.'],
     ] as $card)
         <a href="{{ route($card['route']) }}" class="rf-card" style="display:flex; align-items:center; justify-content:space-between; gap:16px; color:inherit; text-decoration:none;">
             <div>
