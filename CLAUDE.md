@@ -4,7 +4,7 @@ Aplikasi finansial berbasis "hak": rezeki yang masuk dialirkan ke ruang-ruang (M
 
 ## Status Pengembangan
 
-_Diperbarui 17 Oktober 2026. **Direkonstruksi dari `git log` dan dokumen repo, belum diverifikasi pemilik** — koreksi butir yang keliru. Potret keadaan sekarang, bukan log: ubah di tempat setiap selesai pekerjaan nyata (skill `catat-progres`); riwayat ada di `git log`._
+_Diperbarui 18 Oktober 2026 (bagian web diverifikasi langsung; sisanya masih rekonstruksi 17 Oktober)._ _Asal: 17 Oktober 2026. **Direkonstruksi dari `git log` dan dokumen repo, belum diverifikasi pemilik** — koreksi butir yang keliru. Potret keadaan sekarang, bukan log: ubah di tempat setiap selesai pekerjaan nyata (skill `catat-progres`); riwayat ada di `git log`._
 
 **Sumber status hidup: Notion** (hub di bagian "Status dan tracking" di bawah) dan [docs/roadmap.md](docs/roadmap.md) (snapshot terakhir disinkronkan 2026-09-25). Bagian ini ringkasan untuk yang membuka repo tanpa Notion. Commit terakhir: 2026-09-28.
 
@@ -12,9 +12,16 @@ _Diperbarui 17 Oktober 2026. **Direkonstruksi dari `git log` dan dokumen repo, b
 - Tahap 1 (desain UI/UX), 2 (inti domain), 3 (layar inti), 4 (dashboard Denah), 5 (modul Memberi: zakat dan haul) berstatus Selesai di roadmap.
 - Tahap 10 dan 11 sudah berjalan: utang-piutang (domain, Room skema v6, layar), laporan bulanan dasar, pintasan folder cadangan, usulan pos lokal, parser bahasa natural Indonesia, layar konfirmasi input cerdas; akun gratis tak terbatas; saklar Pro (uji) di build debug.
 - Keputusan 2026-09-24/25: server di VPS pemilik **ikut rilis pertama** (Tahap 9 naik sebelum rilis), sync sebagai langganan sejak rilis, server tidak boleh bisa membaca data keuangan (lihat [docs/server-sync.md](docs/server-sync.md)).
-- **2026-10-18: web Rizqflow diputuskan dibuat** (seperti habitflow.roziqrizal.com), membatalkan keputusan "web tidak dibuat". Scaffold awal selesai di `server/` (Laravel 12 + Livewire 4 + Blade, SQLite dev): login/register, halaman Denah/Transaksi/Ruang/Zakat dengan **data contoh/seed** (lihat `database/seeders/DatabaseSeeder.php`), desain pakai token `docs/design/tokens.css`. Sync ke data asli menunggu Tahap 9 selesai — lihat `docs/konsep.md` bagian "Keputusan yang masih terbuka" soal cara browser mendekripsi data e2e.
+- **2026-10-18: web Rizqflow diputuskan dibuat** (seperti habitflow.roziqrizal.com), membatalkan keputusan "web tidak dibuat". Dikerjakan hari itu di `server/` (Laravel 12 + Livewire 4 + Blade, Tahap 14):
+  - Scaffold: halaman Denah/Transaksi/Ruang/Zakat dengan **data contoh/seed** (`database/seeders/DatabaseSeeder.php`), desain pakai token `docs/design/tokens.css`.
+  - **Rincian Pos di halaman Ruang**: tabel `categories` + `transactions.category_id`, aturan sama dengan `RoomDetailLoader` Android.
+  - **Masuk dengan Google, ikut akun Google Android** (keputusan pemilik): client ID Web yang sama, akun dikenali dari `sub`, daftar dan email+sandi dihapus (demo hanya lokal). Detail di `docs/auth-google.md` bagian Web.
+  - **Ter-deploy ke VPS IDCloudHost** `103.54.170.198` (container `rizqflow`, `127.0.0.1:8082`, DB di `shared-mysql`, nginx site `rizqflow.roziqrizal.com`), langkah di `server/DEPLOY.md`. Deploy pertama sempat menimpa container habitflow ±2 menit (nama compose bentrok); dipulihkan dan diperbaiki dengan `name: rizqflow`.
+  - 18 tes fitur hijau (`php artisan test`).
+  - Sync ke data asli menunggu Tahap 9 dan 13 — lihat `docs/konsep.md` bagian "Keputusan yang masih terbuka" soal cara browser mendekripsi data e2e.
 
 ### Belum selesai / berikutnya
+0. **Web live (pemilik, Tahap 14):** DNS A record `rizqflow` → `103.54.170.198` (Proxied) di Cloudflare, dan Authorized JavaScript origin `https://rizqflow.roziqrizal.com` di klien Web Google Cloud proyek `rizqflow`. Claude tidak punya akses ke keduanya (tidak ada token Cloudflare atau browser di sesi); setelah selesai, cek dari luar lalu centang "Live di domain produksi".
 1. **Tahap 0** In Progress: tinggal validasi minat lewat landing page dan daftar tunggu.
 2. **Tahap 6** (keamanan, data, polish) dan **Tahap 7** (monetisasi dan Pro) In Progress. Terbuka di Tahap 7: integrasi Google Play Billing (butuh produk in-app dari Tahap 8), harga emas otomatis (riset API), uji alur pembelian dengan penguji lisensi.
 3. **Tahap 9** (server, sync, ruang keluarga) Planning, wajib sebelum rilis; **Tahap 12** (infrastruktur server dan deploy, dijalankan pemilik) dan **Tahap 13** (enkripsi ujung ke ujung dan kunci) Backlog.

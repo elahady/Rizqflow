@@ -23,6 +23,22 @@ docker exec -d rizqflow sh -c "php artisan migrate --force > /tmp/migrate.log 2>
 docker exec rizqflow pgrep -f "artisan migrate" || docker exec rizqflow cat /tmp/migrate.log
 ```
 
+## Status (18 Oktober 2026)
+
+- Deploy pertama selesai: container `rizqflow` healthy, 10 migrasi jalan, nginx site
+  `/etc/nginx/sites-available/rizqflow.roziqrizal.com` aktif (diuji `curl --resolve` dari VPS: 200).
+- **Belum bisa diakses publik.** Dua langkah pemilik:
+  1. Cloudflare → `roziqrizal.com` → DNS → A record `rizqflow` → `103.54.170.198`, Proxied.
+  2. Google Cloud → proyek `rizqflow` → Clients → klien Web → Authorized JavaScript origins →
+     `https://rizqflow.roziqrizal.com`.
+- Claude tidak bisa mengerjakan keduanya dari sesi tanpa akses: tidak ada token API Cloudflare
+  di PC ini, dan origin klien OAuth tidak bisa diubah lewat `gcloud`/API (hanya Console). Supaya
+  DNS bisa dikerjakan Claude lain kali: token Cloudflare "Edit zone DNS" khusus zona
+  `roziqrizal.com`, disimpan sebagai env var `CLOUDFLARE_API_TOKEN` (jangan ditempel ke chat).
+- Insiden deploy pertama: tanpa `name: rizqflow`, compose ini bentrok dengan habitflow (folder
+  sama-sama `server`) dan menimpa container habitflow ±2 menit. Jangan hapus `name:` di
+  `docker-compose.yml`. Kronologi di repo build-server, ROADMAP Fase 3.
+
 Catatan:
 
 - `NGINX_LISTEN_IP_PROTOCOL=ipv4` wajib di `.env.production` (VPS tanpa IPv6).
