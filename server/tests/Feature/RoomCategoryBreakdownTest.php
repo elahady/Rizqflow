@@ -120,6 +120,21 @@ class RoomCategoryBreakdownTest extends TestCase
             ->assertSeeInOrder(['Pos', 'Belanja bulanan', '20%', 'Transaksi terbaru']);
     }
 
+    public function test_room_page_shows_empty_state_for_user_without_rooms(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->get(route('ruang'))
+            ->assertOk()
+            ->assertSee('Belum ada ruang');
+    }
+
+    public function test_denah_renders_for_user_without_data(): void
+    {
+        $this->actingAs(User::factory()->create())->get(route('denah'))->assertOk();
+        $this->actingAs(User::factory()->create())->get(route('zakat'))->assertOk();
+        $this->actingAs(User::factory()->create())->get(route('transaksi'))->assertOk();
+    }
+
     public function test_room_page_shows_empty_state_without_pos(): void
     {
         $this->actingAs($this->user)

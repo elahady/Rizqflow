@@ -11,7 +11,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Di VPS, traffic masuk lewat Cloudflare lalu nginx host (proxy ke container). Tanpa ini
+        // Laravel mengira request HTTP biasa dan membuat URL http://, bukan https://.
+        $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

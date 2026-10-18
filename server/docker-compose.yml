@@ -1,0 +1,24 @@
+services:
+  app:
+    build: .
+    image: rizqflow:latest
+    container_name: rizqflow
+    # Hanya ke 127.0.0.1: publik masuk lewat nginx host (rizqflow.roziqrizal.com). Port yang
+    # dipublikasikan Docker ke 0.0.0.0 melewati aturan ufw.
+    ports:
+      - "127.0.0.1:8082:8080"
+    volumes:
+      - storage:/var/www/html/storage
+    env_file:
+      - .env.production
+    networks:
+      - default
+      - shared-db
+    restart: unless-stopped
+
+networks:
+  shared-db:
+    external: true
+
+volumes:
+  storage:

@@ -24,7 +24,12 @@ class Ruang extends Component
         $user = auth()->user();
         $room = $this->roomId
             ? $user->rooms()->findOrFail($this->roomId)
-            : $user->rooms()->firstOrFail();
+            : $user->rooms()->first();
+
+        // Akun Google baru belum punya ruang: data asli baru datang lewat sync (Tahap 9).
+        if (! $room) {
+            return view('livewire.ruang-kosong')->layout('components.layout', ['title' => 'Ruang — Rizqflow']);
+        }
 
         $transactions = $room->transactions()->orderByDesc('occurred_on')->limit(5)->get();
 
