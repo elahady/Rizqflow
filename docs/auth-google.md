@@ -104,6 +104,8 @@ Diputuskan 2026-10-18: **web ikut akun Google Android.** Halaman masuk web hanya
 
 **Yang harus Anda siapkan** supaya tombolnya muncul dan bekerja: Google Cloud, proyek `rizqflow`, Clients, buka klien **Web** di atas, lalu di **Authorized JavaScript origins** tambahkan `http://localhost` dan `http://localhost:8000` (alamat `php artisan serve`). Nanti tambahkan domain produksi web. Tanpa ini tombol Google menolak dengan "origin is not allowed". Proyek masih berstatus Testing, jadi hanya Test user yang bisa masuk.
 
+**Status 2026-10-18:** origin `https://rizqflow.roziqrizal.com` sudah ditambahkan pemilik, dan masuk dengan Google di produksi teruji berhasil (akun dibuat dengan `google_sub`, tanpa sandi). Untuk rilis publik, proyek perlu dipindah dari Testing ke In production.
+
 ## Risiko yang perlu diketahui sebelum rilis
 
 1. **Izin baca Gmail adalah cakupan "restricted" di Google.** Selama proyek berstatus Testing, hanya sampai 100 pengguna uji yang terdaftar, dan izinnya kedaluwarsa tiap 7 hari. Untuk rilis publik, Google mewajibkan **verifikasi OAuth dan penilaian keamanan tahunan** oleh penilai pihak ketiga, yang butuh waktu dan biaya. Ini bisa menunda rilis pertama. Saran: rilis pertama **tanpa** tombol Gmail (sudah terpisah dari tombol Google), Gmail menyusul setelah verifikasi.

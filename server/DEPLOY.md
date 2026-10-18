@@ -30,8 +30,8 @@ docker exec rizqflow pgrep -f "artisan migrate" || docker exec rizqflow cat /tmp
 - **Live** di https://rizqflow.roziqrizal.com. Pemilik sudah mengisi DNS A record `rizqflow` →
   `103.54.170.198` (Proxied) di Cloudflare dan Authorized JavaScript origin
   `https://rizqflow.roziqrizal.com` di klien Web Google Cloud proyek `rizqflow`. Dicek dari luar:
-  http 301 ke https, `/login` 200 lewat Cloudflare, tombol Google dirender. Belum diuji: klik masuk
-  sungguhan.
+  http 301 ke https, `/login` 200 lewat Cloudflare, tombol Google dirender, dan masuk dengan Google
+  sungguhan berhasil (pemilik, akun produksi pertama punya `google_sub`, tanpa galat di log).
 - Claude tidak bisa mengerjakan DNS dan origin Google dari sesi tanpa akses: tidak ada token API Cloudflare
   di PC ini, dan origin klien OAuth tidak bisa diubah lewat `gcloud`/API (hanya Console). Supaya
   DNS bisa dikerjakan Claude lain kali: token Cloudflare "Edit zone DNS" khusus zona

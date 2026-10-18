@@ -21,7 +21,7 @@ _Diperbarui 18 Oktober 2026 (bagian web diverifikasi langsung; sisanya masih rek
   - Sync ke data asli menunggu Tahap 9 dan 13 — lihat `docs/konsep.md` bagian "Keputusan yang masih terbuka" soal cara browser mendekripsi data e2e.
 
 ### Belum selesai / berikutnya
-0. **Web live di https://rizqflow.roziqrizal.com** (18 Oktober 2026; DNS dan origin Google diisi pemilik). Belum diuji: klik Masuk dengan Google sungguhan di browser. Sisa Tahap 14: sinkron ke data asli (tunggu Tahap 9 dan 13).
+0. **Web live di https://rizqflow.roziqrizal.com** (18 Oktober 2026; DNS dan origin Google diisi pemilik). Masuk dengan Google teruji berhasil di produksi oleh pemilik. Sisa Tahap 14: sinkron ke data asli (tunggu Tahap 9 dan 13).
 1. **Tahap 0** In Progress: tinggal validasi minat lewat landing page dan daftar tunggu.
 2. **Tahap 6** (keamanan, data, polish) dan **Tahap 7** (monetisasi dan Pro) In Progress. Terbuka di Tahap 7: integrasi Google Play Billing (butuh produk in-app dari Tahap 8), harga emas otomatis (riset API), uji alur pembelian dengan penguji lisensi.
 3. **Tahap 9** (server, sync, ruang keluarga) Planning, wajib sebelum rilis; **Tahap 12** (infrastruktur server dan deploy, dijalankan pemilik) dan **Tahap 13** (enkripsi ujung ke ujung dan kunci) Backlog.
