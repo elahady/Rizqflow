@@ -1,0 +1,64 @@
+@php
+    use App\Support\Rupiah;
+
+    $roomColors = [1 => '#3b6fa8', 2 => '#c4653a', 3 => '#2a9a80', 4 => '#af6dec', 5 => '#a04177', 6 => '#099acf', 7 => '#998214', 8 => '#de4f74'];
+    $color = $roomColors[$room->slot] ?? '#727874';
+    $percent = $room->usedPercent();
+    $status = $room->status();
+    $circumference = 263.76; // r=42
+    $dash = round($circumference * min($percent, 100) / 100, 1);
+    $gap = round($circumference - $dash, 1);
+    $ringColor = $status === 'perlu_perhatian' ? 'var(--rf-status-warning)' : $color;
+@endphp
+
+<div style="display:flex; flex-direction:column; gap:28px; max-width:880px; margin:0 auto; width:100%;">
+
+    <div><a href="{{ route('denah') }}" style="font-size:13px; font-weight:600; color:var(--rf-on-surface-variant);">← Kembali ke Denah</a></div>
+
+    <div class="rf-card" style="display:flex; align-items:center; gap:28px; flex-wrap:wrap;">
+        <svg width="104" height="104" viewBox="0 0 104 104" style="transform:rotate(-90deg); flex-shrink:0;" aria-hidden="true">
+            <circle cx="52" cy="52" r="42" fill="none" stroke="var(--rf-surface-container-highest)" stroke-width="11"></circle>
+            <circle cx="52" cy="52" r="42" fill="none" stroke="{{ $ringColor }}" stroke-width="11" stroke-linecap="round" stroke-dasharray="{{ $dash }} {{ $gap }}"></circle>
+            <text x="52" y="52" transform="rotate(90 52 52)" text-anchor="middle" dominant-baseline="middle" font-family="Manrope, sans-serif" font-size="22" font-weight="700" fill="#1b1c1b">{{ $percent }}%</text>
+        </svg>
+        <div style="flex:1; min-width:220px;">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                <div style="width:32px; height:32px; border-radius:9px; background:{{ $color }}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700;">{{ mb_substr($room->name, 0, 1) }}</div>
+                <h1 class="rf-serif" style="font-size:26px;">{{ $room->name }}</h1>
+                <span class="rf-pill {{ $status === 'terpenuhi' ? 'good' : ($status === 'perlu_perhatian' ? 'warn' : 'neutral') }}">
+                    @if ($status === 'terpenuhi') Terpenuhi
+                    @elseif ($status === 'perlu_perhatian') Perlu perhatian
+                    @else Berjalan
+                    @endif
+                </span>
+            </div>
+            <div style="font-size:15px; color:var(--rf-on-surface-variant);">
+                Terpakai <span style="font-weight:700; color:var(--rf-on-background);">{{ Rupiah::format($room->used_minor) }}</span>
+                dari jatah <span style="font-weight:700; color:var(--rf-on-background);">{{ Rupiah::format($room->budget_minor) }}</span>
+            </div>
+        </div>
+        @if ($room->allocation_percent)
+            <span class="rf-pill neutral">{{ $room->allocation_percent }}% dari alokasi</span>
+        @endif
+    </div>
+
+    <div class="rf-card">
+        <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:6px;">
+            <h2 class="rf-serif" style="font-size:18px;">Transaksi terbaru</h2>
+            <a href="{{ route('transaksi') }}" style="font-size:13px; font-weight:600;">Lihat semua →</a>
+        </div>
+
+        @forelse ($transactions as $t)
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 0; border-bottom:1px solid var(--rf-outline-variant);">
+                <div>
+                    <div style="font-weight:600; font-size:14px;">{{ $t->note ?? $t->category }}</div>
+                    <div style="font-size:12px; color:var(--rf-on-surface-variant); margin-top:2px;">{{ $t->occurred_on->translatedFormat('j M') }} · {{ $t->category }}</div>
+                </div>
+                <div style="font-weight:700; font-size:14px;">− {{ Rupiah::format($t->amount_minor) }}</div>
+            </div>
+        @empty
+            <p style="padding:16px 0; color:var(--rf-on-surface-variant); font-size:14px;">Belum ada transaksi di ruang ini.</p>
+        @endforelse
+    </div>
+
+</div>

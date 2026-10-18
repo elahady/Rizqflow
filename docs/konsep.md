@@ -146,7 +146,8 @@ Kesimpulan awal: **Rizqflow masih layak dipakai**. **Rizqly bukan cadangan yang 
 - Data: offline-first.
 - Monetisasi: freemium; Pro sekali bayar; Sync sebagai langganan sejak rilis pertama (2026-09-24); tanpa iklan. Detail di [monetisasi.md](monetisasi.md).
 - Keamanan, ekspor data, dan dasar zakat selalu gratis.
-- Platform: **Android saja**, dirilis di Google Play Store (2026-09-19). Web tidak dibuat; landing page dan case study tetap di roziqrizal.com. Pembelian lewat Google Play Billing.
+- Platform: **Android** dirilis di Google Play Store (2026-09-19), pembelian lewat Google Play Billing. **Diperluas 2026-10-18: web juga dibuat** (seperti habitflow.roziqrizal.com), menggantikan keputusan "web tidak dibuat" — lihat baris stack web di bawah.
+- **Web Rizqflow** (2026-10-18, disetujui pemilik): dashboard web penuh (Denah, Transaksi, Ruang, Zakat), bukan sekadar landing page. Stack: **Laravel 12 + Livewire 4 + Blade** di `server/` (disalin dari pola habitflow/server), SQLite untuk dev lokal. Urutan kerja yang disepakati: **scaffold UI dulu dengan data contoh/seed** (selesai, lihat "Status Pengembangan" di CLAUDE.md); sinkron data asli menyusul setelah Tahap 9 (sync + enkripsi ujung-ke-ujung) selesai, karena model e2e Tahap 9 berarti browser perlu mendekripsi data sendiri — mekanismenya **belum diputuskan**, jangan asumsikan. Hosting/domain produksi (mis. rizqflow.roziqrizal.com) belum diputuskan.
 - Stack: **Kotlin + Jetpack Compose + Room** (2026-09-19). Compose dipilih untuk kartu ruang, cincin progres, dan animasi aliran; alkaukabaandroid memakai Views/XML, jadi ada kurva belajar yang diterima.
 - Arah visual: **opsi A**, pakai ulang identitas homepage roziqrizal.com (palet sage Material 3, Manrope, Libre Caslon Text), dengan warna dan font disimpan sebagai design tokens (2026-09-19). Detail di [ui-flow.md](ui-flow.md).
 - Widget, termasuk widget catat kilat, masuk **Pro** (2026-09-20). Pintasan ikon, tile Quick Settings, dan balasan notifikasi tetap gratis, karena mencatat dengan cepat adalah janji utama.
@@ -182,6 +183,7 @@ Kesimpulan awal: **Rizqflow masih layak dipakai**. **Rizqly bukan cadangan yang 
 
 ## Keputusan yang masih terbuka
 
+- **Cara web membaca data sync terenkripsi:** model e2e Tahap 9 berarti server tidak bisa membaca data keuangan, jadi web dashboard perlu mendekripsi di browser untuk menampilkan data asli. Mekanisme derivasi/penyimpanan kunci di browser, dan metode autentikasi web (email+sandi scaffold saat ini hanya sementara) belum diputuskan — tunggu Tahap 9 selesai di Android dan server dulu.
 - **Domain sendiri:** rizqflow.com dipegang pihak lain; .app dan .id bebas. Landing page bisa berada di roziqrizal.com, jadi domain sendiri belum tentu perlu.
 - **Haul saat harta turun di bawah nisab di tengah tahun:** terputus lalu mulai dari nol (bawaan sementara), atau hanya diperiksa di awal dan akhir haul (pendapat lain). Keduanya sudah ada sebagai `HaulBreakPolicy`; menunggu verifikasi kitab oleh pemilik.
 - **Harga final Pro**, berdasarkan uji minat. Harga awal Sync sudah disetujui 2026-09-24 ([monetisasi.md](monetisasi.md)).

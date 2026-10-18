@@ -40,7 +40,7 @@ Menetapkan keputusan yang menentukan arah teknis dan bisnis sebelum kode ditulis
 - [x] Rumuskan model bisnis freemium ([monetisasi.md](monetisasi.md))
 - [x] Susun breakdown tahap, spesifikasi layar, dan flow UI
 - [x] Pasang tracking Notion, skill `pengembangan-rizqflow`, dan CLAUDE.md repo
-- [x] Putuskan platform: Android saja, rilis di Play Store (2026-09-19)
+- [x] Putuskan platform: Android, rilis di Play Store (2026-09-19); **diperluas 2026-10-18** — web juga dibuat, lihat Tahap 14
 - [x] Putuskan stack Android: Kotlin + Jetpack Compose + Room (2026-09-19)
 - [x] Setujui detail stack Android: modul, min SDK 26, DI manual, enkripsi (2026-09-20)
 - [x] Cek ketersediaan nama (2026-09-21): pencarian "rizqflow" di Google Play dan pangkalan merek DJKI tanpa hasil; rizqflow.com dipegang pihak lain, rizqflow.app dan .id bebas ([konsep.md](konsep.md))
@@ -242,6 +242,20 @@ Ditambahkan 2026-09-24; rancangannya disetujui pemilik dan tertulis di [server-s
 - [ ] Putuskan aturan tampilan akun lintas ruang di ruang keluarga (High, keputusan pemilik)
 
 **Selesai bila:** server terbukti tidak menyimpan kunci atau data terbaca; kunci bisa dipulihkan dengan kode pemulihan di perangkat baru; ruang pribadi tidak pernah terbuka bagi anggota keluarga; pengeluaran anggota dari ruang bersama muncul tanpa membocorkan nominal lewat notifikasi.
+
+## Tahap 14 — Web Rizqflow (In Progress)
+
+Ditambahkan 2026-10-18: web dibuat (seperti habitflow.roziqrizal.com), membatalkan keputusan lama "web tidak dibuat". Urutan disepakati pemilik: scaffold UI dengan data contoh dulu, sinkron data asli menyusul setelah Tahap 9 dan 13 selesai (lihat [konsep.md](konsep.md) bagian "Keputusan yang masih terbuka").
+
+- [x] Scaffold Laravel 12 + Livewire 4 + Blade di `server/`, SQLite dev, auth email+sandi sementara
+- [x] Layout dan token desain web disalin dari `docs/design/tokens.css`
+- [x] Halaman Denah (S05), Transaksi (S08, panel catat baru tampilan), Ruang (S11 disederhanakan), Zakat (S14/S16) dengan data contoh/seed
+- [ ] Breakdown Pos di halaman Ruang (perlu tabel/model baru, belum ada)
+- [ ] Sinkron ke data asli lewat protokol Tahap 9 — browser perlu mendekripsi data e2e, mekanismenya belum diputuskan
+- [ ] Autentikasi web final (email+sandi scaffold ini sementara; apakah ikut akun Google Android atau terpisah belum diputuskan)
+- [ ] Deploy produksi: domain dan VPS tujuan belum diputuskan (kandidat: VPS Al-Kaukaba, mengikuti Tahap 9)
+
+**Selesai bila:** halaman web menampilkan data sync asli milik pengguna (bukan seed), autentikasi final terpasang, dan sudah live di domain produksi.
 
 ## Versi 1.1 setelah rilis: tangkap otomatis (Pro)
 

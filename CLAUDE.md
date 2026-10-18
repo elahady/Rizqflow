@@ -12,6 +12,7 @@ _Diperbarui 17 Oktober 2026. **Direkonstruksi dari `git log` dan dokumen repo, b
 - Tahap 1 (desain UI/UX), 2 (inti domain), 3 (layar inti), 4 (dashboard Denah), 5 (modul Memberi: zakat dan haul) berstatus Selesai di roadmap.
 - Tahap 10 dan 11 sudah berjalan: utang-piutang (domain, Room skema v6, layar), laporan bulanan dasar, pintasan folder cadangan, usulan pos lokal, parser bahasa natural Indonesia, layar konfirmasi input cerdas; akun gratis tak terbatas; saklar Pro (uji) di build debug.
 - Keputusan 2026-09-24/25: server di VPS pemilik **ikut rilis pertama** (Tahap 9 naik sebelum rilis), sync sebagai langganan sejak rilis, server tidak boleh bisa membaca data keuangan (lihat [docs/server-sync.md](docs/server-sync.md)).
+- **2026-10-18: web Rizqflow diputuskan dibuat** (seperti habitflow.roziqrizal.com), membatalkan keputusan "web tidak dibuat". Scaffold awal selesai di `server/` (Laravel 12 + Livewire 4 + Blade, SQLite dev): login/register, halaman Denah/Transaksi/Ruang/Zakat dengan **data contoh/seed** (lihat `database/seeders/DatabaseSeeder.php`), desain pakai token `docs/design/tokens.css`. Sync ke data asli menunggu Tahap 9 selesai — lihat `docs/konsep.md` bagian "Keputusan yang masih terbuka" soal cara browser mendekripsi data e2e.
 
 ### Belum selesai / berikutnya
 1. **Tahap 0** In Progress: tinggal validasi minat lewat landing page dan daftar tunggu.
@@ -58,11 +59,19 @@ _Diperbarui 17 Oktober 2026. **Direkonstruksi dari `git log` dan dokumen repo, b
 - Tes `:domain` dan `:app`: JUnit Jupiter + kotlin.test (`:domain` dengan `allWarningsAsErrors`). Kalkulasi murni diuji dengan golden test tanpa mock, mengikuti [docs/strategi-unit-test.md](docs/strategi-unit-test.md).
 - Tema Compose ada di `app/.../ui/theme` dan **bersumber dari `docs/design/tokens.css`**: ubah token di sana lebih dulu, lalu samakan `Color.kt`; `RizqflowTokensTest` menjaga kontras warna. Font Manrope dan Libre Caslon Text (OFL) ada di `res/font`, lisensinya di `assets/licenses`.
 
+## Proyek Web (`server/`)
+
+- Laravel 12 + Livewire 4 (class-based, pola `app/Livewire/*.php` + `resources/views/livewire/*.blade.php`, sama seperti `habitflow/server`), Blade, SQLite untuk dev lokal (`database/database.sqlite`, tidak di-commit).
+- Halaman: `Denah` (beranda, S05), `Transaksi` (S08, panel catat di scaffold ini baru tampilan), `Ruang` (detail per ruang, S11 disederhanakan — belum ada breakdown Pos), `Zakat` (S14/S16). Layout bersama di `resources/views/components/layout.blade.php`, token warna/font disalin dari `docs/design/tokens.css` (samakan manual bila tokens.css berubah).
+- **Data masih contoh/seed** (`database/seeders/DatabaseSeeder.php`), bukan data sungguhan. Auth email+sandi sementara (bukan keputusan final — lihat `docs/konsep.md`). Login demo: `demo@rizqflow.test` / `password`.
+- Jalankan: `php artisan serve` dari `server/`. Setup awal: `composer install`, `cp .env.example .env`, `php artisan key:generate`, `php artisan migrate --seed`.
+- **Belum dikerjakan**: sinkron ke data asli (tunggu Tahap 9), deploy produksi (domain/VPS belum diputuskan), breakdown Pos di Ruang, autentikasi final.
+
 ## Status dan tracking
 
 - Notion: hub **Rizqflow** di dalam Ruang Finansial, berisi database "🧩 Tahap Rizqflow" (bagian-bagian besar) dan "🚀 Pengembangan Rizqflow" (tugas dan log). Hub: https://app.notion.com/p/3e0edbb47c0b8184a091ddcf591766fd
 - Catat progres lewat skill **`/pengembangan-rizqflow`** (Notion + dokumentasi repo). Detail mapping dan ID database ada di skill itu.
-- Platform: **Android saja**, dirilis di Google Play Store. Stack: **Kotlin + Jetpack Compose + Room** (diputuskan 2026-09-19). Web tidak dibuat.
+- Platform: **Android**, dirilis di Google Play Store. Stack: **Kotlin + Jetpack Compose + Room** (diputuskan 2026-09-19). **Web juga dibuat** (diputuskan 2026-10-18): `server/` (Laravel 12 + Livewire 4 + Blade), scaffold awal pakai data contoh, lihat "Sudah selesai" di atas dan `docs/konsep.md`.
 - Arah visual: **opsi A**, pakai ulang identitas homepage roziqrizal.com (diputuskan 2026-09-19); warna dan font disimpan sebagai design tokens, angka besar selalu Manrope.
 - Detail stack **disetujui 2026-09-20** (`docs/konsep.md`): modul `:domain`/`:data`/`:app`, min SDK 26, DI manual, backup AES-GCM, tanpa SQLCipher untuk v1. Masih terbuka: kalender Hijriyah untuk haul dan verifikasi asumsi fikih dengan kitab (dikaji lebih jauh nanti). Jangan memutuskan sendiri; tanyakan dulu.
 - **Keputusan 2026-09-24:** akun keuangan (tunai, bank, e-wallet) tidak dibatasi, batas ruang gratis tetap 5. Server di VPS milik pemilik ikut rilis pertama dengan cakupan penuh (sync, ruang keluarga, notifikasi) dan Sync dijual sebagai langganan sejak rilis. Bot WhatsApp dan input AI LLM sesudah rilis. **Sudah diputuskan 2026-09-24:** backend Laravel di VPS Al-Kaukaba yang sudah ada (aplikasi, database, PHP-FPM, dan Nginx terpisah; konfigurasi dan skrip deploy di repo; alamat API bisa dikonfigurasi di aplikasi); model kunci ujung ke ujung (Tink, kode pemulihan wajib, kunci per ruang keluarga, undangan lewat QR); harga Sync Rp 19.000 per bulan atau Rp 149.000 per tahun untuk keluarga sampai 5 anggota, trial 7 hari, tidak termasuk Pro. Rincian di [docs/server-sync.md](docs/server-sync.md), Tahap 9, 12, dan 13 [docs/roadmap.md](docs/roadmap.md). **Masih terbuka (jangan dipilih sendiri):** model konflik sync, aturan akun lintas ruang di ruang keluarga, dan apakah Firebase Analytics dipakai. Claude tidak menyentuh VPS produksi tanpa izin eksplisit.
