@@ -250,7 +250,7 @@ Ditambahkan 2026-10-18: web dibuat (seperti habitflow.roziqrizal.com), membatalk
 - [x] Scaffold Laravel 12 + Livewire 4 + Blade di `server/`, SQLite dev, auth email+sandi sementara
 - [x] Layout dan token desain web disalin dari `docs/design/tokens.css`
 - [x] Halaman Denah (S05), Transaksi (S08, panel catat baru tampilan), Ruang (S11 disederhanakan), Zakat (S14/S16) dengan data contoh/seed
-- [ ] Breakdown Pos di halaman Ruang (perlu tabel/model baru, belum ada)
+- [x] Breakdown Pos di halaman Ruang (2026-10-18): tabel `categories` (pos per ruang, bobot, pos sistem, arsip) dan `transactions.category_id`; `Room::categoryBreakdown` mengikuti `RoomDetailLoader` di `:domain` (pos berbobot dibanding irisan jatah ruang, tanpa bobot dibanding seluruh jatah, pos terarsip dan sistem hanya tampil bila dipakai bulan itu, urut dari pengeluaran terbesar). Seed Keluarga berbobot 5:2:3 (80%, 113%, 55%), Memberi dan Diri tanpa bobot; 7 tes fitur
 - [ ] Sinkron ke data asli lewat protokol Tahap 9 — browser perlu mendekripsi data e2e, mekanismenya belum diputuskan
 - [ ] Autentikasi web final (email+sandi scaffold ini sementara; apakah ikut akun Google Android atau terpisah belum diputuskan)
 - [ ] Deploy produksi: domain dan VPS tujuan belum diputuskan (kandidat: VPS Al-Kaukaba, mengikuti Tahap 9)

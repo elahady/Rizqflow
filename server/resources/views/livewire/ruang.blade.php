@@ -43,6 +43,26 @@
     </div>
 
     <div class="rf-card">
+        <h2 class="rf-serif" style="font-size:18px; margin-bottom:6px;">Pos</h2>
+
+        @forelse ($categories as $pos)
+            @php $posPercent = $pos['percent']; @endphp
+            <div style="padding:13px 0; border-bottom:1px solid var(--rf-outline-variant);" aria-label="{{ $pos['category']->name }}, {{ Rupiah::format($pos['spent_minor']) }}, {{ $posPercent === null ? 'belum ada jatah' : $posPercent.'%' }}">
+                <div style="display:flex; align-items:baseline; gap:12px;">
+                    <span style="flex:1; min-width:0; font-weight:600; font-size:14px;">{{ $pos['category']->name }}</span>
+                    <span style="font-size:13px; color:var(--rf-on-surface-variant);">{{ Rupiah::format($pos['spent_minor']) }}</span>
+                    <span style="font-weight:700; font-size:14px; min-width:44px; text-align:right;">{{ $posPercent === null ? '—' : $posPercent.'%' }}</span>
+                </div>
+                <div style="margin-top:8px; height:8px; border-radius:999px; overflow:hidden; background:color-mix(in srgb, {{ $color }} 20%, transparent);" aria-hidden="true">
+                    <div style="width:{{ min($posPercent ?? 0, 100) }}%; height:100%; background:{{ $color }};"></div>
+                </div>
+            </div>
+        @empty
+            <p style="padding:16px 0; color:var(--rf-on-surface-variant); font-size:14px;">Belum ada pos di ruang ini.</p>
+        @endforelse
+    </div>
+
+    <div class="rf-card">
         <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:6px;">
             <h2 class="rf-serif" style="font-size:18px;">Transaksi terbaru</h2>
             <a href="{{ route('transaksi') }}" style="font-size:13px; font-weight:600;">Lihat semua →</a>

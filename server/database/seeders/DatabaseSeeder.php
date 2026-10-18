@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Category;
 use App\Models\MonthlySummary;
 use App\Models\Room;
 use App\Models\Transaction;
@@ -40,7 +41,7 @@ class DatabaseSeeder extends Seeder
             'sort_order' => 1,
         ]);
 
-        Room::create([
+        $diri = Room::create([
             'user_id' => $user->id,
             'name' => 'Diri',
             'icon' => 'diri',
@@ -82,27 +83,46 @@ class DatabaseSeeder extends Seeder
             'occurred_on' => now()->startOfMonth(),
         ]);
 
-        Transaction::create([
-            'user_id' => $user->id,
-            'room_id' => $keluarga->id,
-            'type' => 'pengeluaran',
-            'amount_minor' => 150_000,
-            'category' => 'Belanja bulanan',
-            'account' => 'Bank Jago',
-            'note' => 'Belanja pasar',
-            'occurred_on' => now()->startOfMonth()->addDays(17),
+        // Pos per ruang. Bobot Keluarga 5:2:3 membagi jatah Rp 3.000.000 jadi 1,5 jt / 600 rb / 900 rb,
+        // sehingga batangnya mendekati contoh S11 (80%, 55%, Sekolah lewat jatah). Ruang tanpa bobot
+        // membandingkan tiap pos dengan seluruh jatah ruang.
+        $pos = fn (Room $room, string $name, ?int $weight, int $order, bool $system = false) => Category::create([
+            'room_id' => $room->id,
+            'name' => $name,
+            'weight' => $weight,
+            'is_system' => $system,
+            'sort_order' => $order,
         ]);
 
-        Transaction::create([
+        $sedekah = $pos($memberi, 'Sedekah', null, 1);
+        $pos($memberi, 'Zakat mal', null, 2, system: true);
+        $investasi = $pos($diri, 'Investasi', null, 1);
+        $tabungan = $pos($diri, 'Tabungan', null, 2);
+        $belanja = $pos($keluarga, 'Belanja bulanan', 5, 1);
+        $listrik = $pos($keluarga, 'Listrik dan air', 2, 2);
+        $sekolah = $pos($keluarga, 'Sekolah', 3, 3);
+
+        // Jumlah pengeluaran tiap ruang sama dengan used_minor-nya di atas.
+        $spend = fn (Category $category, int $amount, string $note, string $account, int $day) => Transaction::create([
             'user_id' => $user->id,
-            'room_id' => $keluarga->id,
+            'room_id' => $category->room_id,
+            'category_id' => $category->id,
             'type' => 'pengeluaran',
-            'amount_minor' => 200_000,
-            'category' => 'Listrik dan air',
-            'account' => 'Tunai',
-            'note' => 'Token listrik',
-            'occurred_on' => now()->startOfMonth()->addDays(16),
+            'amount_minor' => $amount,
+            'category' => $category->name,
+            'account' => $account,
+            'note' => $note,
+            'occurred_on' => now()->startOfMonth()->addDays($day),
         ]);
+
+        $spend($sedekah, 200_000, 'Sedekah Jumat', 'Tunai', 3);
+        $spend($investasi, 2_000_000, 'Reksa dana bulanan', 'Bank Jago', 1);
+        $spend($tabungan, 550_000, 'Tabungan darurat', 'Bank Jago', 1);
+        $spend($sekolah, 1_020_000, 'SPP dan buku', 'Bank Jago', 4);
+        $spend($belanja, 1_050_000, 'Belanja bulanan', 'Bank Jago', 2);
+        $spend($listrik, 130_000, 'Tagihan PDAM', 'Bank Jago', 9);
+        $spend($belanja, 150_000, 'Belanja pasar', 'Bank Jago', 17);
+        $spend($listrik, 200_000, 'Token listrik', 'Tunai', 16);
 
         ZakatProfile::create([
             'user_id' => $user->id,

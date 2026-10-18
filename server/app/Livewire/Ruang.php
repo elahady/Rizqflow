@@ -7,7 +7,7 @@ use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
 /**
- * Detail ruang (S11): jatah vs terpakai, transaksi terbaru. Tanpa {room}, tampilkan
+ * Detail ruang (S11): jatah vs terpakai, pos-pos bulan ini, transaksi terbaru. Tanpa {room}, tampilkan
  * ruang pertama milik user (dipakai juga sebagai target link umum "Lihat ruang").
  */
 class Ruang extends Component
@@ -30,6 +30,7 @@ class Ruang extends Component
 
         return view('livewire.ruang', [
             'room' => $room,
+            'categories' => $room->categoryBreakdown(now()),
             'transactions' => $transactions,
         ])->layout('components.layout', ['title' => $room->name.' — Rizqflow']);
     }

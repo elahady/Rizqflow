@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 class Room extends Model
 {
@@ -24,6 +26,52 @@ class Room extends Model
     public function transactions(): HasMany
     {
         return $this->hasMany(Transaction::class);
+    }
+
+    public function categories(): HasMany
+    {
+        return $this->hasMany(Category::class);
+    }
+
+    /**
+     * Pos-pos ruang ini untuk Detail ruang (S11) pada satu bulan, mengikuti RoomDetailLoader di :domain.
+     * Pembanding tiap pos adalah irisan jatah ruang menurut bobot bila pos punya bobot, kalau tidak
+     * seluruh jatah ruang. Pos aktif selalu tampil; pos terarsip dan pos sistem hanya bila bulan itu
+     * memakainya. Urut dari pengeluaran terbesar.
+     *
+     * @return Collection<int, array{category: Category, spent_minor: int, budget_minor: int, percent: ?int}>
+     */
+    public function categoryBreakdown(CarbonInterface $month): Collection
+    {
+        $spentBy = $this->transactions()
+            ->where('type', 'pengeluaran')
+            ->whereBetween('occurred_on', [$month->copy()->startOfMonth()->toDateString(), $month->copy()->endOfMonth()->toDateString()])
+            ->whereNotNull('category_id')
+            ->groupBy('category_id')
+            ->selectRaw('category_id, SUM(amount_minor) as total')
+            ->pluck('total', 'category_id');
+
+        $own = $this->categories()->get();
+        $weightTotal = $own->where('archived', false)->sum(fn (Category $c) => $c->weight ?? 0);
+
+        return $own
+            ->filter(fn (Category $c) => (! $c->archived && ! $c->is_system) || ($spentBy[$c->id] ?? 0) > 0)
+            ->map(function (Category $c) use ($spentBy, $weightTotal) {
+                $spent = (int) ($spentBy[$c->id] ?? 0);
+                $budget = $c->weight !== null && $weightTotal > 0
+                    ? intdiv($this->budget_minor * $c->weight, $weightTotal)
+                    : $this->budget_minor;
+
+                return [
+                    'category' => $c,
+                    'spent_minor' => $spent,
+                    'budget_minor' => $budget,
+                    // Dibulatkan ke bawah seperti progressBp di :domain; bisa lebih dari 100.
+                    'percent' => $budget > 0 ? intdiv($spent * 100, $budget) : null,
+                ];
+            })
+            ->sortBy([['spent_minor', 'desc'], [fn ($a, $b) => $a['category']->sort_order <=> $b['category']->sort_order]])
+            ->values();
     }
 
     public function usedPercent(): int
