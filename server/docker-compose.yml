@@ -1,3 +1,8 @@
+# Nama project wajib eksplisit: tanpa ini Docker memakai nama folder ("server"), sama dengan
+# habitflow (~/apps/habitflow/server), sehingga service "app" dan volume "storage" bertabrakan dan
+# container habitflow tertimpa (terjadi 2026-10-18 saat deploy pertama).
+name: rizqflow
+
 services:
   app:
     build: .
