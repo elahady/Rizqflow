@@ -23,7 +23,7 @@ _Diperbarui 17 Oktober 2026. **Direkonstruksi dari `git log` dan dokumen repo, b
 
 ### Catatan penting
 - Dua berkas Gradle (`app/build.gradle.kts`, `settings.gradle.kts`) tampak "berubah" di working tree hanya karena akhir baris (LF/CRLF), bukan isi; jangan ikut di-commit.
-- Aturan repo ini: stage file satu per satu, **jangan push** tanpa diminta.
+- Aturan repo ini: stage file satu per satu, lalu **langsung push** setiap commit (tanpa menunggu diminta) — sama seperti repo personal lain.
 
 ## Baca dulu sebelum mengerjakan apa pun
 
@@ -71,4 +71,4 @@ _Diperbarui 17 Oktober 2026. **Direkonstruksi dari `git log` dan dokumen repo, b
 
 - Bahasa dokumen dan pesan commit: **Indonesia**.
 - Perubahan dokumentasi ditulis di `docs/`; jangan biarkan Notion dan repo saling bertentangan (spesifikasi UI penuh di `docs/ui-flow.md`, ringkasannya di halaman Tahap Notion).
-- Commit langsung setelah selesai satu permintaan; stage file satu per satu (bukan `git add -A`). **Jangan push** tanpa diminta.
+- Setiap perubahan, sekecil apa pun, **langsung di-commit lalu di-push** ke `origin main` begitu selesai — tidak menunggu diminta (diputuskan 2026-10-18, biar kerjaan tidak hilang kalau PC/VM bermasalah). Stage file satu per satu (bukan `git add -A`). Satu perubahan logis = satu commit.
