@@ -71,8 +71,9 @@ Aplikasi niche seperti ini kemungkinan menghasilkan uang kecil. Anggap monetisas
 | Profil harta zakat | Satu profil | Multi-profil (emas, tabungan, usaha, anggota keluarga) |
 | Harga emas | Input manual | Otomatis |
 | Laporan | Ringkasan bulanan di aplikasi | Laporan dan insight bulanan/tahunan, PDF |
-| Menangkap pembayaran digital | Catat kilat dan Koreksi saldo | Tangkap otomatis dari notifikasi (v1.1) |
+| Menangkap pembayaran digital | Catat kilat dan Koreksi saldo | Tangkap otomatis dari notifikasi (v1.1); impor transaksi massal dari CSV (web) |
 | Lainnya | – | Multi-mata uang, widget, tema |
+| Analisa web (2026-10-18) | Dashboard dasar (Denah, Transaksi, Ruang, Zakat), kelola ruang/aturan dasar/akun/kategori/transaksi berulang/tagihan/utang-piutang, backup dan ekspor CSV, pencarian lintas tahun | Grafik tren multi-bulan/tahun, proyeksi cashflow, kekayaan bersih (net worth) sepanjang waktu, heatmap kalender pencatatan, bandingkan dua periode, ekspor PDF |
 
 **Aturan alokasi lanjutan, rancangan lengkap (disetujui pemilik 2026-09-23, sudah diimplementasikan — lihat roadmap.md Tahap 7):**
 - **Prioritas = waterfall**, bukan sekadar pemutus seri seperti mode persentase: ruang diisi satu-satu berurutan sampai batas atasnya, menggantikan cara kerja persentase untuk seluruh ruleset saat mode ini aktif.
