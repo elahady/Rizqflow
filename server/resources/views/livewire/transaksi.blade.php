@@ -15,6 +15,15 @@
     <div style="display:flex; flex-wrap:wrap; gap:24px;">
 
         <div style="flex:999 1 560px; min-width:0; display:flex; flex-direction:column; gap:18px;">
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <input type="search" wire:model.live.debounce.300ms="search" placeholder="Cari catatan atau nominal" style="flex:999 1 220px; padding:10px 14px; border:1px solid var(--rf-outline-variant); border-radius:10px; font-family:'Manrope',sans-serif; font-size:14px;">
+                <div style="display:flex; gap:6px;">
+                    @foreach (['semua' => 'Semua', 'pemasukan' => 'Masuk', 'pengeluaran' => 'Keluar'] as $key => $label)
+                        <button type="button" wire:click="$set('filter', '{{ $key }}')" class="rf-btn {{ $filter === $key ? 'primary' : 'tonal' }}" style="padding:8px 14px; font-size:13px;">{{ $label }}</button>
+                    @endforeach
+                </div>
+            </div>
+
             <div class="rf-card" style="padding:8px 22px;">
                 @forelse ($transactions as $dateLabel => $items)
                     <div style="font-size:12px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase; color:var(--rf-on-surface-variant); padding:14px 0 8px;">{{ $dateLabel }}</div>
@@ -34,7 +43,7 @@
                         </a>
                     @endforeach
                 @empty
-                    <p style="padding:20px 0; color:var(--rf-on-surface-variant); font-size:14px;">Belum ada transaksi.</p>
+                    <p style="padding:20px 0; color:var(--rf-on-surface-variant); font-size:14px;">{{ $search !== '' || $filter !== 'semua' ? 'Tidak ada transaksi yang cocok.' : 'Belum ada transaksi.' }}</p>
                 @endforelse
             </div>
         </div>
