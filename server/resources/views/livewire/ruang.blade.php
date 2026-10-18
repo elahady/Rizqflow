@@ -81,6 +81,102 @@
         @endforelse
     </div>
 
+    @if ($room->type !== 'menunaikan')
+        <div class="rf-card">
+            <h2 class="rf-serif" style="font-size:18px; margin-bottom:14px;">Peran</h2>
+
+            @if ($roleError)
+                <p class="error-text">{{ $roleError }}</p>
+            @endif
+
+            @if (! $role && ! $showRoleForm)
+                <p style="font-size:13px; color:var(--rf-on-surface-variant); margin-bottom:14px;">Modul opsional: Trader (batas risiko per trade) atau Investor (jadwal DCA bulanan). Alat bantu disiplin, bukan saran investasi atau trading.</p>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" wire:click="startPickRole('trader')" class="rf-btn tonal" style="flex:1;">Trader @unless ($canUseRoles) (Pro) @endunless</button>
+                    <button type="button" wire:click="startPickRole('investor')" class="rf-btn tonal" style="flex:1;">Investor @unless ($canUseRoles) (Pro) @endunless</button>
+                </div>
+            @endif
+
+            @if ($showRoleForm)
+                <form wire:submit="saveRole" style="display:flex; flex-direction:column; gap:4px;">
+                    @if ($roleKind === 'trader')
+                        <div class="rf-field">
+                            <label for="role-capital">Modal trading</label>
+                            <input type="number" id="role-capital" wire:model="capital" min="1" autofocus>
+                        </div>
+                        <div class="rf-field">
+                            <label for="role-risk">Risiko per trade (%)</label>
+                            <input type="number" id="role-risk" wire:model="riskPercent" min="0.25" max="10" step="0.25">
+                        </div>
+                    @else
+                        <div class="rf-field">
+                            <label for="role-dca-amount">Nominal DCA bulanan</label>
+                            <input type="number" id="role-dca-amount" wire:model="dcaAmount" min="1" autofocus>
+                        </div>
+                        <div class="rf-field">
+                            <label for="role-dca-day">Tanggal tiap bulan (1–28)</label>
+                            <input type="number" id="role-dca-day" wire:model="dcaDay" min="1" max="28">
+                        </div>
+                        <div class="rf-field">
+                            <label for="role-dca-account">Akun sumber</label>
+                            <select id="role-dca-account" wire:model="dcaAccountId">
+                                @foreach ($accounts as $account)
+                                    <option value="{{ $account->id }}">{{ $account->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="rf-field">
+                            <label for="role-dca-category">Kategori</label>
+                            <select id="role-dca-category" wire:model="dcaCategoryId">
+                                @foreach ($roomCategories as $category)
+                                    <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+                    <div style="display:flex; gap:12px; margin-top:8px;">
+                        <button type="submit" class="rf-btn primary">Simpan</button>
+                        <button type="button" wire:click="cancelRoleForm" class="rf-btn tonal">Batal</button>
+                    </div>
+                </form>
+            @endif
+
+            @if ($role && ! $showRoleForm)
+                @if ($role->kind === 'trader')
+                    <div style="display:flex; flex-wrap:wrap; gap:20px; margin-bottom:14px;">
+                        <div>
+                            <div style="font-size:12px; color:var(--rf-on-surface-variant); margin-bottom:4px;">Modal</div>
+                            <div style="font-weight:700; font-size:16px;">{{ Rupiah::format($role->capital_minor) }}</div>
+                        </div>
+                        <div>
+                            <div style="font-size:12px; color:var(--rf-on-surface-variant); margin-bottom:4px;">Risiko per trade</div>
+                            <div style="font-weight:700; font-size:16px;">{{ $role->risk_bp / 100 }}%</div>
+                        </div>
+                        <div>
+                            <div style="font-size:12px; color:var(--rf-on-surface-variant); margin-bottom:4px;">Batas rupiah per trade</div>
+                            <div style="font-weight:700; font-size:16px;">{{ Rupiah::format($role->maxRiskPerTradeMinor()) }}</div>
+                        </div>
+                    </div>
+                @else
+                    @php $dcaStatus = $role->dcaStatusOn($today); @endphp
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:14px;">
+                        <div>
+                            <div style="font-weight:700; font-size:16px;">{{ Rupiah::format($role->dca_amount_minor) }} <span style="font-weight:400; font-size:13px; color:var(--rf-on-surface-variant);">tiap tanggal {{ $role->dca_day_of_month }}</span></div>
+                            <div style="font-size:13px; color:var(--rf-on-surface-variant); margin-top:2px;">{{ $role->dcaAccount->name }} · {{ $role->dcaCategory->name }}</div>
+                        </div>
+                        <span class="rf-pill {{ $dcaStatus === 'selesai' ? 'good' : ($dcaStatus === 'jatuh_tempo' ? 'warn' : 'neutral') }}">
+                            {{ ['selesai' => 'Selesai', 'jatuh_tempo' => 'Jatuh tempo', 'akan_datang' => 'Akan datang'][$dcaStatus] }}
+                        </span>
+                        @if ($dcaStatus === 'jatuh_tempo')
+                            <button type="button" wire:click="recordDcaNow" class="rf-btn primary" style="padding:8px 14px;">Catat sekarang</button>
+                        @endif
+                    </div>
+                @endif
+                <button type="button" wire:click="removeRole" wire:confirm="Lepas peran ini? Transaksi yang sudah tercatat tidak berubah." class="rf-btn tonal">Lepas peran</button>
+            @endif
+        </div>
+    @endif
+
     <div>
         <a href="{{ route('aturan-alokasi') }}" class="rf-btn tonal">Atur aturan</a>
     </div>
