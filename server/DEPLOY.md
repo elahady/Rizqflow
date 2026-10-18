@@ -27,11 +27,12 @@ docker exec rizqflow pgrep -f "artisan migrate" || docker exec rizqflow cat /tmp
 
 - Deploy pertama selesai: container `rizqflow` healthy, 10 migrasi jalan, nginx site
   `/etc/nginx/sites-available/rizqflow.roziqrizal.com` aktif (diuji `curl --resolve` dari VPS: 200).
-- **Belum bisa diakses publik.** Dua langkah pemilik:
-  1. Cloudflare → `roziqrizal.com` → DNS → A record `rizqflow` → `103.54.170.198`, Proxied.
-  2. Google Cloud → proyek `rizqflow` → Clients → klien Web → Authorized JavaScript origins →
-     `https://rizqflow.roziqrizal.com`.
-- Claude tidak bisa mengerjakan keduanya dari sesi tanpa akses: tidak ada token API Cloudflare
+- **Live** di https://rizqflow.roziqrizal.com. Pemilik sudah mengisi DNS A record `rizqflow` →
+  `103.54.170.198` (Proxied) di Cloudflare dan Authorized JavaScript origin
+  `https://rizqflow.roziqrizal.com` di klien Web Google Cloud proyek `rizqflow`. Dicek dari luar:
+  http 301 ke https, `/login` 200 lewat Cloudflare, tombol Google dirender. Belum diuji: klik masuk
+  sungguhan.
+- Claude tidak bisa mengerjakan DNS dan origin Google dari sesi tanpa akses: tidak ada token API Cloudflare
   di PC ini, dan origin klien OAuth tidak bisa diubah lewat `gcloud`/API (hanya Console). Supaya
   DNS bisa dikerjakan Claude lain kali: token Cloudflare "Edit zone DNS" khusus zona
   `roziqrizal.com`, disimpan sebagai env var `CLOUDFLARE_API_TOKEN` (jangan ditempel ke chat).

@@ -21,7 +21,7 @@ _Diperbarui 18 Oktober 2026 (bagian web diverifikasi langsung; sisanya masih rek
   - Sync ke data asli menunggu Tahap 9 dan 13 — lihat `docs/konsep.md` bagian "Keputusan yang masih terbuka" soal cara browser mendekripsi data e2e.
 
 ### Belum selesai / berikutnya
-0. **Web live (pemilik, Tahap 14):** DNS A record `rizqflow` → `103.54.170.198` (Proxied) di Cloudflare, dan Authorized JavaScript origin `https://rizqflow.roziqrizal.com` di klien Web Google Cloud proyek `rizqflow`. Claude tidak punya akses ke keduanya (tidak ada token Cloudflare atau browser di sesi); setelah selesai, cek dari luar lalu centang "Live di domain produksi".
+0. **Web live di https://rizqflow.roziqrizal.com** (18 Oktober 2026; DNS dan origin Google diisi pemilik). Belum diuji: klik Masuk dengan Google sungguhan di browser. Sisa Tahap 14: sinkron ke data asli (tunggu Tahap 9 dan 13).
 1. **Tahap 0** In Progress: tinggal validasi minat lewat landing page dan daftar tunggu.
 2. **Tahap 6** (keamanan, data, polish) dan **Tahap 7** (monetisasi dan Pro) In Progress. Terbuka di Tahap 7: integrasi Google Play Billing (butuh produk in-app dari Tahap 8), harga emas otomatis (riset API), uji alur pembelian dengan penguji lisensi.
 3. **Tahap 9** (server, sync, ruang keluarga) Planning, wajib sebelum rilis; **Tahap 12** (infrastruktur server dan deploy, dijalankan pemilik) dan **Tahap 13** (enkripsi ujung ke ujung dan kunci) Backlog.
@@ -73,7 +73,7 @@ _Diperbarui 18 Oktober 2026 (bagian web diverifikasi langsung; sisanya masih rek
 - **Data masih contoh/seed** (`database/seeders/DatabaseSeeder.php`), bukan data sungguhan. Auth **ikut akun Google Android** (diputuskan 2026-10-18): Masuk dengan Google memakai client ID Web yang sama dengan Android (`GOOGLE_CLIENT_ID` di `.env`), akun dikenali dari `sub`, verifikasi ID token di `app/Auth/`. Masuk demo email+sandi hanya di `APP_ENV=local`: `demo@rizqflow.test` / `password`.
 - Jalankan: `php artisan serve` dari `server/`. Setup awal: `composer install`, `cp .env.example .env`, `php artisan key:generate`, `php artisan migrate --seed`.
 - **Deploy**: VPS IDCloudHost `103.54.170.198` (bukan VPS Al-Kaukaba; aturan dan detail VPS di repo `build-server`), container `rizqflow` di `127.0.0.1:8082`, domain `rizqflow.roziqrizal.com`. Langkah di [server/DEPLOY.md](server/DEPLOY.md). `docker-compose.yml` wajib tetap punya `name: rizqflow` (tanpanya bentrok dengan habitflow).
-- **Belum dikerjakan**: sinkron ke data asli (tunggu Tahap 9), DNS dan JavaScript origin Google untuk `rizqflow.roziqrizal.com` (pemilik).
+- **Live** di https://rizqflow.roziqrizal.com sejak 18 Oktober 2026. **Belum dikerjakan**: sinkron ke data asli (tunggu Tahap 9).
 
 ## Status dan tracking
 
