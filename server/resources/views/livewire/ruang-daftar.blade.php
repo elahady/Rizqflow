@@ -7,14 +7,18 @@
 
     <div style="display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:12px;">
         <h1 class="rf-serif" style="font-size:26px;">Ruang</h1>
-        @if (! $showAddForm)
-            <button type="button" wire:click="$set('showAddForm', true)" class="rf-btn primary">+ Ruang baru</button>
-        @endif
+        <div style="display:flex; gap:10px;">
+            <a href="{{ route('aturan-alokasi') }}" class="rf-btn tonal">Atur alokasi</a>
+            @if (! $showAddForm)
+                <button type="button" wire:click="$set('showAddForm', true)" class="rf-btn primary">+ Ruang baru</button>
+            @endif
+        </div>
     </div>
 
     @if ($rooms->isNotEmpty() && $allocationTotal !== 100)
         <div class="rf-card" role="status" style="font-size:13px; color:var(--rf-on-surface-variant);">
-            Total alokasi rezeki ruang aktif sekarang {{ $allocationTotal }}%, belum pas 100%. Atur ulang persentase tiap ruang supaya rezeki yang masuk terbagi semuanya.
+            Total alokasi rezeki ruang aktif sekarang {{ $allocationTotal }}%, belum pas 100%.
+            <a href="{{ route('aturan-alokasi') }}" style="font-weight:600;">Atur ulang persentase →</a>
         </div>
     @endif
 

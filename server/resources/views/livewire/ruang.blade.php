@@ -81,4 +81,8 @@
         @endforelse
     </div>
 
+    <div>
+        <a href="{{ route('aturan-alokasi') }}" class="rf-btn tonal">Atur aturan</a>
+    </div>
+
 </div>
