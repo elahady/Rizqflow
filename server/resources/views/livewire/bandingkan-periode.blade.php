@@ -4,7 +4,12 @@
 
     <div><a href="{{ route('laporan') }}" style="font-size:13px; font-weight:600; color:var(--rf-on-surface-variant);">← Kembali ke Laporan</a></div>
 
-    <h1 class="rf-serif" style="font-size:26px;">Bandingkan periode</h1>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+        <h1 class="rf-serif" style="font-size:26px;">Bandingkan periode</h1>
+        @if ($canUseReports)
+            <a href="{{ route('laporan.bandingkan.pdf', ['granularity' => $granularity, 'periodA' => $periodA, 'periodB' => $periodB]) }}" class="rf-btn tonal">Unduh PDF</a>
+        @endif
+    </div>
 
     @if (! $canUseReports)
         <div class="rf-card">

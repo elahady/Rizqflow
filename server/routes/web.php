@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GoogleLoginController;
+use App\Http\Controllers\ReportPdfController;
 use App\Http\Controllers\TransactionExportController;
 use App\Livewire\AturanAlokasi;
 use App\Livewire\BandingkanPeriode;
@@ -52,6 +53,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/laporan/tren', GrafikTren::class)->name('laporan.tren');
     Route::get('/laporan/kekayaan-bersih', KekayaanBersih::class)->name('laporan.kekayaan-bersih');
     Route::get('/laporan/bandingkan', BandingkanPeriode::class)->name('laporan.bandingkan');
+    Route::get('/laporan/bandingkan/pdf', [ReportPdfController::class, 'bandingkanPeriode'])->name('laporan.bandingkan.pdf');
     Route::get('/laporan/cashflow', ProyeksiCashflow::class)->name('laporan.cashflow');
     Route::get('/laporan/heatmap', HeatmapPencatatan::class)->name('laporan.heatmap');
 });
