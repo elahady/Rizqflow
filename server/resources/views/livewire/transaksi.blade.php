@@ -7,6 +7,7 @@
         <div style="display:flex; gap:10px;">
             <a href="{{ route('transaksi.berulang') }}" class="rf-btn tonal">Berulang</a>
             <a href="{{ route('tagihan') }}" class="rf-btn tonal">Tagihan</a>
+            <a href="{{ route('utang-piutang') }}" class="rf-btn tonal">Utang-piutang</a>
         </div>
     </div>
 

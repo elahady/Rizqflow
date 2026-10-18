@@ -84,6 +84,11 @@ class User extends Authenticatable
         return $this->hasMany(Bill::class);
     }
 
+    public function debts(): HasMany
+    {
+        return $this->hasMany(Debt::class);
+    }
+
     public function zakatProfiles(): HasMany
     {
         return $this->hasMany(ZakatProfile::class);
