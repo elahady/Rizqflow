@@ -21,6 +21,7 @@ lifecycleRuntimeCompose = "2.11.0"
 robolectric = "4.17"
 androidxTestCore = "1.7.0"
 junit4 = "4.13.2"
+tink = "1.24.0"
 
 [libraries]
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
@@ -47,6 +48,7 @@ androidx-documentfile = { group = "androidx.documentfile", name = "documentfile"
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
 junit4 = { group = "junit", name = "junit", version.ref = "junit4" }
+tink-android = { group = "com.google.crypto.tink", name = "tink-android", version.ref = "tink" }
 kotlin-test-junit = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit", version.ref = "kotlin" }
 kotlin-test-junit5 = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit5", version.ref = "kotlin" }
 junit-bom = { group = "org.junit", name = "junit-bom", version.ref = "junit" }

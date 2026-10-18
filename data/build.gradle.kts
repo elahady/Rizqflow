@@ -42,6 +42,7 @@ dependencies {
     implementation(project(":domain"))
     implementation(libs.androidx.room.runtime)
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.tink.android)
     ksp(libs.androidx.room.compiler)
 
     // Tes DAO dan repositori berjalan di JVM lewat Robolectric (JUnit 4), tanpa emulator, jadi ikut CI.
