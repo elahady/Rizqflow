@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Support\RecurringRunner;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
@@ -11,6 +12,23 @@ use Livewire\Component;
  */
 class Denah extends Component
 {
+    public ?string $recurringBanner = null;
+
+    /**
+     * Tidak ada penjadwal latar belakang: kemunculan transaksi berulang (S33) dicatat di sini,
+     * setiap kali Denah dibuka — padanan web untuk "setiap aplikasi dibuka" di mobile.
+     */
+    public function mount(): void
+    {
+        $result = RecurringRunner::runDue(auth()->user());
+
+        if ($result['recorded'] > 0) {
+            $this->recurringBanner = $result['recorded'].' transaksi berulang dicatat.';
+        } elseif ($result['blocked'] !== []) {
+            $this->recurringBanner = count($result['blocked']).' aturan berulang tertahan — akun, ruang, atau kategorinya sudah diarsipkan.';
+        }
+    }
+
     public function render(): View
     {
         $user = auth()->user();
@@ -40,6 +58,7 @@ class Denah extends Component
         }
 
         return view('livewire.denah', [
+            'recurringBanner' => $this->recurringBanner,
             'dateLabel' => now()->locale('id')->translatedFormat('l, j F Y'),
             'summary' => $summary,
             'rooms' => $rooms,

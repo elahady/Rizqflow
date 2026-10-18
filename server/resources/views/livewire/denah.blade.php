@@ -11,6 +11,10 @@
         <h1 class="rf-serif" style="font-size:32px;">Selamat datang, {{ auth()->user()->name }}</h1>
     </div>
 
+    @if ($recurringBanner)
+        <div class="rf-card" style="padding:14px 20px; font-size:13.5px;">{{ $recurringBanner }}</div>
+    @endif
+
     @if ($summary)
         <div class="rf-card" style="display:flex; flex-direction:column; gap:18px;">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">

@@ -74,6 +74,11 @@ class User extends Authenticatable
         return $this->hasMany(MonthlySummary::class);
     }
 
+    public function recurringRules(): HasMany
+    {
+        return $this->hasMany(RecurringRule::class);
+    }
+
     public function zakatProfiles(): HasMany
     {
         return $this->hasMany(ZakatProfile::class);
