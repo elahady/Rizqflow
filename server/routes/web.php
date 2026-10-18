@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GoogleLoginController;
 use App\Http\Controllers\TransactionExportController;
 use App\Livewire\AturanAlokasi;
+use App\Livewire\BandingkanPeriode;
 use App\Livewire\Denah;
 use App\Livewire\GrafikTren;
 use App\Livewire\KekayaanBersih;
@@ -48,4 +49,5 @@ Route::middleware('auth')->group(function () {
     Route::get('/laporan', Laporan::class)->name('laporan');
     Route::get('/laporan/tren', GrafikTren::class)->name('laporan.tren');
     Route::get('/laporan/kekayaan-bersih', KekayaanBersih::class)->name('laporan.kekayaan-bersih');
+    Route::get('/laporan/bandingkan', BandingkanPeriode::class)->name('laporan.bandingkan');
 });
