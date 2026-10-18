@@ -87,6 +87,14 @@ class RoomCategoryBreakdownTest extends TestCase
         $this->assertSame(300_000, $this->room->categoryBreakdown(now())->first()['spent_minor']);
     }
 
+    public function test_an_expense_on_the_last_day_of_the_month_is_not_silently_dropped(): void
+    {
+        $belanja = $this->pos('Belanja', null);
+        $this->spend($belanja, 400_000, now()->endOfMonth()->toDateString());
+
+        $this->assertSame(400_000, $this->room->categoryBreakdown(now())->first()['spent_minor']);
+    }
+
     public function test_archived_and_system_pos_appear_only_when_used_and_rows_sort_by_spending(): void
     {
         $this->pos('Kosong', null, ['sort_order' => 1]);

@@ -56,7 +56,10 @@ class BandingkanPeriode extends Component
     {
         $user = auth()->user();
         $range = $this->range($period);
-        $query = fn () => $user->transactions()->whereBetween('occurred_on', [$range['start']->toDateString(), $range['end']->toDateString()]);
+        // Batas atas lewat endOfDay(): occurred_on tersimpan dengan waktu "00:00:00", dan batas
+        // atas berupa tanggal polos membandingkannya sebagai teks sehingga transaksi di hari
+        // terakhir periode tersingkir diam-diam.
+        $query = fn () => $user->transactions()->whereBetween('occurred_on', [$range['start']->toDateString(), $range['end']->copy()->endOfDay()]);
 
         $income = (int) $query()->where('type', 'pemasukan')->sum('amount_minor');
 

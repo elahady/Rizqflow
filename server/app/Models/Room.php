@@ -63,7 +63,11 @@ class Room extends Model
     {
         $spentBy = $this->transactions()
             ->where('type', 'pengeluaran')
-            ->whereBetween('occurred_on', [$month->copy()->startOfMonth()->toDateString(), $month->copy()->endOfMonth()->toDateString()])
+            // Batas atas lewat endOfDay(): occurred_on tersimpan dengan waktu "00:00:00", dan
+            // whereBetween dengan string tanggal polos sebagai batas atas membandingkannya sebagai
+            // teks ("2026-10-31 00:00:00" > "2026-10-31"), jadi transaksi di hari terakhir bulan
+            // akan tersingkir diam-diam tanpa endOfDay() di sini.
+            ->whereBetween('occurred_on', [$month->copy()->startOfMonth()->toDateString(), $month->copy()->endOfMonth()->endOfDay()])
             ->whereNotNull('category_id')
             ->groupBy('category_id')
             ->selectRaw('category_id, SUM(amount_minor) as total')

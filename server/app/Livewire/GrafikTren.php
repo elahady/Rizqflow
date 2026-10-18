@@ -35,16 +35,22 @@ class GrafikTren extends Component
         $today = Carbon::today()->startOfMonth();
         $start = $today->copy()->subMonths($this->months - 1);
 
+        // Batas atas lewat endOfDay(): occurred_on tersimpan dengan waktu "00:00:00", dan
+        // whereBetween dengan string tanggal polos sebagai batas atas membandingkannya sebagai teks
+        // ("...00:00:00" > tanggal polosnya), jadi transaksi di hari terakhir rentang tersingkir
+        // diam-diam tanpa endOfDay() di sini.
+        $rangeEnd = $today->copy()->endOfMonth()->endOfDay();
+
         $incomeByMonth = $user->transactions()
             ->where('type', 'pemasukan')
-            ->whereBetween('occurred_on', [$start->toDateString(), $today->copy()->endOfMonth()->toDateString()])
+            ->whereBetween('occurred_on', [$start->toDateString(), $rangeEnd])
             ->get()
             ->groupBy(fn ($t) => $t->occurred_on->format('Y-m'))
             ->map(fn ($rows) => (int) $rows->sum('amount_minor'));
 
         $expenseQuery = $user->transactions()
             ->where('type', 'pengeluaran')
-            ->whereBetween('occurred_on', [$start->toDateString(), $today->copy()->endOfMonth()->toDateString()]);
+            ->whereBetween('occurred_on', [$start->toDateString(), $rangeEnd]);
 
         if ($this->roomId) {
             $expenseQuery->where('room_id', $this->roomId);

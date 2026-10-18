@@ -7,6 +7,7 @@ use App\Livewire\AturanAlokasi;
 use App\Livewire\BandingkanPeriode;
 use App\Livewire\Denah;
 use App\Livewire\GrafikTren;
+use App\Livewire\HeatmapPencatatan;
 use App\Livewire\KekayaanBersih;
 use App\Livewire\Kelola;
 use App\Livewire\Laporan;
@@ -52,4 +53,5 @@ Route::middleware('auth')->group(function () {
     Route::get('/laporan/kekayaan-bersih', KekayaanBersih::class)->name('laporan.kekayaan-bersih');
     Route::get('/laporan/bandingkan', BandingkanPeriode::class)->name('laporan.bandingkan');
     Route::get('/laporan/cashflow', ProyeksiCashflow::class)->name('laporan.cashflow');
+    Route::get('/laporan/heatmap', HeatmapPencatatan::class)->name('laporan.heatmap');
 });
