@@ -3,6 +3,7 @@ package com.roziqrizal.rizqflow.data.crypto
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.roziqrizal.rizqflow.domain.model.RoomId
+import com.roziqrizal.rizqflow.domain.sync.RoomInvite
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -57,5 +58,36 @@ class AndroidKeystoreRoomKeyProviderTest {
         val provider = newProvider()
 
         assertSame(provider.getOrCreateRoomKey(ruangKeluarga), provider.getOrCreateRoomKey(ruangKeluarga))
+    }
+
+    @Test
+    fun `kunci yang diimpor menimpa kunci lama dan terbaca ulang oleh provider baru`() {
+        val kunciLama = newProvider().getOrCreateRoomKey(ruangKeluarga)
+        val sumber = newProvider()
+        val kunciDibagikan = sumber.getOrCreateRoomKey(RoomId("ruang-keluarga-sumber"))
+        val diekspor = sumber.exportRoomKey(RoomId("ruang-keluarga-sumber"))
+
+        newProvider().importRoomKey(ruangKeluarga, diekspor)
+
+        val dimuatUlang = newProvider().getOrCreateRoomKey(ruangKeluarga)
+        val plaintext = "cicilan rumah bulan ini".toByteArray()
+        assertContentEquals(plaintext, dimuatUlang.decrypt(kunciDibagikan.encrypt(plaintext)))
+        assertFailsWith<Exception> { kunciLama.decrypt(kunciDibagikan.encrypt(plaintext)) }
+    }
+
+    @Test
+    fun `pipa lengkap QR - ekspor, bungkus RoomInvite, pindai, impor - menghasilkan kunci yang sama`() {
+        val pengundang = newProvider()
+        val kunciPengundang = pengundang.getOrCreateRoomKey(ruangKeluarga)
+        val qrBytes = RoomInvite(ruangKeluarga, pengundang.exportRoomKey(ruangKeluarga)).encode()
+
+        val undangan = RoomInvite.decode(qrBytes)
+        val pasangan = newProvider()
+        pasangan.importRoomKey(undangan.roomId, undangan.exportedRoomKey)
+        val kunciPasangan = pasangan.getOrCreateRoomKey(undangan.roomId)
+
+        val plaintext = "belanja bersama".toByteArray()
+        assertContentEquals(plaintext, kunciPasangan.decrypt(kunciPengundang.encrypt(plaintext)))
+        assertContentEquals(plaintext, kunciPengundang.decrypt(kunciPasangan.encrypt(plaintext)))
     }
 }

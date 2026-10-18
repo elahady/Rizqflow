@@ -13,4 +13,19 @@ import com.roziqrizal.rizqflow.domain.model.RoomId
 interface RoomKeyProvider {
     /** Membuat kunci ruang bila belum ada, atau memuat yang sudah tersimpan untuk [roomId]. */
     fun getOrCreateRoomKey(roomId: RoomId): SyncAead
+
+    /**
+     * Bentuk kunci ruang yang bisa diekspor, dibungkus [RoomInvite] lalu ditampilkan sebagai QR
+     * untuk dipindai pasangan — isinya buram bagi `:domain` (format sungguhan ditentukan
+     * implementasi di `:data`), sama seperti [AccountKeyProvider.exportAccountKeyForRecovery].
+     */
+    fun exportRoomKey(roomId: RoomId): ByteArray
+
+    /**
+     * Memasang kunci ruang yang diterima dari [RoomInvite] pasangan (hasil pemindaian QR),
+     * menimpa kunci acak yang mungkin sudah dibuat sendiri untuk [roomId] — supaya kedua
+     * perangkat memakai kunci ruang yang sama persis, bukan dua kunci berbeda yang tidak
+     * bisa membuka ciphertext satu sama lain.
+     */
+    fun importRoomKey(roomId: RoomId, exportedRoomKey: ByteArray)
 }
