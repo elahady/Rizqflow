@@ -24,13 +24,14 @@ _Diperbarui 18 Oktober 2026 (bagian web diverifikasi langsung; sisanya masih rek
 0. **Web live di https://rizqflow.roziqrizal.com** (18 Oktober 2026; DNS dan origin Google diisi pemilik). Masuk dengan Google teruji berhasil di produksi oleh pemilik. Sisa Tahap 14: sinkron ke data asli (tunggu Tahap 9 dan 13).
 1. **Tahap 0** In Progress: tinggal validasi minat lewat landing page dan daftar tunggu.
 2. **Tahap 6** (keamanan, data, polish) dan **Tahap 7** (monetisasi dan Pro) In Progress. Terbuka di Tahap 7: integrasi Google Play Billing (butuh produk in-app dari Tahap 8), harga emas otomatis (riset API), uji alur pembelian dengan penguji lisensi.
-3. **Tahap 9** (server, sync, ruang keluarga) Planning, wajib sebelum rilis; **Tahap 12** (infrastruktur server dan deploy, dijalankan pemilik) dan **Tahap 13** (enkripsi ujung ke ujung dan kunci) Backlog.
+3. **Tahap 9** (server, sync, ruang keluarga) Planning, wajib sebelum rilis; **Tahap 12** (infrastruktur server dan deploy, dijalankan pemilik) Backlog. **Tahap 13** (enkripsi ujung ke ujung dan kunci) In Progress sejak 2026-10-18: kunci akun acak di Android Keystore lewat Google Tink (`AccountKeyProvider`/`SyncAead` di `:domain`, `AndroidKeystoreAccountKeyProvider` di `:data`) sudah ada dan teruji (Robolectric); sisanya (kode pemulihan, kunci per ruang keluarga, undangan QR, keluarkan anggota, notifikasi generik, aturan akun lintas ruang) belum.
 4. **Tahap 8** (rilis dan portofolio) Backlog: akun developer, kebijakan privasi dan data safety, uji tertutup Play Console, store listing, case study di roziqrizal.com.
 5. Sisa Tahap 10–11 (input suara, OCR struk, parser notifikasi) masih terbuka.
 6. **Keputusan terbuka, jangan diputuskan sendiri:** verifikasi asumsi fikih zakat dengan kitab; hal yang masih ditandai belum diputuskan di [docs/server-sync.md](docs/server-sync.md).
 
 ### Catatan penting
 - Dua berkas Gradle (`app/build.gradle.kts`, `settings.gradle.kts`) tampak "berubah" di working tree hanya karena akhir baris (LF/CRLF), bukan isi; jangan ikut di-commit.
+- **Tes Robolectric yang memakai `javax.crypto`/Tink (mis. `AndroidKeystoreAccountKeyProviderTest`, Tahap 13) gagal di JDK 17.0.2** (`C:\Program Files\Java\jdk-17.0.2`) dengan `NoSuchAlgorithmException: DIGEST_AND_KEY_TYPE_NOT_SUPPORTED` — konflik Conscrypt bawaan Robolectric dengan verifikasi jar provider JCE di patch JDK itu, bukan bug di kode aplikasi (`Cipher.getInstance` polos pun gagal sama). Lulus bersih di JBR 25 bawaan Android Studio (`C:\Program Files\Android\Android Studio\jbr`); pakai itu sebagai `JAVA_HOME` kalau tes crypto gagal di terminal.
 - Aturan repo ini: stage file satu per satu, lalu **langsung push** setiap commit (tanpa menunggu diminta) — sama seperti repo personal lain.
 
 ## Baca dulu sebelum mengerjakan apa pun
