@@ -28,4 +28,14 @@ interface RoomKeyProvider {
      * bisa membuka ciphertext satu sama lain.
      */
     fun importRoomKey(roomId: RoomId, exportedRoomKey: ByteArray)
+
+    /**
+     * Mengeluarkan anggota ruang (server-sync.md bagian "Mengeluarkan anggota"): mengganti kunci
+     * ruang untuk data berikutnya, tapi implementasi tetap menyimpan kunci lama di keyset yang
+     * sama (rotasi, bukan ganti total) — sehingga data lama yang sudah dimiliki anggota yang
+     * dikeluarkan tetap bisa mereka baca, sementara catatan baru dienkripsi dengan kunci baru yang
+     * tidak pernah dibagikan ke mereka. [getOrCreateRoomKey] berikutnya untuk [roomId] yang sama
+     * memakai kunci baru ini untuk enkripsi, tapi tetap bisa mendekripsi ciphertext lama.
+     */
+    fun rotateRoomKey(roomId: RoomId): SyncAead
 }

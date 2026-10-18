@@ -90,4 +90,40 @@ class AndroidKeystoreRoomKeyProviderTest {
         assertContentEquals(plaintext, kunciPasangan.decrypt(kunciPengundang.encrypt(plaintext)))
         assertContentEquals(plaintext, kunciPengundang.decrypt(kunciPasangan.encrypt(plaintext)))
     }
+
+    @Test
+    fun `setelah rotasi, kunci baru tetap bisa membaca data yang dienkripsi sebelum rotasi`() {
+        val provider = newProvider()
+        val sebelumRotasi = provider.getOrCreateRoomKey(ruangKeluarga)
+        val dataLama = sebelumRotasi.encrypt("transaksi sebelum anggota dikeluarkan".toByteArray())
+
+        val sesudahRotasi = provider.rotateRoomKey(ruangKeluarga)
+
+        assertContentEquals("transaksi sebelum anggota dikeluarkan".toByteArray(), sesudahRotasi.decrypt(dataLama))
+    }
+
+    @Test
+    fun `anggota yang dikeluarkan tidak bisa membaca data baru setelah rotasi`() {
+        val provider = newProvider()
+        val kunciAnggotaDikeluarkan = provider.getOrCreateRoomKey(ruangKeluarga)
+
+        val kunciBaru = provider.rotateRoomKey(ruangKeluarga)
+        val dataBaru = kunciBaru.encrypt("transaksi setelah anggota dikeluarkan".toByteArray())
+
+        assertFailsWith<Exception> { kunciAnggotaDikeluarkan.decrypt(dataBaru) }
+    }
+
+    @Test
+    fun `rotasi tersimpan dan termuat ulang oleh provider baru, lengkap dengan kunci lama`() {
+        val provider = newProvider()
+        val sebelumRotasi = provider.getOrCreateRoomKey(ruangKeluarga)
+        val dataLama = sebelumRotasi.encrypt("tabungan bersama".toByteArray())
+
+        provider.rotateRoomKey(ruangKeluarga)
+
+        val dimuatUlang = newProvider().getOrCreateRoomKey(ruangKeluarga)
+        val dataBaru = dimuatUlang.encrypt("setelah rotasi".toByteArray())
+        assertContentEquals("tabungan bersama".toByteArray(), dimuatUlang.decrypt(dataLama))
+        assertContentEquals("setelah rotasi".toByteArray(), dimuatUlang.decrypt(dataBaru))
+    }
 }

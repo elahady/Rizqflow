@@ -9,6 +9,7 @@ import com.google.crypto.tink.LegacyKeysetSerialization
 import com.google.crypto.tink.RegistryConfiguration
 import com.google.crypto.tink.TinkProtoKeysetFormat
 import com.google.crypto.tink.aead.AeadConfig
+import com.google.crypto.tink.aead.AeadKeyTemplates
 import com.google.crypto.tink.integration.android.AndroidKeysetManager
 import com.google.crypto.tink.integration.android.AndroidKeystoreKmsClient
 import com.google.crypto.tink.integration.android.SharedPrefKeysetWriter
@@ -24,6 +25,8 @@ import com.roziqrizal.rizqflow.domain.sync.SyncAead
  * dipanggil, dimuat ulang sama pada pemanggilan berikutnya untuk [RoomId] yang sama.
  * [exportRoomKey]/[importRoomKey] memindahkan kunci ruang ke perangkat pasangan lewat
  * [com.roziqrizal.rizqflow.domain.sync.RoomInvite] (QR, dipindai langsung saat bertemu).
+ * [rotateRoomKey] mengeluarkan anggota: menambah kunci baru ke keyset yang sama tanpa membuang
+ * kunci lama, supaya data lama tetap terbaca sementara data baru memakai kunci baru.
  */
 class AndroidKeystoreRoomKeyProvider(private val context: Context) : RoomKeyProvider {
 
@@ -72,18 +75,35 @@ class AndroidKeystoreRoomKeyProvider(private val context: Context) : RoomKeyProv
         }
     }
 
+    /**
+     * Mengeluarkan anggota (server-sync.md bagian "Mengeluarkan anggota"): menambah kunci AES-256-GCM
+     * baru ke keyset ruang ini lewat `AndroidKeysetManager.rotate` Tink dan menjadikannya primary
+     * (dipakai untuk enkripsi berikutnya) — bukan mengganti seluruh keyset, jadi kunci lama tetap
+     * tersimpan di keyset yang sama dan masih bisa mendekripsi ciphertext lama (`Aead` Tink mencoba
+     * semua kunci di keyset berdasarkan id yang tertera di awal ciphertext, bukan cuma primary).
+     */
+    override fun rotateRoomKey(roomId: RoomId): SyncAead {
+        synchronized(this) {
+            val handle = keysetManager(roomId).rotate(AeadKeyTemplates.AES256_GCM).keysetHandle
+            cachedHandleByRoom[roomId] = handle
+            val rotated = TinkSyncAead(handle.getPrimitive(RegistryConfiguration.get(), Aead::class.java))
+            cachedAeadByRoom[roomId] = rotated
+            return rotated
+        }
+    }
+
     /** Dipanggil hanya dari dalam blok `synchronized(this)` milik method publik di atas. */
-    private fun keysetHandle(roomId: RoomId): KeysetHandle {
-        cachedHandleByRoom[roomId]?.let { return it }
+    private fun keysetHandle(roomId: RoomId): KeysetHandle =
+        cachedHandleByRoom[roomId] ?: keysetManager(roomId).keysetHandle.also { cachedHandleByRoom[roomId] = it }
+
+    /** Dipanggil hanya dari dalam blok `synchronized(this)` milik method publik di atas. */
+    private fun keysetManager(roomId: RoomId): AndroidKeysetManager {
         AeadConfig.register()
-        val handle = AndroidKeysetManager.Builder()
+        return AndroidKeysetManager.Builder()
             .withSharedPref(context, keysetName(roomId), prefFileName(roomId))
             .withKeyTemplate(KeyTemplates.get("AES256_GCM"))
             .withMasterKeyUri(masterKeyUri(roomId))
             .build()
-            .keysetHandle
-        cachedHandleByRoom[roomId] = handle
-        return handle
     }
 
     private fun keysetName(roomId: RoomId) = "rizqflow_room_keyset_${roomId.value}"
