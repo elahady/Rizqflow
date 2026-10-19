@@ -117,4 +117,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(NetWorthSnapshot::class);
     }
+
+    public function syncLogEntries(): HasMany
+    {
+        return $this->hasMany(SyncLogEntry::class);
+    }
 }
