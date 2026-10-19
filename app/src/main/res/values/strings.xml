@@ -914,6 +914,12 @@
     </plurals>
     <string name="reminder_debt_body_lent">Sisa %1$s. Ingatkan dengan lembut ya.</string>
     <string name="reminder_debt_body_borrowed">Sisa %1$s. Siapkan pembayarannya.</string>
+    <string name="reminder_sync_channel_name">Sinkronisasi</string>
+    <string name="reminder_sync_channel_desc">Notifikasi umum dari sinkronisasi ruang keluarga, tanpa nominal atau isi catatan</string>
+    <string name="reminder_sync_new_record">Ada catatan baru di ruang bersama</string>
+    <string name="reminder_sync_new_record_room">Ada catatan baru di ruang %1$s</string>
+    <string name="reminder_sync_member_removed">Seorang anggota dikeluarkan dari ruang bersama</string>
+    <string name="reminder_sync_room_key_rotated">Kunci ruang bersama diperbarui</string>
     <string name="wealth_suggest_receivable">Dari Utang-piutang: %1$s (sisa piutang yang diperkirakan kembali)</string>
     <string name="wealth_suggest_debt">Dari Utang-piutang: %1$s (sisa utang yang jatuh tempo dalam 12 bulan atau tanpa jatuh tempo)</string>
     <string name="wealth_suggest_use">Pakai</string>

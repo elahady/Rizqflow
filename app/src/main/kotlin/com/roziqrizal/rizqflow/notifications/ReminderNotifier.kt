@@ -19,6 +19,8 @@ import com.roziqrizal.rizqflow.domain.bill.BillReminderStage
 import com.roziqrizal.rizqflow.domain.debt.DebtDirection
 import com.roziqrizal.rizqflow.domain.debt.DebtReminder
 import com.roziqrizal.rizqflow.domain.role.DcaView
+import com.roziqrizal.rizqflow.domain.sync.SyncNotificationKind
+import com.roziqrizal.rizqflow.domain.sync.SyncNotificationPayload
 import com.roziqrizal.rizqflow.domain.zakat.HaulStatus
 import com.roziqrizal.rizqflow.ui.formatRupiah
 
@@ -46,6 +48,10 @@ object ReminderNotifier {
     /** Pemicu utang-piutang (Tahap 10): channel dan id terpisah, menumpang worker yang sama. */
     private const val CHANNEL_ID_DEBT = "reminder_debt"
     private const val NOTIFICATION_ID_DEBT_BASE = 3500
+
+    /** Pemicu notifikasi sync generik (Tahap 13): channel dan id terpisah, menumpang worker yang sama. */
+    private const val CHANNEL_ID_SYNC = "sync_generic"
+    private const val NOTIFICATION_ID_SYNC_BASE = 3800
 
     fun ensureChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
@@ -94,6 +100,16 @@ object ReminderNotifier {
             context.getString(R.string.reminder_debt_channel_name),
             NotificationManager.IMPORTANCE_DEFAULT,
         ).apply { description = context.getString(R.string.reminder_debt_channel_desc) }
+        manager.createNotificationChannel(channel)
+    }
+
+    private fun ensureSyncChannel(context: Context) {
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        val channel = NotificationChannel(
+            CHANNEL_ID_SYNC,
+            context.getString(R.string.reminder_sync_channel_name),
+            NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply { description = context.getString(R.string.reminder_sync_channel_desc) }
         manager.createNotificationChannel(channel)
     }
 
@@ -270,6 +286,38 @@ object ReminderNotifier {
             .build()
 
         NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_DEBT_BASE + (debt.id.hashCode() and 0xFF), notification)
+    }
+
+    /**
+     * Notifikasi sync generik (Tahap 13, server-sync.md bagian "Notifikasi"): isinya cuma kabar
+     * umum dari [payload.kind][SyncNotificationPayload.kind], ditambah [roomName] yang sudah ada
+     * tersimpan terdekripsi di perangkat ini sendiri (bukan dari payload push, lihat
+     * [SyncNotificationPayload]) — nominal dan isi catatan tidak pernah ditampilkan di sini, dan
+     * baru didapat setelah aplikasi mengambil dan mendekripsi data sungguhan sendiri (belum ada,
+     * menunggu server Tahap 9). Mengetuknya hanya membuka aplikasi, tanpa aksi.
+     */
+    fun showSync(context: Context, payload: SyncNotificationPayload, roomName: String?) {
+        if (!canNotify(context)) return
+        ensureSyncChannel(context)
+
+        val body = when (payload.kind) {
+            SyncNotificationKind.NEW_RECORD ->
+                if (roomName != null) context.getString(R.string.reminder_sync_new_record_room, roomName)
+                else context.getString(R.string.reminder_sync_new_record)
+
+            SyncNotificationKind.MEMBER_REMOVED -> context.getString(R.string.reminder_sync_member_removed)
+            SyncNotificationKind.ROOM_KEY_ROTATED -> context.getString(R.string.reminder_sync_room_key_rotated)
+        }
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID_SYNC)
+            .setSmallIcon(R.drawable.ic_quick_catat)
+            .setContentText(body)
+            .setContentIntent(openIntent(context))
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+
+        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_SYNC_BASE + (payload.roomId.value.hashCode() and 0xFF), notification)
     }
 
     private fun canNotify(context: Context): Boolean =

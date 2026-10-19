@@ -919,6 +919,12 @@
     </plurals>
     <string name="reminder_debt_body_lent">%1$s left. A gentle nudge may help.</string>
     <string name="reminder_debt_body_borrowed">%1$s left. Get the payment ready.</string>
+    <string name="reminder_sync_channel_name">Sync</string>
+    <string name="reminder_sync_channel_desc">General notifications from shared room sync, without amounts or record contents</string>
+    <string name="reminder_sync_new_record">There is a new record in a shared room</string>
+    <string name="reminder_sync_new_record_room">There is a new record in %1$s</string>
+    <string name="reminder_sync_member_removed">A member was removed from a shared room</string>
+    <string name="reminder_sync_room_key_rotated">The shared room key was updated</string>
     <string name="wealth_suggest_receivable">From Debts and loans: %1$s (what is left of loans expected to come back)</string>
     <string name="wealth_suggest_debt">From Debts and loans: %1$s (what is left of debts due within 12 months or with no due date)</string>
     <string name="wealth_suggest_use">Use</string>
