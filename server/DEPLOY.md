@@ -39,6 +39,13 @@ docker exec rizqflow pgrep -f "artisan migrate" || docker exec rizqflow cat /tmp
 - Insiden deploy pertama: tanpa `name: rizqflow`, compose ini bentrok dengan habitflow (folder
   sama-sama `server`) dan menimpa container habitflow ±2 menit. Jangan hapus `name:` di
   `docker-compose.yml`. Kronologi di repo build-server, ROADMAP Fase 3.
+- **(19 Oktober 2026)** Insiden ini ternyata meninggalkan jejak: container `habitflow` sampai
+  sekarang masih berlabel compose project lama `"server"` (bukan `"habitflow"`), jadi deploy
+  habitflow wajib pakai `docker compose -p server ...` sampai dirapikan. Detail di
+  `habitflow/server/DEPLOY.md` bagian "Hal-hal yang pernah bikin error". `.env.production`
+  habitflow juga sempat hilang total dari VPS dan PC lokal hari itu (diselamatkan lewat
+  `docker exec <container> env` dari container lama yang masih hidup) — kalau `.env.production`
+  rizqflow di repo ini pernah hilang, pakai cara yang sama sebagai jalan darurat terakhir.
 
 Catatan:
 
