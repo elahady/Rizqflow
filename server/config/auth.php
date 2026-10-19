@@ -42,6 +42,12 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // Token API untuk aplikasi Android (Tahap 9) — login web tetap lewat guard 'web' (sesi).
+        'sanctum' => [
+            'driver' => 'sanctum',
+            'provider' => 'users',
+        ],
     ],
 
     /*

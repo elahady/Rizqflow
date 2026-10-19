@@ -78,7 +78,7 @@
             </nav>
         </div>
         <div style="display:flex; align-items:center; gap:14px;">
-            <span style="font-size:13px; color:var(--rf-on-surface-variant);">{{ auth()->user()->name }}</span>
+            <a href="{{ route('profil') }}" style="font-size:13px; color:var(--rf-on-surface-variant); {{ request()->routeIs('profil') ? 'font-weight:700; color:var(--rf-primary);' : '' }}">{{ auth()->user()->name }}</a>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit" style="background:none; border:none; color:var(--rf-on-surface-variant); font-family:'Manrope',sans-serif; font-size:13px; cursor:pointer;">Keluar</button>

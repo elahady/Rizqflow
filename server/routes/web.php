@@ -13,6 +13,7 @@ use App\Livewire\ImporCsv;
 use App\Livewire\KekayaanBersih;
 use App\Livewire\Kelola;
 use App\Livewire\Laporan;
+use App\Livewire\Profil;
 use App\Livewire\ProyeksiCashflow;
 use App\Livewire\Ruang;
 use App\Livewire\RuangDaftar;
@@ -58,4 +59,5 @@ Route::middleware('auth')->group(function () {
     Route::get('/laporan/cashflow', ProyeksiCashflow::class)->name('laporan.cashflow');
     Route::get('/laporan/heatmap', HeatmapPencatatan::class)->name('laporan.heatmap');
     Route::get('/laporan/impor-csv', ImporCsv::class)->name('laporan.impor-csv');
+    Route::get('/profil', Profil::class)->name('profil');
 });
