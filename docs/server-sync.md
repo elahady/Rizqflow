@@ -47,6 +47,7 @@ Tujuan: server tidak bisa membaca data, pasangan bisa berbagi ruang Keluarga, da
 | Mengundang pasangan | Bertemu langsung dan memindai QR untuk memverifikasi kunci, tidak bergantung pada server |
 | Mengeluarkan anggota | Kunci ruang diganti untuk data berikutnya. Data lama yang sudah mereka miliki tetap bisa mereka baca dan ini dijelaskan ke pengguna |
 | Notifikasi | Push dari server hanya berisi kabar umum ("ada catatan baru"); aplikasi mengambil dan mendekripsi sendiri, jadi nominal tidak bocor |
+| Akun lintas ruang | **Keputusan pemilik 2026-10-19:** anggota ruang Keluarga melihat transaksi ruang itu beserta nama akun sumbernya, tapi **tidak** melihat saldo akun itu maupun transaksi lain yang memakai akun itu di ruang lain (Memberi, Diri, ruang Keluarga lain). Akun tetap satu per pengguna, dipakai lintas ruang seperti sekarang — pembatasannya di sisi tampilan/sync (hanya transaksi milik ruang yang dibagi yang ikut disinkronkan ke anggota, bukan riwayat penuh akunnya), bukan dengan memisahkan akun per ruang |
 
 Yang tetap terlihat server: siapa yang sinkron, kapan, dan ukuran data. Ini diungkapkan di kebijakan privasi.
 
@@ -54,7 +55,6 @@ Data hilang total hanya bila semua perangkat hilang **dan** kode pemulihan hilan
 
 ## Belum diputuskan
 
-- **Akun lintas ruang.** Akun (tunai, bank, e-wallet) sekarang milik pengguna dan dipakai lintas ruang, sedangkan yang dibagi hanya ruang Keluarga. Kalau transaksi Keluarga dibayar dari akun pribadi, pasangan bisa ikut melihat akun itu. Aturan tampilannya harus diputuskan sebelum skema sync dibuat.
 - **Model konflik data** (dua anggota mengubah data yang sama bersamaan). Usulan awal: log operasi tambah-saja per rekaman dengan penanda waktu; transaksi sebagian besar tidak berubah sehingga konflik jarang.
 - **Firebase Analytics** dipakai atau cukup Play Console plus data akun server.
 - Skema Room perlu penanda waktu ubah, penanda hapus, dan pengenal perangkat di hampir semua tabel (menyentuh model data; lihat [model-data.md](model-data.md) saat dikerjakan).
