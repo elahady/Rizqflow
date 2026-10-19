@@ -183,6 +183,7 @@ Kesimpulan awal: **Rizqflow masih layak dipakai**. **Rizqly bukan cadangan yang 
 
 - **Warna ruang custom** (2026-09-26): ruang custom mendapat 5 slot warna tambahan (slot 4–8, total 8 slot) dari palet yang divalidasi; ruang ke-9+ netral. Warna melekat pada ruang, tidak diputar ulang. Aturan dan validasi di [design/README.md](design/README.md#warna-ruang-custom-slot-4-sampai-8).
 - **Akun lintas ruang di ruang keluarga** (2026-10-19, Tahap 13): anggota ruang Keluarga yang disinkronkan melihat transaksi ruang itu beserta nama akun sumbernya, tapi **tidak** melihat saldo akun itu atau transaksi lain dari akun yang sama di ruang lain (Memberi, Diri, ruang Keluarga lain). Akun tetap satu per pengguna dan dipakai lintas ruang seperti sekarang (tidak dipisah per ruang); pembatasannya ada di sisi tampilan/protokol sync, bukan di model data akun. Detail di [server-sync.md](server-sync.md) bagian "Model kunci".
+- **Model konflik sinkronisasi** (2026-10-19, Tahap 9): log operasi tambah-saja (append-only) per rekaman dengan penanda waktu dan id perangkat, baris dengan penanda waktu terbaru per rekaman yang menang (last-write-wins), tanpa `UPDATE`/`DELETE` fisik di server. Dipilih karena transaksi keuangan jarang diubah setelah dicatat (konflik sungguhan jarang) dan server tidak perlu membaca payload untuk memutuskan siapa menang (tetap kompatibel dengan enkripsi ujung ke ujung). Detail di [server-sync.md](server-sync.md) bagian "Model konflik sinkronisasi".
 
 ## Keputusan yang masih terbuka
 
