@@ -3,7 +3,6 @@ package com.roziqrizal.rizqflow
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
-import android.view.WindowManager
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -55,8 +54,6 @@ class MainActivity : FragmentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        // Data keuangan: nominal tidak boleh terlihat di tampilan aplikasi terakhir atau tangkapan layar (S19).
-        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         // Hanya saat dibuat baru: setelah layar diputar, intent lama tidak boleh membuka sheet lagi.
         if (savedInstanceState == null) noteQuickCatat(intent)
 
