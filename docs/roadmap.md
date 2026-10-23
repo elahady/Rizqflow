@@ -65,7 +65,7 @@ Ringkasan ini **menyimpulkan, bukan menggantikan** checklist lengkap di tiap Tah
 - Tahap 13: **semua tes kripto yang lulus di Robolectric belum membuktikan Android Keystore sungguhan** — Tink diam-diam jatuh ke penyimpanan cleartext saat Keystore gagal di lingkungan tes, jadi "aman karena Keystore" baru boleh dipercaya setelah dicoba di emulator/perangkat dengan Keystore asli (lihat catatan JDK di CLAUDE.md)
 
 **Tahap 8 (birokrasi rilis) — sebaiknya dimulai PARALEL, bukan di akhir**, karena ada masa tunggu di luar kendali sendiri (review Google):
-- Akun developer Play Console, profil pembayaran, pajak — mulai ini duluan, perlu beberapa hari untuk aktif
+- ~~Akun developer Play Console~~ **sudah ada** (dipakai sejak Al-Kaukaba, dikonfirmasi 2026-10-23) — tinggal tambah aplikasi Rizqflow baru di konsol yang sama. Yang masih perlu dicek: profil pembayaran untuk terima hasil penjualan (mungkin belum pernah disiapkan kalau Al-Kaukaba gratis), dan apakah akun ini sudah lewat syarat uji tertutup developer baru dari riwayat Al-Kaukaba
 - Kebijakan privasi + deklarasi data safety (menyebut server dan UU PDP — lihat catatan "Konsekuensi" di Tahap 9)
 - Uji tertutup Play Console (ada masa tunggu/syarat jumlah penguji)
 - Store listing, case study roziqrizal.com, README Inggris, video demo
@@ -84,7 +84,7 @@ Pemilik memilih **Opsi A** — pertahankan keputusan 24 Sept, rilis 1 tetap menc
 ### Urutan eksekusi yang disarankan (lintas-Tahap, berdasar ketergantungan nyata)
 
 **Sekarang juga, paralel (tidak saling menunggu):**
-- Daftar akun developer Play Console, profil pembayaran, pajak (Tahap 8) — mulai duluan, ada masa tunggu aktivasi
+- Tambah aplikasi Rizqflow baru di akun Play Console yang sudah ada (dipakai sejak Al-Kaukaba); cek profil pembayaran dan status syarat uji tertutup developer baru (Tahap 8) — bukan daftar dari nol lagi, tapi tetap mulai duluan karena ada bagian yang masih bisa makan waktu tunggu
 - 2 verifikasi manual Tahap 6 (restore di perangkat lain, buka CSV di Sheets/Excel) — murah, menutup Tahap 6 sepenuhnya
 - Salin konfigurasi Nginx ke repo + uji restore backup (Tahap 12) — tidak butuh kode baru
 - Riset sumber API harga emas (Tahap 7) dan pilih library QR scanner (Tahap 13) — riset cepat, membuka kerja berikutnya
@@ -242,7 +242,9 @@ Pembeda utama produk.
 
 ## Tahap 8 — Rilis dan portofolio (Backlog)
 
-- [ ] Akun developer, profil pembayaran, dan pajak
+- [x] Akun developer Play Console (dipakai sejak rilis Al-Kaukaba, dikonfirmasi pemilik 2026-10-23) — tinggal tambah aplikasi baru untuk Rizqflow di konsol yang sama, bukan daftar dari nol
+  - [ ] Cek/siapkan profil pembayaran (payments profile) untuk menerima hasil penjualan Pro dan Sync — kemungkinan belum pernah disiapkan kalau Al-Kaukaba rilis gratis tanpa produk berbayar
+  - [ ] Cek riwayat akun: apakah sudah lewat syarat uji tertutup (20 tester aktif/14 hari berturut) yang Google wajibkan untuk developer baru — kalau sudah terpenuhi lewat Al-Kaukaba, butir "Uji tertutup Play Console" di bawah bisa jauh lebih cepat
 - [ ] Kebijakan privasi, deklarasi fitur finansial, dan data safety
 - [ ] Uji tertutup Play Console (cek syaratnya sejak awal; memengaruhi jadwal)
 - [ ] Store listing
