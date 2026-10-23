@@ -17,9 +17,19 @@ android {
         versionName = "0.1.0"
     }
 
+    // API_BASE_URL dikonfigurasi lewat BuildConfig (bukan ditanam di kode remote/), sesuai prinsip
+    // "alamat API bisa dikonfigurasi" di CLAUDE.md — pindah VPS tidak butuh mengubah data/remote/.
+    // rizqflow-api.roziqrizal.com (Tahap 12) BELUM hidup; nilai release di bawah masih placeholder
+    // sampai subdomain itu benar-benar ada.
     buildTypes {
+        debug {
+            // 10.0.2.2 adalah alias bawaan emulator Android ke localhost mesin pengembang
+            // (`php artisan serve`, port default 8000, dijalankan dari server/).
+            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8000/api/\"")
+        }
         release {
             isMinifyEnabled = false
+            buildConfigField("String", "API_BASE_URL", "\"https://rizqflow-api.roziqrizal.com/api/\"")
         }
     }
 

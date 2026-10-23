@@ -1,8 +1,10 @@
 // Room dan implementasi repositori. Skema versi 1 ada di db/ dan dirancang di docs/model-data.md.
+// Plugin serialization dipakai untuk DTO JSON Retrofit di remote/ (Tahap 9, server-sync.md).
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.ksp)
     alias(libs.plugins.androidx.room)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -45,10 +47,19 @@ dependencies {
     implementation(libs.tink.android)
     ksp(libs.androidx.room.compiler)
 
+    // Klien HTTP untuk akun server dan sync (Tahap 9, server-sync.md) — lihat data/remote/. JSON
+    // di-encode/decode manual lewat kotlinx.serialization (bukan converter Retrofit pihak ketiga),
+    // Retrofit cuma mengantar RequestBody/ResponseBody mentah (didukung bawaan, tanpa converter).
+    implementation(libs.retrofit)
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.serialization.json)
+
     // Tes DAO dan repositori berjalan di JVM lewat Robolectric (JUnit 4), tanpa emulator, jadi ikut CI.
     testImplementation(libs.junit4)
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.kotlinx.coroutines.core)
+    // Tes RizqflowApiService terhadap server HTTP sungguhan (bukan mock interface) di JVM, tanpa Robolectric.
+    testImplementation(libs.okhttp.mockwebserver)
 }
