@@ -77,12 +77,38 @@ Ringkasan ini **menyimpulkan, bukan menggantikan** checklist lengkap di tiap Tah
 - Harga final Pro (placeholder Rp129rb, belum final)
 - Firebase Analytics dipakai atau tidak
 
-### Catatan realita soal target 2 minggu
+### Keputusan scope rilis (2026-10-23): Opsi A
 
-Tahap 9/12/13 **wajib sebelum rilis** per keputusan pemilik 2026-09-24 (alasan tercatat: butuh angka Sync sejak awal, dan ruang keluarga memang butuh server — lebih baik dibangun sekali daripada rilis dua kali dengan janji privasi berubah). Tapi dengan gambaran lengkap di atas — terutama lapisan jaringan Android yang belum ada sama sekali, Play Billing yang masih stub penuh, ruang keluarga yang belum ada UI-nya, dan masa tunggu review Google di Tahap 8 yang belum dimulai — **scope ini realistis lebih dari 2 minggu kerja paruh waktu di sela kantor.** Dua opsi yang masuk akal, keputusan tetap di tangan pemilik:
+Pemilik memilih **Opsi A** — pertahankan keputusan 24 Sept, rilis 1 tetap mencakup Sync + ruang keluarga. Konsekuensi: target waktu realistis **4-8 minggu** paruh waktu di sela kantor (dominan karena lapisan jaringan Android + Play Billing + ruang keluarga UI dari nol, di luar masa tunggu review Google di Tahap 8) — **bukan 2 minggu seperti target awal di sesi sebelumnya**; target waktu perlu direvisi mengikuti ini. Rentang 4 vs 8 minggu bergantung seberapa banyak polish Tahap 7 (laporan/insight, multi-mata uang, widget, tema) ikut dipangkas — itu bisa dikurangi tanpa melanggar alasan 24 Sept, karena yang disebut di sana cuma soal Sync/server/privasi, bukan fitur kosmetik Pro.
 
-- **Opsi A — pertahankan keputusan 24 Sept**: rilis 1 tetap mencakup Sync + ruang keluarga. Target waktu realistis kemungkinan 4-8 minggu paruh waktu (dominan karena lapisan jaringan Android + Play Billing + ruang keluarga UI dari nol), di luar masa tunggu review Google di Tahap 8.
-- **Opsi B — revisi scope**: rilis 1 hanya Tahap 6 + 7 (Gratis + Pro sekali bayar saja, tanpa Sync/ruang keluarga) + Tahap 8; Sync dan ruang keluarga menyusul sebagai v1.2. Ini yang mendekati target 2 minggu. Konsekuensinya keluar dari alasan 24 Sept ("jangan rilis dua kali dengan janji privasi berubah") — pemilik perlu sadar dan menerima itu secara eksplisit sebelum dikerjakan.
+### Urutan eksekusi yang disarankan (lintas-Tahap, berdasar ketergantungan nyata)
+
+**Sekarang juga, paralel (tidak saling menunggu):**
+- Daftar akun developer Play Console, profil pembayaran, pajak (Tahap 8) — mulai duluan, ada masa tunggu aktivasi
+- 2 verifikasi manual Tahap 6 (restore di perangkat lain, buka CSV di Sheets/Excel) — murah, menutup Tahap 6 sepenuhnya
+- Salin konfigurasi Nginx ke repo + uji restore backup (Tahap 12) — tidak butuh kode baru
+- Riset sumber API harga emas (Tahap 7) dan pilih library QR scanner (Tahap 13) — riset cepat, membuka kerja berikutnya
+- Jalankan tes kripto Tahap 13 yang sudah ada di emulator/perangkat dengan Keystore asli (bukan cuma Robolectric) — membuktikan klaim "aman" yang masih tertunda
+
+**Lalu (blocker fondasi — hampir semua di bawah bergantung ke ini):**
+- Bangun lapisan HTTP client Android (Retrofit/OkHttp, penyimpanan token Sanctum) — pekerjaan dengan leverage tertinggi karena dibutuhkan semua butir Tahap 9 dan sebagian Tahap 13
+
+**Setelah lapisan jaringan ada:**
+- Sambungkan akun server (login, hapus akun) dan sync (push/pull) dari aplikasi
+- Alur kode pemulihan: tampilkan sekali, kirim ke server, pulihkan di perangkat baru
+- Perender/pemindai QR sungguhan untuk undang pasangan
+- UI ruang keluarga bersama + peran anggota + amplop bulanan, plus filter akses pull di server
+- Wiring Firebase Cloud Messaging + endpoint server yang mengirim push
+
+**Begitu Play Console aktif (idealnya sudah jalan di latar belakang sejak awal):**
+- Daftarkan produk in-app Pro dan Sync
+- Integrasi Google Play Billing sungguhan (Tahap 7) dan verifikasi pembelian di server (Tahap 9)
+- Subdomain `rizqflow-api.roziqrizal.com` + SSL (Tahap 12)
+
+**Terakhir, sebelum submit:**
+- Uji alur pembelian dengan penguji lisensi
+- Sisa polish Tahap 7 (info profil haul, laporan/insight, multi-mata uang, widget, tema) — kandidat pertama untuk dipangkas kalau waktu mepet, bukan blocker teknis seperti butir-butir di atas
+- Kebijakan privasi + data safety, uji tertutup Play Console, store listing, case study
 
 ## Tahap 0 — Fondasi dan keputusan (In Progress)
 
