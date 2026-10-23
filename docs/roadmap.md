@@ -27,6 +27,63 @@ T9 --> T8["8 Rilis dan portofolio"]
 - **Server ikut rilis pertama** (diputuskan pemilik 2026-09-24): Tahap 9 tidak lagi opsional dan dikerjakan sebelum Tahap 8. Cakupan rilis 1: akun server, langganan Sync sejak rilis, sync terenkripsi antar-perangkat, ruang keluarga bersama, peran anggota, dan notifikasi anggota mencatat. Bot WhatsApp dan input AI berbasis LLM tetap sesudah rilis. Server di VPS milik pemilik (VPS Al-Kaukaba dulu, lihat [server-sync.md](server-sync.md)). Tahap 12 (infrastruktur server, dijalankan pemilik) dan Tahap 13 (enkripsi dan kunci) ditambahkan 2026-09-24 dan mendahului Tahap 9.
 - Tahap 10 (fitur wajib dari riset pasar) dan Tahap 11 (input cerdas on-device) ditambahkan 2026-09-23. Keduanya tidak bergantung pada Tahap 8; urutan terhadap rilis ditentukan pemilik (usulan: butir High Tahap 10 sebelum rilis, sisanya sesudah).
 
+## Jalur ke rilis (ringkasan kerja tersisa, 2026-10-23)
+
+Ringkasan ini **menyimpulkan, bukan menggantikan** checklist lengkap di tiap Tahap di bawah — dibuat untuk melihat jarak sebenarnya ke Tahap 8 (rilis) dalam satu pandangan. Diminta pemilik 2026-10-23 setelah target rilis 2 minggu disepakati di sesi lain; lihat "Catatan realita" di bagian bawah sebelum menganggap 2 minggu itu pasti cukup.
+
+**Urutan menuju rilis:** Tahap 6 (hampir selesai, tinggal 2 verifikasi manual) → Tahap 7 (perlu Billing sungguhan) → Tahap 9+12+13 (server, sync, enkripsi — **blocker terbesar**) → Tahap 8 (rilis). Tahap 10 dan 11 sudah cukup untuk rilis (semua butir High selesai; sisanya Pro/Low, boleh menyusul tanpa menahan rilis).
+
+### Blocker terbesar yang belum jadi baris tersendiri di manapun
+
+**Lapisan jaringan (HTTP client) di aplikasi Android belum ada sama sekali.** Semua endpoint server Tahap 9 (`POST /api/auth/google`, `DELETE /api/account`, `POST /api/sync/push`, `GET /api/sync/pull`) sudah jalan dan teruji **di sisi server saja** (lewat curl) — tidak ada satu baris kode Android yang memanggilnya. Ini bukan tugas kecil: butuh Retrofit/OkHttp (atau setara) baru di `:data`, penyimpanan token Sanctum, penanganan offline/retry, dan menyambungkannya ke `AccountKeyProvider`/`RoomKeyProvider` Tahap 13 yang sudah ada. Anggap ini satu beban kerja tersendiri, meski tercatat sebagai beberapa baris tersebar di Tahap 9.
+
+### Sisa kerja per kelompok
+
+**Kode Android (belum ada sama sekali):**
+- Klien HTTP + penyimpanan token (dasar untuk semua butir di bawah)
+- Layar tampilkan-sekali kode pemulihan + kirim kunci terbungkus ke server (Tahap 13)
+- Alur pulihkan di perangkat baru (Tahap 13, 9)
+- Perender/pemindai QR sungguhan untuk undang pasangan — library belum dipilih (Tahap 13)
+- UI ruang keluarga bersama + peran anggota + amplop bulanan (Tahap 9)
+- Wiring Firebase Cloud Messaging sungguhan (Tahap 13) — dependensi belum ditambahkan
+- Integrasi Google Play Billing sungguhan untuk Pro **dan** Sync, plus pulihkan pembelian (Tahap 7) — `PurchaseStore.grant()` sudah siap dipanggil, tinggal disambungkan
+- Info lembut profil haul tambahan, harga emas otomatis (API belum diriset), laporan/insight, multi-mata uang, widget, tema (Tahap 7, 10)
+
+**Kode server (ada, tapi belum lengkap):**
+- Catat dan verifikasi pembelian Pro/Sync — Play Developer API + notifikasi waktu nyata (Tahap 9, High)
+- Filter akses pull berdasarkan keanggotaan ruang keluarga — saat ini cuma menyaring per akun, belum per ruang yang dibagi (Tahap 9)
+- Endpoint yang mengirim push notifikasi sync (Tahap 9, 13)
+- Metrik pengguna anonim (Tahap 9, Medium)
+
+**Infrastruktur, kerja pemilik sendiri (Tahap 12):**
+- Subdomain `rizqflow-api.roziqrizal.com` + SSL — baru relevan begitu kerja Tahap 9 di atas mulai
+- Salin konfigurasi Nginx site ke repo (baru ada di VPS)
+- Uji restore backup database `rizqflow` (backup terjadwal sudah jalan, restore belum pernah dicoba)
+
+**Verifikasi manual yang masih berutang (kode sudah selesai, belum dibuktikan):**
+- Tahap 6: restore cadangan di **perangkat fisik lain** (baru teruji bolak-balik di emulator); file ekspor CSV dibuka di Sheets/Excel sungguhan
+- Tahap 13: **semua tes kripto yang lulus di Robolectric belum membuktikan Android Keystore sungguhan** — Tink diam-diam jatuh ke penyimpanan cleartext saat Keystore gagal di lingkungan tes, jadi "aman karena Keystore" baru boleh dipercaya setelah dicoba di emulator/perangkat dengan Keystore asli (lihat catatan JDK di CLAUDE.md)
+
+**Tahap 8 (birokrasi rilis) — sebaiknya dimulai PARALEL, bukan di akhir**, karena ada masa tunggu di luar kendali sendiri (review Google):
+- Akun developer Play Console, profil pembayaran, pajak — mulai ini duluan, perlu beberapa hari untuk aktif
+- Kebijakan privasi + deklarasi data safety (menyebut server dan UU PDP — lihat catatan "Konsekuensi" di Tahap 9)
+- Uji tertutup Play Console (ada masa tunggu/syarat jumlah penguji)
+- Store listing, case study roziqrizal.com, README Inggris, video demo
+
+### Keputusan yang masih punya pemilik (jangan dikerjakan sebelum dijawab)
+
+- Cara browser web mendekripsi data sync e2e (menahan 2 task terakhir Tahap 14)
+- Kebijakan haul saat harta turun di bawah nisab di tengah tahun (fikih, perlu rujukan kitab)
+- Harga final Pro (placeholder Rp129rb, belum final)
+- Firebase Analytics dipakai atau tidak
+
+### Catatan realita soal target 2 minggu
+
+Tahap 9/12/13 **wajib sebelum rilis** per keputusan pemilik 2026-09-24 (alasan tercatat: butuh angka Sync sejak awal, dan ruang keluarga memang butuh server — lebih baik dibangun sekali daripada rilis dua kali dengan janji privasi berubah). Tapi dengan gambaran lengkap di atas — terutama lapisan jaringan Android yang belum ada sama sekali, Play Billing yang masih stub penuh, ruang keluarga yang belum ada UI-nya, dan masa tunggu review Google di Tahap 8 yang belum dimulai — **scope ini realistis lebih dari 2 minggu kerja paruh waktu di sela kantor.** Dua opsi yang masuk akal, keputusan tetap di tangan pemilik:
+
+- **Opsi A — pertahankan keputusan 24 Sept**: rilis 1 tetap mencakup Sync + ruang keluarga. Target waktu realistis kemungkinan 4-8 minggu paruh waktu (dominan karena lapisan jaringan Android + Play Billing + ruang keluarga UI dari nol), di luar masa tunggu review Google di Tahap 8.
+- **Opsi B — revisi scope**: rilis 1 hanya Tahap 6 + 7 (Gratis + Pro sekali bayar saja, tanpa Sync/ruang keluarga) + Tahap 8; Sync dan ruang keluarga menyusul sebagai v1.2. Ini yang mendekati target 2 minggu. Konsekuensinya keluar dari alasan 24 Sept ("jangan rilis dua kali dengan janji privasi berubah") — pemilik perlu sadar dan menerima itu secara eksplisit sebelum dikerjakan.
+
 ## Tahap 0 — Fondasi dan keputusan (In Progress)
 
 Menetapkan keputusan yang menentukan arah teknis dan bisnis sebelum kode ditulis.
