@@ -6,7 +6,9 @@ Aplikasi finansial berbasis "hak": rezeki yang masuk dialirkan ke ruang-ruang (M
 
 _Diperbarui 18 Oktober 2026 (bagian web diverifikasi langsung; sisanya masih rekonstruksi 17 Oktober)._ _Asal: 17 Oktober 2026. **Direkonstruksi dari `git log` dan dokumen repo, belum diverifikasi pemilik** — koreksi butir yang keliru. Potret keadaan sekarang, bukan log: ubah di tempat setiap selesai pekerjaan nyata (skill `catat-progres`); riwayat ada di `git log`._
 
-**Sumber status hidup: [docs/roadmap.md](docs/roadmap.md)** (diputuskan 2026-10-18, menggantikan tracking Notion — lihat "Status dan tracking" di bawah). Bagian ini ringkasan; detail dan checklist lengkap selalu ada di roadmap.md. Commit terakhir: 2026-09-28.
+**Sumber status hidup: [docs/roadmap.md](docs/roadmap.md)** (diputuskan 2026-10-18, menggantikan tracking Notion — lihat "Status dan tracking" di bawah). Bagian ini ringkasan; detail dan checklist lengkap selalu ada di roadmap.md. Commit terakhir: `1998ec7` (2026-10-23, lapisan klien HTTP Android Tahap 9).
+
+**Titik berhenti sesi 2026-10-23 — mulai dari sini di sesi berikutnya:** lapisan klien HTTP (`AccountRemote`/`SyncRemote`/`ApiTokenStore` + implementasi Retrofit) sudah ada dan teruji, tapi **belum disambungkan ke satu layar pun**. Dua hal perlu diputuskan pemilik sebelum penyambungan jalan: (1) di mana client ini dirakit (singleton app-wide di `RizqflowApplication`, atau per `AccountWorkspace`), dan (2) apakah `GoogleAuthProvider` yang ada (untuk identitas lokal) sudah menghasilkan ID token Google dalam bentuk yang bisa langsung dipakai `AccountRemote.loginWithGoogle`, atau perlu disesuaikan. Target rilis: 4-8 minggu paruh waktu (Opsi A, lihat "Jalur ke rilis" di roadmap.md), bukan 2 minggu seperti rencana awal.
 
 ### Sudah selesai
 - Tahap 1 (desain UI/UX), 2 (inti domain), 3 (layar inti), 4 (dashboard Denah), 5 (modul Memberi: zakat dan haul) berstatus Selesai di roadmap.

@@ -94,7 +94,7 @@ Pemilik memilih **Opsi A** — pertahankan keputusan 24 Sept, rilis 1 tetap menc
 - ~~Bangun lapisan HTTP client Android~~ — selesai (`AccountRemote`/`SyncRemote`/`ApiTokenStore` + implementasi Retrofit, lihat task baru di Tahap 9), 13 tes hijau. Belum disambungkan ke UI — itu empat butir berikutnya.
 
 **Sekarang (lanjutan langsung, sebagian bisa paralel):**
-- Sambungkan akun server (login, hapus akun) dan sync (push/pull) dari aplikasi
+- Sambungkan akun server (login, hapus akun) dan sync (push/pull) dari aplikasi — **2 keputusan pemilik dulu sebelum ini jalan**: (1) di mana client dirakit (singleton app-wide di `RizqflowApplication`, atau per `AccountWorkspace`), (2) apakah `GoogleAuthProvider` yang ada sekarang sudah menghasilkan ID token dalam bentuk yang langsung dipakai `AccountRemote.loginWithGoogle`, atau perlu disesuaikan
 - Alur kode pemulihan: tampilkan sekali, kirim ke server, pulihkan di perangkat baru
 - Perender/pemindai QR sungguhan untuk undang pasangan
 - UI ruang keluarga bersama + peran anggota + amplop bulanan, plus filter akses pull di server
