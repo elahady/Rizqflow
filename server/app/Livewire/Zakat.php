@@ -3,11 +3,15 @@
 namespace App\Livewire;
 
 use App\Models\Category;
-use App\Models\Transaction;
 use App\Models\ZakatProfile;
 use App\Support\Feature;
+use App\Support\Ledger;
+use App\Support\LedgerException;
+use App\Support\Rupiah;
+use App\Support\ZakatRekap;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
@@ -22,6 +26,11 @@ use Livewire\Component;
  * sini murni isian manual pengguna, bukan dihitung otomatis — berbeda dari HaulTracker di :domain
  * yang menghitung dari tanggal sungguhan. `status` dihitung ulang dari nisab dan isian haul itu
  * setiap profil disimpan, supaya tidak ada kombinasi status yang tidak masuk akal.
+ *
+ * Tunaikan zakat dicatat lewat Ledger::recordExpense (saldo dan validasi seragam dengan halaman
+ * lain), dengan lembaga penerima dan nomor bukti setor opsional. Rekap zakat tahunan di bagian
+ * bawah halaman memakai App\Support\ZakatRekap, sama dengan unduhan PDF/CSV; lembaga dan nomor
+ * bukti setor bisa dilengkapi belakangan, hanya untuk transaksi zakat milik pengguna.
  */
 class Zakat extends Component
 {
@@ -47,17 +56,45 @@ class Zakat extends Component
 
     public ?string $profileError = null;
 
-    public bool $payingZakat = false;
-
     public string $zakatAmount = '';
 
     public ?int $zakatAccountId = null;
 
+    public string $zakatInstitution = '';
+
+    public string $zakatReceipt = '';
+
     public ?string $payError = null;
+
+    public ?string $payNotice = null;
+
+    /** Tahun rekap zakat (?tahun=2025); kosong atau tidak sah = tahun berjalan. */
+    #[Url(as: 'tahun')]
+    public ?string $tahun = null;
+
+    public ?int $editingRekapId = null;
+
+    public string $rekapInstitution = '';
+
+    public string $rekapReceipt = '';
+
+    public ?string $rekapError = null;
 
     public function mount(): void
     {
         $this->selectedProfileId = $this->activeProfiles()->first()?->id;
+        $this->resetPayForm();
+    }
+
+    /** Isian tunaikan zakat kembali ke bawaan: 2,5% harta bersih profil terpilih, tanpa akun/lembaga/nomor. */
+    private function resetPayForm(): void
+    {
+        $this->zakatAmount = (string) ($this->profile()?->suggestedZakatMinor() ?? 0);
+        $this->zakatAccountId = null;
+        $this->zakatInstitution = '';
+        $this->zakatReceipt = '';
+        $this->payError = null;
+        $this->payNotice = null;
     }
 
     private function activeProfiles()
@@ -79,8 +116,8 @@ class Zakat extends Component
         $profile = auth()->user()->zakatProfiles()->active()->find($profileId);
         if ($profile) {
             $this->selectedProfileId = $profile->id;
-            $this->payingZakat = false;
             $this->editingProfile = false;
+            $this->resetPayForm();
         }
     }
 
@@ -169,6 +206,7 @@ class Zakat extends Component
 
         $this->selectedProfileId = $profile->id;
         $this->editingProfile = false;
+        $this->resetPayForm();
     }
 
     public function archiveProfile(int $profileId): void
@@ -189,6 +227,7 @@ class Zakat extends Component
 
         if ($this->selectedProfileId === $profileId) {
             $this->selectedProfileId = $this->activeProfiles()->first()?->id;
+            $this->resetPayForm();
         }
     }
 
@@ -198,23 +237,12 @@ class Zakat extends Component
         $profile?->update(['archived' => false]);
     }
 
+    /** Mengembalikan isian tunaikan ke bawaan (nominal 2,5% harta bersih). */
     public function startPayZakat(): void
     {
-        $profile = $this->profile();
-        if (! $profile) {
-            return;
+        if ($this->profile()) {
+            $this->resetPayForm();
         }
-
-        $this->zakatAmount = (string) $profile->suggestedZakatMinor();
-        $this->zakatAccountId = null;
-        $this->payError = null;
-        $this->payingZakat = true;
-    }
-
-    public function cancelPayZakat(): void
-    {
-        $this->payingZakat = false;
-        $this->payError = null;
     }
 
     public function payZakat(): void
@@ -240,7 +268,7 @@ class Zakat extends Component
             return;
         }
 
-        $category = Category::where('name', 'Zakat mal')->where('is_system', true)
+        $category = Category::zakat()
             ->whereHas('room', fn ($q) => $q->where('user_id', $user->id))
             ->first();
 
@@ -253,19 +281,16 @@ class Zakat extends Component
         // Nama profil disebut di catatan hanya bila ada lebih dari satu, sesuai docs/ui-flow.md S14.
         $note = $user->zakatProfiles()->count() > 1 ? 'Zakat mal — '.$profile->name : 'Zakat mal';
 
-        Transaction::create([
-            'user_id' => $user->id,
-            'room_id' => $category->room_id,
-            'category_id' => $category->id,
-            'account_id' => $account->id,
-            'type' => 'pengeluaran',
-            'amount_minor' => $amount,
-            'category' => $category->name,
-            'note' => $note,
-            'occurred_on' => now(),
-        ]);
+        try {
+            Ledger::recordExpense($user, $amount, $category, $account, Carbon::now(), $note, [
+                'recipient_institution' => $this->zakatInstitution,
+                'receipt_number' => $this->zakatReceipt,
+            ]);
+        } catch (LedgerException $e) {
+            $this->payError = $e->getMessage();
 
-        $account->decrement('balance_minor', $amount);
+            return;
+        }
 
         // Menunaikan zakat memulai haul baru; status mengikuti nisab sekarang (tidak berubah lewat pembayaran ini).
         $profile->update([
@@ -275,12 +300,84 @@ class Zakat extends Component
             'status' => $profile->isAboveNisab() ? 'haul_berjalan' : 'belum_nisab',
         ]);
 
-        $this->payingZakat = false;
+        $this->resetPayForm();
+        $this->payNotice = 'Zakat '.Rupiah::format($amount).' dicatat di Memberi › Zakat mal, dan haul baru dimulai.';
+    }
+
+    // --- Rekap zakat tahunan ---
+
+    private function rekapYear(): int
+    {
+        return preg_match('/^\d{4}$/', (string) $this->tahun) === 1 ? (int) $this->tahun : (int) Carbon::now()->format('Y');
+    }
+
+    public function selectYear(int $year): void
+    {
+        $this->tahun = (string) $year;
+        $this->cancelEditRekap();
+    }
+
+    public function startEditRekap(int $transactionId): void
+    {
+        $transaction = ZakatRekap::query(auth()->user())->find($transactionId);
+        if (! $transaction) {
+            $this->rekapError = 'Transaksi zakat tidak ditemukan.';
+
+            return;
+        }
+
+        $this->editingRekapId = $transaction->id;
+        $this->rekapInstitution = $transaction->recipient_institution ?? '';
+        $this->rekapReceipt = $transaction->receipt_number ?? '';
+        $this->rekapError = null;
+    }
+
+    public function cancelEditRekap(): void
+    {
+        $this->editingRekapId = null;
+        $this->rekapInstitution = '';
+        $this->rekapReceipt = '';
+        $this->rekapError = null;
+    }
+
+    /** Menyimpan lembaga penerima dan nomor bukti setor; hanya untuk transaksi zakat milik pengguna. */
+    public function saveRekap(): void
+    {
+        $this->rekapError = null;
+        $transaction = $this->editingRekapId ? ZakatRekap::query(auth()->user())->find($this->editingRekapId) : null;
+        if (! $transaction) {
+            $this->rekapError = 'Transaksi zakat tidak ditemukan.';
+
+            return;
+        }
+
+        $institution = trim($this->rekapInstitution);
+        $receipt = trim($this->rekapReceipt);
+
+        if (mb_strlen($institution) > Ledger::RECIPIENT_MAX) {
+            $this->rekapError = 'Lembaga penerima paling banyak '.Ledger::RECIPIENT_MAX.' karakter.';
+
+            return;
+        }
+        if (mb_strlen($receipt) > Ledger::RECEIPT_MAX) {
+            $this->rekapError = 'Nomor bukti setor paling banyak '.Ledger::RECEIPT_MAX.' karakter.';
+
+            return;
+        }
+
+        $transaction->update([
+            'recipient_institution' => $institution === '' ? null : $institution,
+            'receipt_number' => $receipt === '' ? null : $receipt,
+        ]);
+
+        $this->cancelEditRekap();
     }
 
     public function render(): View
     {
         $user = auth()->user();
+        $year = $this->rekapYear();
+        $rekap = ZakatRekap::transactions($user, $year);
 
         return view('livewire.zakat', [
             'profiles' => $this->activeProfiles(),
@@ -288,6 +385,12 @@ class Zakat extends Component
             'profile' => $this->profile(),
             'canAddProfile' => $user->zakatProfiles()->count() === 0 || $user->entitlements()->isEnabled(Feature::MultiZakatProfile),
             'accounts' => $user->accounts()->where('archived', false)->orderBy('sort_order')->get(),
+            'dateLabel' => Carbon::now()->locale('id')->translatedFormat('l, j F Y'),
+            'rekapYear' => $year,
+            'rekapYears' => ZakatRekap::years($user, (int) Carbon::now()->format('Y')),
+            'rekapRows' => $rekap,
+            'rekapTotal' => ZakatRekap::totalMinor($rekap),
+            'rekapCsv' => ZakatRekap::csv($user, $year),
         ])->layout('components.layout', ['title' => 'Zakat dan Haul — Rizqflow']);
     }
 }

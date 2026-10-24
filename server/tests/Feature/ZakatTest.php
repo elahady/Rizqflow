@@ -130,6 +130,79 @@ class ZakatTest extends TestCase
         $this->assertSame(10_000_000 - 5_000_000, $this->account->refresh()->balance_minor);
     }
 
+    public function test_paying_zakat_stores_the_recipient_institution_and_receipt_number(): void
+    {
+        ZakatProfile::create(['user_id' => $this->user->id, 'name' => 'Utama', 'net_wealth_minor' => 200_000_000, 'nisab_minor' => 141_100_000, 'status' => 'haul_berjalan']);
+
+        Livewire::actingAs($this->user)
+            ->test(Zakat::class)
+            ->set('zakatAccountId', $this->account->id)
+            ->set('zakatInstitution', '  BAZNAS  ')
+            ->set('zakatReceipt', 'BS-2026-0042')
+            ->call('payZakat')
+            ->assertSet('payError', null)
+            ->assertSet('zakatInstitution', '')
+            ->assertSet('zakatReceipt', '');
+
+        $tx = Transaction::first();
+        $this->assertSame('BAZNAS', $tx->recipient_institution);
+        $this->assertSame('BS-2026-0042', $tx->receipt_number);
+        $this->assertSame(5_000_000, $tx->amount_minor);
+    }
+
+    public function test_institution_and_receipt_are_optional_and_stored_as_null(): void
+    {
+        ZakatProfile::create(['user_id' => $this->user->id, 'name' => 'Utama', 'net_wealth_minor' => 200_000_000, 'nisab_minor' => 141_100_000, 'status' => 'haul_berjalan']);
+
+        Livewire::actingAs($this->user)
+            ->test(Zakat::class)
+            ->set('zakatAccountId', $this->account->id)
+            ->set('zakatInstitution', '   ')
+            ->call('payZakat');
+
+        $tx = Transaction::first();
+        $this->assertNull($tx->recipient_institution);
+        $this->assertNull($tx->receipt_number);
+    }
+
+    public function test_a_too_long_institution_or_receipt_is_rejected_without_recording_anything(): void
+    {
+        $profile = ZakatProfile::create(['user_id' => $this->user->id, 'name' => 'Utama', 'net_wealth_minor' => 200_000_000, 'nisab_minor' => 141_100_000, 'status' => 'haul_genap', 'haul_day' => 354, 'haul_total_days' => 354]);
+
+        Livewire::actingAs($this->user)
+            ->test(Zakat::class)
+            ->set('zakatAccountId', $this->account->id)
+            ->set('zakatInstitution', str_repeat('a', 101))
+            ->call('payZakat')
+            ->assertSet('payError', 'Lembaga penerima paling banyak 100 karakter.')
+            ->set('zakatInstitution', 'BAZNAS')
+            ->set('zakatReceipt', str_repeat('1', 61))
+            ->call('payZakat')
+            ->assertSet('payError', 'Nomor bukti setor paling banyak 60 karakter.');
+
+        $this->assertSame(0, Transaction::count());
+        $this->assertSame(10_000_000, $this->account->refresh()->balance_minor);
+        $this->assertSame(354, $profile->refresh()->haul_day);
+    }
+
+    public function test_page_renders_the_nisab_card_and_the_yearly_recap_section(): void
+    {
+        ZakatProfile::create(['user_id' => $this->user->id, 'name' => 'Utama', 'net_wealth_minor' => 152_000_000, 'nisab_minor' => 127_500_000, 'status' => 'haul_berjalan', 'haul_day' => 337, 'haul_total_days' => 354, 'haul_started_label' => '1 Jumadil Akhir 1447']);
+
+        $this->actingAs($this->user)
+            ->get(route('zakat'))
+            ->assertOk()
+            ->assertSee('Modul Memberi')
+            ->assertSee('Di atas nisab')
+            ->assertSee('Rp 24.500.000')
+            ->assertSee('19% di atas nisab')
+            ->assertSee('17 hari lagi')
+            ->assertSee('Hari ke-337 dari 354')
+            ->assertSee('Rekap zakat tahunan')
+            ->assertSee('Lembaga penerima (opsional)')
+            ->assertDontSee('terenkripsi');
+    }
+
     public function test_paying_zakat_starts_a_new_haul(): void
     {
         $profile = ZakatProfile::create([
