@@ -719,7 +719,9 @@ input[type="number"].rf-input { font-variant-numeric: tabular-nums; }
 .au-google { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; background: var(--rf-surface-container-low); border: 1px solid var(--rf-outline-variant); color: var(--rf-on-background); padding: 12px 24px; border-radius: 999px; font-family: var(--rf-font-ui); font-weight: 600; font-size: 15px; }
 .au-google:hover { opacity: 0.85; }
 /* Tambahan: wadah tombol Google Identity Services (iframe dirender skrip Google). */
-.au-gsi { min-height: 44px; display: flex; justify-content: center; align-items: center; }
+/* color-scheme light: iframe Google selalu terang; kalau beda dengan halaman gelap, browser memberi
+   latar putih opak di belakang tombol (kotak putih di sekeliling pil). */
+.au-gsi { min-height: 44px; display: flex; justify-content: center; align-items: center; color-scheme: light; }
 .au-divider { display: flex; align-items: center; gap: 12px; margin: 24px 0; color: var(--rf-on-surface-variant); font-size: 13px; }
 .au-divider::before, .au-divider::after { content: ''; flex: 1; height: 1px; background: var(--rf-outline-variant); }
 .au-switch { text-align: center; margin-top: 24px; font-size: 14px; color: var(--rf-on-surface-variant); }
