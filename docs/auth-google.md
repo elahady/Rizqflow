@@ -93,7 +93,7 @@ Client ID adalah pengenal publik, bukan rahasia, jadi aman masuk ke git.
 
 ## Web (`server/`)
 
-Diputuskan 2026-10-18: **web ikut akun Google Android.** Halaman masuk web hanya punya tombol Google (Google Identity Services); tidak ada daftar atau email+sandi, kecuali masuk demo di `APP_ENV=local`.
+Diputuskan 2026-10-18: **web ikut akun Google Android.** ~~Halaman masuk web hanya punya tombol Google; tidak ada daftar atau email+sandi.~~ **Diubah 2026-10-24:** web juga punya masuk email+sandi, Daftar, verifikasi email, dan lupa/reset sandi (kode lewat email, Brevo); email yang sama = satu akun dengan akun Google-nya. Bagian Google di bawah tetap berlaku. Lihat konsep.md butir "Masuk web dengan email+sandi dan Google".
 
 | Hal | Isi |
 |---|---|
