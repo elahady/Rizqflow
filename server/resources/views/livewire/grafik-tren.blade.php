@@ -1,26 +1,29 @@
-<div style="display:flex; flex-direction:column; gap:22px; max-width:880px; margin:0 auto; width:100%;">
+@use('App\Support\Period')
+@use('App\Support\Rupiah')
 
-    <div><a href="{{ route('laporan') }}" style="font-size:13px; font-weight:600; color:var(--rf-on-surface-variant);">← Kembali ke Laporan</a></div>
+<div class="rf-page">
+    <x-rf.page-head :sub="Period::label(Period::fromQuery(null)).' · Pribadi'" title="Analisa">
+        <x-slot:actions><x-rf.pill tone="info" icon="">Fitur Pro</x-rf.pill></x-slot:actions>
+    </x-rf.page-head>
 
-    <h1 class="rf-serif" style="font-size:26px;">Grafik tren</h1>
+    <x-analisa.tabs active="tren" />
 
     @if (! $canUseReports)
-        <div class="rf-card">
-            <p style="font-size:14px; color:var(--rf-on-surface-variant);">Grafik tren adalah fitur Pro. Upgrade untuk melihat pemasukan dan pengeluaran multi-bulan/tahun, per ruang dan kategori.</p>
-        </div>
+        <x-analisa.upsell title="Grafik tren adalah fitur Pro." text="Lihat pemasukan dan pengeluaran multi-bulan atau multi-tahun, per ruang dan kategori." />
     @else
-        <div class="rf-card" style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end;">
-            <div class="rf-field" style="margin:0; min-width:140px;">
-                <label for="tren-months">Rentang</label>
-                <select id="tren-months" wire:model.live="months">
-                    <option value="6">6 bulan</option>
-                    <option value="12">12 bulan</option>
-                    <option value="24">24 bulan</option>
-                </select>
+        <div class="rf-row" style="gap: 14px; align-items: flex-end;">
+            <div class="rf-field">
+            <span class="rf-label" id="tren-rentang">Rentang</span>
+            <div class="rf-row" style="gap: 8px;" role="group" aria-labelledby="tren-rentang">
+                @foreach ([6 => '6 bulan', 12 => '12 bulan', 24 => '24 bulan'] as $value => $label)
+                    <button type="button" wire:click="$set('months', {{ $value }})" @class(['rf-chip', 'on' => $months === $value]) aria-pressed="{{ $months === $value ? 'true' : 'false' }}">{{ $label }}</button>
+                @endforeach
             </div>
-            <div class="rf-field" style="margin:0; min-width:160px;">
+            </div>
+            <span style="flex: 1 1 0;"></span>
+            <div class="rf-field an-filter">
                 <label for="tren-room">Ruang</label>
-                <select id="tren-room" wire:model.live="roomId">
+                <select id="tren-room" class="rf-input" wire:model.live="roomId">
                     <option value="">Semua ruang</option>
                     @foreach ($rooms as $room)
                         <option value="{{ $room->id }}">{{ $room->name }}</option>
@@ -28,9 +31,9 @@
                 </select>
             </div>
             @if ($roomId)
-                <div class="rf-field" style="margin:0; min-width:160px;">
+                <div class="rf-field an-filter">
                     <label for="tren-category">Kategori</label>
-                    <select id="tren-category" wire:model.live="categoryId">
+                    <select id="tren-category" class="rf-input" wire:model.live="categoryId">
                         <option value="">Semua kategori</option>
                         @foreach ($categories as $category)
                             <option value="{{ $category->id }}">{{ $category->name }}</option>
@@ -40,55 +43,70 @@
             @endif
         </div>
 
-        <div class="rf-card">
-            <div wire:ignore style="position:relative; height:320px;">
-                <canvas id="trend-chart" aria-label="Grafik tren pemasukan dan pengeluaran per bulan"></canvas>
+        <section class="rf-card">
+            <div class="rf-card-head">
+                <div>
+                    <h2 class="rf-h2">Pemasukan dan pengeluaran per bulan</h2>
+                    <p class="rf-sub" style="margin-top: 4px;">{{ $months }} bulan terakhir. Pemasukan selalu total seluruh akun; filter ruang dan kategori hanya menyaring pengeluaran.</p>
+                </div>
             </div>
-        </div>
+            <div wire:ignore style="position: relative; height: 320px;">
+                <canvas id="trend-chart" role="img" aria-label="Grafik tren pemasukan dan pengeluaran per bulan. Tabel di bawah memuat semua angka."></canvas>
+            </div>
+        </section>
 
-        <p style="font-size:12.5px; color:var(--rf-on-surface-variant);">Pemasukan selalu total seluruh akun (web belum mengalirkan pemasukan ke ruang tertentu); filter ruang dan kategori hanya menyaring pengeluaran.</p>
+        <section class="rf-card">
+            <div class="rf-card-head"><h2 class="rf-h2">Rincian (tabel kembaran grafik)</h2></div>
+            <div class="rf-scroll">
+                <table class="rf-table" style="min-width: 480px;">
+                    <thead>
+                        <tr><th>Bulan</th><th class="num">Pemasukan</th><th class="num">Pengeluaran</th><th class="num">Selisih</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($series['labels'] as $i => $label)
+                            @php $selisih = $series['income'][$i] - $series['expense'][$i]; @endphp
+                            <tr>
+                                <td>{{ $label }}</td>
+                                <td class="num">{{ Rupiah::format($series['income'][$i]) }}</td>
+                                <td class="num">{{ Rupiah::format($series['expense'][$i]) }}</td>
+                                <td class="num">{{ Rupiah::signed($selisih, $selisih < 0 ? 'pengeluaran' : ($selisih > 0 ? 'pemasukan' : '')) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </section>
     @endif
-
 </div>
 
-@once
-    @push('scripts')
-        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-    @endpush
-@endonce
-
-@push('scripts')
-    <script>
-        (function () {
-            let trendChart = null;
-
-            function renderTrendChart(series) {
-                const canvas = document.getElementById('trend-chart');
-                if (!canvas || typeof Chart === 'undefined') return;
-
-                if (trendChart) {
-                    trendChart.destroy();
-                }
-
-                trendChart = new Chart(canvas, {
-                    type: 'line',
-                    data: {
-                        labels: series.labels,
-                        datasets: [
-                            { label: 'Pemasukan', data: series.income, borderColor: '#2a9a80', backgroundColor: 'rgba(42,154,128,0.12)', tension: 0.25, fill: true },
-                            { label: 'Pengeluaran', data: series.expense, borderColor: '#c4653a', backgroundColor: 'rgba(196,101,58,0.12)', tension: 0.25, fill: true },
-                        ],
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: { y: { beginAtZero: true, ticks: { callback: (v) => 'Rp ' + Number(v).toLocaleString('id-ID') } } },
-                        plugins: { legend: { position: 'bottom' } },
-                    },
-                });
-            }
-
-            window.addEventListener('trend-chart-data', (event) => renderTrendChart(event.detail.series));
-        })();
-    </script>
+@push('styles')
+    <style>
+        .an-filter { min-width: 150px; }
+    </style>
 @endpush
+
+@if ($canUseReports)
+    @include('partials.analisa-chart')
+
+    @push('scripts')
+        <script>
+            rizqflowAnalisaChart.mount({
+                canvasId: 'trend-chart',
+                event: 'trend-chart-data',
+                build: function (series, t) {
+                    return {
+                        type: 'line',
+                        data: {
+                            labels: series.labels,
+                            datasets: [
+                                { label: 'Pemasukan', data: series.income, borderColor: t.room3, backgroundColor: t.alpha(t.room3, 0.14), tension: 0.25, fill: true },
+                                { label: 'Pengeluaran', data: series.expense, borderColor: t.room2, backgroundColor: t.alpha(t.room2, 0.14), tension: 0.25, fill: true },
+                            ],
+                        },
+                        options: rizqflowAnalisaChart.baseOptions(t),
+                    };
+                },
+            });
+        </script>
+    @endpush
+@endif

@@ -1,101 +1,115 @@
-@php
-    use App\Support\Rupiah;
-    use Illuminate\Support\Carbon;
-@endphp
+@use('App\Support\Period')
+@use('App\Support\Rupiah')
+@use('Illuminate\Support\Carbon')
 
-<div style="display:flex; flex-direction:column; gap:22px; max-width:880px; margin:0 auto; width:100%;">
+<div class="rf-page">
+    <x-rf.page-head :sub="Period::label(Period::fromQuery(null)).' · Pribadi'" title="Analisa">
+        <x-slot:actions><x-rf.pill tone="info" icon="">Fitur Pro</x-rf.pill></x-slot:actions>
+    </x-rf.page-head>
 
-    <div><a href="{{ route('laporan') }}" style="font-size:13px; font-weight:600; color:var(--rf-on-surface-variant);">← Kembali ke Laporan</a></div>
-
-    <h1 class="rf-serif" style="font-size:26px;">Proyeksi cashflow</h1>
+    <x-analisa.tabs active="proyeksi" />
 
     @if (! $canUseReports)
-        <div class="rf-card">
-            <p style="font-size:14px; color:var(--rf-on-surface-variant);">Proyeksi cashflow adalah fitur Pro. Upgrade untuk melihat perkiraan saldo ke depan dari transaksi berulang dan tagihan terjadwal.</p>
-        </div>
+        <x-analisa.upsell title="Proyeksi cashflow adalah fitur Pro." text="Lihat perkiraan saldo ke depan dari transaksi berulang dan tagihan terjadwal." />
     @else
-        <div class="rf-card" style="display:flex; gap:14px; align-items:flex-end;">
-            <div class="rf-field" style="margin:0; min-width:160px;">
-                <label for="cf-days">Rentang ke depan</label>
-                <select id="cf-days" wire:model.live="days">
-                    <option value="30">30 hari</option>
-                    <option value="60">60 hari</option>
-                    <option value="90">90 hari</option>
-                </select>
-            </div>
-            <div style="flex:1;">
-                <div style="font-size:12px; color:var(--rf-on-surface-variant);">Saldo sekarang (semua akun)</div>
-                <div style="font-weight:700; font-size:18px;">{{ Rupiah::format($projection['startBalance']) }}</div>
+        @php
+            $endBalance = $projection['dailyBalances'] ? end($projection['dailyBalances']) : $projection['startBalance'];
+            $netChange = $endBalance - $projection['startBalance'];
+        @endphp
+
+        <div class="rf-row" style="gap: 8px;">
+            <span class="rf-sub" id="cf-rentang">Rentang ke depan</span>
+            <div class="rf-row" style="gap: 8px;" role="group" aria-labelledby="cf-rentang">
+                @foreach ([30 => '30 hari', 60 => '60 hari', 90 => '90 hari'] as $value => $label)
+                    <button type="button" wire:click="$set('days', {{ $value }})" @class(['rf-chip', 'on' => $days === $value]) aria-pressed="{{ $days === $value ? 'true' : 'false' }}">{{ $label }}</button>
+                @endforeach
             </div>
         </div>
 
-        <div class="rf-card">
-            <div wire:ignore style="position:relative; height:280px;">
-                <canvas id="cashflow-chart" aria-label="Grafik proyeksi saldo ke depan"></canvas>
+        <div class="rf-stats">
+            <div class="rf-stat">
+                <div class="l">Saldo sekarang (semua akun)</div>
+                <div class="v">{{ Rupiah::format($projection['startBalance']) }}</div>
+            </div>
+            <div class="rf-stat">
+                <div class="l">Perkiraan {{ $days }} hari lagi</div>
+                <div class="v">{{ Rupiah::format($endBalance) }}</div>
+                <div class="d">{{ $netChange === 0 ? 'Tidak berubah' : Rupiah::signed($netChange, $netChange < 0 ? 'pengeluaran' : 'pemasukan') }}</div>
+            </div>
+            <div class="rf-stat">
+                <div class="l">Kemunculan terjadwal</div>
+                <div class="v">{{ count($projection['events']) }}</div>
+                <div class="d">Berulang dan tagihan</div>
             </div>
         </div>
 
-        <div class="rf-card">
-            <h2 class="rf-serif" style="font-size:18px; margin-bottom:10px;">Kemunculan ke depan</h2>
-            @forelse ($projection['events'] as $event)
-                <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-top:1px solid var(--rf-outline-variant); font-size:13px;">
-                    <div>
-                        <span class="rf-pill neutral" style="margin-right:8px;">{{ $event['source'] === 'berulang' ? 'Berulang' : 'Tagihan' }}</span>
-                        <span style="font-weight:600;">{{ $event['label'] }}</span>
-                        <span style="color:var(--rf-on-surface-variant);">· {{ Carbon::parse($event['date'])->translatedFormat('j F Y') }}</span>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="font-weight:700; {{ $event['amount_minor'] < 0 ? '' : 'color:#275c3f;' }}">{{ $event['amount_minor'] < 0 ? '−' : '+' }} {{ Rupiah::format(abs($event['amount_minor'])) }}</div>
-                        <div style="font-size:11px; color:var(--rf-on-surface-variant);">saldo {{ Rupiah::format($event['balance_minor']) }}</div>
-                    </div>
+        <section class="rf-card">
+            <div class="rf-card-head">
+                <div>
+                    <h2 class="rf-h2">Perkiraan saldo ke depan</h2>
+                    <p class="rf-sub" style="margin-top: 4px;">Perkiraan, bukan kepastian: tergantung pencatatan yang sebenarnya.</p>
                 </div>
-            @empty
-                <p style="font-size:14px; color:var(--rf-on-surface-variant);">Tidak ada transaksi berulang atau tagihan yang jatuh tempo dalam rentang ini.</p>
-            @endforelse
-        </div>
+            </div>
+            <div wire:ignore style="position: relative; height: 280px;">
+                <canvas id="cashflow-chart" role="img" aria-label="Grafik proyeksi saldo {{ $days }} hari ke depan. Tabel di bawah memuat tiap kemunculan."></canvas>
+            </div>
+        </section>
 
-        <p style="font-size:12.5px; color:var(--rf-on-surface-variant);">Hanya dari transaksi berulang dan tagihan yang aktif dan bisa dicatat (akun, ruang, kategorinya belum diarsipkan); utang-piutang tidak diikutkan. Perkiraan, bukan kepastian — tergantung pencatatan yang sebenarnya.</p>
+        <section class="rf-card">
+            <div class="rf-card-head"><h2 class="rf-h2">Kemunculan ke depan</h2><span class="rf-sub">{{ $days }} hari</span></div>
+            @if (count($projection['events']) === 0)
+                <div class="rf-empty">
+                    <x-rf.icon name="calendar" />
+                    <b>Tidak ada yang jatuh tempo</b>
+                    <p>Tidak ada transaksi berulang atau tagihan yang jatuh tempo dalam rentang ini.</p>
+                </div>
+            @else
+                <div class="rf-scroll">
+                    <table class="rf-table" style="min-width: 560px;">
+                        <thead>
+                            <tr><th>Tanggal</th><th>Sumber</th><th>Keterangan</th><th class="num">Jumlah</th><th class="num">Saldo sesudahnya</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($projection['events'] as $event)
+                                <tr>
+                                    <td>{{ Carbon::parse($event['date'])->translatedFormat('j F Y') }}</td>
+                                    <td><x-rf.pill tone="neutral" icon="">{{ $event['source'] === 'berulang' ? 'Berulang' : 'Tagihan' }}</x-rf.pill></td>
+                                    <td>{{ $event['label'] }}</td>
+                                    <td class="num" @if ($event['amount_minor'] >= 0) style="color: var(--rf-income); font-weight: 700;" @endif>{{ Rupiah::signed($event['amount_minor'], $event['amount_minor'] < 0 ? 'pengeluaran' : 'pemasukan') }}</td>
+                                    <td class="num">{{ Rupiah::format($event['balance_minor']) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </section>
+
+        <p class="rf-hint"><x-rf.icon name="info" />Hanya dari transaksi berulang dan tagihan yang aktif dan bisa dicatat (akun, ruang, kategorinya belum diarsipkan); utang-piutang tidak diikutkan.</p>
     @endif
-
 </div>
 
-@once
+@if ($canUseReports)
+    @include('partials.analisa-chart')
+
     @push('scripts')
-        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+        <script>
+            rizqflowAnalisaChart.mount({
+                canvasId: 'cashflow-chart',
+                event: 'cashflow-chart-data',
+                build: function (series, t) {
+                    return {
+                        type: 'line',
+                        data: {
+                            labels: series.labels,
+                            datasets: [
+                                { label: 'Proyeksi saldo', data: series.balance, borderColor: t.primary, backgroundColor: t.alpha(t.primary, 0.14), tension: 0.15, fill: true, pointRadius: 0 },
+                            ],
+                        },
+                        options: rizqflowAnalisaChart.baseOptions(t, { beginAtZero: false, legend: false }),
+                    };
+                },
+            });
+        </script>
     @endpush
-@endonce
-
-@push('scripts')
-    <script>
-        (function () {
-            let cashflowChart = null;
-
-            function renderCashflowChart(series) {
-                const canvas = document.getElementById('cashflow-chart');
-                if (!canvas || typeof Chart === 'undefined') return;
-
-                if (cashflowChart) {
-                    cashflowChart.destroy();
-                }
-
-                cashflowChart = new Chart(canvas, {
-                    type: 'line',
-                    data: {
-                        labels: series.labels,
-                        datasets: [
-                            { label: 'Proyeksi saldo', data: series.balance, borderColor: '#4d6359', backgroundColor: 'rgba(77,99,89,0.12)', tension: 0.15, fill: true, pointRadius: 0 },
-                        ],
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: { y: { ticks: { callback: (v) => 'Rp ' + Number(v).toLocaleString('id-ID') } } },
-                        plugins: { legend: { display: false } },
-                    },
-                });
-            }
-
-            window.addEventListener('cashflow-chart-data', (event) => renderCashflowChart(event.detail.series));
-        })();
-    </script>
-@endpush
+@endif

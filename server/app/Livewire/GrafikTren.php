@@ -85,14 +85,17 @@ class GrafikTren extends Component
         $rooms = $user->rooms()->active()->orderBy('sort_order')->get();
         $categories = $this->roomId ? (Room::find($this->roomId)?->categories()->where('archived', false)->orderBy('sort_order')->get() ?? collect()) : collect();
 
-        if ($canUseReports) {
-            $this->dispatch('trend-chart-data', series: $this->series());
+        // Satu hitungan dipakai dua kali: dikirim ke grafik, dan jadi tabel kembaran di bawahnya.
+        $series = $canUseReports ? $this->series() : null;
+        if ($series) {
+            $this->dispatch('trend-chart-data', series: $series);
         }
 
         return view('livewire.grafik-tren', [
             'canUseReports' => $canUseReports,
             'rooms' => $rooms,
             'categories' => $categories,
+            'series' => $series,
         ])->layout('components.layout', ['title' => 'Grafik tren — Rizqflow']);
     }
 }
