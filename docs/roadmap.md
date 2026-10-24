@@ -72,7 +72,8 @@ Ringkasan ini **menyimpulkan, bukan menggantikan** checklist lengkap di tiap Tah
 
 ### Keputusan yang masih punya pemilik (jangan dikerjakan sebelum dijawab)
 
-- Cara browser web mendekripsi data sync e2e (menahan 2 task terakhir Tahap 14)
+- ~~Cara browser web mendekripsi data sync e2e~~ **diputuskan 2026-10-24: kode pemulihan 24 kata** ([konsep.md](konsep.md), butir "Desain web baru"); sisanya (derivasi kunci di browser, penyimpanan selama sesi, kunci otomatis) masih terbuka
+- Metode masuk web: Google saja (keputusan 2026-10-18) atau email+sandi+Google meniru habitflow (permintaan untuk mockup, 2026-10-24); lihat [konsep.md](konsep.md)
 - Kebijakan haul saat harta turun di bawah nisab di tengah tahun (fikih, perlu rujukan kitab)
 - Harga final Pro (placeholder Rp129rb, belum final)
 - Firebase Analytics dipakai atau tidak
@@ -343,7 +344,8 @@ Ditambahkan 2026-10-18: web dibuat (seperti habitflow.roziqrizal.com), membatalk
 - [x] Layout dan token desain web disalin dari `docs/design/tokens.css`
 - [x] Halaman Denah (S05), Transaksi (S08, panel catat baru tampilan), Ruang (S11 disederhanakan), Zakat (S14/S16) dengan data contoh/seed
 - [x] Breakdown Pos di halaman Ruang (2026-10-18): tabel `categories` (pos per ruang, bobot, pos sistem, arsip) dan `transactions.category_id`; `Room::categoryBreakdown` mengikuti `RoomDetailLoader` di `:domain` (pos berbobot dibanding irisan jatah ruang, tanpa bobot dibanding seluruh jatah, pos terarsip dan sistem hanya tampil bila dipakai bulan itu, urut dari pengeluaran terbesar). Seed Keluarga berbobot 5:2:3 (80%, 113%, 55%), Memberi dan Diri tanpa bobot; 7 tes fitur
-- [ ] Sinkron ke data asli lewat protokol Tahap 9 — browser perlu mendekripsi data e2e, mekanismenya belum diputuskan
+- [ ] Sinkron ke data asli lewat protokol Tahap 9 — browser mendekripsi data e2e dengan kode pemulihan 24 kata (diputuskan 2026-10-24). Web juga akan **mencatat** dan tersinkron dua arah dengan Android, jadi pencatatan web harus dienkripsi di peramban dan masuk lewat protokol sinkron yang sama, bukan ditulis ke tabel Laravel. Rincian di [konsep.md](konsep.md) (butir "Desain web baru")
+- [ ] **Desain web baru** (mockup 2026-10-24, sumber di [design/web-mockup/](design/web-mockup/README.md)): sidebar bergrup, halaman Masuk (meniru habitflow; metode masuk belum diputuskan), Buka kunci dengan kode 24 kata, catat pengeluaran (baris cepat) dan Alirkan rezeki, Analisa › Aliran (Sankey), filter Tak terlacak, dan Rekap zakat tahunan (lembaga penerima dan nomor bukti setor ikut sinkron di web, Android, dan protokol). **Belum ada yang diimplementasikan.** Keputusan dan urutan kerja yang disarankan (tiga fase) ada di [konsep.md](konsep.md), butir "Desain web baru"
 - [ ] **Scope diperluas 2026-10-18**: web jadi dashboard monitoring dan analisa penuh (mobile tetap fokus catat kilat). 20 task rincian di bawah (dipindah dari Notion ke sini 2026-10-18); urutan kerja belum ditentukan pemilik, prioritas tercantum per butir.
 
   Porting fitur manajemen mobile (Gratis):
