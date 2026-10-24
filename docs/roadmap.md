@@ -425,7 +425,7 @@ Ditambahkan 2026-10-24 atas permintaan pemilik: pemasaran dijalankan **paralel**
 - [x] Diskusi strategi pemasaran paralel dan akun Instagram khusus, dicatat di [pemasaran.md](pemasaran.md) (2026-10-24)
 - [ ] Putuskan keputusan terbuka pemasaran: positioning, waktu per minggu, tampil sebagai founder, anggaran boost, pembuat desain konten (High; daftar lengkap di pemasaran.md)
 - [ ] Tentukan ambang "minat tervalidasi" untuk daftar tunggu (High) — dipakai untuk menutup butir "Validasi minat" di Tahap 0
-- [ ] Amankan nama `@rizqflow` di Instagram, Threads, TikTok, dan X (High)
+- [ ] Amankan satu nama akun yang sama di Instagram, Threads, TikTok, dan X (High) — `@rizqflow` di Instagram ternyata sudah dipakai pihak lain (2026-10-24); usulan `rizqflowapp`, keputusan dan cek pemakai `@rizqflow` di [pemasaran.md](pemasaran.md)
 - [ ] Ganti hero landing page `/karya/rizqflow` dengan tangkapan layar aplikasi sungguhan (repo `roziqrizalcom`) (Medium)
 - [ ] Pasang analitik ringan yang menghormati privasi di landing page (mis. Umami di VPS) dan tetapkan pola UTM per saluran (Medium)
 - [ ] Siapkan 3–4 template konten visual mengikuti opsi A (`docs/design/tokens.css`) (Medium)
@@ -434,7 +434,7 @@ Ditambahkan 2026-10-24 atas permintaan pemilik: pemasaran dijalankan **paralel**
 
 ## Tahap P1 — Pra-rilis: daftar tunggu dan build in public (Planning)
 
-- [ ] Isi Instagram `@rizqflow` dengan 9–12 posting sebelum dipromosikan ke mana pun (High)
+- [ ] Isi akun Instagram Rizqflow dengan 9–12 posting sebelum dipromosikan ke mana pun (High)
 - [ ] Pengumuman di aplikasi Al-Kaukaba yang mengarah ke daftar tunggu, dengan `utm_source=alkaukaba` (High)
 - [ ] Sebar ke jaringan pribadi: status WA, grup kantor, keluarga, kajian (Medium)
 - [ ] Jalankan ritme 2–3 posting per minggu dengan empat tema konten di pemasaran.md (Medium)

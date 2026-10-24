@@ -29,8 +29,8 @@ Pesan inti yang diulang di semua saluran: *"Aplikasi lain bertanya uangmu habis 
 |---|---|---|
 | **Al-Kaukaba** (aplikasi pemilik, sekitar 62 perangkat aktif bulanan) | Saluran pertama, audiens paling tepat | Muslim yang peduli hisab/kalender Hijriyah = pasar fitur haul. Satu pengumuman dalam aplikasi atau notifikasi yang mengarah ke daftar tunggu |
 | **Jaringan pribadi** | Pendaftar awal dan penguji beta | Status WA, grup kantor, keluarga, kajian |
-| **Instagram `@rizqflow`** (akun khusus) | Saluran konten utama | Diusulkan pemilik 2026-10-24. Lihat aturan boost di bawah |
-| Threads, TikTok, X | Cadangan nama, posting silang | Amankan nama `@rizqflow` sekaligus walau belum aktif dipakai |
+| **Instagram** (akun khusus Rizqflow) | Saluran konten utama | Diusulkan pemilik 2026-10-24. `@rizqflow` sudah dipakai orang lain; nama pengganti masih terbuka (lihat di bawah). Lihat aturan boost di bawah |
+| Threads, TikTok, X | Cadangan nama, posting silang | Amankan nama yang sama dengan Instagram sekaligus walau belum aktif dipakai |
 | **Play Store** | Penemuan setelah rilis | ASO: "catatan keuangan keluarga", "zakat mal", "budget rumah tangga", "pengelola keuangan"; masuk ke Store listing Tahap 8 |
 | Email daftar tunggu | Pengumuman rilis dan harga perdana | Pendaftar sudah opt-in eksplisit lewat form, jadi berbeda dari email akun aplikasi (consent email promo akun masih terbuka, lihat konsep.md). Pengiriman bisa memakai Brevo yang sudah dipilih untuk web |
 | Ustadz, perencana keuangan syariah, komunitas masjid/kajian | Kampanye musim zakat | Setelah rilis, menjelang Ramadan |
@@ -52,7 +52,7 @@ Batasan klaim: janji "datamu dienkripsi, bahkan server tidak bisa membacanya" **
 
 ## Instagram dan boost
 
-**Akun khusus `@rizqflow` dibuat** (usulan pemilik 2026-10-24). Sebelum dipromosikan ke mana pun, akun diisi dulu 9–12 posting: akun kosong dengan nol pengikut terlihat kurang meyakinkan, apalagi untuk aplikasi yang menyimpan data keuangan. Bio menaut ke landing page dengan `utm_source=instagram`.
+**Akun khusus Rizqflow dibuat** (usulan pemilik 2026-10-24; `@rizqflow` sudah dipakai, nama pengganti masih terbuka). Sebelum dipromosikan ke mana pun, akun diisi dulu 9–12 posting: akun kosong dengan nol pengikut terlihat kurang meyakinkan, apalagi untuk aplikasi yang menyimpan data keuangan. Bio menaut ke landing page dengan `utm_source=instagram`.
 
 **Boost ditahan sampai syaratnya terpenuhi**, karena hitungannya ketat untuk produk sekali bayar:
 
@@ -90,7 +90,7 @@ Metrik setelah rilis butuh pengukuran di aplikasi atau server; apakah Firebase A
 ## Keputusan yang sudah diambil
 
 - **Pemasaran berjalan paralel dengan pengembangan**, dilacak sebagai jalur Tahap P0–P4 di roadmap.md, strateginya di dokumen ini (2026-10-24).
-- **Akun Instagram khusus `@rizqflow`** dibuat, bukan memakai akun pribadi pemilik (usulan pemilik 2026-10-24).
+- **Akun Instagram khusus Rizqflow** dibuat, bukan memakai akun pribadi pemilik (usulan pemilik 2026-10-24).
 
 ## Keputusan yang masih terbuka
 
@@ -99,6 +99,6 @@ Metrik setelah rilis butuh pengukuran di aplikasi atau server; apakah Firebase A
 - **Tampil sebagai founder** dengan nama dan wajah sendiri atau tidak, dan di platform mana pemilik sudah punya audiens (LinkedIn, Instagram, Threads, TikTok).
 - **Ambang daftar tunggu** yang dianggap "minat tervalidasi" sampai rilis (mis. 100 pendaftar); dipakai untuk menutup butir "Validasi minat" di Tahap 0.
 - **Anggaran boost per bulan** yang direlakan sebagai biaya eksperimen.
-- **Ketersediaan nama `@rizqflow`** di Instagram dan platform lain (dicek pemilik langsung).
+- **Nama akun media sosial**: `@rizqflow` di Instagram **sudah dipakai pihak lain** (dicek pemilik 2026-10-24). Usulan: satu nama yang sama di semua platform, yaitu `rizqflowapp` (X tidak menerima titik, jadi `rizqflow.app` tidak bisa seragam); cadangan `rizqflow.app`, `rizqflow.id`/`rizqflow_id`, `getrizqflow`. Sebelum memilih, cek siapa pemakai `@rizqflow`: bila produk atau bisnis keuangan yang aktif, itu risiko merek yang perlu dicatat di [konsep.md](konsep.md) ("Cek nama") dan dipertimbangkan sebelum nama dan `applicationId` terkunci di unggahan AAB pertama (Tahap 8).
 - **Pembuat desain konten**: pemilik sendiri lewat Canva, atau Claude menyusun naskah carousel dan template.
 - **Bentuk harga perdana**: harga awal yang lebih rendah untuk semua pembeli lalu naik, atau kode promo Play khusus pendaftar daftar tunggu. Bergantung pada harga final Pro ([monetisasi.md](monetisasi.md)).
