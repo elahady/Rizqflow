@@ -42,6 +42,10 @@ Urutan tabel mengikuti alur klik: Masuk, Buka kunci, Denah, lalu menu di sidebar
 2. Terbitkan ke artifact itu dengan `root` = folder ini, `file_path` = `project/canvas.json`, dan `files` = semua berkas di `project/` (bentuk `{"project/X": "project/X"}`).
 3. `support.js` yang dirujuk tiap berkas disediakan runtime artifact dan tidak ada di repo. Jangan menerbitkan `index.html`, `SKILL.md`, atau apa pun di `artifact-type/` (milik tipe artifact).
 
+## Status implementasi
+
+Fase 1 dan 2 sudah diimplementasikan di `server/` pada 2026-10-24 (roadmap.md Tahap 14). Yang sengaja belum: layar fase 3 (Kunci, Keluarga, saklar Pribadi/Keluarga, status sinkron, gembok di sidebar) dan tombol yang di mockup hanya tampilan ("Simpan tampilan", Kustom/Semua akun/Unduh PDF di Aliran).
+
 ## Belum dibuat dan belum diperiksa
 
 - Layar yang belum dibuat: Jadwal (Tagihan dan Berulang), Utang-piutang, Akun, Impor dan ekspor, Profil dan paket; juga Daftar, verifikasi email, lupa dan reset sandi, serta layar "simpan kode pemulihan 24 kata" saat daftar.
