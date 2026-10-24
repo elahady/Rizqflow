@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Rizqflow">
+  <title>Rizqflow</title>
+  <rect width="192" height="192" rx="54" fill="#4D6359"/>
+  <g transform="translate(44.22,36) scale(0.164384)">
+    <g transform="translate(0,730) scale(1,-1)">
+      <path d="M65 0V730H300Q378 730 435.0 703.0Q492 676 523.5 626.0Q555 576 555 508Q555 437 520.5 381.0Q486 325 427 300L565 0H402L284 276H214V0ZM214 406H300Q350 406 377.5 431.0Q405 456 405 501Q405 548 377.5 574.0Q350 600 300 600H214Z" fill="#FAF9F7"/>
+    </g>
+  </g>
+</svg>
