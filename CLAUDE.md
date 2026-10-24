@@ -43,7 +43,8 @@ _Diperbarui 18 Oktober 2026 (bagian web diverifikasi langsung; sisanya masih rek
 
 - [docs/konsep.md](docs/konsep.md) — posisi produk, MVP, arsitektur, model data, keputusan (sudah dan terbuka)
 - [docs/monetisasi.md](docs/monetisasi.md) — pembagian Gratis / Pro / Sync
-- [docs/roadmap.md](docs/roadmap.md) — 15 tahap pengerjaan (0–14 plus v1.1), status hidup satu-satunya (bukan Notion)
+- [docs/roadmap.md](docs/roadmap.md) — 15 tahap pengerjaan (0–14 plus v1.1) dan jalur pemasaran Tahap P0–P4, status hidup satu-satunya (bukan Notion)
+- [docs/pemasaran.md](docs/pemasaran.md) — strategi pemasaran paralel: positioning, saluran, konten, aturan boost Instagram, metrik (checklist-nya di roadmap.md Tahap P0–P4)
 - [docs/ui-flow.md](docs/ui-flow.md) — layar S01–S28 dan flow F1–F9
 - [docs/wireframe.md](docs/wireframe.md) — wireframe teks seluruh layar (butir "Usulan" belum diputuskan)
 - [docs/auth-google.md](docs/auth-google.md) — masuk dengan Google dan Gmail: yang sudah ada, penyiapan Google Cloud, risiko

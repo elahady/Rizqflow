@@ -1,6 +1,6 @@
 # Rizqflow — Roadmap
 
-Breakdown proyek menjadi 15 tahap (0–14, plus v1.1 pasca-rilis). **File ini adalah status hidup** (diputuskan 2026-10-18, menggantikan tracking Notion): setiap pekerjaan nyata (commit, keputusan, riset, desain) langsung mengubah checkbox dan menambah catatan di sini, bukan di tempat lain.
+Breakdown proyek menjadi 15 tahap (0–14, plus v1.1 pasca-rilis), ditambah jalur pemasaran paralel Tahap P0–P4 di bagian akhir (strateginya di [pemasaran.md](pemasaran.md)). **File ini adalah status hidup** (diputuskan 2026-10-18, menggantikan tracking Notion): setiap pekerjaan nyata (commit, keputusan, riset, desain) langsung mengubah checkbox dan menambah catatan di sini, bukan di tempat lain.
 
 Catatan progres dilakukan lewat skill `pengembangan-rizqflow` (lihat [CLAUDE.md](../CLAUDE.md)).
 
@@ -64,6 +64,8 @@ Ringkasan ini **menyimpulkan, bukan menggantikan** checklist lengkap di tiap Tah
 - ~~Tahap 6: restore cadangan di perangkat fisik lain; file ekspor CSV dibuka di Sheets/Excel sungguhan~~ **selesai dikonfirmasi 2026-10-24** — restore di dua HP fisik menghasilkan data identik, CSV terbuka normal di Excel/Sheets; Tahap 6 ditutup Selesai (lihat Status Tahap 6)
 - Tahap 13: **semua tes kripto yang lulus di Robolectric belum membuktikan Android Keystore sungguhan** — Tink diam-diam jatuh ke penyimpanan cleartext saat Keystore gagal di lingkungan tes, jadi "aman karena Keystore" baru boleh dipercaya setelah dicoba di emulator/perangkat dengan Keystore asli (lihat catatan JDK di CLAUDE.md)
 - Tahap 9: **ruang keluarga (join, undang QR, sync transaksi) belum pernah dicoba ujung-ke-ujung di dua perangkat sungguhan** — `adb install` macet permanen di mesin ini (sama isu dengan verifikasi Tahap 6), jadi baru terbukti lewat kompilasi dan tes otomatis, belum lewat alur scan-QR-ke-QR nyata antara dua akun Google berbeda
+
+**Pemasaran berjalan paralel sejak 2026-10-24** (jalur Tahap P0–P4 di akhir file, strategi di [pemasaran.md](pemasaran.md)): daftar tunggu dan konten dibangun sekarang supaya saat rilis sudah ada orang yang menunggu; P2 (beta) dan P3 (rilis) menumpang uji tertutup dan rilis Tahap 8.
 
 **Tahap 8 (birokrasi rilis) — sebaiknya dimulai PARALEL, bukan di akhir**, karena ada masa tunggu di luar kendali sendiri (review Google):
 - ~~Akun developer Play Console~~ **sudah ada** (dipakai sejak Al-Kaukaba, dikonfirmasi 2026-10-23) — tinggal tambah aplikasi Rizqflow baru di konsol yang sama. Yang masih perlu dicek: profil pembayaran untuk terima hasil penjualan (mungkin belum pernah disiapkan kalau Al-Kaukaba gratis), dan apakah akun ini sudah lewat syarat uji tertutup developer baru dari riwayat Al-Kaukaba
@@ -413,3 +415,54 @@ Disetujui 2026-09-20; rancangan dan batasannya ada di "Disiplin mencatat" di [ko
 - [ ] Layar Draf dan Tangkap otomatis (S27, S28)
 - [ ] Deteksi transaksi ganda ("Mungkin sudah dicatat")
 - [ ] Penguncian lewat lapisan entitlement (Pro)
+
+## Jalur pemasaran (paralel dengan pengembangan)
+
+Ditambahkan 2026-10-24 atas permintaan pemilik: pemasaran dijalankan **paralel**, bukan menunggu rilis. Strategi, alasan, dan aturan main (positioning, saluran, konten, hitungan boost Instagram) ada di [pemasaran.md](pemasaran.md); di sini hanya checklist dan statusnya. Tahap P tidak menahan tahap teknis, kecuali P2 dan P3 yang mengikuti uji tertutup dan rilis Tahap 8.
+
+## Tahap P0 — Fondasi pemasaran (In Progress)
+
+- [x] Diskusi strategi pemasaran paralel dan akun Instagram khusus, dicatat di [pemasaran.md](pemasaran.md) (2026-10-24)
+- [ ] Putuskan keputusan terbuka pemasaran: positioning, waktu per minggu, tampil sebagai founder, anggaran boost, pembuat desain konten (High; daftar lengkap di pemasaran.md)
+- [ ] Tentukan ambang "minat tervalidasi" untuk daftar tunggu (High) — dipakai untuk menutup butir "Validasi minat" di Tahap 0
+- [ ] Amankan nama `@rizqflow` di Instagram, Threads, TikTok, dan X (High)
+- [ ] Ganti hero landing page `/karya/rizqflow` dengan tangkapan layar aplikasi sungguhan (repo `roziqrizalcom`) (Medium)
+- [ ] Pasang analitik ringan yang menghormati privasi di landing page (mis. Umami di VPS) dan tetapkan pola UTM per saluran (Medium)
+- [ ] Siapkan 3–4 template konten visual mengikuti opsi A (`docs/design/tokens.css`) (Medium)
+
+**Selesai bila:** keputusan terbuka pemasaran dijawab pemilik, nama akun diamankan, dan landing page bisa menghitung pendaftar per saluran.
+
+## Tahap P1 — Pra-rilis: daftar tunggu dan build in public (Planning)
+
+- [ ] Isi Instagram `@rizqflow` dengan 9–12 posting sebelum dipromosikan ke mana pun (High)
+- [ ] Pengumuman di aplikasi Al-Kaukaba yang mengarah ke daftar tunggu, dengan `utm_source=alkaukaba` (High)
+- [ ] Sebar ke jaringan pribadi: status WA, grup kantor, keluarga, kajian (Medium)
+- [ ] Jalankan ritme 2–3 posting per minggu dengan empat tema konten di pemasaran.md (Medium)
+- [ ] Uji boost kecil pada posting organik terbaik: sekitar Rp 20–30 rb per hari selama 5–7 hari, berhenti bila biaya per pendaftar jauh di atas Rp 8 rb (Low; hanya setelah P0 dan butir pertama tahap ini selesai)
+
+**Selesai bila:** ambang daftar tunggu dari P0 tercapai, dan saluran yang paling banyak menghasilkan pendaftar diketahui dari UTM.
+
+## Tahap P2 — Beta tertutup (Backlog, mengikuti uji tertutup Tahap 8)
+
+- [ ] Undang pendaftar daftar tunggu menjadi penguji di uji tertutup Play Console (High)
+- [ ] Kumpulkan masukan dan testimoni, dengan izin untuk dikutip di store listing dan konten (Medium)
+
+**Selesai bila:** ada penguji aktif dari daftar tunggu dan minimal 3 testimoni yang boleh dikutip.
+
+## Tahap P3 — Rilis (Backlog, bersamaan Tahap 8)
+
+- [ ] Putuskan bentuk harga perdana untuk pendaftar daftar tunggu (bergantung harga final Pro di [monetisasi.md](monetisasi.md)) (High)
+- [ ] Kata kunci ASO ("catatan keuangan keluarga", "zakat mal", "budget rumah tangga", "pengelola keuangan") masuk ke butir Store listing Tahap 8 (High)
+- [ ] Email pengumuman rilis ke daftar tunggu (Medium)
+- [ ] Minta penguji beta memberi ulasan di Play Store setelah rilis (Medium)
+
+**Selesai bila:** aplikasi live dengan store listing ber-ASO, daftar tunggu sudah dikabari, dan ulasan pertama masuk.
+
+## Tahap P4 — Musim zakat menjelang Ramadan 1448 H (Backlog, Januari–Februari 2027)
+
+- [ ] Kampanye konten "hitung zakat malmu sebelum Ramadan" (Ramadan diperkirakan mulai sekitar 8 Februari 2027, pastikan dengan kalender Hijriyah) (High)
+- [ ] Kerja sama dengan ustadz atau perencana keuangan syariah, dan komunitas masjid/kajian (Medium)
+- [ ] Boost lebih besar yang langsung mengarah ke Play Store, bila uji boost P1 lolos batas biaya (Medium)
+- [ ] Ukur retensi D7/D30, jumlah hari mencatat per minggu, dan konversi Pro (Medium; bergantung keputusan Firebase Analytics dan metrik anonim Tahap 9)
+
+**Selesai bila:** kampanye musim zakat berjalan dan metrik setelah rilis terbaca untuk memutuskan langkah pemasaran berikutnya.

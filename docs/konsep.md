@@ -112,7 +112,8 @@ Semua nominal disimpan sebagai **bilangan bulat dalam satuan terkecil** (value o
 ## Dokumen terkait
 
 - [monetisasi.md](monetisasi.md) — model bisnis Gratis / Pro / Sync
-- [roadmap.md](roadmap.md) — 10 tahap pengerjaan
+- [roadmap.md](roadmap.md) — tahap pengerjaan dan jalur pemasaran Tahap P0–P4
+- [pemasaran.md](pemasaran.md) — strategi pemasaran paralel dengan pengembangan (2026-10-24)
 - [ui-flow.md](ui-flow.md) — layar S01–S28 dan flow F1–F9
 - [design/web-mockup/](design/web-mockup/README.md) — sumber mockup web (artifact Claude Design, 2026-10-24)
 - [research-market/research-web.md](research-market/research-web.md) — riset pasar khusus web (2026-10-24)
