@@ -156,4 +156,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(RoomMember::class);
     }
+
+    /** Pembelian Google Play yang sudah diverifikasi dan diklaim akun ini (sumber users.plans untuk Pro/Sync). */
+    public function playPurchases(): HasMany
+    {
+        return $this->hasMany(PlayPurchase::class);
+    }
 }

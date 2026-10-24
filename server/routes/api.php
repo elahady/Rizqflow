@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\AccountController;
+use App\Http\Controllers\Api\PlayNotificationController;
+use App\Http\Controllers\Api\PurchaseController;
 use App\Http\Controllers\Api\RoomMembershipController;
 use App\Http\Controllers\Api\SyncController;
 use Illuminate\Support\Facades\Route;
@@ -8,8 +10,18 @@ use Illuminate\Support\Facades\Route;
 // Akun server dan sinkronisasi untuk aplikasi Android (Tahap 9, server-sync.md).
 Route::post('/auth/google', [AccountController::class, 'login']);
 
+// Real-time Developer Notifications Google Play (push Pub/Sub). TANPA Sanctum: pemanggilnya Google,
+// diautentikasi lewat JWT OIDC di header Authorization (lihat PlayNotificationController).
+Route::post('/play/notifications', [PlayNotificationController::class, 'receive'])
+    ->middleware('throttle:play-notifications');
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/account', [AccountController::class, 'destroy']);
+
+    // Klaim pembelian Pro/Sync: token dikirim aplikasi, diverifikasi server ke Google Play lalu
+    // mengisi users.plans (App\Play\PurchaseClaimService). Throttle per akun.
+    Route::post('/purchases/claim', [PurchaseController::class, 'claim'])
+        ->middleware('throttle:purchase-claim');
 
     // Butuh langganan Sync (Feature::EncryptedSync); lihat SyncController::denyWithoutSync.
     Route::post('/sync/push', [SyncController::class, 'push']);

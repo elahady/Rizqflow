@@ -132,3 +132,129 @@ selesai, fitur email tetap mati dan tersembunyi (saklar `EMAIL_CODES_ENABLED`, l
 10. **Mundur.** Hapus `MAIL_MAILER` dari `.env.production` (atau set `EMAIL_CODES_ENABLED=false`) lalu
     `--force-recreate`: Daftar dan Lupa kata sandi kembali tersembunyi, masuk email+sandi dan Google
     tetap jalan.
+
+## Pembelian Google Play (verifikasi pembelian dan notifikasi)
+
+Tahap 9, kode selesai 2026-10-24 di `server/app/Play/`. Aplikasi Android mengirim token pembelian Pro
+(`rizqflow_pro`) dan langganan Sync (`rizqflow_sync`) ke `POST /api/purchases/claim`; server
+memverifikasinya ke Google Play Developer API lalu mengisi `users.plans`. Paket **tidak pernah**
+diberikan tanpa verifikasi Play. Satu token hanya bisa diklaim satu akun (yang pertama mengklaim).
+Perubahan dari sisi Play (perpanjangan, kedaluwarsa, penahanan, pengembalian dana) masuk lewat
+`POST /api/play/notifications` (Real-time Developer Notifications), dan perintah `play:reconcile`
+menjadi jaring pengaman harian.
+
+**Status: hanya terbukti lewat tes otomatis dengan klien palsu.** Tidak ada kredensial Play asli di
+repo atau di mesin pengembangan; bentuk jawaban Play, tanda tangan JWT Pub/Sub sungguhan, dan
+penjadwal belum pernah dijalankan terhadap layanan sungguhan. Uji nyata ada di Tahap 8 (penguji
+lisensi + aplikasi dari Play). Tanpa kredensial, server aman: klaim dijawab 503 dan endpoint
+notifikasi dijawab 503 (tidak ada paket yang berubah).
+
+### Variabel `.env.production` (semuanya opsional; kosong = fitur mati)
+
+| Variabel | Isi |
+|---|---|
+| `PLAY_PACKAGE_NAME` | ID paket aplikasi; bawaan `com.roziqrizal.rizqflow` |
+| `PLAY_SERVICE_ACCOUNT_JSON` | Kunci akun layanan Google Cloud: jalur berkas JSON, isi JSON mentah, atau **isi JSON dalam base64 satu baris** (paling cocok untuk `env_file` Docker: `base64 -w0 kunci.json`). Rahasia: hanya di `.env.production` di VPS, jangan di git atau chat |
+| `PLAY_RTDN_AUDIENCE` | Audience JWT OIDC pada langganan push Pub/Sub; bila dibiarkan bawaan di Pub/Sub, isinya URL endpoint: `https://rizqflow-api.roziqrizal.com/api/play/notifications` (harus SAMA PERSIS dengan URL langganan push; sampai subdomain itu hidup, host web `rizqflow.roziqrizal.com` melayani aplikasi yang sama dan boleh dipakai sementara, asal audience dan URL ikut diganti bersamaan). Kosong = endpoint menolak semua permintaan dengan 503 |
+| `PLAY_RTDN_SERVICE_ACCOUNT_EMAIL` | Email akun layanan penanda tangan push Pub/Sub. **Dianjurkan diisi**: tanpa ini, identitas Google mana pun yang tahu audience bisa membuat token yang lolos (dampaknya terbatas karena notifikasi hanya memicu verifikasi ulang ke Play, tetapi tetap boros kuota) |
+
+`env_file` hanya dibaca saat container dibuat, jadi terapkan dengan `docker compose up -d
+--force-recreate`. Migrasi `2026_10_27_000001_create_play_purchases_table` ikut jalan lewat langkah
+migrasi deploy biasa.
+
+### Pemasangan (tindakan pemilik; belum dijalankan, nama menu di konsol Google bisa berubah)
+
+1. **Google Cloud.** Di proyek yang dipakai Rizqflow: aktifkan *Google Play Android Developer API*,
+   buat akun layanan khusus (mis. `rizqflow-play-verifier`), buat kunci JSON.
+2. **Play Console.** *Pengguna dan izin* (Users and permissions): undang email akun layanan itu dan
+   beri izin pada aplikasi Rizqflow hanya *Lihat data keuangan, pesanan, dan respons survei
+   pembatalan*. Kode hanya membaca (`purchases.subscriptionsv2.get` dan
+   `purchases.productsv2.getproductpurchasev2`), jadi **jangan** memberi *Kelola pesanan dan
+   langganan*: bila kunci JSON bocor, izin itu memungkinkan pemegangnya membatalkan, mencabut, atau
+   mengembalikan dana seluruh pelanggan. Tambahkan izin kelola hanya bila nanti server benar-benar
+   meng-acknowledge atau mencabut pembelian. Izin baru bisa butuh beberapa jam untuk berlaku; bila
+   log mencatat "Play API menolak akun layanan" (401/403) padahal sudah berjam-jam, itu tanda izin
+   baca ini belum cukup di akun Anda (belum pernah dicoba terhadap Play sungguhan).
+3. **Isi `PLAY_SERVICE_ACCOUNT_JSON`** (base64) dan `PLAY_PACKAGE_NAME` bila berbeda, lalu
+   `--force-recreate`. Uji dari VPS bahwa verifikasi aktif: `docker exec rizqflow php artisan
+   play:reconcile` tidak lagi mencetak "belum dikonfigurasi" (tanpa pembelian tercatat ia mencetak
+   "Diperiksa 0").
+4. **Pub/Sub untuk RTDN.** Buat topik (mis. `play-rtdn`); beri peran *Pub/Sub Publisher* pada topik itu
+   ke `google-play-developer-notifications@system.gserviceaccount.com`. Buat langganan **push** ke
+   `https://rizqflow-api.roziqrizal.com/api/play/notifications` (host yang sama dengan `API_BASE_URL` build rilis Android; subdomain ini harus sudah hidup, Tahap 12) dengan **autentikasi diaktifkan**
+   (pilih akun layanan penanda tangan, mis. `rizqflow-pubsub-push`, dan audience). Agen layanan
+   Pub/Sub proyek butuh peran *Service Account Token Creator* pada akun layanan penanda tangan itu.
+   Isi `PLAY_RTDN_AUDIENCE` dan `PLAY_RTDN_SERVICE_ACCOUNT_EMAIL` sama dengan pilihan tadi.
+5. **Hubungkan di Play Console.** *Monetisasi > Penyiapan monetisasi > Notifikasi pengembang
+   waktu nyata*: isi nama topik Pub/Sub, simpan, lalu kirim notifikasi uji. Notifikasi uji harus
+   dijawab 204 (lihat log container; tidak ada baris galat).
+6. **Cloudflare/nginx** tidak boleh memblokir POST dari Google ke `/api/play/notifications` dan harus
+   meneruskan header `Authorization`.
+
+### Perilaku yang perlu diketahui
+
+- **Notifikasi bukan sumber kebenaran.** Isi notifikasi hanya dipakai untuk tahu token mana yang
+  berubah; status selalu diambil ulang dari Play. Notifikasi duplikat atau terbalik urutan aman.
+  Token yang belum pernah diklaim, paket aplikasi lain, dan testNotification dijawab 204 tanpa efek.
+- **Kode jawaban endpoint notifikasi:** 503 audience (atau kredensial Play) belum dikonfigurasi, 401
+  token tidak sah (tanpa alasan rinci), 204 diproses/tidak relevan/badan rusak (tidak diulang karena
+  pesan rusak tidak akan pernah bisa diurai), 500 Play gagal sementara (Pub/Sub mengulang).
+- **Kegagalan menghubungi Play tidak pernah memberi atau mencabut paket** (klaim: status
+  `unverifiable`; notifikasi: 500; reconcile: dilewati dan dicoba lagi besok). Yang dinilai ulang
+  hanya paket yang barisnya baru dijawab Play pada panggilan itu: klaim yang hanya memuat Pro tidak
+  menyentuh paket Sync, dan Sync yang Play-nya gagal tidak dicabut walau `expires_at` tersimpannya
+  sudah lewat (baris itu baru dinilai ulang saat Play menjawab untuknya: klaim ulang dari aplikasi,
+  notifikasi RTDN, atau `play:reconcile`).
+- **Paket tanpa baris pembelian dibiarkan apa adanya**, jadi akun uji/seed/tinker yang diberi `plans`
+  manual tidak terhapus. Begitu sebuah paket punya baris pembelian, paket itu mengikuti baris-barisnya.
+- **Token pembelian** disimpan terenkripsi dengan `APP_KEY` (dibutuhkan untuk verifikasi ulang) dan
+  tidak pernah masuk log, pesan galat, atau respons. Mengganti `APP_KEY` membuat token tersimpan tak
+  terbaca: baris itu dilewati (tercatat di log dengan id baris) sampai aplikasi mengklaim ulang token
+  yang sama, yang menulis ulangnya. Karena itu `APP_KEY` tetap jangan diganti.
+- **Hapus akun** menghapus baris pembelian akun itu (cascade); tokennya lalu bebas diklaim akun lain.
+
+### Keterbatasan dan asumsi yang belum terbukti (uji nyata di Tahap 8)
+
+- **Pengembalian dana Pro hanya terdeteksi bila `productsv2` sendiri berubah** (`purchaseState`
+  `CANCELLED`, atau `refundableQuantity` 0). Notifikasi `voidedPurchaseNotification` hanya dipakai
+  sebagai penunjuk token yang dicek ulang, bukan sebagai bukti (aturan "isi notifikasi bukan
+  status"), dan tidak ada jalur cadangan ke Voided Purchases API. Dokumentasi Play memisahkan
+  pembatalan dari refund pembelian berstatus Purchased, dan tidak menyebut field `productsv2`
+  berubah setelah refund. **Asumsi ini belum terbukti**: buktikan di Tahap 8 dengan satu pembelian
+  uji (penguji lisensi) yang direfund dengan pencabutan lalu jalankan `play:reconcile` atau tunggu
+  notifikasinya; bila Pro tidak tercabut, tambahkan pencocokan lewat
+  `purchases.voidedpurchases.list`. Pemeriksaan ulang produk sekali beli tiap 30 hari memakai
+  `productsv2` yang sama, jadi tidak menolong untuk kasus ini.
+- **Token pengganti langganan tidak diikuti.** Server tidak membaca `linkedPurchaseToken` atau
+  `outOfAppPurchaseContext.expiredPurchaseToken`. Bila pelanggan Sync mengganti base plan (bulanan ke
+  tahunan) atau berlangganan lagi dari menu Play Store tanpa membuka Rizqflow, token lama menjadi tidak
+  berlaku dan token baru yang belum pernah diklaim diabaikan notifikasi (204, sesuai aturan "token
+  yang belum pernah diklaim: abaikan"). Akibatnya Sync di server/web bisa hilang sementara sampai
+  aplikasi dibuka dan mengklaim token baru (otomatis saat aplikasi dibuka). Memperluas aturan itu
+  (mengikuti token pengganti ke pemilik baris lama) adalah keputusan pemilik, belum diambil.
+- **Baris yang terus dilewati** (Play menjawab 400/404 untuk token tercatat) tidak menutup antrean
+  `play:reconcile`: tiap percobaan dicatat di `last_checked_at` sehingga baris itu pindah ke belakang
+  antrean, tetapi baris itu tetap dihitung jatuh tempo dan memakai kuota tiap hari sampai tokennya
+  diklaim ulang atau Play menjawab tegas (410 untuk langganan = kedaluwarsa).
+- **Semua `/api/*` menjawab galat sebagai JSON** (401, 422, dan seterusnya) walau klien tidak
+  mengirim `Accept: application/json` (klien Android tidak mengirimnya; sebelumnya 401 berubah
+  menjadi pengalihan 302 ke `/login`).
+
+### Penjadwal (`play:reconcile`)
+
+`play:reconcile` dijadwalkan harian pukul 03:30 di `routes/console.php`, memverifikasi ulang
+langganan yang hampir atau sudah lewat masa berlaku (dan baris yang verifikasinya basi) supaya
+langganan yang kedaluwarsa **tanpa notifikasi** tetap dicabut. **Penjadwal Laravel baru jalan bila
+ada cron `schedule:run` di server, dan saat ini belum ada** (Dockerfile dan `docker-compose.yml` repo ini
+tidak menjalankan penjadwal). Itu pekerjaan pemilik di Tahap 12. Salah satunya, di crontab host VPS:
+
+```cron
+* * * * * docker exec rizqflow php artisan schedule:run >> /dev/null 2>&1
+```
+
+Sampai itu terpasang, jalankan manual (aman diulang): `docker exec rizqflow php artisan
+play:reconcile` (opsi `--limit=200` membatasi jumlah baris per jalan; kode keluar 1 bila ada baris yang
+gagal diverifikasi, mis. Play tak terjangkau). Tanpa penjadwal dan tanpa notifikasi RTDN yang
+terhubung, langganan yang kedaluwarsa tetap menyimpan paket Sync sampai salah satunya berjalan (atau
+sampai aplikasi mengklaim ulang tokennya dan Play menjawab: server tidak mencabut paket hanya karena
+`expires_at` tersimpan sudah lewat, tanpa jawaban Play untuk baris itu).
