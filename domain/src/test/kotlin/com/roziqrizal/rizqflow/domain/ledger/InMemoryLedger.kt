@@ -233,7 +233,7 @@ class InMemoryLedger : WorkspaceRepository, AccountRepository, RoomRepository, T
         ids.forEach { syncedAtRows[it] = atMillis }
     }
 
-    override suspend fun applyFromSync(id: TransactionId, transaction: MoneyTransaction?, deviceId: String, changedAtMillis: Long, deleted: Boolean) {
+    override suspend fun applyFromSync(id: TransactionId, transaction: MoneyTransaction?, changedAtMillis: Long, deleted: Boolean) {
         if (deleted) {
             delete(id)
             return

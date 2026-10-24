@@ -104,12 +104,12 @@ class SyncEngine(
                 val id = TransactionId(downloaded.recordId)
 
                 if (downloaded.deleted) {
-                    transactions.applyFromSync(id, null, downloaded.deviceId, changedAtMillis, deleted = true)
+                    transactions.applyFromSync(id, null, changedAtMillis, deleted = true)
                     applied++
                     continue
                 }
 
-                val applyResult = applyIncoming(id, roomId, downloaded.payload, downloaded.deviceId, changedAtMillis, aead)
+                val applyResult = applyIncoming(id, roomId, downloaded.payload, changedAtMillis, aead)
                 if (applyResult) applied++ else skipped++
             }
 
@@ -126,7 +126,6 @@ class SyncEngine(
         id: TransactionId,
         roomId: RoomId,
         payloadBase64: String,
-        deviceId: String,
         changedAtMillis: Long,
         aead: SyncAead,
     ): Boolean {
@@ -159,7 +158,7 @@ class SyncEngine(
             createdAtMillis = changedAtMillis,
             updatedAtMillis = changedAtMillis,
         )
-        transactions.applyFromSync(id, transaction, deviceId, changedAtMillis, deleted = false)
+        transactions.applyFromSync(id, transaction, changedAtMillis, deleted = false)
         return true
     }
 

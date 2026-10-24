@@ -160,7 +160,7 @@ interface TransactionRepository {
      * hapus lokal yang belum ikut mengirim tombstone). Hasil terapan ini tidak pernah ditandai
      * pending push lagi (datang dari luar, bukan ubahan lokal).
      */
-    suspend fun applyFromSync(id: TransactionId, transaction: MoneyTransaction?, deviceId: String, changedAtMillis: Long, deleted: Boolean)
+    suspend fun applyFromSync(id: TransactionId, transaction: MoneyTransaction?, changedAtMillis: Long, deleted: Boolean)
 }
 
 /** Pengaturan generik kunci/nilai dan hari yang ditandai "Tidak ada". Dasar pengingat malam (S26). */
