@@ -27,7 +27,7 @@ Wireframe teks untuk **semua** layar S01–S28 (kecuali yang sudah ada di [ui-fl
 | S18 | Lainnya | Di sini | Ringkas |
 | S19 | Keamanan | Di sini | Belum |
 | S20 | Backup, restore, ekspor | Di sini | Belum |
-| S21 | Rizqflow Pro | [ui-flow.md](ui-flow.md) | Ada |
+| S21 | Rizqflow Pro dan Sync | [ui-flow.md](ui-flow.md) | Ada |
 | S22 | Mode demo dan tampilan | Di sini | Sebagian (badge dan keluar demo) |
 | S23 | Tentang dan disclaimer | Di sini | Belum |
 | S24 | Catat kilat | [ui-flow.md](ui-flow.md) | Ada |
@@ -597,6 +597,9 @@ Tab Favorit:
 | (*) Rizqflow Pro             > |
 |     Sekali bayar, tanpa        |
 |     langganan                  |
+| (*) Rizqflow Sync            > |
+|     Sinkron antar-perangkat    |
+|     dan ruang keluarga         |
 |                                |
 | Catat dan pantau               |
 | Koreksi saldo                > |
@@ -620,7 +623,7 @@ Tab Favorit:
 +--------------------------------+
 ```
 
-- Daftar bergulir dengan judul kelompok. Butir Rizqflow Pro berubah menjadi "Rizqflow Pro (aktif)" setelah beli.
+- Daftar bergulir dengan judul kelompok. Butir Rizqflow Pro berubah menjadi "Rizqflow Pro (aktif)" setelah beli. Butir Rizqflow Sync membuka S21 varian Sync (langganan bulanan atau tahunan, terpisah dari Pro); subjudulnya menjadi "Aktif" bila langganan aktif.
 - Keamanan dan Backup selalu gratis dan tidak diberi penanda Pro.
 - Butir Zakat mengaktifkan modul bila belum aktif (menuju S14).
 

@@ -69,7 +69,7 @@ T -.-> F
 | S18 | Lainnya | Menu pengaturan | 6 |
 | S19 | Keamanan | PIN, biometrik, kunci otomatis | 6 |
 | S20 | Backup, restore, ekspor | Berkas terenkripsi, CSV | 6 |
-| S21 | Rizqflow Pro (paywall) | Bottom sheet pembelian | 7 |
+| S21 | Rizqflow Pro dan Sync (paywall) | Bottom sheet pembelian; varian Pro (sekali bayar) dan Sync (langganan) | 7 |
 | S22 | Mode demo dan tampilan | Data contoh, tema | 3 dan 6 |
 | S23 | Tentang dan disclaimer | Versi, privasi, asumsi fikih | 6 |
 | S24 | Catat kilat | Bottom sheet: nominal dan favorit, dari pintasan, tile, atau notifikasi | 3 |
@@ -273,6 +273,49 @@ Hanya sebagian layar ada di sini; wireframe semua layar S01–S28 (termasuk kead
 - Bottom sheet, bukan layar penuh. Tiga manfaat yang tampil dipilih sesuai aksi yang memicu.
 - Harga pada contoh hanya placeholder dalam kisaran uji (lihat [monetisasi.md](monetisasi.md)).
 
+#### S21 varian Sync (langganan)
+
+Varian kedua dari bottom sheet yang sama, untuk langganan Sync (Tahap 7, diputuskan 2026-10-24). Terpisah dari varian Pro di atas, yang tidak berubah.
+
+```
++--------------------------------+
+|   (layar di belakang, redup)   |
++================================+
+|  Rizqflow Sync                 |
+|                                |
+|  v Sinkron data antar-         |
+|    perangkat, terenkripsi      |
+|  v Ruang keluarga bersama,     |
+|    sampai 5 anggota            |
+|                                |
+|  (o) Bulanan                   |
+|      <harga> per bulan         |
+|      Uji coba gratis <n> hari  |
+|  ( ) Tahunan                   |
+|      <harga> per tahun         |
+|                                |
+|  [      Berlangganan      ]    |
+|  Pulihkan pembelian            |
+|  Nanti saja                    |
+|                                |
+|  Satu langganan untuk seluruh  |
+|  keluarga, sampai 5 anggota.   |
+|  Tidak termasuk Rizqflow Pro.  |
+|  Cadangan lokal terenkripsi    |
+|  dan ekspor data tetap gratis. |
+|  Langganan dikelola dan        |
+|  dibatalkan di Google Play.    |
++================================+
+```
+
+- Varian dipilih dari paket yang dibutuhkan fitur pemicu: `ENCRYPTED_SYNC` dan `SHARED_FAMILY_ROOM` membuka varian Sync, semua fitur Pro membuka varian Pro. Dibuka tanpa pemicu dari baris **Rizqflow Pro** di S18 berarti Pro; baris **Rizqflow Sync** di S18 membuka varian Sync.
+- `<harga>` dan `<n>` bukan angka di kode atau dokumen: harga tiap masa dibaca dari Google Play (harga berulang setelah uji coba), dan baris "Uji coba gratis" hanya muncul untuk masa yang penawarannya dari toko punya fase harga gratis dengan lama yang bisa dinyatakan dalam hari (pelanggan lama tidak melihatnya). Tanpa koneksi ke toko, tiap pilihan menampilkan "Harga tampil dari Google Play saat membeli".
+- Bulanan terpilih lebih dulu. Pilihan ditandai tombol radio (terisi atau kosong), bukan hanya warna, dan seluruh barisnya bisa disentuh. Setelah toko menjawab, masa yang tidak ditawarkannya (mis. tahunan belum aktif di Play Console) tampil bertuliskan "Tidak tersedia saat ini", barisnya nonaktif, dan pilihan pindah ke masa yang tersedia, jadi **Berlangganan** tidak pernah membeli masa yang tidak ada.
+- Kabar hasil jujur per paket. Pulihkan pembelian memulihkan Pro dan Sync sekaligus, tetapi pesannya dipilih dari rincian untuk paket di layar ini: aktif; menunggu pembayaran (hanya bila paket INI yang tertunda); "belum bisa memastikan" bila kueri jenis produk paket ini gagal (bukan "belum aktif di akun ini"); dan "belum aktif di akun Google Play ini" hanya bila kuerinya berhasil dan paketnya memang tidak ada. Perangkat dengan Play Store lama yang belum mendukung langganan diberi tahu agar memperbarui Google Play, bukan disalahkan soal koneksi. Bila toko menjawab langganan sudah dimiliki tetapi tidak aktif (ditahan atau berakhir), kabarnya menyuruh memeriksa langganan dan metode pembayaran di Google Play. Pembayaran tertunda yang kemudian lunas dibuka otomatis tanpa menunggu aplikasi dibuka ulang.
+- Bila langganan sudah aktif, pilihan masa, **Berlangganan**, dan **Pulihkan pembelian** diganti baris status dengan ikon centang dan teks "Langganan Sync aktif"; tombol bawah menjadi **Tutup**. Subjudul baris S18: "Aktif", atau "Sinkron antar-perangkat dan ruang keluarga" bila belum.
+- Catatan di bawah tombol menjelaskan apa yang dijual: satu langganan untuk keluarga, bukan bagian dari Pro, dan yang tetap gratis (cadangan lokal terenkripsi, ekspor data) tidak terkunci. Mengelola dan membatalkan langganan lewat Google Play (hanya teks, belum ada tombol ke halaman langganan Play).
+- Status 2026-10-24: **belum pernah dilihat di emulator atau perangkat**; layar Ruang Keluarga dan pemindai undangan belum membuka varian ini sendiri (butir "Penguncian Sync di klien", Tahap 9).
+
 ### S24 Catat kilat
 
 ```
@@ -457,16 +500,20 @@ I --> J["Transaksi pengeluaran di Ruang Memberi dan haul baru"]
 - **S19:** PIN 6 angka diketik dua kali; lima kali salah menahan sementara (data tidak dihapus); sidik jari hanya bisa aktif setelah ada PIN.
 - **S20:** cadangan memakai sandi (minimal 6 karakter); pulihkan menanyakan berkas, sandi, lalu konfirmasi menimpa. Impor dari Transaksi Harian menampilkan pratinjau dulu dan menyatukan pasangan transfer.
 
-### F6 Membuka fitur Pro
+### F6 Membuka fitur Pro atau Sync
 
 ```mermaid
 flowchart TD
-A["Pengguna memakai aksi terkunci"] --> B["S21 Bottom sheet Rizqflow Pro"]
+A["Pengguna memakai aksi terkunci"] -->|"Fitur Pro"| B["S21 Bottom sheet Rizqflow Pro"]
+A -->|"Fitur Sync, atau baris Rizqflow Sync di S18"| S["S21 varian Sync: pilih Bulanan atau Tahunan"]
 B -->|"Beli"| C["Proses pembelian toko"]
+S -->|"Berlangganan"| C
 C -->|"Berhasil"| D["Aksi tadi dilanjutkan otomatis"]
 C -->|"Gagal atau batal"| E["Kembali ke layar asal, data aman"]
 B -->|"Pulihkan pembelian"| C
+S -->|"Pulihkan pembelian"| C
 B -->|"Nanti saja"| E
+S -->|"Nanti saja"| E
 ```
 
 ### F7 Backup dan restore
