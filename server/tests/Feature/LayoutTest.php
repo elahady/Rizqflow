@@ -58,7 +58,9 @@ class LayoutTest extends TestCase
         $user = User::factory()->create();
 
         $html = $this->actingAs($user)->get(route('jadwal'))->getContent();
-        $this->assertSame(1, preg_match_all('#aria-current="page"#', $html));
+        // Hanya di menu sidebar; tab di dalam halaman (mis. Agenda di Jadwal) boleh punya aria-current sendiri.
+        preg_match('#<nav class="rf-nav".*?</nav>#s', $html, $nav);
+        $this->assertSame(1, preg_match_all('#aria-current="page"#', $nav[0] ?? ''));
         $this->assertStringContainsString('aria-current="page"', $this->navItem($html, '/jadwal'));
         $this->assertStringNotContainsString('aria-current', $this->navItem($html, '/profil'));
 
@@ -233,28 +235,23 @@ class LayoutTest extends TestCase
             ->assertSee('Catat rezeki masuk');
     }
 
-    public function test_zakat_recap_year_must_be_four_digits_and_stubs_answer_not_implemented(): void
+    public function test_zakat_recap_year_must_be_four_digits(): void
     {
         $user = User::factory()->create();
 
         $this->actingAs($user)->get('/zakat/rekap/26/pdf')->assertNotFound();
-        $this->actingAs($user)->get('/zakat/rekap/2026/pdf')->assertStatus(501);
-        $this->actingAs($user)->get('/zakat/rekap/2026/csv')->assertStatus(501);
+        $this->actingAs($user)->get('/zakat/rekap/2026/pdf')->assertOk();
+        $this->actingAs($user)->get('/zakat/rekap/2026/csv')->assertOk();
     }
 
-    public function test_stub_pages_render_inside_the_new_layout(): void
+    public function test_new_pages_render_inside_the_new_layout(): void
     {
         $user = User::factory()->create();
 
-        foreach ([
-            route('jadwal') => 'Jadwal',
-            route('impor-ekspor') => 'Impor dan ekspor',
-            route('transaksi.rezeki') => 'Catat rezeki masuk',
-            route('laporan') => 'Aliran',
-        ] as $url => $heading) {
+        foreach ([route('jadwal'), route('impor-ekspor'), route('transaksi.rezeki'), route('laporan')] as $url) {
             $this->actingAs($user)->get($url)->assertOk()
-                ->assertSee('<h1 class="rf-h1">'.$heading.'</h1>', false)
-                ->assertSee('Halaman ini sedang dibangun.');
+                ->assertSee('class="rf-side"', false)
+                ->assertSee('<h1 class="rf-h1"', false);
         }
     }
 }

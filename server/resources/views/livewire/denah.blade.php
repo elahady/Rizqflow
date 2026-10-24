@@ -1,119 +1,289 @@
 @php
     use App\Support\Rupiah;
+    use App\Models\Transaction;
 
-    $roomColors = [1 => '#3b6fa8', 2 => '#c4653a', 3 => '#2a9a80', 4 => '#af6dec', 5 => '#a04177', 6 => '#099acf', 7 => '#998214', 8 => '#de4f74'];
+    $user = auth()->user();
 @endphp
 
-<div style="display:flex; flex-direction:column; gap:32px;">
+@push('styles')
+<style>
+    /* Denah: kartu ruang dan baris yang bisa diklik. */
+    .dn-card { display: flex; flex-direction: column; gap: 16px; color: inherit; transition: border-color var(--rf-motion-fast, 120ms) ease; }
+    .dn-card:hover { border-color: var(--rf-outline); }
+    .dn-card:focus-visible { outline: 2px solid var(--rf-primary); outline-offset: 2px; }
+    .dn-title { font-weight: 700; color: inherit; }
+    a.dn-title:hover { text-decoration: underline; }
+    .dn-state { display: flex; align-items: center; flex-wrap: nowrap; justify-content: space-between; gap: 10px; }
+    .dn-bold { color: var(--rf-on-background); font-weight: 700; }
+    .dn-attn-link { color: var(--rf-on-background); }
+    .dn-attn-link:hover { text-decoration: underline; }
+</style>
+@endpush
 
-    <div>
-        <div style="font-size:13px; color:var(--rf-on-surface-variant); margin-bottom:4px;">{{ $dateLabel }}</div>
-        <h1 class="rf-serif" style="font-size:32px;">Selamat datang, {{ auth()->user()->name }}</h1>
-    </div>
+<div class="rf-page">
+
+    <x-rf.page-head :sub="$dateLabel" :title="'Selamat datang, '.$user->name" :lead="$lead" />
 
     @if ($recurringBanner)
-        <div class="rf-card" style="padding:14px 20px; font-size:13.5px;">{{ $recurringBanner }}</div>
+        <x-rf.banner :tone="$recurringTone" role="status">{{ $recurringBanner }}</x-rf.banner>
     @endif
 
-    @if ($ledger->incomeMinor > 0)
-        <div class="rf-card" style="display:flex; flex-direction:column; gap:18px;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+    <div class="rf-split">
+
+        {{-- Kartu rezeki --}}
+        <section class="rf-card a" style="display: flex; flex-direction: column; gap: 20px" aria-labelledby="dn-rezeki">
+            <div class="rf-row" style="justify-content: space-between; align-items: flex-start">
                 <div>
-                    <div style="font-size:12px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--rf-on-surface-variant); margin-bottom:8px;">Rezeki bulan ini</div>
-                    <div style="font-size:40px; font-weight:700;">{{ Rupiah::format($ledger->incomeMinor) }}</div>
-                </div>
-            </div>
-
-            <div>
-                <div style="display:flex; height:10px; border-radius:999px; overflow:hidden; background:var(--rf-surface-container-highest);">
-                    @foreach ($rooms as $roomMonth)
-                        @continue($roomMonth->allocatedMinor <= 0)
-                        <div style="width:{{ intdiv($roomMonth->allocatedMinor * 100, $ledger->incomeMinor) }}%; background:{{ $roomColors[$roomMonth->room->slot] ?? '#727874' }};" title="{{ $roomMonth->room->name }}"></div>
-                    @endforeach
-                </div>
-                <div style="display:flex; gap:20px; margin-top:12px; flex-wrap:wrap; font-size:13px; color:var(--rf-on-surface-variant);">
-                    @foreach ($rooms as $roomMonth)
-                        <span style="display:inline-flex; align-items:center; gap:6px;">
-                            <i style="width:10px; height:10px; border-radius:3px; background:{{ $roomColors[$roomMonth->room->slot] ?? '#727874' }}; display:inline-block;"></i>{{ $roomMonth->room->name }}
-                        </span>
-                    @endforeach
-                </div>
-            </div>
-
-            <div style="font-size:14px; color:var(--rf-on-surface-variant);">
-                Belum dialirkan: <span style="font-weight:700; color:var(--rf-on-background);">{{ Rupiah::format($ledger->unallocatedMinor) }}</span>
-            </div>
-        </div>
-    @endif
-
-    <div style="display:flex; flex-direction:column; gap:16px;">
-        <div style="display:flex; align-items:baseline; justify-content:space-between;">
-            <h2 class="rf-serif" style="font-size:22px;">Ruang</h2>
-            <a href="{{ route('ruang') }}" style="font-size:13px; font-weight:600;">Lihat detail ruang →</a>
-        </div>
-
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px;">
-            @foreach ($rooms as $roomMonth)
-                @php
-                    $room = $roomMonth->room;
-                    $percent = $roomMonth->percent() ?? 0;
-                    $circumference = 163.36;
-                    $dash = round($circumference * min($percent, 100) / 100, 1);
-                    $gap = round($circumference - $dash, 1);
-                    $status = $roomMonth->status();
-                    $color = $roomColors[$room->slot] ?? '#727874';
-                    $ringColor = $status === 'perlu_perhatian' ? 'var(--rf-status-warning)' : $color;
-                @endphp
-                <a href="{{ route('ruang.detail', $room) }}" style="display:block; background:var(--rf-surface-lowest); border:1px solid var(--rf-outline-variant); border-radius:16px; padding:20px; color:inherit;">
-                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
-                        <div style="width:34px; height:34px; border-radius:10px; background:{{ $color }}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700;">{{ mb_substr($room->name, 0, 1) }}</div>
-                        <span style="font-weight:700; font-size:15px;">{{ $room->name }}</span>
+                    <div class="rf-eyebrow" id="dn-rezeki">Rezeki {{ $isCurrent ? 'bulan ini' : $monthName }}</div>
+                    <div class="rf-hero-amt" style="margin-top: 8px">{{ Rupiah::format($ledger->incomeMinor) }}</div>
+                    <div class="rf-sub" style="margin-top: 6px">
+                        @if ($income['caption'])
+                            {{ $income['caption'] }}
+                        @else
+                            Belum ada rezeki yang dicatat di {{ $monthName }}.
+                        @endif
                     </div>
-                    <div style="display:flex; align-items:center; gap:16px;">
-                        <svg width="64" height="64" viewBox="0 0 64 64" style="transform:rotate(-90deg); flex-shrink:0;" aria-hidden="true">
-                            <circle cx="32" cy="32" r="26" fill="none" stroke="var(--rf-surface-container-highest)" stroke-width="7"></circle>
-                            <circle cx="32" cy="32" r="26" fill="none" stroke="{{ $ringColor }}" stroke-width="7" stroke-linecap="round" stroke-dasharray="{{ $dash }} {{ $gap }}"></circle>
-                        </svg>
-                        <div>
-                            <div style="font-size:18px; font-weight:700;">{{ $percent }}%</div>
-                            <div style="font-size:12px; color:var(--rf-on-surface-variant);">
-                                @if ($status === 'terpenuhi') Terpenuhi
-                                @else Sisa {{ Rupiah::short(max($roomMonth->remainingMinor(), 0)) }}
-                                @endif
+                </div>
+                <div class="rf-row" style="gap: 12px">
+                    <a class="rf-link" href="{{ route('laporan', $periodQuery) }}">Lihat aliran →</a>
+                    <a class="rf-btn tonal sm" href="{{ route('transaksi.rezeki') }}"><x-rf.icon name="plus" />Catat rezeki masuk</a>
+                </div>
+            </div>
+
+            @if ($income['segments'])
+                <x-rf.stack :segments="$income['segments']" label="Pembagian rezeki" legend />
+            @endif
+
+            <div class="rf-stats">
+                <div class="rf-stat">
+                    <div class="l">Terpakai</div>
+                    <div class="v">{{ Rupiah::format($ledger->spentMinor) }}</div>
+                    <div class="d">
+                        @if ($isCurrent)
+                            @if ($income['compare'])
+                                @if ($income['compare']['icon'])<x-rf.icon :name="$income['compare']['icon']" />@endif
+                                {{ $income['compare']['text'] }}
+                            @else
+                                Belum ada pengeluaran bulan ini
+                            @endif
+                        @else
+                            {{ $ledger->expenseCount }} pengeluaran
+                        @endif
+                    </div>
+                </div>
+                <div class="rf-stat">
+                    <div class="l">{{ $income['remainingLabel'] }}</div>
+                    <div class="v">{{ Rupiah::format($income['remaining']) }}</div>
+                    <div class="d">{{ $income['remainingNote'] }}</div>
+                </div>
+                <div class="rf-stat">
+                    <div class="l">Belum dialirkan</div>
+                    <div class="v">{{ Rupiah::format($ledger->unallocatedMinor) }}</div>
+                    <div class="d">
+                        @if ($ledger->unallocatedMinor > 0)
+                            <a class="rf-link" href="{{ route('aturan-alokasi') }}" style="font-weight: 600">Atur di Aturan alokasi</a>
+                        @elseif ($ledger->incomeMinor > 0)
+                            <x-rf.icon name="check" />Semua rezeki sudah punya tujuan
+                        @else
+                            Belum ada rezeki yang perlu dialirkan
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {{-- Jadwal 7 hari: hanya bulan berjalan --}}
+        @if ($schedule !== null)
+            <section class="rf-card b" aria-labelledby="dn-jadwal">
+                <div class="rf-card-head">
+                    <h2 class="rf-h2" id="dn-jadwal">Jadwal 7 hari</h2>
+                    <a class="rf-link" href="{{ route('jadwal') }}">Buka jadwal →</a>
+                </div>
+                @if ($schedule['rows'])
+                    <div>
+                        @foreach ($schedule['rows'] as $row)
+                            <div class="rf-rowline">
+                                <div class="rf-datebox"><div class="d1">{{ $row['day'] }}</div><div class="d2">{{ $row['dayNumber'] }}</div></div>
+                                <div class="rf-grow">
+                                    <div style="font-weight: 700">{{ $row['title'] }}</div>
+                                    <div class="rf-sub">{{ $row['kind'] }}</div>
+                                </div>
+                                <div style="text-align: right">
+                                    <div class="rf-money {{ $row['income'] ? 'rf-in' : '' }}">{{ $row['amount'] }}</div>
+                                    <x-rf.pill :tone="$row['pill']['tone']" :icon="$row['pill']['icon']" style="margin-top: 4px">{{ $row['pill']['label'] }}</x-rf.pill>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                    @if ($schedule['more'] > 0)
+                        <p class="rf-sub" style="margin-top: 10px">+{{ $schedule['more'] }} lagi di <a class="rf-link" href="{{ route('jadwal') }}">Jadwal</a></p>
+                    @endif
+                @else
+                    <div class="rf-empty">
+                        <x-rf.icon name="calendar" />
+                        <b>Tidak ada yang jatuh tempo</b>
+                        <p>Tidak ada tagihan atau transaksi berulang dalam 7 hari ke depan.</p>
+                    </div>
+                @endif
+            </section>
+        @endif
+    </div>
+
+    {{-- Ruang --}}
+    <section style="display: flex; flex-direction: column; gap: 14px" aria-labelledby="dn-ruang">
+        <div class="rf-sechead">
+            <h2 class="rf-h2" id="dn-ruang">Ruang</h2>
+            <div class="rf-row" style="gap: 18px">
+                <a class="rf-link" href="{{ route('ruang') }}">Lihat detail ruang →</a>
+                <a class="rf-link" href="{{ route('ruang') }}">+ Ruang baru</a>
+            </div>
+        </div>
+
+        @if ($roomCards)
+            <div class="rf-grid-3">
+                @foreach ($roomCards as $card)
+                    @php
+                        $roomMonth = $card['month'];
+                        $room = $card['room'];
+                        $footer = $card['footer'];
+                    @endphp
+                    <a class="rf-card dn-card {{ $card['colorClass'] }}" href="{{ route('ruang.detail', ['room' => $room] + $periodQuery) }}">
+                        <div class="dn-state">
+                            <div class="rf-row" style="gap: 10px; flex-wrap: nowrap">
+                                <x-rf.room-icon :room="$room" />
+                                <div>
+                                    <div class="rf-h3">{{ $room->name }}</div>
+                                    <div class="rf-sub">{{ $card['caption'] }}</div>
+                                </div>
+                            </div>
+                            <x-rf.pill :tone="$roomMonth->statusTone()" :icon="$card['pillIcon']">{{ $roomMonth->statusLabel() }}</x-rf.pill>
+                        </div>
+
+                        <div class="rf-row" style="gap: 16px; flex-wrap: nowrap">
+                            <x-rf.ring :percent="$card['percent']" :warn="$card['warn']" />
+                            <div>
+                                <div style="font-size: 20px; font-weight: 700">{{ $card['percent'] }}%</div>
+                                <div class="rf-sub">{{ Rupiah::format($roomMonth->spentMinor) }} dari {{ Rupiah::format($roomMonth->allocatedMinor) }}</div>
                             </div>
                         </div>
-                    </div>
-                    <div class="rf-pill {{ $roomMonth->statusTone() }}" style="margin-top:14px;">
-                        {{ $roomMonth->statusLabel() }}
-                    </div>
-                </a>
-            @endforeach
 
-            <a href="{{ route('ruang') }}" style="display:flex; align-items:center; justify-content:center; border:1.5px dashed var(--rf-outline-variant); border-radius:16px; padding:20px; min-height:148px; color:var(--rf-on-surface-variant); font-size:13px; font-weight:600;">
-                + Ruang baru
-            </a>
-        </div>
-    </div>
+                        @if ($card['showPace'])
+                            <div>
+                                <x-rf.pace :used="$card['percent']" :time="$card['paceTime']" />
+                                <div class="rf-sub">{{ $card['paceText'] }}</div>
+                            </div>
+                        @endif
 
-    @if (count($attention))
-        <div class="rf-card">
-            <h2 class="rf-serif" style="font-size:18px; margin-bottom:6px;">Perlu perhatian</h2>
-            @foreach ($attention as $item)
-                <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 0; border-bottom:1px solid var(--rf-outline-variant);">
-                    @if (!empty($item['href']))
-                        <a href="{{ $item['href'] }}" style="font-size:14px; color:inherit;">{{ $item['text'] }}</a>
-                    @else
-                        <span style="font-size:14px;">{{ $item['text'] }}</span>
-                    @endif
-                    <span class="rf-pill warn">{{ $item['pill'] }}</span>
+                        <div class="rf-sub">
+                            @switch ($footer['kind'])
+                                @case ('menunggu')
+                                    Menunggu rezeki dialirkan ke ruang ini.
+                                    @break
+                                @case ('terpenuhi')
+                                    Seluruh jatah bulan ini sudah tersalurkan.
+                                    @break
+                                @case ('terpenuhi_hemat')
+                                    Pemakaian bulan ini tidak melewati jatah.
+                                    @break
+                                @case ('lewat')
+                                    Melewati jatah <span class="dn-bold">{{ Rupiah::format($footer['amount']) }}</span>
+                                    @break
+                                @case ('sisa_aman')
+                                    Sisa <span class="dn-bold">{{ Rupiah::format($footer['amount']) }}</span> · aman ≈ {{ Rupiah::format($footer['safe']) }} per hari
+                                    @break
+                                @default
+                                    Sisa <span class="dn-bold">{{ Rupiah::format($footer['amount']) }}</span>
+                            @endswitch
+                        </div>
+                    </a>
+                @endforeach
+            </div>
+        @else
+            <div class="rf-card">
+                <div class="rf-empty">
+                    <x-rf.icon name="grid" />
+                    <b>Belum ada ruang</b>
+                    <p>Ruang menampung bagian rezekimu: Memberi, Diri, Keluarga, atau yang kamu buat sendiri. Susun ruang dan aturan alokasinya dulu.</p>
+                    <div class="rf-actions">
+                        <a class="rf-btn primary sm" href="{{ route('ruang') }}">Buat ruang</a>
+                        <a class="rf-btn ghost sm" href="{{ route('aturan-alokasi') }}">Atur alokasi</a>
+                    </div>
                 </div>
-            @endforeach
-        </div>
-    @endif
+            </div>
+        @endif
+    </section>
 
-    <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
-        <a href="{{ route('transaksi') }}" class="rf-btn primary">+ Catat transaksi</a>
-        <a href="{{ route('ruang') }}" class="rf-btn tonal">Lihat ruang</a>
+    <div class="rf-split">
+
+        {{-- Transaksi terbaru --}}
+        <section class="rf-card a" aria-labelledby="dn-terbaru">
+            <div class="rf-card-head">
+                <h2 class="rf-h2" id="dn-terbaru">Transaksi terbaru</h2>
+                <a class="rf-link" href="{{ route('transaksi', $periodQuery) }}">Buka Transaksi →</a>
+            </div>
+            @if ($recent->isNotEmpty())
+                <div>
+                    @foreach ($recent as $t)
+                        @php
+                            $title = $t->note ?: ($t->category ?: ($t->isIncome() ? 'Pemasukan' : 'Pengeluaran'));
+                        @endphp
+                        <div class="rf-rowline">
+                            <div class="rf-grow">
+                                <a class="dn-title" href="{{ route('transaksi.detail', $t) }}">{{ $title }}</a>
+                                <div class="rf-sub">
+                                    {{ $t->occurred_on->locale('id')->translatedFormat('j M') }} ·
+                                    @if ($t->isIncome())
+                                        @php($entries = $t->sortedAllocationEntries()->filter(fn ($e) => $e->share_bp > 0 || $e->amount_minor > 0))
+                                        @if ($entries->isNotEmpty())
+                                            <span class="rf-roomname">
+                                                @foreach ($entries as $entry)
+                                                    <i class="rf-dot {{ $entry->room && $entry->room->slot >= 1 && $entry->room->slot <= 8 ? 'c'.$entry->room->slot : 'cn' }}" aria-hidden="true"></i>
+                                                @endforeach
+                                                Dialirkan {{ $t->allocationLabel() ?? '' }}
+                                            </span>
+                                        @else
+                                            <span>Belum dialirkan</span>
+                                        @endif
+                                    @elseif ($t->room)
+                                        <x-rf.room-name :room="$t->room" :pos="$t->pos" />
+                                    @else
+                                        <span>Tanpa ruang</span>
+                                    @endif
+                                    @if ($t->account) · {{ $t->account->name }} @endif
+                                </div>
+                            </div>
+                            <div class="rf-money {{ $t->isIncome() ? 'rf-in' : '' }}">{{ Rupiah::signed($t->amount_minor, $t->type) }}</div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="rf-empty">
+                    <x-rf.icon name="list" />
+                    <b>Belum ada transaksi di {{ $monthName }}</b>
+                    <p>Catat pengeluaran atau rezeki masuk, dan ringkasannya muncul di sini.</p>
+                </div>
+            @endif
+        </section>
+
+        {{-- Perlu perhatian --}}
+        <section class="rf-card b" aria-labelledby="dn-perhatian">
+            <h2 class="rf-h2" id="dn-perhatian" style="margin-bottom: 6px">Perlu perhatian</h2>
+            @if ($attention)
+                <div>
+                    @foreach ($attention as $item)
+                        <div class="rf-rowline">
+                            <a class="rf-grow dn-attn-link" href="{{ $item['href'] }}">{{ $item['text'] }}</a>
+                            <x-rf.pill :tone="$item['tone']" :icon="$item['icon']">{{ $item['label'] }}</x-rf.pill>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="rf-empty">
+                    <x-rf.icon name="check" />
+                    <b>Semuanya tenang</b>
+                    <p>Tidak ada ruang, pos, atau transaksi yang perlu kamu rapikan sekarang.</p>
+                </div>
+            @endif
+        </section>
     </div>
-
 </div>
