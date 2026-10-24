@@ -132,6 +132,7 @@ Menetapkan keputusan yang menentukan arah teknis dan bisnis sebelum kode ditulis
 - [x] Putuskan kalender Hijriyah untuk haul: Umm al-Qura di balik antarmuka `HijriCalendar`; hisab Al-Kaukaba bisa menyusul (2026-09-21)
 - [x] Tetapkan asumsi fikih default zakat mal: 85 g emas, 2,5%, haul 1 tahun Hijriyah (2026-09-20); default sementara, menunggu verifikasi kitab oleh pemilik
 - [ ] Validasi minat lewat landing page dan daftar tunggu
+  - [x] Landing page dan form daftar tunggu dibangun (2026-10-24, repo `roziqrizalcom` commit `6bdedd5`): `/karya/rizqflow` di roziqrizal.com, kartu baru di homepage Karya. Hero pakai ilustrasi konsep alokasi (Memberi/Diri/Keluarga/ruang lain), bukan tangkapan layar, karena aplikasinya belum dibangun. Form email (`POST /waitlist/{project}`, tabel baru `waitlist_signups`, unik per project+email, ditulis generik untuk dipakai proyek Karya lain juga) menyimpan ke database, lalu menampilkan pesan terima kasih; duplikat email tidak menggandakan baris. 5 tes fitur hijau, diverifikasi juga manual lewat curl ke server dev (submit nyata → redirect `#daftar-tunggu` → pesan tampil → baris tersimpan). **Belum**: deploy ke VPS (repo itu deploy hanya saat diminta pemilik) dan trafik sungguhan untuk divalidasi — item ini baru tertutup kalau sudah ada sinyal minat nyata, bukan cuma halamannya berdiri
 
 ## Tahap 1 — Desain UI/UX (Selesai)
 
