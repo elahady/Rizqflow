@@ -106,8 +106,6 @@
   --pill-info-bg: var(--rf-pill-info-bg);
   --pill-info-fg: var(--rf-pill-info-fg);
 
-  /* Sementara, hapus setelah semua halaman direstyle: nama token layout web lama. */
-  --rf-surface-lowest: var(--rf-surface-container-lowest);
 }
 
 /* ===== Token: mode gelap (preferensi sistem, kecuali pengguna memilih terang) ===== */
@@ -732,20 +730,6 @@ input[type="number"].rf-input { font-variant-numeric: tabular-nums; }
 .au-theme svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .au-foot { display: flex; align-items: flex-start; justify-content: center; gap: 8px; max-width: 380px; text-align: center; font-size: 12.5px; line-height: 1.5; color: var(--rf-on-surface-variant); }
 .au-foot .ic { width: 16px; height: 16px; margin-top: 1px; }
-
-/* ===== Sementara, hapus setelah semua halaman direstyle: kelas dan isian layout web lama ===== */
-.rf-serif { font-family: var(--rf-font-display); font-weight: 400; margin: 0; }
-h1.rf-serif { font-size: 28px; line-height: 1.2; }
-h2.rf-serif { font-size: 18px; line-height: 1.25; }
-.error-text { color: var(--rf-error); font-size: 13px; margin-top: 6px; }
-/* Isian lama ditulis tanpa kelas di dalam .rf-field (dulu .rf-field input {...}); markup baru memakai .rf-input. */
-.rf-field > input:not([class]):not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-.rf-field > select:not([class]),
-.rf-field > textarea:not([class]) {
-  width: 100%; padding: 10px 14px; border: 1px solid var(--rf-outline-variant); border-radius: 12px;
-  background: var(--rf-surface-container-low); color: var(--rf-on-background);
-}
-.rf-field:has(> input:not([class]), > select:not([class]), > textarea:not([class])) { margin-bottom: 16px; }
 
 /* ===== Gerak dikurangi ===== */
 @media (prefers-reduced-motion: reduce) {
