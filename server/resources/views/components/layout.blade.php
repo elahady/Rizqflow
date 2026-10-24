@@ -1,108 +1,201 @@
+{{--
+    Kerangka aplikasi: sidebar bergrup + bilah atas + isi, mengikuti docs/design/web-mockup/project/Main.dc.html
+    tanpa unsur fase 3 (saklar Pribadi/Keluarga, Keluarga, Keamanan dan kunci, pil Tersinkron, kotak
+    "Data terenkripsi"). Dipakai halaman Livewire:
+
+        ->layout('components.layout', ['title' => 'Transaksi — Rizqflow'])
+        ->layout('components.layout', ['title' => 'Denah — Rizqflow', 'period' => $bulan])
+
+    'period' (CarbonInterface, opsional, mis. App\Support\Period::fromQuery($this->bulan)) memunculkan
+    pemilih bulan di bilah atas; tombolnya tautan ke URL yang sama dengan ?bulan=Y-m. Tanpa 'period'
+    pemilih tidak tampil. Pintasan keyboard dan kotak perintah ada di public/js/rizqflow.js.
+--}}
+@use('App\Support\Feature')
+@use('App\Support\Period')
+@use('App\Support\Plan')
+@use('Carbon\CarbonImmutable')
+@php
+    $user = auth()->user();
+
+    $period = isset($period) && $period instanceof \DateTimeInterface ? CarbonImmutable::instance($period)->startOfMonth() : null;
+    $periodNav = null;
+    if ($period !== null) {
+        $previous = Period::previous($period);
+        $next = Period::next($period);
+        $periodNav = [
+            'label' => Period::label($period),
+            'prevLabel' => Period::label($previous),
+            'nextLabel' => Period::label($next),
+            'prevUrl' => Period::query($period) > Period::EARLIEST ? request()->fullUrlWithQuery(['bulan' => Period::query($previous)]) : null,
+            // Bulan berjalan atau sesudahnya: belum ada bulan berikutnya untuk dibuka dari sini.
+            'nextUrl' => Period::isPast($period) ? request()->fullUrlWithQuery(['bulan' => Period::query($next)]) : null,
+        ];
+    }
+
+    $navGroups = [];
+    if ($user) {
+        $is = fn (string ...$patterns) => request()->routeIs(...$patterns);
+        // Tag PRO = fitur analisa masih terkunci untuk akun ini (lewat lapisan entitlement).
+        $analisaLocked = ! $user->entitlements()->isEnabled(Feature::ReportsAndInsights);
+
+        $navGroups = [
+            ['id' => null, 'label' => null, 'items' => [
+                ['label' => 'Denah', 'route' => 'denah', 'icon' => 'home', 'on' => $is('denah') || request()->is('/')],
+            ]],
+            ['id' => 'rf-nav-uang', 'label' => 'Uang', 'items' => [
+                ['label' => 'Transaksi', 'route' => 'transaksi', 'icon' => 'list', 'on' => $is('transaksi', 'transaksi.detail', 'transaksi.rezeki')],
+                ['label' => 'Jadwal', 'route' => 'jadwal', 'icon' => 'calendar', 'on' => $is('jadwal', 'tagihan', 'transaksi.berulang')],
+                ['label' => 'Utang-piutang', 'route' => 'utang-piutang', 'icon' => 'swap', 'on' => $is('utang-piutang')],
+                ['label' => 'Akun', 'route' => 'kelola', 'icon' => 'card', 'on' => $is('kelola')],
+            ]],
+            ['id' => 'rf-nav-ruang', 'label' => 'Ruang', 'items' => [
+                ['label' => 'Ruang dan pos', 'route' => 'ruang', 'icon' => 'grid', 'on' => $is('ruang', 'ruang.detail', 'aturan-alokasi')],
+                ['label' => 'Zakat', 'route' => 'zakat', 'icon' => 'heart', 'on' => $is('zakat')],
+            ]],
+            ['id' => 'rf-nav-analisa', 'label' => 'Analisa', 'items' => [
+                ['label' => 'Analisa', 'route' => 'laporan', 'icon' => 'chart', 'pro' => $analisaLocked, 'on' => $is('laporan', 'laporan.*') && ! $is('laporan.impor-csv')],
+            ]],
+            ['id' => 'rf-nav-pengaturan', 'label' => 'Pengaturan', 'items' => [
+                ['label' => 'Impor dan ekspor', 'route' => 'impor-ekspor', 'icon' => 'download', 'on' => $is('impor-ekspor', 'laporan.impor-csv')],
+                ['label' => 'Profil dan paket', 'route' => 'profil', 'icon' => 'user', 'on' => $is('profil')],
+            ]],
+        ];
+
+        $plans = $user->plans ?? [];
+        $hasPro = in_array(Plan::Pro->value, $plans, true);
+        $hasSync = in_array(Plan::Sync->value, $plans, true);
+        $planLabel = match (true) {
+            $hasPro && $hasSync => 'Pro + Sync',
+            $hasPro => 'Paket Pro',
+            $hasSync => 'Paket Sync',
+            default => 'Paket Gratis',
+        };
+        $displayName = trim((string) $user->name) !== '' ? trim((string) $user->name) : (string) $user->email;
+        $initial = mb_strtoupper(mb_substr($displayName, 0, 1));
+    }
+
+    $statusTone = in_array(session('status_tone'), ['good', 'info', 'warn'], true) ? session('status_tone') : 'good';
+@endphp
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    @include('partials.theme-init')
     <title>{{ $title ?? 'Rizqflow' }}</title>
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
     <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:wght@400;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:wght@400;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ asset('css/rizqflow.css') }}?v={{ filemtime(public_path('css/rizqflow.css')) }}">
     @livewireStyles
-    <style>
-        /* Design tokens disalin dari docs/design/tokens.css (arah visual opsi A). Ubah di sana dulu, lalu samakan di sini. */
-        :root {
-            --rf-background: #faf9f7;
-            --rf-on-background: #1b1c1b;
-            --rf-surface-lowest: #ffffff;
-            --rf-surface-container-low: #f5f3f1;
-            --rf-surface-container: #efeeec;
-            --rf-surface-container-highest: #e3e2e0;
-            --rf-on-surface-variant: #424845;
-            --rf-outline: #727874;
-            --rf-outline-variant: #c2c8c3;
-            --rf-primary: #4d6359;
-            --rf-on-primary: #ffffff;
-            --rf-primary-fixed: #cfe8db;
-            --rf-on-primary-container: #273c33;
-            --rf-room-1: #3b6fa8;
-            --rf-room-2: #c4653a;
-            --rf-room-3: #2a9a80;
-            --rf-status-good: #0ca30c;
-            --rf-status-warning: #fab219;
-            --rf-status-serious: #ec835a;
-        }
-        * { box-sizing: border-box; }
-        body { margin: 0; font-family: 'Manrope', system-ui, sans-serif; background: var(--rf-background); color: var(--rf-on-background); }
-        a { color: var(--rf-primary); text-decoration: none; }
-        a:hover { color: var(--rf-on-primary-container); }
-        header.rf-hd { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px 32px; background: var(--rf-surface-lowest); border-bottom: 1px solid var(--rf-outline-variant); }
-        .rf-brand { display: flex; align-items: center; gap: 10px; }
-        .rf-brand-mark { width: 32px; height: 32px; border-radius: 9px; background: var(--rf-primary); color: var(--rf-on-primary); display: flex; align-items: center; justify-content: center; font-family: 'Libre Caslon Text', serif; font-size: 17px; }
-        .rf-brand-name { font-family: 'Libre Caslon Text', serif; font-size: 19px; }
-        nav.rf-nav { display: flex; gap: 22px; }
-        nav.rf-nav a { font-size: 14px; font-weight: 600; color: var(--rf-on-surface-variant); padding-bottom: 2px; }
-        nav.rf-nav a.on { font-weight: 700; color: var(--rf-primary); border-bottom: 2px solid var(--rf-primary); }
-        main.rf-main { max-width: 1200px; width: 100%; margin: 0 auto; padding: 36px 24px 64px; display: flex; flex-direction: column; gap: 28px; }
-        h1.rf-serif { margin: 0; font-family: 'Libre Caslon Text', serif; font-weight: 400; font-size: 28px; }
-        h2.rf-serif { margin: 0; font-family: 'Libre Caslon Text', serif; font-weight: 400; font-size: 18px; }
-        .rf-card { background: var(--rf-surface-lowest); border: 1px solid var(--rf-outline-variant); border-radius: 16px; padding: 22px 26px; }
-        .rf-pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600; }
-        .rf-pill.good { color: #1a5c1a; background: #e6f5e6; }
-        .rf-pill.warn { color: #8a6d13; background: #fef3d6; }
-        .rf-pill.neutral { color: var(--rf-on-surface-variant); background: var(--rf-surface-container); }
-        .rf-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 999px; padding: 12px 22px; font-family: 'Manrope', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
-        .rf-btn.primary { background: var(--rf-primary); color: var(--rf-on-primary); }
-        .rf-btn.tonal { background: var(--rf-primary-fixed); color: var(--rf-on-primary-container); }
-        .rf-field { margin-bottom: 16px; }
-        .rf-field label { display: block; font-size: 12px; font-weight: 700; color: var(--rf-on-surface-variant); margin-bottom: 6px; }
-        .rf-field input, .rf-field select { width: 100%; padding: 11px 14px; border: 1px solid var(--rf-outline-variant); border-radius: 12px; background: var(--rf-surface-container-low); color: var(--rf-on-background); font-family: 'Manrope', sans-serif; font-size: 14px; }
-        .error-text { color: #b3261e; font-size: 13px; margin-top: 6px; }
-        footer.rf-ft { border-top: 1px solid var(--rf-outline-variant); padding: 20px 24px 32px; max-width: 1200px; margin: 0 auto; font-size: 13px; color: var(--rf-on-surface-variant); display: flex; gap: 16px; flex-wrap: wrap; justify-content: space-between; }
-    </style>
+    @stack('styles')
 </head>
-<body>
-@auth
-    <header class="rf-hd">
-        <div style="display:flex; align-items:center; gap:28px; flex-wrap:wrap;">
-            <div class="rf-brand">
-                <span class="rf-brand-mark">R</span>
-                <span class="rf-brand-name">Rizqflow</span>
-            </div>
-            <nav class="rf-nav">
-                <a href="{{ route('denah') }}" class="{{ request()->routeIs('denah') ? 'on' : '' }}">Denah</a>
-                <a href="{{ route('transaksi') }}" class="{{ request()->routeIs('transaksi*') ? 'on' : '' }}">Transaksi</a>
-                <a href="{{ route('ruang') }}" class="{{ request()->routeIs('ruang*') ? 'on' : '' }}">Ruang</a>
-                <a href="{{ route('zakat') }}" class="{{ request()->routeIs('zakat') ? 'on' : '' }}">Zakat</a>
-                <a href="{{ route('kelola') }}" class="{{ request()->routeIs('kelola') ? 'on' : '' }}">Akun</a>
-                <a href="{{ route('laporan') }}" class="{{ request()->routeIs('laporan*') ? 'on' : '' }}">Laporan</a>
+<body data-catat-url="{{ route('transaksi') }}#catat" data-rezeki-url="{{ route('transaksi.rezeki') }}">
+<a class="rf-skip" href="#isi">Langsung ke isi</a>
+<div class="rf-app">
+    @if ($user)
+        <aside class="rf-side">
+            <a class="rf-brand" href="{{ route('denah') }}"><span class="rf-brand-mark" aria-hidden="true">R</span><span class="rf-brand-name">Rizqflow</span></a>
+
+            <nav class="rf-nav" aria-label="Menu utama">
+                @foreach ($navGroups as $group)
+                    <div class="rf-nav-group" @if ($group['id']) role="group" aria-labelledby="{{ $group['id'] }}" @endif>
+                        @if ($group['label'])
+                            <div class="rf-nav-label" id="{{ $group['id'] }}">{{ $group['label'] }}</div>
+                        @endif
+                        @foreach ($group['items'] as $item)
+                            <a href="{{ route($item['route']) }}" class="rf-nav-item{{ $item['on'] ? ' on' : '' }}"{!! $item['on'] ? ' aria-current="page"' : '' !!}><x-rf.icon :name="$item['icon']" />{{ $item['label'] }}@if (! empty($item['pro']))<span class="rf-tagpro" title="Fitur Pro">PRO</span>@endif</a>
+                        @endforeach
+                    </div>
+                @endforeach
             </nav>
-        </div>
-        <div style="display:flex; align-items:center; gap:14px;">
-            <a href="{{ route('profil') }}" style="font-size:13px; color:var(--rf-on-surface-variant); {{ request()->routeIs('profil') ? 'font-weight:700; color:var(--rf-primary);' : '' }}">{{ auth()->user()->name }}</a>
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button type="submit" style="background:none; border:none; color:var(--rf-on-surface-variant); font-family:'Manrope',sans-serif; font-size:13px; cursor:pointer;">Keluar</button>
-            </form>
-        </div>
-    </header>
-@endauth
 
-<main class="rf-main">
-    @if (session('status'))
-        <div class="rf-card" role="status">{{ session('status') }}</div>
+            <div class="rf-side-foot">
+                <div class="rf-user">
+                    <span class="rf-avatar" aria-hidden="true">{{ $initial }}</span>
+                    <div>
+                        <a href="{{ route('profil') }}"><b>{{ $displayName }}</b></a>
+                        <span>{{ $planLabel }}</span>
+                    </div>
+                    @include('partials.theme-toggle')
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="rf-link">Keluar</button>
+                    </form>
+                </div>
+            </div>
+        </aside>
     @endif
-    {{ $slot }}
-</main>
 
-@auth
-<footer class="rf-ft">
-    <span>Rizqflow — bantuan hitung zakat, bukan fatwa.</span>
-</footer>
-@endauth
+    <div class="rf-main">
+        @if ($user)
+            <header class="rf-topbar">
+                @if ($periodNav)
+                    <nav class="rf-period" aria-label="Periode">
+                        @if ($periodNav['prevUrl'])
+                            <a class="rf-iconbtn" href="{{ $periodNav['prevUrl'] }}" aria-label="Bulan sebelumnya, {{ $periodNav['prevLabel'] }}" title="{{ $periodNav['prevLabel'] }}"><x-rf.icon name="chevron-left" /></a>
+                        @else
+                            <span class="rf-iconbtn" role="link" aria-disabled="true" aria-label="Bulan sebelumnya"><x-rf.icon name="chevron-left" /></span>
+                        @endif
+                        <span>{{ $periodNav['label'] }}</span>
+                        @if ($periodNav['nextUrl'])
+                            <a class="rf-iconbtn" href="{{ $periodNav['nextUrl'] }}" aria-label="Bulan berikutnya, {{ $periodNav['nextLabel'] }}" title="{{ $periodNav['nextLabel'] }}"><x-rf.icon name="chevron-right" /></a>
+                        @else
+                            <span class="rf-iconbtn" role="link" aria-disabled="true" aria-label="Bulan berikutnya"><x-rf.icon name="chevron-right" /></span>
+                        @endif
+                    </nav>
+                @endif
+
+                {{-- Kotak perintah: tanpa JavaScript tetap mencari (GET ?cari=); dengan Alpine menawarkan Catat atau Cari. --}}
+                <form class="rf-cmd" method="GET" action="{{ route('transaksi') }}" role="search"
+                      x-data="rizqflowCmd()" x-on:submit="submit($event)" x-on:keydown.escape="close()" x-on:click.outside="close()">
+                    <x-rf.icon name="search" />
+                    <input id="rf-cmd-input" type="search" name="cari" autocomplete="off" spellcheck="false"
+                           placeholder="Cari transaksi, atau catat cepat: kopi 25rb gopay" aria-label="Cari atau catat cepat"
+                           role="combobox" aria-autocomplete="list" aria-controls="rf-cmd-list" aria-expanded="false"
+                           x-model="q" x-on:input="onInput()" x-on:focus="open = text !== ''"
+                           x-on:keydown.arrow-down.prevent="move(1)" x-on:keydown.arrow-up.prevent="move(-1)"
+                           x-bind:aria-expanded="expanded ? 'true' : 'false'" x-bind:aria-activedescendant="activeId()">
+                    <span class="rf-kbd" aria-hidden="true">Ctrl K</span>
+                    <div class="rf-cmd-pop" id="rf-cmd-list" role="listbox" aria-label="Pilihan" x-show="expanded" x-cloak>
+                        <template x-for="(option, index) in options" x-bind:key="option.key">
+                            <a class="rf-cmd-opt" role="option" x-bind:id="optionId(option)" x-bind:href="option.href"
+                               x-bind:class="{ on: index === active }" x-bind:aria-selected="index === active ? 'true' : 'false'"
+                               x-on:mouseenter="active = index" x-on:mousedown.prevent>
+                                <span x-show="option.key === 'catat'"><x-rf.icon name="plus" /></span>
+                                <span x-show="option.key === 'cari'"><x-rf.icon name="search" /></span>
+                                <span x-text="option.label + ': “' + text + '”'"></span>
+                            </a>
+                        </template>
+                    </div>
+                </form>
+
+                <details class="rf-menu">
+                    <summary class="rf-btn primary"><x-rf.icon name="plus" />Catat</summary>
+                    <div class="rf-menu-pop">
+                        <a href="{{ route('transaksi') }}#catat">Pengeluaran<span class="rf-kbd" aria-hidden="true">C</span></a>
+                        <a href="{{ route('transaksi.rezeki') }}">Rezeki masuk<span class="rf-kbd" aria-hidden="true">R</span></a>
+                    </div>
+                </details>
+            </header>
+        @endif
+
+        <main class="rf-content" id="isi" tabindex="-1">
+            @if (session('status'))
+                <x-rf.banner :tone="$statusTone" role="status">{{ session('status') }}</x-rf.banner>
+            @endif
+
+            {{ $slot }}
+
+            <p class="rf-sub">Rizqflow adalah bantuan hitung zakat, bukan fatwa.</p>
+        </main>
+    </div>
+</div>
 
 @livewireScripts
+<script src="{{ asset('js/rizqflow.js') }}?v={{ filemtime(public_path('js/rizqflow.js')) }}"></script>
 @stack('scripts')
 </body>
 </html>

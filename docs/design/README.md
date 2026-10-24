@@ -8,6 +8,7 @@ Arah visual **opsi A** (identitas homepage roziqrizal.com), diputuskan 2026-09-1
 |---|---|
 | [tokens.css](tokens.css) | Design tokens: satu tempat untuk warna, font, jarak, bentuk, dan gerak |
 | [prototype.html](prototype.html), [prototype.css](prototype.css), [prototype.js](prototype.js) | Prototipe klik (HTML, CSS, dan JavaScript murni, tanpa build) |
+| [Web (server/): design system dan komponen](#web-server-design-system-dan-komponen) | Cara memakai `rizqflow.css`, `rizqflow.js`, dan komponen `<x-rf.*>` di web Laravel (bagian di bawah) |
 | [web-mockup/](web-mockup/README.md) | Mockup web (artifact Claude Design, 2026-10-24): sumber 9 layar, papan riset dan navigasi, CSS bersama |
 
 ## Cara membuka
@@ -184,3 +185,69 @@ val RizqflowLight = lightColorScheme(
 ## Keterbatasan
 
 Data tidak disimpan (reset saat halaman dimuat ulang), tanggal tetap September 2026, dan tidak ada pembayaran, notifikasi, atau izin sistem sungguhan (semuanya disimulasikan). Prototipe HTML tidak menguji nuansa native (gestur, haptik, ukuran sentuh); itu dinilai saat implementasi Compose di Tahap 3.
+
+## Web (server/): design system dan komponen
+
+Diterapkan 2026-10-24 (fase 1 desain web baru, lihat [konsep.md](../konsep.md) butir "Desain web baru"). Tampilannya mengikuti mockup di [web-mockup/](web-mockup/README.md); bagian ini menjelaskan cara memakainya di `server/` (Laravel 12 + Livewire 4 + Blade).
+
+### Berkas
+
+| Berkas | Fungsi |
+|---|---|
+| `server/public/css/rizqflow.css` | Design system web: token, reset, dan semua kelas komponen (`rf-*`, `au-*`, grafik `ch-*`/`sk-*`). Dimuat dengan `?v={filemtime}` supaya cache peramban ikut berganti. |
+| `server/public/js/rizqflow.js` | Tema, pintasan keyboard, kotak perintah bilah atas, dan penutup menu. Tanpa build dan tanpa dependensi (kotak perintah memakai Alpine yang sudah dibundel Livewire). |
+| `server/resources/views/components/layout.blade.php` | Kerangka aplikasi: sidebar bergrup, bilah atas, isi. |
+| `server/resources/views/components/auth-layout.blade.php` | Kerangka tamu (halaman masuk). |
+| `server/resources/views/components/rf/*.blade.php` | Komponen `<x-rf.*>`. |
+| `server/resources/views/partials/theme-init.blade.php`, `theme-toggle.blade.php` | Skrip tema di `<head>` dan tombol ganti tema. |
+
+### Aturan sinkron token
+
+`tokens.css` adalah sumber tunggal. `rizqflow.css` memuat salinan token (terang di `:root`; gelap di `@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) }` dan `:root[data-theme="dark"]`). Salinan ini **manual**: ubah `tokens.css` lebih dulu, lalu samakan tiga blok token di `rizqflow.css` (terang, gelap mengikuti sistem, gelap pilihan pengguna). Token baru dari mockup: `--rf-pill-good|warn|info-bg|fg` dan `--rf-income`; `rizqflow.css` juga menyediakan alias `--pill-*` supaya markup mockup `.dc.html` bisa dipakai apa adanya. Teks peringatan memakai `#735a0b` (kontras ±5,9:1 di atas `#fef3d6`), menggantikan `#8a6d13` di layout web lama (±4,4:1, di bawah batas 4,5:1). Android tidak memakai `#8a6d13`, jadi tidak ada yang perlu diubah di sana.
+
+### Tema
+
+Pilihan pengguna disimpan di `localStorage` kunci `rizqflow-theme` (`light` atau `dark`) dan dipasang ke `<html data-theme>` oleh `partials/theme-init` sebelum CSS dimuat (tanpa kedip). Tanpa pilihan, tema mengikuti preferensi sistem. Tombol bertanda `data-rf-theme-toggle` mengganti tema. `public/js/rizqflow.js` menyediakan `rizqflowCurrentTheme()` (tema efektif `'light'|'dark'`, memperhitungkan preferensi sistem), `rizqflowSetTheme(theme)`, dan `rizqflowToggleTheme()`; setiap perubahan mengirim `CustomEvent('rizqflow:theme', { detail: { theme } })` di `document`, dipakai grafik dan tombol Google yang perlu digambar ulang.
+
+### Layout dan periode
+
+```php
+->layout('components.layout', ['title' => 'Transaksi — Rizqflow'])                  // tanpa pemilih periode
+->layout('components.layout', ['title' => 'Denah — Rizqflow', 'period' => $bulan])  // $bulan: CarbonImmutable awal bulan
+```
+
+Halaman yang punya pemilih periode menyimpan `#[Url] public ?string $bulan = null;` lalu memakai `$bulan = Period::fromQuery($this->bulan)`. Tombol ‹ › di bilah atas adalah tautan ke URL yang sama dengan `?bulan=Y-m`; › nonaktif pada bulan berjalan. Halaman lama yang tidak mengirim `period` tetap berfungsi tanpa pemilih. CSS khusus halaman ditaruh lewat `@push('styles')` (dirender di `<head>`), skrip lewat `@push('scripts')` (akhir `<body>`).
+
+### Pintasan keyboard
+
+| Tombol | Aksi |
+|---|---|
+| `Ctrl/Cmd + K` | Fokus ke kotak perintah (`#rf-cmd-input`), juga dari dalam isian biasa |
+| `C` | Fokus ke `#catat-catatan` bila ada di halaman; selain itu buka `data-catat-url` (Transaksi `#catat`) |
+| `R` | Buka `data-rezeki-url` (Catat rezeki masuk) |
+| `Esc` | Tutup menu Catat dan dropdown kotak perintah |
+
+`C` dan `R` diabaikan saat fokus di input, textarea, select, atau elemen contenteditable, dan saat ada Ctrl/Cmd/Alt/Shift. URL tujuan dibaca dari atribut `data-catat-url` dan `data-rezeki-url` di `<body>`. Kotak perintah menawarkan "Catat pengeluaran" (`transaksi?catat=...`) dan "Cari transaksi" (`transaksi?cari=...`); Catat lebih dulu bila teks mengandung angka.
+
+### Komponen `<x-rf.*>`
+
+| Komponen | Props | Contoh |
+|---|---|---|
+| `icon` | `name` + atribut diteruskan ke `<svg>`; `aria-label` membuatnya `role="img"`, tanpa itu `aria-hidden`. Nama tak dikenal tidak merender apa pun | `<x-rf.icon name="check" />` |
+| `pill` | `tone` good/warn/info/neutral (default neutral), `icon` (bawaan: good=check, warn=warn, info=info; `""` = tanpa ikon) | `<x-rf.pill tone="warn">Perlu perhatian</x-rf.pill>` |
+| `banner` | `tone` good/warn/info/neutral (default info), `icon` seperti pil | `<x-rf.banner tone="good" role="status">Disimpan.</x-rf.banner>` |
+| `room-icon` | `room` (model Room) atau `slot` + `icon`; slot di luar 1..8 → netral | `<x-rf.room-icon :room="$room" />` |
+| `room-name` | `room` (model atau teks), `slot`, `pos` (teks atau model) | `<x-rf.room-name :slot="3" room="Keluarga" pos="Dapur dan belanja" />` |
+| `ring` | `percent` (boleh > 100), `warn`, `size` (64), `slot`, `text`, `label` | `<x-rf.ring :percent="87" warn :slot="3" label="Keluarga terpakai 87 persen" />` |
+| `stack` | `segments` (`slot`, `bp`, `label`), `label`, `legend` | `<x-rf.stack :segments="$segmen" label="Pembagian rezeki" legend />` |
+| `track` | `percent`, `slot`, `label` | `<x-rf.track :percent="30" :slot="2" />` |
+| `pace` | `used`, `time`, `slot`, `label` | `<x-rf.pace :used="87" :time="77.4" :slot="3" />` |
+| `tabs` | `items` (`label`, `href`, `active`, `count`, `muted`), `label` | `<x-rf.tabs :items="[['label' => 'Aliran', 'href' => route('laporan'), 'active' => true]]" />` |
+| `page-head` | `title`, `sub`, `lead` (teks atau slot bernama), slot `actions` | `<x-rf.page-head sub="Oktober 2026" title="Transaksi" />` |
+
+Aturan warna ruang (di atas) berlaku: `stack` mengurutkan segmen menurut slot dan menggabungkan slot netral jadi satu "Ruang lain". Slot warna dibaca dari atribut `slot` (di Blade `$slot` adalah isi komponen). Daftar nama ikon dan rincian props ada di komentar di atas tiap berkas komponen.
+
+### Helper
+
+- `App\Support\Rupiah`: `format` dan `short` (tetap), `plain` (`18.000.000`), `signed` (`−Rp 187.500`, `+Rp 18.000.000`), `compact` (`Rp 1,09 jt`, `Rp 187,5 rb`, `Rp 1,2 M`). Murni aritmetika bulat, pembulatan setengah ke atas.
+- `App\Support\Period`: `fromQuery`, `label` (`Oktober 2026`), `query` (`2026-10`), `isCurrent`, `isPast`, `previous`, `next`, `bounds`.

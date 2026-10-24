@@ -1,0 +1,771 @@
+/*
+ * Rizqflow web — design system (fase 1 desain web baru, 2026-10-24).
+ *
+ * Kelas komponen di-port dari docs/design/web-mockup/project/rizqflow.css (sumber tampilan) dan
+ * dipakai lewat komponen Blade resources/views/components/rf/*. Daftar kelas, komponen, dan
+ * aturan tema ada di docs/design/README.md, bagian "Web (server/): design system dan komponen".
+ *
+ * Token disalin dari docs/design/tokens.css; ubah di sana dulu, lalu samakan manual di sini.
+ * Mode terang di :root; mode gelap mengikuti preferensi sistem kecuali pengguna memilih tema
+ * sendiri (atribut data-theme di <html>, diisi partials/theme-init dan public/js/rizqflow.js).
+ */
+
+/* ===== Token: mode terang ===== */
+:root {
+  color-scheme: light;
+  --rf-scale: 1;
+
+  --rf-background: #faf9f7;
+  --rf-on-background: #1b1c1b;
+  --rf-surface: #faf9f7;
+  --rf-on-surface: #1b1c1b;
+  --rf-on-surface-variant: #424845;
+  --rf-surface-container-lowest: #ffffff;
+  --rf-surface-container-low: #f5f3f1;
+  --rf-surface-container: #efeeec;
+  --rf-surface-container-high: #e9e8e6;
+  --rf-surface-container-highest: #e3e2e0;
+  --rf-outline: #727874;
+  --rf-outline-variant: #c2c8c3;
+
+  --rf-primary: #4d6359;
+  --rf-on-primary: #ffffff;
+  --rf-primary-container: #8fa79b;
+  --rf-on-primary-container: #273c33;
+  --rf-primary-fixed: #cfe8db;
+  --rf-inverse-primary: #b3ccbf;
+
+  --rf-secondary: #48626e;
+  --rf-on-secondary: #ffffff;
+  --rf-secondary-container: #cbe7f5;
+  --rf-on-secondary-container: #4e6874;
+
+  --rf-error: #ba1a1a;
+  --rf-on-error: #ffffff;
+  --rf-error-container: #ffdad6;
+  --rf-on-error-container: #93000a;
+
+  --rf-inverse-surface: #30312f;
+  --rf-inverse-on-surface: #f2f0ee;
+
+  --rf-room-1: #3b6fa8;
+  --rf-room-2: #c4653a;
+  --rf-room-3: #2a9a80;
+  --rf-room-4: #af6dec;
+  --rf-room-5: #a04177;
+  --rf-room-6: #099acf;
+  --rf-room-7: #998214;
+  --rf-room-8: #de4f74;
+  --rf-room-neutral: var(--rf-outline);
+
+  --rf-status-good: #0ca30c;
+  --rf-status-warning: #fab219;
+  --rf-status-serious: #ec835a;
+  --rf-status-critical: #d03b3b;
+
+  --rf-pill-good-bg: #e6f5e6;
+  --rf-pill-good-fg: #1a5c1a;
+  --rf-pill-warn-bg: #fef3d6;
+  --rf-pill-warn-fg: #735a0b;
+  --rf-pill-info-bg: #cbe7f5;
+  --rf-pill-info-fg: #2f4b57;
+  --rf-income: #275c3f;
+
+  --rf-font-display: 'Libre Caslon Text', Georgia, 'Times New Roman', serif;
+  --rf-font-ui: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --rf-size-hero: calc(40px * min(var(--rf-scale), 1.25));
+  --rf-size-headline: calc(28px * var(--rf-scale));
+  --rf-size-title: calc(18px * var(--rf-scale));
+  --rf-size-body: calc(14px * var(--rf-scale));
+  --rf-size-label: calc(12px * var(--rf-scale));
+
+  --rf-space-1: 4px;
+  --rf-space-2: 8px;
+  --rf-space-3: 12px;
+  --rf-space-4: 16px;
+  --rf-space-5: 24px;
+  --rf-space-6: 32px;
+  --rf-radius-sm: 8px;
+  --rf-radius-md: 16px;
+  --rf-radius-lg: 20px;
+  --rf-radius-full: 999px;
+  --rf-border: 1px solid var(--rf-outline-variant);
+  --rf-bar-thickness: 16px;
+  --rf-bar-gap: 2px;
+
+  --rf-motion-fast: 160ms;
+  --rf-motion-flow: 900ms;
+  --rf-ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Alias nama mockup supaya markup .dc.html bisa dipakai apa adanya. Cukup sekali di sini:
+     var() diselesaikan per elemen, jadi ikut berganti saat token gelap aktif. */
+  --pill-good-bg: var(--rf-pill-good-bg);
+  --pill-good-fg: var(--rf-pill-good-fg);
+  --pill-warn-bg: var(--rf-pill-warn-bg);
+  --pill-warn-fg: var(--rf-pill-warn-fg);
+  --pill-info-bg: var(--rf-pill-info-bg);
+  --pill-info-fg: var(--rf-pill-info-fg);
+
+  /* Sementara, hapus setelah semua halaman direstyle: nama token layout web lama. */
+  --rf-surface-lowest: var(--rf-surface-container-lowest);
+}
+
+/* ===== Token: mode gelap (preferensi sistem, kecuali pengguna memilih terang) ===== */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --rf-background: #121412;
+    --rf-on-background: #e3e3e0;
+    --rf-surface: #121412;
+    --rf-on-surface: #e3e3e0;
+    --rf-on-surface-variant: #c2c8c3;
+    --rf-surface-container-lowest: #0d0f0e;
+    --rf-surface-container-low: #1a1c1a;
+    --rf-surface-container: #1e201e;
+    --rf-surface-container-high: #282a28;
+    --rf-surface-container-highest: #333533;
+    --rf-outline: #8c928e;
+    --rf-outline-variant: #424845;
+
+    --rf-primary: #b3ccbf;
+    --rf-on-primary: #1f352b;
+    --rf-primary-container: #354b42;
+    --rf-on-primary-container: #cfe8db;
+    --rf-primary-fixed: #354b42;
+    --rf-inverse-primary: #4d6359;
+
+    --rf-secondary: #afcbd9;
+    --rf-on-secondary: #1b3542;
+    --rf-secondary-container: #314a56;
+    --rf-on-secondary-container: #cbe7f5;
+
+    --rf-error: #ffb4ab;
+    --rf-on-error: #690005;
+    --rf-error-container: #93000a;
+    --rf-on-error-container: #ffdad6;
+
+    --rf-inverse-surface: #e3e3e0;
+    --rf-inverse-on-surface: #30312f;
+
+    --rf-room-1: #4384d0;
+    --rf-room-2: #cf6a3a;
+    --rf-room-3: #22a37a;
+    --rf-room-4: #7547ee;
+    --rf-room-5: #aa558d;
+    --rf-room-6: #1fa3bb;
+    --rf-room-7: #966c13;
+    --rf-room-8: #db426d;
+
+    --rf-pill-good-bg: #1c3a1f;
+    --rf-pill-good-fg: #a6e3a6;
+    --rf-pill-warn-bg: #3d3210;
+    --rf-pill-warn-fg: #f2d98a;
+    --rf-pill-info-bg: #2a414d;
+    --rf-pill-info-fg: #cbe7f5;
+    --rf-income: #8fd4a8;
+  }
+}
+
+/* ===== Token: mode gelap (dipilih pengguna) ===== */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --rf-background: #121412;
+  --rf-on-background: #e3e3e0;
+  --rf-surface: #121412;
+  --rf-on-surface: #e3e3e0;
+  --rf-on-surface-variant: #c2c8c3;
+  --rf-surface-container-lowest: #0d0f0e;
+  --rf-surface-container-low: #1a1c1a;
+  --rf-surface-container: #1e201e;
+  --rf-surface-container-high: #282a28;
+  --rf-surface-container-highest: #333533;
+  --rf-outline: #8c928e;
+  --rf-outline-variant: #424845;
+
+  --rf-primary: #b3ccbf;
+  --rf-on-primary: #1f352b;
+  --rf-primary-container: #354b42;
+  --rf-on-primary-container: #cfe8db;
+  --rf-primary-fixed: #354b42;
+  --rf-inverse-primary: #4d6359;
+
+  --rf-secondary: #afcbd9;
+  --rf-on-secondary: #1b3542;
+  --rf-secondary-container: #314a56;
+  --rf-on-secondary-container: #cbe7f5;
+
+  --rf-error: #ffb4ab;
+  --rf-on-error: #690005;
+  --rf-error-container: #93000a;
+  --rf-on-error-container: #ffdad6;
+
+  --rf-inverse-surface: #e3e3e0;
+  --rf-inverse-on-surface: #30312f;
+
+  --rf-room-1: #4384d0;
+  --rf-room-2: #cf6a3a;
+  --rf-room-3: #22a37a;
+  --rf-room-4: #7547ee;
+  --rf-room-5: #aa558d;
+  --rf-room-6: #1fa3bb;
+  --rf-room-7: #966c13;
+  --rf-room-8: #db426d;
+
+  --rf-pill-good-bg: #1c3a1f;
+  --rf-pill-good-fg: #a6e3a6;
+  --rf-pill-warn-bg: #3d3210;
+  --rf-pill-warn-fg: #f2d98a;
+  --rf-pill-info-bg: #2a414d;
+  --rf-pill-info-fg: #cbe7f5;
+  --rf-income: #8fd4a8;
+}
+
+/* ===== Reset global (setara aturan .rf di mockup, tidak di-scope) ===== */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--rf-font-ui);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--rf-on-background);
+  background: var(--rf-background);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--rf-primary); outline-offset: 2px; }
+svg { display: block; }
+p { margin: 0; }
+h1, h2, h3 { margin: 0; }
+[x-cloak] { display: none !important; }
+
+/* warna ruang: kelas c1..c8 menetapkan --c; dipakai titik, bar, cincin, pita. cn = ruang ke-9+ */
+.c1 { --c: var(--rf-room-1); }
+.c2 { --c: var(--rf-room-2); }
+.c3 { --c: var(--rf-room-3); }
+.c4 { --c: var(--rf-room-4); }
+.c5 { --c: var(--rf-room-5); }
+.c6 { --c: var(--rf-room-6); }
+.c7 { --c: var(--rf-room-7); }
+.c8 { --c: var(--rf-room-8); }
+.cn { --c: var(--rf-room-neutral); }
+
+/* ===== Kerangka aplikasi: sidebar + isi ===== */
+.rf-app { display: flex; flex-wrap: wrap; align-items: stretch; min-height: 100vh; }
+.rf-side {
+  flex: 0 0 252px; width: 252px; max-width: 100%;
+  background: var(--rf-surface-container-lowest);
+  border-right: 1px solid var(--rf-outline-variant);
+  padding: 20px 14px; display: flex; flex-direction: column; gap: 18px;
+  /* Tambahan di luar mockup: sidebar menempel saat isi digulir, jadi Keluar dan tema selalu terjangkau. */
+  position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto;
+}
+.rf-main { flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; }
+.rf-content {
+  width: 100%; max-width: 1180px; margin: 0 auto; padding: 28px 32px 64px;
+  display: flex; flex-direction: column; gap: 26px;
+}
+.rf-content:focus { outline: none; }
+
+.rf-brand { display: flex; align-items: center; gap: 10px; padding: 0 6px; }
+.rf-brand-mark {
+  width: 32px; height: 32px; border-radius: 9px; background: var(--rf-primary); color: var(--rf-on-primary);
+  display: flex; align-items: center; justify-content: center; font-family: var(--rf-font-display); font-size: 17px; flex: none;
+}
+.rf-brand-name { font-family: var(--rf-font-display); font-size: 19px; }
+
+.rf-seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--rf-surface-container); }
+.rf-seg-full { display: flex; }
+.rf-seg-btn {
+  flex: 1 1 0; text-align: center; padding: 7px 12px; border: 0; border-radius: 999px; background: transparent;
+  font-size: 13px; font-weight: 700; color: var(--rf-on-surface-variant); cursor: pointer;
+}
+.rf-seg-btn.on { background: var(--rf-surface-container-lowest); color: var(--rf-on-background); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+
+.rf-nav { display: flex; flex-direction: column; gap: 14px; }
+.rf-nav-group { display: flex; flex-direction: column; gap: 2px; }
+.rf-nav-label {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--rf-on-surface-variant); padding: 4px 10px;
+}
+.rf-nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px;
+  font-size: 14px; font-weight: 600; color: var(--rf-on-surface-variant);
+}
+.rf-nav-item:hover { background: var(--rf-surface-container-low); color: var(--rf-on-background); }
+.rf-nav-item.on { background: var(--rf-primary-fixed); color: var(--rf-on-primary-container); font-weight: 700; }
+.rf-count {
+  margin-left: auto; min-width: 20px; padding: 1px 7px; border-radius: 999px; text-align: center;
+  background: var(--rf-primary); color: var(--rf-on-primary); font-size: 11.5px; font-weight: 800;
+}
+.rf-tagpro {
+  margin-left: auto; font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em; padding: 1px 7px;
+  border-radius: 999px; border: 1px solid var(--rf-outline-variant); color: var(--rf-on-surface-variant);
+}
+
+.rf-side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 12px; padding-top: 14px; border-top: 1px solid var(--rf-outline-variant); }
+.rf-user { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.rf-user > div { min-width: 0; flex: 1 1 auto; }
+.rf-avatar {
+  width: 34px; height: 34px; border-radius: 999px; background: var(--rf-primary-container); color: var(--rf-on-primary-container);
+  display: flex; align-items: center; justify-content: center; font-weight: 800; flex: none;
+}
+.rf-user b { display: block; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Mockup memakai ".rf-user span", yang ikut menimpa warna .rf-avatar; di sini dipersempit ke label paket. */
+.rf-user > div > span { font-size: 12px; color: var(--rf-on-surface-variant); }
+.rf-user a:hover b { text-decoration: underline; }
+.rf-user form { margin: 0; }
+
+/* bilah atas */
+.rf-topbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 32px;
+  background: var(--rf-surface-container-lowest); border-bottom: 1px solid var(--rf-outline-variant);
+  position: relative; z-index: 20;
+}
+.rf-period { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; font-size: 14px; white-space: nowrap; }
+.rf-iconbtn {
+  width: 32px; height: 32px; border-radius: 999px; border: 1px solid transparent; background: transparent; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center; color: var(--rf-on-surface-variant); cursor: pointer; flex: none;
+}
+.rf-iconbtn:hover { background: var(--rf-surface-container); }
+.rf-iconbtn[aria-disabled="true"] { opacity: 0.38; cursor: default; pointer-events: none; }
+.rf-cmd {
+  flex: 1 1 300px; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 8px 14px; margin: 0;
+  border: 1px solid var(--rf-outline-variant); border-radius: 12px; background: var(--rf-surface-container-low);
+  color: var(--rf-on-surface-variant); position: relative;
+}
+.rf-cmd input { flex: 1; min-width: 0; border: 0; padding: 0; background: transparent; outline: none; color: var(--rf-on-background); }
+.rf-cmd input::placeholder { color: var(--rf-on-surface-variant); opacity: 0.85; }
+.rf-cmd:focus-within { outline: 2px solid var(--rf-primary); outline-offset: 1px; }
+/* Tambahan di luar mockup: dropdown pilihan kotak perintah (Catat / Cari). */
+.rf-cmd-pop {
+  position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 30; padding: 6px;
+  display: flex; flex-direction: column; gap: 2px;
+  background: var(--rf-surface-container-lowest); border: 1px solid var(--rf-outline-variant); border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14); color: var(--rf-on-background);
+}
+.rf-cmd-opt { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; font-weight: 600; min-width: 0; }
+.rf-cmd-opt > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rf-cmd-opt .ic { color: var(--rf-on-surface-variant); }
+.rf-cmd-opt.on, .rf-cmd-opt:hover { background: var(--rf-surface-container-low); }
+.rf-kbd {
+  display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 6px;
+  border: 1px solid var(--rf-outline-variant); border-bottom-width: 2px;
+  background: var(--rf-surface-container-low); color: var(--rf-on-surface-variant); white-space: nowrap;
+}
+.rf-menu { position: relative; }
+.rf-menu summary { list-style: none; cursor: pointer; }
+.rf-menu summary::-webkit-details-marker { display: none; }
+.rf-menu-pop {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 5; min-width: 230px; padding: 6px;
+  background: var(--rf-surface-container-lowest); border: 1px solid var(--rf-outline-variant); border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+}
+.rf-menu-pop a { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px; border-radius: 10px; font-weight: 600; }
+.rf-menu-pop a:hover { background: var(--rf-surface-container-low); }
+
+/* ===== Tipografi ===== */
+.rf-h1 { font-family: var(--rf-font-display); font-weight: 400; font-size: 30px; line-height: 1.2; }
+.rf-h2 { font-family: var(--rf-font-display); font-weight: 400; font-size: 20px; line-height: 1.25; }
+.rf-h3 { font-size: 15px; font-weight: 700; }
+.rf-lead { margin-top: 6px; font-size: 15px; color: var(--rf-on-surface-variant); max-width: 64ch; text-wrap: pretty; }
+.rf-sub { font-size: 13px; color: var(--rf-on-surface-variant); }
+.rf-eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--rf-on-surface-variant); }
+.rf-hero-amt { font-size: 40px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1; }
+.rf-money { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.rf-in { color: var(--rf-income); }
+.rf-link { color: var(--rf-primary); font-weight: 700; font-size: 13px; }
+.rf-link:hover { text-decoration: underline; }
+/* Tambahan: tombol yang tampil sebagai tautan (mis. Keluar di dalam form POST). */
+button.rf-link { background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; line-height: inherit; }
+
+/* ===== Kartu dan tata letak ===== */
+.rf-card { background: var(--rf-surface-container-lowest); border: 1px solid var(--rf-outline-variant); border-radius: 16px; padding: 22px 26px; min-width: 0; }
+.rf-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.rf-sechead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.rf-split { display: flex; flex-wrap: wrap; gap: 20px; align-items: stretch; }
+.rf-split > .a { flex: 2 1 520px; min-width: 0; }
+.rf-split > .b { flex: 1 1 300px; min-width: 0; }
+.rf-split > .eq { flex: 1 1 380px; min-width: 0; }
+.rf-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
+.rf-grid-3 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); }
+.rf-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.rf-rowline { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--rf-surface-container-high); }
+.rf-rowline:last-child { border-bottom: 0; padding-bottom: 0; }
+.rf-grow { flex: 1 1 0; min-width: 0; }
+/* Tambahan: akar komponen halaman Livewire (satu elemen akar) dengan jarak antarbagian seperti .rf-content. */
+.rf-page { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
+/* Tambahan: kepala halaman (x-rf.page-head) — judul 32px, aksi rata kanan seperti Transaksi.dc.html. */
+.rf-page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 16px; }
+.rf-page-head > div:first-child { min-width: 0; }
+.rf-page-head .rf-h1 { font-size: 32px; }
+.rf-page-head .rf-sub + .rf-h1 { margin-top: 2px; }
+.rf-page-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+/* ===== Pil, tombol, chip ===== */
+.rf-pill {
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 10px 3px 8px;
+  font-size: 12px; font-weight: 700; white-space: nowrap;
+}
+.rf-pill .ic { width: 14px; height: 14px; }
+.rf-pill.good { color: var(--pill-good-fg); background: var(--pill-good-bg); }
+.rf-pill.warn { color: var(--pill-warn-fg); background: var(--pill-warn-bg); }
+.rf-pill.info { color: var(--pill-info-fg); background: var(--pill-info-bg); }
+.rf-pill.neutral { color: var(--rf-on-surface-variant); background: var(--rf-surface-container); }
+
+.rf-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 999px;
+  padding: 10px 18px; min-height: 40px; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  font-family: inherit; line-height: 1.2; text-decoration: none;
+}
+.rf-btn .ic { width: 16px; height: 16px; }
+.rf-btn.primary { background: var(--rf-primary); color: var(--rf-on-primary); }
+.rf-btn.tonal { background: var(--rf-primary-fixed); color: var(--rf-on-primary-container); }
+.rf-btn.ghost { background: transparent; color: var(--rf-on-surface-variant); border: 1px solid var(--rf-outline-variant); }
+/* Tambahan: aksi yang menghapus permanen (mis. Hapus akun). Bukan untuk peringatan atau status. */
+.rf-btn.danger { background: var(--rf-error); color: var(--rf-on-error); }
+.rf-btn.sm { padding: 5px 12px; min-height: 32px; font-size: 13px; }
+.rf-btn:hover { filter: brightness(0.96); }
+.rf-btn[disabled], .rf-btn[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+
+.rf-chip {
+  display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rf-outline-variant);
+  background: var(--rf-surface-container-lowest); border-radius: 999px; padding: 6px 12px;
+  font-size: 13px; font-weight: 600; color: var(--rf-on-surface-variant); cursor: pointer;
+}
+.rf-chip .ic { width: 14px; height: 14px; }
+.rf-chip.on { background: var(--rf-primary-fixed); border-color: transparent; color: var(--rf-on-primary-container); }
+
+/* ===== Kolom isian ===== */
+.rf-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.rf-field label, .rf-label { font-size: 12px; font-weight: 800; color: var(--rf-on-surface-variant); }
+.rf-input {
+  width: 100%; padding: 10px 14px; border: 1px solid var(--rf-outline-variant); border-radius: 12px;
+  background: var(--rf-surface-container-low); color: var(--rf-on-background);
+}
+.rf-input::placeholder { color: var(--rf-on-surface-variant); opacity: 0.8; }
+.rf-input:focus { outline: 2px solid var(--rf-primary); outline-offset: 1px; }
+.rf-input[disabled], .rf-input[readonly] { opacity: 0.75; }
+.rf-input.big { font-size: 28px; font-weight: 700; padding: 12px 16px; }
+.rf-help { font-size: 12.5px; color: var(--rf-on-surface-variant); }
+.rf-select { display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; cursor: pointer; min-height: 42px; }
+.rf-select .ic { width: 16px; height: 16px; color: var(--rf-on-surface-variant); }
+
+/* Tambahan: <select class="rf-input"> asli. Chevron digambar dua gradien dari token teks, jadi ikut tema. */
+select.rf-input {
+  appearance: none; -webkit-appearance: none; cursor: pointer; min-height: 42px; padding-right: 38px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--rf-on-surface-variant) 50%),
+    linear-gradient(135deg, var(--rf-on-surface-variant) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 52%, calc(100% - 15px) 52%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+select.rf-input[multiple] { background-image: none; padding-right: 14px; }
+select.rf-input option { background: var(--rf-surface-container-lowest); color: var(--rf-on-background); }
+/* Tambahan: textarea dan tanggal asli */
+textarea.rf-input { min-height: 88px; resize: vertical; line-height: 1.45; }
+input[type="date"].rf-input, input[type="month"].rf-input, input[type="time"].rf-input { min-height: 42px; font-variant-numeric: tabular-nums; }
+input.rf-input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.75; }
+input[type="number"].rf-input { font-variant-numeric: tabular-nums; }
+
+/* Tambahan: teks bantuan dan galat di bawah isian (boleh berikon .ic di depan). */
+.rf-hint { display: flex; align-items: flex-start; gap: 6px; font-size: 12.5px; line-height: 1.45; color: var(--rf-on-surface-variant); }
+.rf-error { display: flex; align-items: flex-start; gap: 6px; font-size: 13px; line-height: 1.45; color: var(--rf-error); }
+.rf-hint .ic, .rf-error .ic { width: 16px; height: 16px; margin-top: 1px; }
+
+/* Tambahan: saklar (checkbox). Markup:
+   <label class="rf-switch"><input type="checkbox"><span class="rf-switch-track" aria-hidden="true"></span><span>Label</span></label>
+   Status terbaca dari posisi bulatan (bukan warna saja) dan dari checkbox asli untuk pembaca layar. */
+.rf-switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; position: relative; font-weight: 600; }
+.rf-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.rf-switch-track {
+  position: relative; flex: none; width: 38px; height: 22px; border-radius: 999px;
+  background: var(--rf-surface-container-highest); border: 1px solid var(--rf-outline);
+  transition: background-color var(--rf-motion-fast) var(--rf-ease);
+}
+.rf-switch-track::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 999px;
+  background: var(--rf-outline); transition: transform var(--rf-motion-fast) var(--rf-ease), background-color var(--rf-motion-fast) var(--rf-ease);
+}
+.rf-switch input:checked + .rf-switch-track { background: var(--rf-primary); border-color: var(--rf-primary); }
+.rf-switch input:checked + .rf-switch-track::after { transform: translateX(16px); background: var(--rf-on-primary); }
+.rf-switch input:focus-visible + .rf-switch-track { outline: 2px solid var(--rf-primary); outline-offset: 2px; }
+.rf-switch input:disabled + .rf-switch-track { opacity: 0.5; }
+
+/* Tambahan: grid kolom isian responsif dan baris tombol. */
+.rf-form-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); align-items: start; }
+.rf-form-grid > .full { grid-column: 1 / -1; }
+.rf-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.rf-actions.end { justify-content: flex-end; }
+
+/* ===== Ikon, titik, chip ruang ===== */
+.ic { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.rf-dot { width: 10px; height: 10px; border-radius: 3px; background: var(--c); display: inline-block; flex: none; }
+.rf-roomic { width: 34px; height: 34px; border-radius: 10px; background: var(--c); color: #fff; display: flex; align-items: center; justify-content: center; flex: none; }
+.rf-roomic .ic { width: 18px; height: 18px; stroke-width: 2; }
+.rf-roomname { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+
+/* ===== Bar, jalur, cincin ===== */
+.rf-stack { display: flex; gap: 2px; height: 16px; }
+.rf-stack > i { display: block; height: 100%; border-radius: 4px; background: var(--c); }
+.rf-legend { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 13px; color: var(--rf-on-surface-variant); }
+.rf-legend span { display: inline-flex; align-items: center; gap: 7px; }
+/* Tambahan: pembungkus x-rf.stack (bar + legenda opsional). */
+.rf-stack-wrap { min-width: 0; }
+.rf-stack-wrap > .rf-legend { margin-top: 12px; }
+.rf-track { height: 8px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--c) 20%, transparent); }
+.rf-track > i { display: block; height: 100%; border-radius: 999px; background: var(--c); }
+.rf-pace { position: relative; height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--c) 22%, transparent); margin: 6px 0; }
+.rf-pace > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: var(--c); }
+.rf-pace > b { position: absolute; top: -4px; bottom: -4px; width: 2px; border-radius: 1px; background: var(--rf-on-background); }
+.rf-ring-bg { fill: none; stroke: color-mix(in srgb, var(--c) 20%, transparent); }
+.rf-ring-fg { fill: none; stroke: var(--c); stroke-linecap: round; }
+.rf-ring-fg.warn { stroke: var(--rf-status-warning); }
+.rf-ring-txt { fill: var(--rf-on-background); font-family: var(--rf-font-ui); font-weight: 700; }
+
+/* ===== Statistik ringkas ===== */
+.rf-stats { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); }
+.rf-stat { padding: 14px 16px; border-radius: 14px; background: var(--rf-surface-container-low); }
+.rf-stat .l { font-size: 12px; font-weight: 700; color: var(--rf-on-surface-variant); }
+.rf-stat .v { margin-top: 2px; font-size: 21px; font-weight: 700; }
+.rf-stat .d { margin-top: 2px; font-size: 12.5px; color: var(--rf-on-surface-variant); display: flex; align-items: center; gap: 5px; }
+.rf-stat .d .ic { width: 14px; height: 14px; }
+
+.rf-datebox { width: 46px; flex: none; text-align: center; border-radius: 10px; background: var(--rf-surface-container); padding: 5px 0; }
+.rf-datebox .d1 { font-size: 10.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--rf-on-surface-variant); }
+.rf-datebox .d2 { font-size: 17px; font-weight: 800; line-height: 1.1; }
+
+/* ===== Tabel ===== */
+.rf-scroll { overflow-x: auto; }
+.rf-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rf-table th {
+  text-align: left; font-size: 11.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--rf-on-surface-variant); padding: 10px 12px; border-bottom: 1px solid var(--rf-outline-variant); white-space: nowrap;
+}
+.rf-table td { padding: 11px 12px; border-bottom: 1px solid var(--rf-surface-container-high); vertical-align: middle; }
+.rf-table tbody tr:hover td { background: var(--rf-surface-container-low); }
+.rf-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rf-table th.num { text-align: right; }
+.rf-table tfoot td { font-weight: 800; border-bottom: 0; border-top: 1px solid var(--rf-outline-variant); }
+.rf-table tr.sel td { background: color-mix(in srgb, var(--rf-primary) 10%, transparent); }
+.rf-table tr.need td { background: color-mix(in srgb, var(--rf-status-warning) 9%, transparent); }
+.rf-table tr.gone { display: none; }
+.rf-table input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--rf-primary); cursor: pointer; }
+.rf-sugg { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--rf-on-surface-variant); }
+
+.rf-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--rf-outline-variant); flex-wrap: wrap; }
+.rf-tab { padding: 10px 14px; font-weight: 700; font-size: 14px; color: var(--rf-on-surface-variant); border: 0; background: transparent; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; display: inline-flex; align-items: center; gap: 8px; font-family: inherit; }
+.rf-tab:hover { color: var(--rf-on-background); }
+.rf-tab.on { color: var(--rf-primary); border-bottom-color: var(--rf-primary); }
+.rf-tab .rf-count { margin-left: 0; }
+
+.rf-bulk {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 14px;
+  background: var(--rf-inverse-surface); color: var(--rf-inverse-on-surface);
+}
+.rf-bulk .rf-btn.ghost { color: var(--rf-inverse-on-surface); border-color: color-mix(in srgb, var(--rf-inverse-on-surface) 40%, transparent); }
+.rf-quick { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.rf-quick .rf-field { flex: 1 1 140px; min-width: 0; }
+.rf-quick .grow2 { flex: 3 1 300px; }
+.rf-parse { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; font-size: 12.5px; color: var(--rf-on-surface-variant); }
+
+/* ===== Grafik (SVG) ===== */
+.ch-grid { stroke: var(--rf-surface-container-high); stroke-width: 1; fill: none; }
+.ch-axis { fill: var(--rf-on-surface-variant); font-size: 11.5px; font-family: var(--rf-font-ui); }
+.ch-line { fill: none; stroke: var(--c); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.ch-ref { fill: none; stroke: var(--rf-outline); stroke-width: 1.5; }
+.ch-area { fill: var(--c); opacity: 0.1; }
+.ch-dot { fill: var(--c); stroke: var(--rf-surface-container-lowest); stroke-width: 2; }
+.ch-cross { stroke: var(--rf-outline); stroke-width: 1; fill: none; }
+.ch-lbl { fill: var(--rf-on-background); font-size: 12px; font-weight: 700; font-family: var(--rf-font-ui); }
+.ch-lbl-mut { fill: var(--rf-on-surface-variant); font-size: 12px; font-family: var(--rf-font-ui); }
+
+.sk-link { fill: var(--c); fill-opacity: 0.28; }
+.sk-link.sisa { fill-opacity: 0.12; }
+.sk-node { fill: var(--c); }
+.sk-sisa { fill: var(--rf-surface-container-highest); stroke: var(--rf-outline); stroke-width: 1; }
+.sk-room { fill: color-mix(in srgb, var(--c) 16%, var(--rf-surface-container-lowest)); }
+.sk-band { fill: var(--c); }
+.sk-src { fill: var(--rf-primary-fixed); }
+.sk-srcband { fill: var(--rf-primary); }
+.sk-t1 { fill: var(--rf-on-background); font-size: 13px; font-weight: 800; font-family: var(--rf-font-ui); }
+.sk-t2 { fill: var(--rf-on-surface-variant); font-size: 12px; font-family: var(--rf-font-ui); }
+.sk-n { fill: var(--rf-on-background); font-size: 12.5px; font-weight: 600; font-family: var(--rf-font-ui); }
+.sk-v { fill: var(--rf-on-surface-variant); font-size: 12px; font-family: var(--rf-font-ui); }
+
+.rf-readout { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 12px; background: var(--rf-surface-container-low); font-size: 13px; }
+.rf-range { width: 100%; accent-color: var(--rf-primary); }
+
+/* kolom batang riwayat */
+.rf-bars { display: flex; gap: 12px; padding-top: 8px; }
+.rf-barcol { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; }
+.rf-plot { position: relative; width: 100%; height: 160px; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid var(--rf-outline-variant); }
+.rf-bar { width: min(24px, 60%); border-radius: 4px 4px 0 0; background: var(--c); }
+.rf-bar.run { opacity: 0.55; }
+.rf-tick { position: absolute; left: 14%; right: 14%; height: 0; border-top: 2px solid var(--rf-on-background); }
+.rf-barlbl { margin-top: 8px; font-size: 12px; color: var(--rf-on-surface-variant); text-align: center; line-height: 1.3; }
+.rf-key { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--c, var(--rf-outline)); vertical-align: middle; }
+.rf-key.gray { --c: var(--rf-outline); }
+.rf-key.dark { --c: var(--rf-on-background); }
+
+/* timeline haul dan meter nisab */
+.rf-meter { position: relative; height: 12px; border-radius: 999px; background: var(--rf-surface-container-highest); }
+.rf-meter > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: var(--rf-primary); }
+.rf-meter > b { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--rf-on-background); }
+.rf-mlabels { position: relative; height: 38px; margin-top: 8px; font-size: 12px; color: var(--rf-on-surface-variant); }
+.rf-mlabels > span { position: absolute; top: 0; transform: translateX(-50%); text-align: center; white-space: nowrap; }
+
+/* matriks ya/tidak */
+.rf-yes { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--pill-good-fg); }
+.rf-no { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--rf-on-surface-variant); }
+.rf-yes .ic, .rf-no .ic { width: 16px; height: 16px; }
+
+/* ===== Tambahan di luar mockup: banner, keadaan kosong, ajakan Pro, dialog ===== */
+/* Banner pemberitahuan/flash: <div class="rf-banner good" role="status"><svg class="ic">..</svg><div>Teks</div></div>.
+   Peringatan memakai .warn (kuning), tidak pernah merah. */
+.rf-banner {
+  display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border-radius: 14px;
+  font-size: 14px; line-height: 1.5; background: var(--rf-surface-container-low); color: var(--rf-on-background);
+  border: 1px solid var(--rf-outline-variant);
+}
+.rf-banner > .ic { margin-top: 1px; }
+.rf-banner > div { flex: 1 1 0; min-width: 0; }
+.rf-banner .rf-link { color: inherit; text-decoration: underline; }
+.rf-banner.good { background: var(--pill-good-bg); color: var(--pill-good-fg); border-color: transparent; }
+.rf-banner.warn { background: var(--pill-warn-bg); color: var(--pill-warn-fg); border-color: transparent; }
+.rf-banner.info { background: var(--pill-info-bg); color: var(--pill-info-fg); border-color: transparent; }
+
+/* Keadaan kosong: <div class="rf-empty"><svg class="ic">..</svg><b>Judul</b><p>Penjelasan</p><div class="rf-actions">..</div></div> */
+.rf-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px 16px;
+  text-align: center; color: var(--rf-on-surface-variant);
+}
+.rf-empty > .ic { width: 28px; height: 28px; stroke-width: 1.5; }
+.rf-empty > b { font-size: 15px; color: var(--rf-on-background); }
+.rf-empty > p { max-width: 46ch; font-size: 13.5px; }
+.rf-empty > .rf-actions { justify-content: center; margin-top: 6px; }
+
+/* Ajakan Pro: <div class="rf-upsell"><span class="rf-upsell-ic"><svg class="ic">..</svg></span><div>..</div><a class="rf-btn primary sm">..</a></div> */
+.rf-upsell {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px 16px; padding: 18px 22px; border-radius: 16px;
+  border: 1px solid var(--rf-primary); background: color-mix(in srgb, var(--rf-primary) 6%, var(--rf-surface-container-lowest));
+}
+.rf-upsell > div { flex: 1 1 240px; min-width: 0; }
+.rf-upsell-ic {
+  width: 40px; height: 40px; border-radius: 12px; flex: none; display: flex; align-items: center; justify-content: center;
+  background: var(--rf-primary-fixed); color: var(--rf-on-primary-container);
+}
+.rf-upsell b { display: block; font-size: 15px; }
+.rf-upsell p { margin-top: 2px; font-size: 13px; color: var(--rf-on-surface-variant); }
+
+/* Dialog sederhana (<dialog class="rf-dialog">) dan kotak konfirmasi sebaris (.rf-confirm). */
+.rf-dialog {
+  width: min(440px, calc(100vw - 32px)); padding: 24px; border: 1px solid var(--rf-outline-variant); border-radius: 20px;
+  background: var(--rf-surface-container-lowest); color: var(--rf-on-background); box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+}
+.rf-dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+.rf-dialog h2 { font-family: var(--rf-font-display); font-weight: 400; font-size: 20px; margin-bottom: 8px; }
+.rf-dialog .rf-actions { margin-top: 20px; justify-content: flex-end; }
+.rf-confirm {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px;
+  background: var(--pill-warn-bg); color: var(--pill-warn-fg); font-weight: 600;
+}
+.rf-confirm > span { flex: 1 1 200px; min-width: 0; }
+
+/* Aksesibilitas: teks khusus pembaca layar dan tautan lompat ke isi. */
+.rf-sr-only {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.rf-skip {
+  position: absolute; left: 12px; top: -48px; z-index: 50; padding: 8px 14px; border-radius: 10px;
+  background: var(--rf-primary); color: var(--rf-on-primary); font-weight: 700;
+}
+.rf-skip:focus { top: 12px; }
+
+/* Tombol tema: ikon matahari tampil saat gelap (untuk kembali ke terang), bulan saat terang. */
+.rf-theme-sun { display: none; }
+:root[data-theme="dark"] .rf-theme-sun { display: block; }
+:root[data-theme="dark"] .rf-theme-moon { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .rf-theme-sun { display: block; }
+  :root:not([data-theme="light"]) .rf-theme-moon { display: none; }
+}
+
+/* ===== Halaman masuk: ukuran dan jarak disalin dari habitflow
+   (server/resources/views/components/auth-card.blade.php) ===== */
+.au { position: relative; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 16px; background: var(--rf-background); }
+.au-card { background: var(--rf-surface-container-lowest); border: 1px solid var(--rf-outline-variant); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 380px; }
+.au-brand { text-align: center; margin-bottom: 28px; }
+.au-mark { width: 56px; height: 56px; border-radius: 14px; margin-bottom: 12px; background: var(--rf-primary); color: var(--rf-on-primary); display: inline-flex; align-items: center; justify-content: center; font-family: var(--rf-font-display); font-size: 28px; }
+.au-brand h1 { font-family: var(--rf-font-display); font-weight: 400; font-size: 22px; margin: 0 0 6px; color: var(--rf-on-background); }
+.au-brand p { font-size: 13.5px; line-height: 1.5; color: var(--rf-on-surface-variant); margin: 0; }
+.au-field { margin-bottom: 18px; }
+.au-field label { display: block; font-size: 13px; font-weight: 600; color: var(--rf-on-surface-variant); margin-bottom: 6px; }
+.au-input { width: 100%; padding: 11px 14px; border: 1px solid var(--rf-outline-variant); border-radius: 12px; background: var(--rf-surface-container-low); color: var(--rf-on-background); font-family: var(--rf-font-ui); font-size: 15px; }
+.au-input:focus { outline: 2px solid var(--rf-primary); outline-offset: 1px; }
+.au-error { display: flex; align-items: flex-start; gap: 6px; color: var(--rf-error); font-size: 13px; margin: -6px 0 14px; }
+.au-error .ic { width: 16px; height: 16px; margin-top: 1px; }
+/* Tambahan: galat di atas tombol Google (bukan di bawah kolom isian). */
+.au-error.au-error-lead { margin: 0 0 16px; }
+.au-link-row { text-align: right; margin: -6px 0 16px; font-size: 13.5px; }
+.au-link-row a, .au-switch a, .au-foot a { color: var(--rf-primary); font-weight: 600; }
+.au-link-row a:hover, .au-switch a:hover, .au-foot a:hover { text-decoration: underline; }
+.au-primary { display: block; width: 100%; text-align: center; background: var(--rf-primary); color: var(--rf-on-primary); border: 0; padding: 13px 24px; border-radius: 999px; font-family: var(--rf-font-ui); font-weight: 600; font-size: 15px; cursor: pointer; }
+.au-primary:hover { opacity: 0.9; }
+.au-google { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; background: var(--rf-surface-container-low); border: 1px solid var(--rf-outline-variant); color: var(--rf-on-background); padding: 12px 24px; border-radius: 999px; font-family: var(--rf-font-ui); font-weight: 600; font-size: 15px; }
+.au-google:hover { opacity: 0.85; }
+/* Tambahan: wadah tombol Google Identity Services (iframe dirender skrip Google). */
+.au-gsi { min-height: 44px; display: flex; justify-content: center; align-items: center; }
+.au-divider { display: flex; align-items: center; gap: 12px; margin: 24px 0; color: var(--rf-on-surface-variant); font-size: 13px; }
+.au-divider::before, .au-divider::after { content: ''; flex: 1; height: 1px; background: var(--rf-outline-variant); }
+.au-switch { text-align: center; margin-top: 24px; font-size: 14px; color: var(--rf-on-surface-variant); }
+.au-notice { background: var(--rf-primary-fixed); color: var(--rf-on-primary-container); padding: 12px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.5; margin-bottom: 18px; }
+.au-hint { font-size: 12.5px; color: var(--rf-on-surface-variant); margin-top: 12px; text-align: center; }
+.au-theme { position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--rf-outline-variant); background: var(--rf-surface-container-lowest); color: var(--rf-on-surface-variant); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.au-theme:hover { color: var(--rf-on-background); }
+.au-theme svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.au-foot { display: flex; align-items: flex-start; justify-content: center; gap: 8px; max-width: 380px; text-align: center; font-size: 12.5px; line-height: 1.5; color: var(--rf-on-surface-variant); }
+.au-foot .ic { width: 16px; height: 16px; margin-top: 1px; }
+
+/* ===== Sementara, hapus setelah semua halaman direstyle: kelas dan isian layout web lama ===== */
+.rf-serif { font-family: var(--rf-font-display); font-weight: 400; margin: 0; }
+h1.rf-serif { font-size: 28px; line-height: 1.2; }
+h2.rf-serif { font-size: 18px; line-height: 1.25; }
+.error-text { color: var(--rf-error); font-size: 13px; margin-top: 6px; }
+/* Isian lama ditulis tanpa kelas di dalam .rf-field (dulu .rf-field input {...}); markup baru memakai .rf-input. */
+.rf-field > input:not([class]):not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.rf-field > select:not([class]),
+.rf-field > textarea:not([class]) {
+  width: 100%; padding: 10px 14px; border: 1px solid var(--rf-outline-variant); border-radius: 12px;
+  background: var(--rf-surface-container-low); color: var(--rf-on-background);
+}
+.rf-field:has(> input:not([class]), > select:not([class]), > textarea:not([class])) { margin-bottom: 16px; }
+
+/* ===== Gerak dikurangi ===== */
+@media (prefers-reduced-motion: reduce) {
+  .rf-switch-track, .rf-switch-track::after { transition: none; }
+}
+
+/* ===== Layar sempit ===== */
+@media (max-width: 860px) {
+  .rf-side {
+    flex: 1 1 100%; width: 100%; border-right: 0; border-bottom: 1px solid var(--rf-outline-variant); padding: 14px 16px; gap: 12px;
+    position: static; height: auto; overflow: visible;
+  }
+  .rf-nav { flex-direction: row; overflow-x: auto; gap: 6px; padding-bottom: 4px; }
+  .rf-nav-group { flex-direction: row; align-items: center; gap: 4px; }
+  .rf-nav-label { display: none; }
+  .rf-nav-item { white-space: nowrap; }
+  /* Mockup menyembunyikan kaki sidebar; di sini tetap tampil ringkas karena hanya di sana ada Keluar dan tema. */
+  .rf-side-foot { margin-top: 0; padding-top: 10px; }
+  .rf-content { padding: 20px 16px 48px; }
+  .rf-topbar { padding: 12px 16px; }
+  .rf-cmd .rf-kbd { display: none; }
+  .rf-card { padding: 18px; }
+  .rf-page-head .rf-h1 { font-size: 28px; }
+}

@@ -4,15 +4,19 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GoogleLoginController;
 use App\Http\Controllers\ReportPdfController;
 use App\Http\Controllers\TransactionExportController;
+use App\Http\Controllers\ZakatRekapController;
+use App\Livewire\AlirkanRezeki;
+use App\Livewire\Aliran;
 use App\Livewire\AturanAlokasi;
 use App\Livewire\BandingkanPeriode;
 use App\Livewire\Denah;
 use App\Livewire\GrafikTren;
 use App\Livewire\HeatmapPencatatan;
 use App\Livewire\ImporCsv;
+use App\Livewire\ImporEkspor;
+use App\Livewire\Jadwal;
 use App\Livewire\KekayaanBersih;
 use App\Livewire\Kelola;
-use App\Livewire\Laporan;
 use App\Livewire\Profil;
 use App\Livewire\ProyeksiCashflow;
 use App\Livewire\Ruang;
@@ -43,6 +47,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/transaksi', Transaksi::class)->name('transaksi');
     Route::get('/transaksi/ekspor', [TransactionExportController::class, 'csv'])->name('transaksi.ekspor');
     Route::get('/transaksi/berulang', TransaksiBerulang::class)->name('transaksi.berulang');
+    // Harus sebelum /transaksi/{transaction}, kalau tidak "rezeki" dibaca sebagai id transaksi.
+    Route::get('/transaksi/rezeki', AlirkanRezeki::class)->name('transaksi.rezeki');
+    Route::get('/jadwal', Jadwal::class)->name('jadwal');
     Route::get('/tagihan', Tagihan::class)->name('tagihan');
     Route::get('/utang-piutang', UtangPiutang::class)->name('utang-piutang');
     Route::get('/transaksi/{transaction}', TransaksiDetail::class)->name('transaksi.detail');
@@ -50,8 +57,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/ruang/aturan', AturanAlokasi::class)->name('aturan-alokasi');
     Route::get('/ruang/{room}', Ruang::class)->name('ruang.detail');
     Route::get('/zakat', Zakat::class)->name('zakat');
+    Route::get('/zakat/rekap/{year}/pdf', [ZakatRekapController::class, 'pdf'])->where('year', '[0-9]{4}')->name('zakat.rekap.pdf');
+    Route::get('/zakat/rekap/{year}/csv', [ZakatRekapController::class, 'csv'])->where('year', '[0-9]{4}')->name('zakat.rekap.csv');
     Route::get('/akun', Kelola::class)->name('kelola');
-    Route::get('/laporan', Laporan::class)->name('laporan');
+    // Analisa › Aliran menggantikan hub kartu Laporan; nama route tetap 'laporan' supaya tautan lama berfungsi.
+    Route::get('/laporan', Aliran::class)->name('laporan');
     Route::get('/laporan/tren', GrafikTren::class)->name('laporan.tren');
     Route::get('/laporan/kekayaan-bersih', KekayaanBersih::class)->name('laporan.kekayaan-bersih');
     Route::get('/laporan/bandingkan', BandingkanPeriode::class)->name('laporan.bandingkan');
@@ -59,5 +69,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/laporan/cashflow', ProyeksiCashflow::class)->name('laporan.cashflow');
     Route::get('/laporan/heatmap', HeatmapPencatatan::class)->name('laporan.heatmap');
     Route::get('/laporan/impor-csv', ImporCsv::class)->name('laporan.impor-csv');
+    Route::get('/impor-ekspor', ImporEkspor::class)->name('impor-ekspor');
     Route::get('/profil', Profil::class)->name('profil');
 });

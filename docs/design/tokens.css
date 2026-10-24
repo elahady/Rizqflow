@@ -71,6 +71,20 @@
   --rf-status-serious: #ec835a;
   --rf-status-critical: #d03b3b;
 
+  /* ---- Pil dan banner status (latar + teks, ikut tema; selalu dipasangkan ikon + teks) ----
+   * Dari mockup web 2026-10-24 (docs/design/web-mockup/project/rizqflow.css, --pill-*).
+   * Teks peringatan #735a0b (~5,9:1 di atas #fef3d6) menggantikan #8a6d13 yang dipakai layout
+   * web lama (~4,4:1, di bawah batas WCAG 4,5:1 untuk teks kecil). Kontras lain: good 7,2:1,
+   * info 7,2:1; gelap good 8,5:1, warn 9,1:1, info 8,3:1. */
+  --rf-pill-good-bg: #e6f5e6;
+  --rf-pill-good-fg: #1a5c1a;
+  --rf-pill-warn-bg: #fef3d6;
+  --rf-pill-warn-fg: #735a0b;
+  --rf-pill-info-bg: #cbe7f5;
+  --rf-pill-info-fg: #2f4b57;
+  /* Nominal pemasukan ("+Rp ...") — teks, bukan warna status; 7,8:1 di atas permukaan kartu */
+  --rf-income: #275c3f;
+
   /* ---- Tipografi ---- */
   --rf-font-display: 'Libre Caslon Text', Georgia, 'Times New Roman', serif; /* hanya judul */
   --rf-font-ui: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif; /* UI dan semua angka */
@@ -147,6 +161,14 @@
   --rf-room-6: #1fa3bb;
   --rf-room-7: #966c13;
   --rf-room-8: #db426d;
+
+  --rf-pill-good-bg: #1c3a1f;
+  --rf-pill-good-fg: #a6e3a6;
+  --rf-pill-warn-bg: #3d3210;
+  --rf-pill-warn-fg: #f2d98a;
+  --rf-pill-info-bg: #2a414d;
+  --rf-pill-info-fg: #cbe7f5;
+  --rf-income: #8fd4a8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -194,5 +216,13 @@
     --rf-room-6: #1fa3bb;
     --rf-room-7: #966c13;
     --rf-room-8: #db426d;
+
+    --rf-pill-good-bg: #1c3a1f;
+    --rf-pill-good-fg: #a6e3a6;
+    --rf-pill-warn-bg: #3d3210;
+    --rf-pill-warn-fg: #f2d98a;
+    --rf-pill-info-bg: #2a414d;
+    --rf-pill-info-fg: #cbe7f5;
+    --rf-income: #8fd4a8;
   }
 }

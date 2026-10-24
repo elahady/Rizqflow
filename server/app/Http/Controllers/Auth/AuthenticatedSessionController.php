@@ -40,6 +40,7 @@ class AuthenticatedSessionController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect('/login');
+        // Pesan tampil sebagai notice di kartu masuk (components/auth-layout).
+        return redirect()->route('login')->with('status', 'Kamu sudah keluar.');
     }
 }
