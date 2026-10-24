@@ -168,7 +168,19 @@ class AturanAlokasi extends Component
         $remaining = 100 - array_sum($normalized);
         $isDirty = $this->mode === 'lanjutan' ? $this->caps !== $this->originalCaps : $normalized !== $this->originalPercents;
 
+        // Pratinjau pembagian untuk bar: persentase yang sedang diisi (belum tentu tersimpan), sisa ke ruang terakhir.
+        $preview = [];
+        if ($this->mode === 'persentase') {
+            foreach ($this->editableRooms() as $room) {
+                $preview[] = ['slot' => $room->slot, 'bp' => max($normalized[$room->id] ?? 0, 0) * 100, 'label' => $room->name];
+            }
+            if ($last = $this->lastRoom()) {
+                $preview[] = ['slot' => $last->slot, 'bp' => max($remaining, 0) * 100, 'label' => $last->name];
+            }
+        }
+
         return view('livewire.aturan-alokasi', [
+            'preview' => $preview,
             'editableRooms' => $this->editableRooms(),
             'lastRoom' => $this->lastRoom(),
             'remaining' => $remaining,

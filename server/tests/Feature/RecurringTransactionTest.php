@@ -261,4 +261,21 @@ class RecurringTransactionTest extends TestCase
         // Kemunculan hari ke -5, -4, -3 (jatuh tempo <= end_date) tercatat; sesudahnya berhenti karena isFinished().
         $this->assertSame(3, $result['recorded']);
     }
+
+    public function test_page_shows_the_jadwal_tabs_and_each_rules_target_and_amount(): void
+    {
+        RecurringRule::create([
+            'user_id' => $this->user->id, 'type' => 'pengeluaran', 'amount_minor' => 150_000, 'note' => 'Langganan internet',
+            'account_id' => $this->account->id, 'room_id' => $this->room->id, 'category_id' => $this->category->id,
+            'frequency' => 'bulanan', 'start_date' => Carbon::today(), 'next_due' => Carbon::today(),
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('transaksi.berulang'))
+            ->assertOk()
+            ->assertSee('aria-label="Jadwal"', false)
+            ->assertSee('Langganan internet')
+            ->assertSee('Keluarga · Belanja bulanan')
+            ->assertSee('−Rp 150.000');
+    }
 }

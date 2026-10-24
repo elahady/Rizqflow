@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Livewire\RuangDaftar;
+use App\Models\Account;
 use App\Models\Category;
 use App\Models\Room;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Support\Ledger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -246,5 +248,22 @@ class RuangDaftarTest extends TestCase
             ->assertStatus(404);
 
         $this->assertFalse($otherRoom->refresh()->archived);
+    }
+
+    public function test_each_room_shows_this_months_spent_and_allowance_from_the_ledger(): void
+    {
+        $room = $this->room(['name' => 'Keluarga', 'allocation_percent' => 100]);
+        $account = Account::create(['user_id' => $this->user->id, 'name' => 'BCA', 'type' => 'bank', 'balance_minor' => 0, 'sort_order' => 1]);
+        Ledger::recordIncome($this->user, 2_000_000, $account, now()->startOfMonth(), 'Gaji', null);
+        Transaction::create(['user_id' => $this->user->id, 'room_id' => $room->id, 'type' => 'pengeluaran', 'amount_minor' => 500_000, 'occurred_on' => now()->startOfMonth()->toDateString()]);
+
+        $this->actingAs($this->user)
+            ->get(route('ruang'))
+            ->assertOk()
+            ->assertSee('Terpakai')
+            ->assertSee('Rp 500.000')
+            ->assertSee('Rp 2.000.000')
+            ->assertSee('25%')
+            ->assertSee('Pembagian rezeki');
     }
 }

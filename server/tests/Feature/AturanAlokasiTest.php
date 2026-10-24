@@ -190,4 +190,15 @@ class AturanAlokasiTest extends TestCase
 
         $this->assertSame(50, $otherRoom->refresh()->allocation_percent);
     }
+
+    public function test_preview_bar_follows_the_percentages_being_edited(): void
+    {
+        $memberi = $this->room(['name' => 'Memberi', 'sort_order' => 1, 'slot' => 1, 'allocation_percent' => 10]);
+        $this->room(['name' => 'Keluarga', 'sort_order' => 2, 'slot' => 3, 'allocation_percent' => 90]);
+
+        Livewire::actingAs($this->user)
+            ->test(AturanAlokasi::class)
+            ->set('percents.'.$memberi->id, 25)
+            ->assertViewHas('preview', fn (array $preview) => array_column($preview, 'bp') === [2500, 7500]);
+    }
 }

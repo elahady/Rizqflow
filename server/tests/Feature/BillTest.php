@@ -344,4 +344,18 @@ class BillTest extends TestCase
 
         $this->assertSame(1, Bill::count());
     }
+
+    public function test_page_shows_the_jadwal_tabs_and_each_bills_status(): void
+    {
+        Bill::create(['user_id' => $this->user->id, 'name' => 'Listrik rumah', 'amount_minor' => 400_000, 'account_id' => $this->account->id, 'room_id' => $this->room->id, 'category_id' => $this->category->id, 'start_date' => Carbon::today()->subDays(2), 'next_due' => Carbon::today()->subDays(2)]);
+
+        $this->actingAs($this->user)
+            ->get(route('tagihan'))
+            ->assertOk()
+            ->assertSee('aria-label="Jadwal"', false)
+            ->assertSee('Listrik rumah')
+            ->assertSee('Terlambat')
+            ->assertSee('Rp 400.000')
+            ->assertSee('Bayar');
+    }
 }

@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\Category;
 use App\Models\Room;
 use App\Support\Entitlements;
+use App\Support\MonthLedger;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
@@ -138,8 +139,12 @@ class RuangDaftar extends Component
         $user = auth()->user();
         $rooms = $user->rooms()->active()->get();
 
+        // Statistik bulan berjalan per ruang (jatah, terpakai, status) dari MonthLedger.
+        $ledger = MonthLedger::for($user, now());
+
         return view('livewire.ruang-daftar', [
             'rooms' => $rooms,
+            'roomMonths' => $rooms->mapWithKeys(fn (Room $room) => [$room->id => $ledger->room($room)]),
             'archivedRooms' => $user->rooms()->where('archived', true)->orderByDesc('updated_at')->get(),
             'allocationTotal' => $rooms->sum('allocation_percent'),
         ])->layout('components.layout', ['title' => 'Ruang — Rizqflow']);
