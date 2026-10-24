@@ -1,208 +1,268 @@
-@php use App\Support\Rupiah; @endphp
+@php
+    use App\Support\Rupiah;
 
-<div style="display:flex; flex-direction:column; gap:22px; max-width:760px; margin:0 auto; width:100%;">
+    $statusLabel = ['terlambat' => 'Terlambat', 'hari_ini' => 'Hari ini', 'segera' => 'Segera', 'berjalan' => 'Berjalan', 'lunas' => 'Lunas'];
+    $statusTone = ['terlambat' => 'warn', 'hari_ini' => 'warn', 'segera' => 'warn', 'berjalan' => 'neutral', 'lunas' => 'good'];
+    $statusIcon = ['terlambat' => 'warn', 'hari_ini' => 'clock', 'segera' => 'clock', 'berjalan' => 'clock', 'lunas' => 'check'];
+@endphp
 
-    <div><a href="{{ route('transaksi') }}" style="font-size:13px; font-weight:600; color:var(--rf-on-surface-variant);">← Kembali ke Transaksi</a></div>
+@push('styles')
+<style>
+    .up-item { border-bottom: 1px solid var(--rf-surface-container-high); }
+    .up-item:last-child { border-bottom: 0; }
+    .up-main { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 0; cursor: pointer; }
+    .up-main:focus-visible { outline: 2px solid var(--rf-primary); outline-offset: 2px; border-radius: 8px; }
+    .up-who { flex: 1 1 200px; min-width: 0; }
+    .up-meta { font-size: 12.5px; color: var(--rf-on-surface-variant); margin-top: 2px; }
+    .up-amt { text-align: right; min-width: 120px; font-variant-numeric: tabular-nums; }
+    .up-amt b { display: block; font-size: 15px; }
+    .up-amt small { font-size: 11.5px; color: var(--rf-on-surface-variant); }
+    .up-panel { padding: 0 0 16px; display: flex; flex-direction: column; gap: 14px; }
+    .up-box { padding: 14px 16px; border-radius: 14px; background: var(--rf-surface-container-low); display: flex; flex-direction: column; gap: 12px; }
+    .up-dir { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+    .up-dir .rf-btn { justify-content: center; min-width: 0; white-space: normal; text-align: center; }
+    .up-sw { display: flex; align-items: center; min-height: 40px; }
+    .up-label { font-size: 12px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; color: var(--rf-on-surface-variant); margin-bottom: 4px; }
+    .up-pay { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13px; }
+    @media (max-width: 600px) {
+        .up-dir { grid-template-columns: 1fr; }
+        .up-amt { text-align: left; min-width: 0; flex: 1 1 100%; }
+    }
+</style>
+@endpush
 
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
-        <h1 class="rf-serif" style="font-size:26px;">Utang-piutang</h1>
-        @if (! $showForm)
-            <button type="button" wire:click="startAdd" class="rf-btn primary">+ Catat baru</button>
-        @endif
-    </div>
+<div class="rf-page">
+    <x-rf.page-head sub="Saldo akun, di luar jatah ruang" title="Utang-piutang"
+        lead="Uang yang kamu pinjamkan atau pinjam. Saldo akun bergeser di sini tanpa memakan jatah ruang mana pun.">
+        <x-slot:actions>
+            @if (! $showForm)
+                <button type="button" wire:click="startAdd" class="rf-btn primary sm"><x-rf.icon name="plus" />Catat baru</button>
+            @endif
+        </x-slot:actions>
+    </x-rf.page-head>
 
-    <div style="display:flex; gap:16px; flex-wrap:wrap;">
-        <div class="rf-card" style="flex:1; min-width:200px;">
-            <div style="font-size:12px; color:var(--rf-on-surface-variant); margin-bottom:4px;">Sisa piutang</div>
-            <div style="font-weight:700; font-size:20px;">{{ Rupiah::format($receivable) }}</div>
+    <div class="rf-stats">
+        <div class="rf-stat">
+            <div class="l">Sisa piutang</div>
+            <div class="v">{{ Rupiah::format($receivable) }}</div>
+            <div class="d">Yang masih harus kembali kepadamu</div>
         </div>
-        <div class="rf-card" style="flex:1; min-width:200px;">
-            <div style="font-size:12px; color:var(--rf-on-surface-variant); margin-bottom:4px;">Sisa utang</div>
-            <div style="font-weight:700; font-size:20px;">{{ Rupiah::format($payable) }}</div>
+        <div class="rf-stat">
+            <div class="l">Sisa utang</div>
+            <div class="v">{{ Rupiah::format($payable) }}</div>
+            <div class="d">Yang masih harus kamu bayar</div>
         </div>
     </div>
 
     @if ($showForm)
         <form wire:submit="save" class="rf-card">
-            <h2 class="rf-serif" style="font-size:18px; margin-bottom:14px;">Catat utang-piutang baru</h2>
+            <div class="rf-card-head"><h2 class="rf-h2">Catat utang-piutang baru</h2></div>
 
-            <div style="display:flex; gap:8px; margin-bottom:14px;">
-                <button type="button" wire:click="$set('direction', 'piutang')" class="rf-btn {{ $direction === 'piutang' ? 'primary' : 'tonal' }}" style="flex:1;">Piutang (saya meminjamkan)</button>
-                <button type="button" wire:click="$set('direction', 'utang')" class="rf-btn {{ $direction === 'utang' ? 'primary' : 'tonal' }}" style="flex:1;">Utang (saya meminjam)</button>
+            <div class="up-dir">
+                <button type="button" wire:click="$set('direction', 'piutang')" aria-pressed="{{ $direction === 'piutang' ? 'true' : 'false' }}" class="rf-btn {{ $direction === 'piutang' ? 'primary' : 'tonal' }}">Piutang (saya meminjamkan)</button>
+                <button type="button" wire:click="$set('direction', 'utang')" aria-pressed="{{ $direction === 'utang' ? 'true' : 'false' }}" class="rf-btn {{ $direction === 'utang' ? 'primary' : 'tonal' }}">Utang (saya meminjam)</button>
             </div>
 
-            <div class="rf-field">
-                <label for="debt-party">Nama pihak</label>
-                <input type="text" id="debt-party" wire:model="party" maxlength="40" autofocus>
-            </div>
-            <div class="rf-field">
-                <label for="debt-amount">Nominal</label>
-                <input type="number" id="debt-amount" wire:model="amount" min="1">
-            </div>
-            <div style="display:flex; gap:12px;">
-                <div class="rf-field" style="flex:1;">
-                    <label for="debt-start">Tanggal pinjam</label>
-                    <input type="date" id="debt-start" wire:model="startDate">
-                </div>
-                <div class="rf-field" style="flex:1;">
-                    <label for="debt-due">Jatuh tempo (opsional)</label>
-                    <input type="date" id="debt-due" wire:model="dueDate">
-                </div>
-            </div>
-
-            <label style="display:flex; align-items:center; gap:10px; font-size:13.5px; margin:6px 0;">
-                <input type="checkbox" wire:model.live="recordMovement"> Ubah saldo akun sekarang
-            </label>
-
-            @if ($recordMovement)
+            <div class="rf-form-grid">
                 <div class="rf-field">
-                    <label for="debt-account">Akun</label>
-                    <select id="debt-account" wire:model="accountId">
-                        @foreach ($accounts as $account)
-                            <option value="{{ $account->id }}">{{ $account->name }}</option>
-                        @endforeach
-                    </select>
+                    <label for="debt-party">Nama pihak</label>
+                    <input type="text" id="debt-party" class="rf-input" wire:model="party" maxlength="40" autofocus>
                 </div>
-            @endif
+                <div class="rf-field">
+                    <label for="debt-amount">Nominal</label>
+                    <input type="number" id="debt-amount" class="rf-input" wire:model="amount" min="1">
+                </div>
+                <div class="rf-field">
+                    <label for="debt-start">Tanggal pinjam</label>
+                    <input type="date" id="debt-start" class="rf-input" wire:model="startDate">
+                </div>
+                <div class="rf-field">
+                    <label for="debt-due">Jatuh tempo (opsional)</label>
+                    <input type="date" id="debt-due" class="rf-input" wire:model="dueDate">
+                </div>
 
-            @if ($direction === 'piutang')
-                <label style="display:flex; align-items:center; gap:10px; font-size:13.5px; margin:6px 0;">
-                    <input type="checkbox" wire:model="collectible"> Diperkirakan kembali
-                </label>
-            @endif
+                <div class="up-sw">
+                    <label class="rf-switch">
+                        <input type="checkbox" wire:model.live="recordMovement">
+                        <span class="rf-switch-track" aria-hidden="true"></span>
+                        <span>Ubah saldo akun sekarang</span>
+                    </label>
+                </div>
 
-            <div class="rf-field">
-                <label for="debt-note">Catatan</label>
-                <input type="text" id="debt-note" wire:model="note" maxlength="200">
+                @if ($recordMovement)
+                    <div class="rf-field">
+                        <label for="debt-account">Akun</label>
+                        <select id="debt-account" class="rf-input" wire:model="accountId">
+                            @foreach ($accounts as $account)
+                                <option value="{{ $account->id }}">{{ $account->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
+
+                @if ($direction === 'piutang')
+                    <div class="up-sw">
+                        <label class="rf-switch">
+                            <input type="checkbox" wire:model="collectible">
+                            <span class="rf-switch-track" aria-hidden="true"></span>
+                            <span>Diperkirakan kembali</span>
+                        </label>
+                    </div>
+                @endif
+
+                <div class="rf-field full">
+                    <label for="debt-note">Catatan</label>
+                    <input type="text" id="debt-note" class="rf-input" wire:model="note" maxlength="200">
+                </div>
             </div>
 
             @if ($error)
-                <p class="error-text">{{ $error }}</p>
+                <div class="rf-error" role="alert" style="margin-top:12px"><x-rf.icon name="warn" />{{ $error }}</div>
             @endif
 
-            <div style="display:flex; gap:12px; margin-top:12px;">
+            <div class="rf-actions" style="margin-top:16px">
                 <button type="submit" class="rf-btn primary">Simpan</button>
-                <button type="button" wire:click="cancelForm" class="rf-btn tonal">Batal</button>
+                <button type="button" wire:click="cancelForm" class="rf-btn ghost">Batal</button>
             </div>
         </form>
     @endif
 
-    @php
-        $statusLabel = ['terlambat' => 'Terlambat', 'hari_ini' => 'Hari ini', 'segera' => 'Segera', 'berjalan' => 'Berjalan', 'lunas' => 'Lunas'];
-        $statusTone = ['terlambat' => 'warn', 'hari_ini' => 'warn', 'segera' => 'neutral', 'berjalan' => 'neutral', 'lunas' => 'good'];
-    @endphp
-
-    @forelse ($debts as $debt)
-        @php $status = $debt->statusOn($today); @endphp
-        <div class="rf-card" style="display:flex; flex-direction:column; gap:12px;">
-            <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; cursor:pointer;" wire:click="toggleDetail({{ $debt->id }})">
-                <div style="flex:1; min-width:200px;">
-                    <div style="font-weight:700; font-size:14px;">{{ $debt->party }}</div>
-                    <div style="font-size:12px; color:var(--rf-on-surface-variant); margin-top:2px;">
-                        {{ $debt->direction === 'piutang' ? 'Piutang' : 'Utang' }} · {{ $debt->due_date ? $debt->due_date->translatedFormat('j F Y') : 'Tanpa jatuh tempo' }}
-                    </div>
-                </div>
-                <span class="rf-pill {{ $statusTone[$status] }}">{{ $statusLabel[$status] }}</span>
-                <div style="text-align:right; min-width:120px;">
-                    <div style="font-weight:700; font-size:15px;">{{ Rupiah::format($debt->outstandingMinor()) }}</div>
-                    <div style="font-size:11px; color:var(--rf-on-surface-variant);">dari {{ Rupiah::format($debt->principal_minor) }}</div>
-                </div>
-                @if (! $debt->isSettled())
-                    <button type="button" wire:click.stop="startRepay({{ $debt->id }})" class="rf-btn primary" style="padding:8px 14px;">{{ $debt->direction === 'piutang' ? 'Terima' : 'Bayar' }}</button>
-                @endif
-            </div>
-
-            @if ($payingId === $debt->id)
-                <form wire:submit="repay" style="border-top:1px solid var(--rf-outline-variant); padding-top:14px; display:flex; flex-direction:column; gap:12px;">
-                    <div class="rf-field" style="margin:0;">
-                        <label for="pay-amount-{{ $debt->id }}">Nominal</label>
-                        <input type="number" id="pay-amount-{{ $debt->id }}" wire:model="payAmount" min="1" autofocus>
-                    </div>
-                    <label style="display:flex; align-items:center; gap:10px; font-size:13.5px;">
-                        <input type="checkbox" wire:model.live="payUpdateBalance"> Ubah saldo akun
-                    </label>
-                    @if ($payUpdateBalance)
-                        <div class="rf-field" style="margin:0;">
-                            <label for="pay-account-{{ $debt->id }}">Akun</label>
-                            <select id="pay-account-{{ $debt->id }}" wire:model="payAccountId">
-                                @foreach ($accounts as $account)
-                                    <option value="{{ $account->id }}">{{ $account->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    @endif
-                    @if ($payError)
-                        <p class="error-text">{{ $payError }}</p>
-                    @endif
-                    <div style="display:flex; gap:12px;">
-                        <button type="submit" class="rf-btn primary">{{ $debt->direction === 'piutang' ? 'Konfirmasi terima' : 'Konfirmasi bayar' }}</button>
-                        <button type="button" wire:click="cancelRepay" class="rf-btn tonal">Batal</button>
-                    </div>
-                </form>
-            @endif
-
-            @if ($expandedId === $debt->id)
-                <div style="border-top:1px solid var(--rf-outline-variant); padding-top:14px; display:flex; flex-direction:column; gap:14px;">
-                    <div style="font-size:13px; color:var(--rf-on-surface-variant);">
-                        Akun: {{ $debt->account?->name ?? 'Saldo akun tidak diubah' }}
-                        @if ($debt->direction === 'piutang') · {{ $debt->collectible ? 'Diperkirakan kembali' : 'Diperkirakan tidak kembali' }} @endif
-                        @if ($debt->note) · {{ $debt->note }} @endif
-                    </div>
-
-                    @if ($editingId === $debt->id)
-                        <form wire:submit="updateDebt" style="display:flex; flex-direction:column; gap:4px;">
-                            <div class="rf-field">
-                                <label for="edit-party-{{ $debt->id }}">Nama pihak</label>
-                                <input type="text" id="edit-party-{{ $debt->id }}" wire:model="editParty" maxlength="40">
-                            </div>
-                            <div class="rf-field">
-                                <label for="edit-due-{{ $debt->id }}">Jatuh tempo (opsional)</label>
-                                <input type="date" id="edit-due-{{ $debt->id }}" wire:model="editDueDate">
-                            </div>
-                            @if ($debt->direction === 'piutang')
-                                <label style="display:flex; align-items:center; gap:10px; font-size:13.5px; margin:6px 0;">
-                                    <input type="checkbox" wire:model="editCollectible"> Diperkirakan kembali
-                                </label>
-                            @endif
-                            <div class="rf-field">
-                                <label for="edit-note-{{ $debt->id }}">Catatan</label>
-                                <input type="text" id="edit-note-{{ $debt->id }}" wire:model="editNote" maxlength="200">
-                            </div>
-                            @if ($editError)
-                                <p class="error-text">{{ $editError }}</p>
-                            @endif
-                            <div style="display:flex; gap:12px; margin-top:8px;">
-                                <button type="submit" class="rf-btn primary">Simpan</button>
-                                <button type="button" wire:click="cancelEditDebt" class="rf-btn tonal">Batal</button>
-                            </div>
-                        </form>
-                    @else
-                        <div style="display:flex; gap:10px;">
-                            <button type="button" wire:click="startEditDebt({{ $debt->id }})" class="rf-btn tonal" style="padding:8px 14px;">Ubah</button>
-                            <button type="button" wire:click="deleteDebt({{ $debt->id }})" wire:confirm="Hapus utang-piutang ini? Saldo akun akan kembali seperti sebelum dicatat." class="rf-btn tonal" style="padding:8px 14px;">Hapus</button>
-                        </div>
-                    @endif
-
-                    <div>
-                        <div style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; color:var(--rf-on-surface-variant); margin-bottom:8px;">Riwayat pelunasan</div>
-                        @forelse ($debt->payments as $payment)
-                            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--rf-outline-variant); font-size:13px;">
-                                <span>{{ $payment->paid_on->translatedFormat('j M Y') }} · {{ Rupiah::format($payment->amount_minor) }} @if ($payment->account) · {{ $payment->account->name }} @endif</span>
-                                <button type="button" wire:click="deletePayment({{ $payment->id }})" wire:confirm="Hapus pelunasan ini? Saldo akun akan kembali." class="rf-btn tonal" style="padding:6px 10px; font-size:12px;">Hapus</button>
-                            </div>
-                        @empty
-                            <p style="font-size:13px; color:var(--rf-on-surface-variant);">Belum ada pelunasan.</p>
-                        @endforelse
-                    </div>
-                </div>
-            @endif
-        </div>
-    @empty
+    @if ($debts->isEmpty())
         @if (! $showForm)
-            <div class="rf-card">
-                <p style="color:var(--rf-on-surface-variant); font-size:14px;">Belum ada utang-piutang. Saldo akun bergeser di sini tanpa memakan jatah ruang.</p>
-            </div>
+            <section class="rf-card">
+                <div class="rf-empty">
+                    <x-rf.icon name="swap" />
+                    <b>Belum ada utang-piutang.</b>
+                    <p>Saldo akun bergeser di sini tanpa memakan jatah ruang.</p>
+                    <div class="rf-actions"><button type="button" wire:click="startAdd" class="rf-btn tonal sm"><x-rf.icon name="plus" />Catat baru</button></div>
+                </div>
+            </section>
         @endif
-    @endforelse
+    @else
+        <section class="rf-card">
+            <div class="rf-card-head"><h2 class="rf-h2">Daftar</h2></div>
 
+            @foreach ($debts as $debt)
+                @php $status = $debt->statusOn($today); @endphp
+                <div class="up-item" wire:key="debt-{{ $debt->id }}">
+                    <div class="up-main" role="button" tabindex="0" aria-expanded="{{ $expandedId === $debt->id ? 'true' : 'false' }}"
+                        wire:click="toggleDetail({{ $debt->id }})" wire:keydown.enter="toggleDetail({{ $debt->id }})">
+                        <div class="up-who">
+                            <b>{{ $debt->party }}</b>
+                            <div class="up-meta">
+                                {{ $debt->direction === 'piutang' ? 'Piutang' : 'Utang' }} · {{ $debt->due_date ? $debt->due_date->locale('id')->translatedFormat('j F Y') : 'Tanpa jatuh tempo' }}
+                            </div>
+                        </div>
+                        <x-rf.pill :tone="$statusTone[$status]" :icon="$statusIcon[$status]">{{ $statusLabel[$status] }}</x-rf.pill>
+                        <div class="up-amt">
+                            <b>{{ Rupiah::format($debt->outstandingMinor()) }}</b>
+                            <small>dari {{ Rupiah::format($debt->principal_minor) }}</small>
+                        </div>
+                        @if (! $debt->isSettled())
+                            <button type="button" wire:click.stop="startRepay({{ $debt->id }})" class="rf-btn primary sm">{{ $debt->direction === 'piutang' ? 'Terima' : 'Bayar' }}</button>
+                        @endif
+                    </div>
+
+                    @if ($payingId === $debt->id)
+                        <div class="up-panel">
+                            <form wire:submit="repay" class="up-box">
+                                <div class="rf-form-grid">
+                                    <div class="rf-field">
+                                        <label for="pay-amount-{{ $debt->id }}">Nominal</label>
+                                        <input type="number" id="pay-amount-{{ $debt->id }}" class="rf-input" wire:model="payAmount" min="1" autofocus>
+                                    </div>
+                                    <div class="up-sw">
+                                        <label class="rf-switch">
+                                            <input type="checkbox" wire:model.live="payUpdateBalance">
+                                            <span class="rf-switch-track" aria-hidden="true"></span>
+                                            <span>Ubah saldo akun</span>
+                                        </label>
+                                    </div>
+                                    @if ($payUpdateBalance)
+                                        <div class="rf-field">
+                                            <label for="pay-account-{{ $debt->id }}">Akun</label>
+                                            <select id="pay-account-{{ $debt->id }}" class="rf-input" wire:model="payAccountId">
+                                                @foreach ($accounts as $account)
+                                                    <option value="{{ $account->id }}">{{ $account->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    @endif
+                                </div>
+                                @if ($payError)
+                                    <div class="rf-error" role="alert"><x-rf.icon name="warn" />{{ $payError }}</div>
+                                @endif
+                                <div class="rf-actions">
+                                    <button type="submit" class="rf-btn primary sm">{{ $debt->direction === 'piutang' ? 'Konfirmasi terima' : 'Konfirmasi bayar' }}</button>
+                                    <button type="button" wire:click="cancelRepay" class="rf-btn ghost sm">Batal</button>
+                                </div>
+                            </form>
+                        </div>
+                    @endif
+
+                    @if ($expandedId === $debt->id)
+                        <div class="up-panel">
+                            <div class="rf-sub">
+                                Akun: {{ $debt->account?->name ?? 'Saldo akun tidak diubah' }}
+                                @if ($debt->direction === 'piutang') · {{ $debt->collectible ? 'Diperkirakan kembali' : 'Diperkirakan tidak kembali' }} @endif
+                                @if ($debt->note) · {{ $debt->note }} @endif
+                            </div>
+
+                            @if ($editingId === $debt->id)
+                                <form wire:submit="updateDebt" class="up-box">
+                                    <div class="rf-form-grid">
+                                        <div class="rf-field">
+                                            <label for="edit-party-{{ $debt->id }}">Nama pihak</label>
+                                            <input type="text" id="edit-party-{{ $debt->id }}" class="rf-input" wire:model="editParty" maxlength="40">
+                                        </div>
+                                        <div class="rf-field">
+                                            <label for="edit-due-{{ $debt->id }}">Jatuh tempo (opsional)</label>
+                                            <input type="date" id="edit-due-{{ $debt->id }}" class="rf-input" wire:model="editDueDate">
+                                        </div>
+                                        @if ($debt->direction === 'piutang')
+                                            <div class="up-sw">
+                                                <label class="rf-switch">
+                                                    <input type="checkbox" wire:model="editCollectible">
+                                                    <span class="rf-switch-track" aria-hidden="true"></span>
+                                                    <span>Diperkirakan kembali</span>
+                                                </label>
+                                            </div>
+                                        @endif
+                                        <div class="rf-field full">
+                                            <label for="edit-note-{{ $debt->id }}">Catatan</label>
+                                            <input type="text" id="edit-note-{{ $debt->id }}" class="rf-input" wire:model="editNote" maxlength="200">
+                                        </div>
+                                    </div>
+                                    @if ($editError)
+                                        <div class="rf-error" role="alert"><x-rf.icon name="warn" />{{ $editError }}</div>
+                                    @endif
+                                    <div class="rf-actions">
+                                        <button type="submit" class="rf-btn primary sm">Simpan</button>
+                                        <button type="button" wire:click="cancelEditDebt" class="rf-btn ghost sm">Batal</button>
+                                    </div>
+                                </form>
+                            @else
+                                <div class="rf-actions">
+                                    <button type="button" wire:click="startEditDebt({{ $debt->id }})" class="rf-btn ghost sm"><x-rf.icon name="pencil" />Ubah</button>
+                                    <button type="button" wire:click="deleteDebt({{ $debt->id }})" wire:confirm="Hapus utang-piutang ini? Saldo akun akan kembali seperti sebelum dicatat." class="rf-btn ghost sm"><x-rf.icon name="trash" />Hapus</button>
+                                </div>
+                            @endif
+
+                            <div>
+                                <div class="up-label">Riwayat pelunasan</div>
+                                @forelse ($debt->payments as $payment)
+                                    <div class="rf-rowline up-pay" wire:key="pay-{{ $payment->id }}">
+                                        <span class="rf-grow">{{ $payment->paid_on->locale('id')->translatedFormat('j M Y') }} · {{ Rupiah::format($payment->amount_minor) }} @if ($payment->account) · {{ $payment->account->name }} @endif</span>
+                                        <button type="button" wire:click="deletePayment({{ $payment->id }})" wire:confirm="Hapus pelunasan ini? Saldo akun akan kembali." class="rf-btn ghost sm"><x-rf.icon name="trash" />Hapus</button>
+                                    </div>
+                                @empty
+                                    <p class="rf-sub">Belum ada pelunasan.</p>
+                                @endforelse
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            @endforeach
+        </section>
+    @endif
 </div>

@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\Category;
 use App\Models\QuickEntry;
 use Illuminate\Contracts\View\View;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
@@ -17,6 +18,8 @@ class Kelola extends Component
 
     private const MAX_FAVORITES = 6;
 
+    /** Tab aktif; ikut URL (?tab=akun|kategori|favorit) supaya bisa ditautkan langsung, mis. tombol "+ Pos" di halaman Ruang. */
+    #[Url]
     public string $tab = 'akun';
 
     // Akun
