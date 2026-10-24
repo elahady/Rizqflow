@@ -8,9 +8,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import com.roziqrizal.rizqflow.BuildConfig
 import com.roziqrizal.rizqflow.RizqflowApplication
+import com.roziqrizal.rizqflow.billing.BillingPeriod
 import com.roziqrizal.rizqflow.billing.BuyOutcome
 import com.roziqrizal.rizqflow.billing.PurchaseController
-import com.roziqrizal.rizqflow.billing.RestoreOutcome
+import com.roziqrizal.rizqflow.billing.SubscriptionOffer
 import com.roziqrizal.rizqflow.billing.findActivity
 import com.roziqrizal.rizqflow.widget.SafeToSpendWidget
 import com.roziqrizal.rizqflow.domain.allocation.AllocationRule
@@ -47,7 +48,9 @@ import com.roziqrizal.rizqflow.domain.entitlement.Feature
 import com.roziqrizal.rizqflow.domain.entitlement.LivePlanEntitlements
 import com.roziqrizal.rizqflow.domain.entitlement.Plan
 import com.roziqrizal.rizqflow.ui.paywall.PaywallSheet
+import com.roziqrizal.rizqflow.ui.paywall.SyncPaywallSheet
 import com.roziqrizal.rizqflow.ui.paywall.buyMessage
+import com.roziqrizal.rizqflow.ui.paywall.paywallPlanFor
 import com.roziqrizal.rizqflow.ui.paywall.restoreMessage
 import com.roziqrizal.rizqflow.ui.ruang.RuangScreen
 import androidx.compose.material3.MaterialTheme
@@ -167,13 +170,31 @@ fun MainHost(
         PurchaseController(workspace.purchases, (context.applicationContext as RizqflowApplication).billing, revokeMissing = !BuildConfig.DEBUG)
     }
     var proPrice by remember { mutableStateOf<String?>(null) }
+    // Penawaran langganan Sync dari toko (harga per masa, uji coba bila ada); null = toko belum terhubung.
+    var syncOffers by remember { mutableStateOf<List<SubscriptionOffer>?>(null) }
     var purchaseBusy by remember { mutableStateOf(false) }
-    // Pulihkan diam-diam tiap aplikasi dibuka: pasang ulang atau ganti perangkat tidak menghilangkan Pro.
+    // Varian S21 dipilih dari paket yang dibutuhkan fitur pemicunya: fitur Sync membuka varian Sync.
+    val paywallPlan = paywallPlanFor(paywallTrigger?.let { Feature.valueOf(it) })
+    // Pulihkan diam-diam tiap aplikasi dibuka: pasang ulang atau ganti perangkat tidak menghilangkan Pro atau Sync.
     LaunchedEffect(purchaseController, demo) {
         if (!demo) purchaseController.sync()
     }
-    LaunchedEffect(paywallOpen) {
-        if (paywallOpen && proPrice == null) proPrice = purchaseController.price(Plan.PRO)
+    // Pembayaran tertunda yang baru lunas (atau kode promo yang ditebus) sampai ke aplikasi lewat toko,
+    // bukan lewat tombol Beli yang menunggu: baca ulang toko supaya paketnya terbuka dan di-acknowledge.
+    LaunchedEffect(purchaseController, demo) {
+        if (!demo) purchaseController.syncOnExternalUpdates()
+    }
+    LaunchedEffect(paywallOpen, paywallPlan) {
+        if (!paywallOpen) return@LaunchedEffect
+        when (paywallPlan) {
+            Plan.PRO -> if (proPrice == null) proPrice = purchaseController.price(Plan.PRO)
+            // Dibaca ulang tiap sheet dibuka (bukan disimpan seumur sesi): hak uji coba bisa berubah
+            // setelah berlangganan atau membatalkan, dan teks uji coba hanya boleh tampil bila toko menawarkannya sekarang.
+            Plan.SYNC -> {
+                syncOffers = null
+                syncOffers = purchaseController.syncOffers()
+            }
+        }
     }
     var handledQuick by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(quickCatatRequest) {
@@ -464,6 +485,8 @@ fun MainHost(
         },
         onDeleteAccount = { deleteAccountSheet = true },
         onOpenFamilyScan = { familyScanOpen = true },
+        onOpenSyncPaywall = { openPaywall(Feature.ENCRYPTED_SYNC) },
+        syncOwned = Plan.SYNC in ownedPlans,
     )
     if (tampilanOpen) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -580,32 +603,48 @@ fun MainHost(
         }
     }
     if (paywallOpen) {
+        // Pembelian dan pemulihan sama untuk kedua varian; yang berbeda hanya isi sheet dan paket yang dibeli.
+        fun buy(plan: Plan, period: BillingPeriod?) {
+            scope.launch {
+                purchaseBusy = true
+                val outcome = purchaseController.buy(plan, activity = { context.findActivity() }, period = period)
+                purchaseBusy = false
+                // Sheet menutup hanya bila ada kabar akhir; dibatalkan tetap terbuka supaya bisa dicoba lagi.
+                if (outcome != BuyOutcome.CANCELED) paywallOpen = false
+                if (outcome != BuyOutcome.CANCELED) notifier.show(context.getString(buyMessage(outcome, plan)))
+            }
+        }
+
+        fun restore(plan: Plan) {
+            scope.launch {
+                purchaseBusy = true
+                val report = purchaseController.restoreReport()
+                purchaseBusy = false
+                paywallOpen = false
+                notifier.show(context.getString(restoreMessage(report, plan)))
+            }
+        }
+
         ModalBottomSheet(onDismissRequest = { paywallOpen = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-            PaywallSheet(
-                trigger = paywallTrigger?.let { Feature.valueOf(it) },
-                priceText = proPrice,
-                busy = purchaseBusy,
-                onBuy = {
-                    scope.launch {
-                        purchaseBusy = true
-                        val outcome = purchaseController.buy(Plan.PRO) { context.findActivity() }
-                        purchaseBusy = false
-                        // Sheet menutup hanya bila ada kabar akhir; dibatalkan tetap terbuka supaya bisa dicoba lagi.
-                        if (outcome != BuyOutcome.CANCELED) paywallOpen = false
-                        if (outcome != BuyOutcome.CANCELED) notifier.show(context.getString(buyMessage(outcome)))
-                    }
-                },
-                onRestore = {
-                    scope.launch {
-                        purchaseBusy = true
-                        val outcome = purchaseController.restore()
-                        purchaseBusy = false
-                        paywallOpen = false
-                        notifier.show(context.getString(restoreMessage(outcome)))
-                    }
-                },
-                onDismiss = { paywallOpen = false },
-            )
+            when (paywallPlan) {
+                Plan.PRO -> PaywallSheet(
+                    trigger = paywallTrigger?.let { Feature.valueOf(it) },
+                    priceText = proPrice,
+                    busy = purchaseBusy,
+                    onBuy = { buy(Plan.PRO, period = null) },
+                    onRestore = { restore(Plan.PRO) },
+                    onDismiss = { paywallOpen = false },
+                )
+
+                Plan.SYNC -> SyncPaywallSheet(
+                    offers = syncOffers,
+                    owned = Plan.SYNC in ownedPlans,
+                    busy = purchaseBusy,
+                    onBuy = { period -> buy(Plan.SYNC, period) },
+                    onRestore = { restore(Plan.SYNC) },
+                    onDismiss = { paywallOpen = false },
+                )
+            }
         }
     }
     if (aboutOpen) {

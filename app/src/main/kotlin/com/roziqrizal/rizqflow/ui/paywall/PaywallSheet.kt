@@ -20,8 +20,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.roziqrizal.rizqflow.R
 import com.roziqrizal.rizqflow.domain.entitlement.Feature
+import com.roziqrizal.rizqflow.domain.entitlement.Plan
 import com.roziqrizal.rizqflow.billing.BuyOutcome
 import com.roziqrizal.rizqflow.billing.RestoreOutcome
+import com.roziqrizal.rizqflow.billing.RestoreReport
 import com.roziqrizal.rizqflow.ui.RizqflowIcons
 import com.roziqrizal.rizqflow.ui.theme.rizqflow
 import com.roziqrizal.rizqflow.ui.theme.spacing
@@ -42,13 +44,23 @@ private val Feature.benefitText: Int
         Feature.HOME_WIDGET -> R.string.pro_benefit_widget
         Feature.THEMES -> R.string.pro_benefit_themes
         Feature.NOTIFICATION_CAPTURE -> R.string.pro_benefit_notification_capture
-        // Sync (fase 2) tidak pernah memicu paywall Pro ini.
+        // Fitur Sync memicu varian Sync ([SyncPaywallSheet], lihat [paywallPlanFor]), bukan sheet Pro ini.
         Feature.ENCRYPTED_SYNC, Feature.SHARED_FAMILY_ROOM -> R.string.pro_benefit_unlimited_rooms
     }
 
-/** [trigger] didahulukan, lalu diisi dari [DEFAULT_HIGHLIGHTS] sampai tiga butir, tanpa duplikat. */
+/**
+ * Varian S21 yang dibuka untuk [trigger]: dipilih dari paket yang dibutuhkan fitur pemicunya (satu-satunya
+ * tempat yang memutuskan). Tanpa pemicu (dibuka dari baris "Rizqflow Pro" di menu Lainnya) berarti Pro.
+ */
+fun paywallPlanFor(trigger: Feature?): Plan = trigger?.requiredPlan ?: Plan.PRO
+
+/**
+ * [trigger] didahulukan, lalu diisi dari [DEFAULT_HIGHLIGHTS] sampai tiga butir, tanpa duplikat. Hanya
+ * fitur Pro yang boleh didahulukan: fitur Sync punya paywall sendiri dan tidak punya manfaat di sheet ini.
+ */
 private fun highlightsFor(trigger: Feature?): List<Feature> {
-    val ordered = if (trigger != null) listOf(trigger) + DEFAULT_HIGHLIGHTS.filter { it != trigger } else DEFAULT_HIGHLIGHTS
+    val proTrigger = trigger?.takeIf { it.requiredPlan == Plan.PRO }
+    val ordered = if (proTrigger != null) listOf(proTrigger) + DEFAULT_HIGHLIGHTS.filter { it != proTrigger } else DEFAULT_HIGHLIGHTS
     return ordered.take(3)
 }
 
@@ -57,7 +69,8 @@ private fun highlightsFor(trigger: Feature?): List<Feature> {
  * fitur yang memicu, ditampilkan lebih dulu di antara tiga manfaat; null memakai tiga manfaat umum
  * (dibuka dari menu Lainnya). [priceText] adalah harga yang sudah diformat Google Play (dibaca dari
  * Play Console, tidak pernah ditanam di kode); null bila toko belum terhubung. [busy] mengunci
- * tombol selama layar bayar atau pemulihan berjalan supaya tidak terpencet dua kali.
+ * tombol selama layar bayar atau pemulihan berjalan supaya tidak terpencet dua kali. Varian Sync
+ * (langganan) ada di [SyncPaywallSheet]; [paywallPlanFor] memilih salah satunya.
  */
 @Composable
 fun PaywallSheet(trigger: Feature?, priceText: String?, busy: Boolean, onBuy: () -> Unit, onRestore: () -> Unit, onDismiss: () -> Unit) {
@@ -99,21 +112,39 @@ fun PaywallSheet(trigger: Feature?, priceText: String?, busy: Boolean, onBuy: ()
     }
 }
 
-/** Pesan jujur untuk hasil menekan Beli; dipakai pemanggil lewat snackbar. */
+/** Pesan jujur untuk hasil menekan Beli pada paket [plan]; dipakai pemanggil lewat snackbar. */
 @StringRes
-fun buyMessage(outcome: BuyOutcome): Int = when (outcome) {
-    BuyOutcome.GRANTED -> R.string.pro_buy_granted
-    BuyOutcome.PENDING -> R.string.pro_buy_pending
-    BuyOutcome.ALREADY_OWNED -> R.string.pro_buy_already_owned
+fun buyMessage(outcome: BuyOutcome, plan: Plan): Int = when (outcome) {
+    BuyOutcome.GRANTED -> if (plan == Plan.SYNC) R.string.sync_buy_granted else R.string.pro_buy_granted
+    BuyOutcome.PENDING -> if (plan == Plan.SYNC) R.string.sync_buy_pending else R.string.pro_buy_pending
+    BuyOutcome.ALREADY_OWNED -> if (plan == Plan.SYNC) R.string.sync_buy_already_owned else R.string.pro_buy_already_owned
+    // Hanya langganan yang bisa "dimiliki tetapi tidak aktif" (ditahan, dijeda, berakhir); Pro tidak pernah dilaporkan begitu.
+    BuyOutcome.OWNED_INACTIVE -> if (plan == Plan.SYNC) R.string.sync_buy_owned_inactive else R.string.pro_buy_failed
     BuyOutcome.UNAVAILABLE -> R.string.pro_purchase_unavailable
+    BuyOutcome.NOT_SUPPORTED -> R.string.purchase_not_supported
     BuyOutcome.CANCELED, BuyOutcome.FAILED -> R.string.pro_buy_failed
 }
 
-/** Pesan jujur untuk hasil Pulihkan pembelian. */
+/**
+ * Pesan jujur untuk hasil Pulihkan pembelian yang ditekan dari paywall paket [plan]. Pulihkan
+ * memulihkan semua paket sekaligus (Pro dan Sync) dan jenis produknya ditanyakan sendiri-sendiri,
+ * jadi pesannya dipilih dari rincian [report] untuk paket di layar ini, bukan dari hasil keseluruhan:
+ * aktif; tertunda (hanya bila paket INI yang tertunda); belum bisa dipastikan (jenis produk paket ini
+ * gagal ditanyakan, bukan "tidak punya"); dan baru "belum aktif di akun ini" bila jenis produknya
+ * berhasil ditanyakan dan paketnya memang tidak ada.
+ */
 @StringRes
-fun restoreMessage(outcome: RestoreOutcome): Int = when (outcome) {
-    RestoreOutcome.RESTORED -> R.string.pro_restore_done
-    RestoreOutcome.NOTHING_FOUND -> R.string.pro_restore_nothing
-    RestoreOutcome.PENDING -> R.string.pro_restore_pending
-    RestoreOutcome.UNAVAILABLE -> R.string.pro_purchase_unavailable
+fun restoreMessage(report: RestoreReport, plan: Plan): Int {
+    val sync = plan == Plan.SYNC
+    return when {
+        plan in report.granted -> if (sync) R.string.sync_restore_done else R.string.pro_restore_done
+        plan in report.pending -> if (sync) R.string.sync_restore_pending else R.string.pro_restore_pending
+        // Toko sama sekali tidak terjangkau: kabar koneksi, bukan kabar tentang satu paket.
+        report.unverified.containsAll(Plan.entries) -> R.string.pro_purchase_unavailable
+        plan in report.unverified -> if (sync) R.string.sync_restore_unverified else R.string.pro_restore_unverified
+        // Dari sini jenis produk paket ini berhasil ditanyakan dan paketnya tidak ada di sana.
+        report.granted.isNotEmpty() -> if (sync) R.string.restore_done_sync_inactive else R.string.restore_done_pro_inactive
+        report.outcome == RestoreOutcome.NOTHING_FOUND -> R.string.pro_restore_nothing
+        else -> if (sync) R.string.sync_restore_not_active else R.string.pro_restore_not_active
+    }
 }

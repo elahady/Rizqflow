@@ -459,6 +459,41 @@
     <string name="pro_benefit_widget">Quick-log widget</string>
     <string name="pro_benefit_themes">Extra themes</string>
     <string name="pro_benefit_notification_capture">Auto-capture from notifications</string>
+    <string name="restore_done_pro_inactive">Your purchases were restored, but Pro isn\'t active on this Google Play account.</string>
+
+    <!-- Rizqflow Sync: the Sync variant of paywall S21 (Stage 7). Monthly or yearly subscription through
+         Google Play Billing; price and free trial are read from Play Console, not from these strings. -->
+    <string name="menu_sync">Rizqflow Sync</string>
+    <string name="menu_sync_sub_free">Sync across devices and a shared family room</string>
+    <string name="menu_sync_sub_owned">Active</string>
+    <string name="sync_title">Rizqflow Sync</string>
+    <string name="sync_status_active">Sync subscription is active</string>
+    <string name="sync_benefit_sync">Sync your data across devices, encrypted</string>
+    <string name="sync_benefit_family">Shared family room, up to 5 members</string>
+    <string name="sync_period_monthly">Monthly</string>
+    <string name="sync_period_yearly">Yearly</string>
+    <string name="sync_price_monthly">%1$s per month</string>
+    <string name="sync_price_yearly">%1$s per year</string>
+    <string name="sync_trial_days">%1$d-day free trial</string>
+    <string name="sync_buy">Subscribe</string>
+    <string name="sync_close">Close</string>
+    <string name="sync_note_family">One subscription for the whole family, up to 5 members. Rizqflow Pro is not included.</string>
+    <string name="sync_note_free">Encrypted local backup and data export stay free.</string>
+    <string name="sync_note_manage">Manage and cancel your subscription in Google Play.</string>
+    <string name="sync_buy_granted">Thank you! Your Rizqflow Sync subscription is now active.</string>
+    <string name="sync_buy_pending">Your payment is still pending. Sync turns on automatically once it clears.</string>
+    <string name="sync_buy_already_owned">This Google Play account already has a Sync subscription; it is active again.</string>
+    <string name="sync_restore_done">Your purchases were restored. Sync subscription is active.</string>
+    <string name="sync_restore_pending">Your payment is still pending. Sync turns on automatically once it clears.</string>
+    <string name="restore_done_sync_inactive">Your purchases were restored, but the Sync subscription isn\'t active on this Google Play account.</string>
+    <!-- Honest notices when the store can't confirm, doesn't support it, or the plan isn't active (not "you don't own it"). -->
+    <string name="sync_period_unavailable">Not available right now</string>
+    <string name="sync_buy_owned_inactive">This Google Play account already has a Sync subscription, but it isn\'t active (it may be on hold or have ended). Check your subscriptions and payment method in Google Play.</string>
+    <string name="purchase_not_supported">This version of Google Play doesn\'t support this purchase. Update Google Play and try again.</string>
+    <string name="pro_restore_unverified">Couldn\'t confirm your Pro purchase because Google Play didn\'t respond. Please try again in a moment.</string>
+    <string name="sync_restore_unverified">Couldn\'t confirm your Sync subscription because Google Play didn\'t respond for subscriptions. Try again later, or update Google Play if it is an old version.</string>
+    <string name="pro_restore_not_active">Pro isn\'t active on this Google Play account.</string>
+    <string name="sync_restore_not_active">The Sync subscription isn\'t active on this Google Play account.</string>
 
     <!-- App lock S19 (Stage 6) -->
     <string name="lock_title">Locked</string>

@@ -32,11 +32,10 @@ private class SharedPrefsPlanStorage(context: Context) : PlanStorage {
  * bisa punya banyak akun ledger, S30/S31), jadi statusnya app-wide seperti `ThemePreference`, bukan
  * per akun. `allowBackup` mati, jadi berkas ini tidak ikut cadangan otomatis Android.
  *
- * [grant] dan [revoke] SEMENTARA menandai paket secara lokal tanpa transaksi sungguhan, sampai
- * Google Play Billing terpasang (menyusul di Tahap 7 lanjutan setelah listing Play Console ada,
- * Tahap 8). Satu-satunya pemanggil adalah saklar "Pro (uji)" di menu Lainnya, yang hanya ada di
- * build debug (`BuildConfig.DEBUG`). Bottom sheet S21 sengaja tidak memanggilnya supaya tombol Beli
- * tidak diam-diam membuka Pro tanpa pembayaran sungguhan.
+ * [grant] dan [revoke] hanya dipanggil dari dua tempat: [PurchaseController] (hasil toko Google Play,
+ * untuk Pro dan Sync) dan saklar "Pro (uji)" di menu Lainnya yang hanya ada di build debug
+ * (`BuildConfig.DEBUG`). Bottom sheet S21 tidak pernah memanggilnya langsung supaya tombol Beli
+ * tidak diam-diam membuka paket tanpa pembayaran sungguhan.
  */
 class PurchaseStore(private val storage: PlanStorage) {
     constructor(context: Context) : this(SharedPrefsPlanStorage(context))

@@ -10,41 +10,19 @@ import kotlin.test.assertTrue
 
 class PurchaseControllerTest {
 
-    private class FakeStorage(var names: Set<String> = emptySet()) : PlanStorage {
-        override fun read() = names
-        override fun write(names: Set<String>) {
-            this.names = names
-        }
-    }
-
-    private class FakeGateway : BillingGateway {
-        var priceResult: GatewayResult<String> = GatewayResult.Ok("Rp99.000")
-        var purchaseResult: GatewayResult<List<OwnedPurchase>> = GatewayResult.Failure(BillingError.UNAVAILABLE)
-        var ownedResult: GatewayResult<List<OwnedPurchase>> = GatewayResult.Ok(emptyList())
-        var acknowledgeResult: GatewayResult<Unit> = GatewayResult.Ok(Unit)
-        val acknowledged = mutableListOf<String>()
-
-        override suspend fun price(plan: Plan) = priceResult
-        override suspend fun purchase(plan: Plan, activity: () -> Activity?) = purchaseResult
-        override suspend fun queryOwned() = ownedResult
-        override suspend fun acknowledge(purchase: OwnedPurchase): GatewayResult<Unit> {
-            acknowledged += purchase.token
-            return acknowledgeResult
-        }
-    }
-
+    // Toko dan penyimpanan palsu dipakai bersama SyncPurchaseControllerTest: lihat BillingTestDoubles.kt.
     private fun purchase(state: PurchaseState = PurchaseState.PURCHASED, acknowledged: Boolean = true, plan: Plan = Plan.PRO) =
         OwnedPurchase(plan, "token-${plan.name}", state, acknowledged)
 
-    private fun controller(store: PurchaseStore, gateway: FakeGateway, revokeMissing: Boolean = true) =
+    private fun controller(store: PurchaseStore, gateway: FakeBillingGateway, revokeMissing: Boolean = true) =
         PurchaseController(store, gateway, revokeMissing)
 
     private val noActivity: () -> Activity? = { null }
 
     @Test
     fun `harga datang dari toko, null bila toko tidak terhubung`() = runBlocking {
-        val gateway = FakeGateway()
-        val controller = controller(PurchaseStore(FakeStorage()), gateway)
+        val gateway = FakeBillingGateway()
+        val controller = controller(PurchaseStore(FakePlanStorage()), gateway)
 
         assertEquals("Rp99.000", controller.price())
 
@@ -54,8 +32,8 @@ class PurchaseControllerTest {
 
     @Test
     fun `beli sukses membuka Pro dan meng-acknowledge pembelian yang belum`() = runBlocking {
-        val store = PurchaseStore(FakeStorage())
-        val gateway = FakeGateway().apply { purchaseResult = GatewayResult.Ok(listOf(purchase(acknowledged = false))) }
+        val store = PurchaseStore(FakePlanStorage())
+        val gateway = FakeBillingGateway().apply { purchaseResult = GatewayResult.Ok(listOf(purchase(acknowledged = false))) }
 
         val outcome = controller(store, gateway).buy(Plan.PRO, noActivity)
 
@@ -66,17 +44,17 @@ class PurchaseControllerTest {
 
     @Test
     fun `pembelian yang sudah di-acknowledge tidak di-acknowledge lagi`() = runBlocking {
-        val gateway = FakeGateway().apply { purchaseResult = GatewayResult.Ok(listOf(purchase(acknowledged = true))) }
+        val gateway = FakeBillingGateway().apply { purchaseResult = GatewayResult.Ok(listOf(purchase(acknowledged = true))) }
 
-        controller(PurchaseStore(FakeStorage()), gateway).buy(Plan.PRO, noActivity)
+        controller(PurchaseStore(FakePlanStorage()), gateway).buy(Plan.PRO, noActivity)
 
         assertTrue(gateway.acknowledged.isEmpty())
     }
 
     @Test
     fun `gagal acknowledge tidak menarik Pro kembali`() = runBlocking {
-        val store = PurchaseStore(FakeStorage())
-        val gateway = FakeGateway().apply {
+        val store = PurchaseStore(FakePlanStorage())
+        val gateway = FakeBillingGateway().apply {
             purchaseResult = GatewayResult.Ok(listOf(purchase(acknowledged = false)))
             acknowledgeResult = GatewayResult.Failure(BillingError.UNAVAILABLE)
         }
@@ -87,8 +65,8 @@ class PurchaseControllerTest {
 
     @Test
     fun `pembayaran tertunda tidak membuka Pro`() = runBlocking {
-        val store = PurchaseStore(FakeStorage())
-        val gateway = FakeGateway().apply { purchaseResult = GatewayResult.Ok(listOf(purchase(state = PurchaseState.PENDING, acknowledged = false))) }
+        val store = PurchaseStore(FakePlanStorage())
+        val gateway = FakeBillingGateway().apply { purchaseResult = GatewayResult.Ok(listOf(purchase(state = PurchaseState.PENDING, acknowledged = false))) }
 
         val outcome = controller(store, gateway).buy(Plan.PRO, noActivity)
 
@@ -99,8 +77,8 @@ class PurchaseControllerTest {
 
     @Test
     fun `dibatalkan atau toko tidak tersedia tidak mengubah paket`() = runBlocking {
-        val store = PurchaseStore(FakeStorage())
-        val gateway = FakeGateway()
+        val store = PurchaseStore(FakePlanStorage())
+        val gateway = FakeBillingGateway()
         val controller = controller(store, gateway)
 
         gateway.purchaseResult = GatewayResult.Failure(BillingError.CANCELED)
@@ -120,8 +98,8 @@ class PurchaseControllerTest {
 
     @Test
     fun `sudah dimiliki di akun Play ini dipulihkan, bukan dianggap gagal`() = runBlocking {
-        val store = PurchaseStore(FakeStorage())
-        val gateway = FakeGateway().apply {
+        val store = PurchaseStore(FakePlanStorage())
+        val gateway = FakeBillingGateway().apply {
             purchaseResult = GatewayResult.Failure(BillingError.ALREADY_OWNED)
             ownedResult = GatewayResult.Ok(listOf(purchase()))
         }
@@ -132,8 +110,8 @@ class PurchaseControllerTest {
 
     @Test
     fun `pulihkan membuka paket yang sah, atau melaporkan tidak ada`() = runBlocking {
-        val store = PurchaseStore(FakeStorage())
-        val gateway = FakeGateway()
+        val store = PurchaseStore(FakePlanStorage())
+        val gateway = FakeBillingGateway()
         val controller = controller(store, gateway)
 
         assertEquals(RestoreOutcome.NOTHING_FOUND, controller.restore())
@@ -146,8 +124,8 @@ class PurchaseControllerTest {
 
     @Test
     fun `pulihkan saat toko tidak tersedia dilaporkan jujur dan tidak mencabut apa pun`() = runBlocking {
-        val store = PurchaseStore(FakeStorage(setOf("PRO")))
-        val gateway = FakeGateway().apply { ownedResult = GatewayResult.Failure(BillingError.UNAVAILABLE) }
+        val store = PurchaseStore(FakePlanStorage(setOf("PRO")))
+        val gateway = FakeBillingGateway().apply { ownedResult = GatewayResult.Failure(BillingError.UNAVAILABLE) }
 
         assertEquals(RestoreOutcome.UNAVAILABLE, controller(store, gateway).restore())
         assertEquals(setOf(Plan.PRO), store.plans.value)
@@ -155,8 +133,8 @@ class PurchaseControllerTest {
 
     @Test
     fun `sync di perangkat baru membuka Pro yang sudah dibeli (pasang ulang)`() = runBlocking {
-        val store = PurchaseStore(FakeStorage())
-        val gateway = FakeGateway().apply { ownedResult = GatewayResult.Ok(listOf(purchase())) }
+        val store = PurchaseStore(FakePlanStorage())
+        val gateway = FakeBillingGateway().apply { ownedResult = GatewayResult.Ok(listOf(purchase())) }
 
         controller(store, gateway).sync()
 
@@ -165,8 +143,8 @@ class PurchaseControllerTest {
 
     @Test
     fun `sync mencabut Pro yang sudah tidak ada di toko (pengembalian dana)`() = runBlocking {
-        val store = PurchaseStore(FakeStorage(setOf("PRO")))
-        val gateway = FakeGateway().apply { ownedResult = GatewayResult.Ok(emptyList()) }
+        val store = PurchaseStore(FakePlanStorage(setOf("PRO")))
+        val gateway = FakeBillingGateway().apply { ownedResult = GatewayResult.Ok(emptyList()) }
 
         controller(store, gateway, revokeMissing = true).sync()
 
@@ -175,8 +153,8 @@ class PurchaseControllerTest {
 
     @Test
     fun `sync di build debug tidak mencabut saklar Pro uji`() = runBlocking {
-        val store = PurchaseStore(FakeStorage(setOf("PRO")))
-        val gateway = FakeGateway().apply { ownedResult = GatewayResult.Ok(emptyList()) }
+        val store = PurchaseStore(FakePlanStorage(setOf("PRO")))
+        val gateway = FakeBillingGateway().apply { ownedResult = GatewayResult.Ok(emptyList()) }
 
         controller(store, gateway, revokeMissing = false).sync()
 
@@ -185,8 +163,8 @@ class PurchaseControllerTest {
 
     @Test
     fun `sync saat toko gagal tidak pernah mencabut Pro (offline tidak menghilangkan akses)`() = runBlocking {
-        val store = PurchaseStore(FakeStorage(setOf("PRO")))
-        val gateway = FakeGateway().apply { ownedResult = GatewayResult.Failure(BillingError.UNAVAILABLE) }
+        val store = PurchaseStore(FakePlanStorage(setOf("PRO")))
+        val gateway = FakeBillingGateway().apply { ownedResult = GatewayResult.Failure(BillingError.UNAVAILABLE) }
 
         controller(store, gateway, revokeMissing = true).sync()
 
@@ -195,8 +173,8 @@ class PurchaseControllerTest {
 
     @Test
     fun `sync dengan pembelian tertunda tidak mencabut Pro yang sudah sah`() = runBlocking {
-        val store = PurchaseStore(FakeStorage(setOf("PRO")))
-        val gateway = FakeGateway().apply {
+        val store = PurchaseStore(FakePlanStorage(setOf("PRO")))
+        val gateway = FakeBillingGateway().apply {
             ownedResult = GatewayResult.Ok(listOf(purchase(state = PurchaseState.PENDING, acknowledged = false)))
         }
 

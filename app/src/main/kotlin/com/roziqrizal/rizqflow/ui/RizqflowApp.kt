@@ -105,6 +105,10 @@ fun RizqflowApp(
     onDeleteAccount: (() -> Unit)? = null,
     /** Pindai undangan QR ruang keluarga (Tahap 9): bergabung ke ruang yang dibagi anggota lain. */
     onOpenFamilyScan: (() -> Unit)? = null,
+    /** Membuka S21 varian Sync (langganan); null = baris "Rizqflow Sync" tidak tampil. */
+    onOpenSyncPaywall: (() -> Unit)? = null,
+    /** Langganan Sync sedang aktif di perangkat ini (lihat `PurchaseStore`); menentukan subjudul baris Rizqflow Sync. */
+    syncOwned: Boolean = false,
 ) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
@@ -160,7 +164,7 @@ fun RizqflowApp(
             TopTab.entries.forEach { tab ->
                 composable(tab.route) {
                     if (tab == TopTab.Lainnya && account != null) {
-                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport, onToggleProDebug, onDeleteAccount, onOpenFamilyScan)
+                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport, onToggleProDebug, onDeleteAccount, onOpenFamilyScan, onOpenSyncPaywall, syncOwned)
                     } else if (tab == TopTab.Transaksi && transaksiContent != null) {
                         transaksiContent()
                     } else if (tab == TopTab.Ruang && ruangContent != null) {
@@ -251,6 +255,8 @@ private fun LainnyaScreen(
     onToggleProDebug: (() -> Unit)? = null,
     onDeleteAccount: (() -> Unit)? = null,
     onOpenFamilyScan: (() -> Unit)? = null,
+    onOpenSyncPaywall: (() -> Unit)? = null,
+    syncOwned: Boolean = false,
 ) {
     val spacing = MaterialTheme.spacing
     Column(
@@ -292,6 +298,15 @@ private fun LainnyaScreen(
                 stringResource(R.string.menu_pro),
                 stringResource(if (proOwned) R.string.menu_pro_sub_owned else R.string.menu_pro_sub_free),
                 onOpenPaywall,
+            )
+        }
+        // Pintu masuk ke S21 varian Sync: layar Ruang Keluarga dan pemindai undangan tidak membuka
+        // paywall sendiri (server yang menolak tanpa langganan), jadi langganan dijual dari baris ini.
+        if (onOpenSyncPaywall != null) {
+            MenuRow(
+                stringResource(R.string.menu_sync),
+                stringResource(if (syncOwned) R.string.menu_sync_sub_owned else R.string.menu_sync_sub_free),
+                onOpenSyncPaywall,
             )
         }
         if (onToggleProDebug != null) {

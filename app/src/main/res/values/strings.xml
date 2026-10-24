@@ -461,6 +461,41 @@
     <string name="pro_benefit_widget">Widget catat kilat</string>
     <string name="pro_benefit_themes">Tema tambahan</string>
     <string name="pro_benefit_notification_capture">Tangkap otomatis dari notifikasi</string>
+    <string name="restore_done_pro_inactive">Pembelianmu dipulihkan, tetapi pembelian Pro belum aktif di akun Google Play ini.</string>
+
+    <!-- Rizqflow Sync: varian Sync dari paywall S21 (Tahap 7). Langganan bulanan atau tahunan lewat
+         Google Play Billing; harga dan uji coba dibaca dari Play Console, bukan dari string ini. -->
+    <string name="menu_sync">Rizqflow Sync</string>
+    <string name="menu_sync_sub_free">Sinkron antar-perangkat dan ruang keluarga</string>
+    <string name="menu_sync_sub_owned">Aktif</string>
+    <string name="sync_title">Rizqflow Sync</string>
+    <string name="sync_status_active">Langganan Sync aktif</string>
+    <string name="sync_benefit_sync">Sinkron data antar-perangkat, terenkripsi</string>
+    <string name="sync_benefit_family">Ruang keluarga bersama, sampai 5 anggota</string>
+    <string name="sync_period_monthly">Bulanan</string>
+    <string name="sync_period_yearly">Tahunan</string>
+    <string name="sync_price_monthly">%1$s per bulan</string>
+    <string name="sync_price_yearly">%1$s per tahun</string>
+    <string name="sync_trial_days">Uji coba gratis %1$d hari</string>
+    <string name="sync_buy">Berlangganan</string>
+    <string name="sync_close">Tutup</string>
+    <string name="sync_note_family">Satu langganan untuk seluruh keluarga, sampai 5 anggota. Tidak termasuk Rizqflow Pro.</string>
+    <string name="sync_note_free">Cadangan lokal terenkripsi dan ekspor data tetap gratis.</string>
+    <string name="sync_note_manage">Langganan dikelola dan dibatalkan di Google Play.</string>
+    <string name="sync_buy_granted">Terima kasih! Langganan Rizqflow Sync sudah aktif.</string>
+    <string name="sync_buy_pending">Pembayaranmu masih menunggu. Sync aktif otomatis begitu pembayaran lunas.</string>
+    <string name="sync_buy_already_owned">Langganan Sync sudah dimiliki akun Google Play ini dan kini aktif kembali.</string>
+    <string name="sync_restore_done">Pembelianmu dipulihkan. Langganan Sync aktif.</string>
+    <string name="sync_restore_pending">Pembayaranmu masih menunggu. Sync aktif otomatis begitu lunas.</string>
+    <string name="restore_done_sync_inactive">Pembelianmu dipulihkan, tetapi langganan Sync belum aktif di akun Google Play ini.</string>
+    <!-- Kabar jujur saat toko tidak bisa memastikan, tidak mendukung, atau paket belum aktif (bukan "tidak punya"). -->
+    <string name="sync_period_unavailable">Tidak tersedia saat ini</string>
+    <string name="sync_buy_owned_inactive">Akun Google Play ini sudah memiliki langganan Sync, tetapi belum aktif (mungkin ditahan atau sudah berakhir). Periksa langganan dan metode pembayaranmu di Google Play.</string>
+    <string name="purchase_not_supported">Versi Google Play di perangkat ini belum mendukung pembelian ini. Perbarui Google Play lalu coba lagi.</string>
+    <string name="pro_restore_unverified">Belum bisa memastikan pembelian Pro karena Google Play belum menjawab. Coba lagi sebentar lagi.</string>
+    <string name="sync_restore_unverified">Belum bisa memastikan langganan Sync karena Google Play belum menjawab untuk langganan. Coba lagi nanti, atau perbarui Google Play bila versinya lama.</string>
+    <string name="pro_restore_not_active">Pembelian Pro belum aktif di akun Google Play ini.</string>
+    <string name="sync_restore_not_active">Langganan Sync belum aktif di akun Google Play ini.</string>
 
     <!-- Kunci aplikasi S19 (Tahap 6) -->
     <string name="lock_title">Terkunci</string>
