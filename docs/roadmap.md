@@ -48,7 +48,7 @@ Ringkasan ini **menyimpulkan, bukan menggantikan** checklist lengkap di tiap Tah
 - ~~UI ruang keluarga bersama~~ **inti selesai 2026-10-24** (lihat task Tahap 9) — sisa: peran anggota + amplop bulanan (Tahap 9, Medium)
 - Wiring Firebase Cloud Messaging sungguhan (Tahap 13) — dependensi belum ditambahkan
 - ~~Integrasi Google Play Billing untuk Pro, plus pulihkan pembelian (Tahap 7)~~ **kode Pro selesai 2026-10-24**, uji nyata di Tahap 8; langganan Sync (SUBS) **belum dikodekan** dan ikut rilis 1 (keputusan pemilik 2026-10-24, membalik pemindahan ke 1.1 di hari yang sama)
-- ~~Info lembut profil haul tambahan, laporan/insight, widget, tema (Tahap 7)~~ **selesai di kode 2026-10-24**; harga emas otomatis dipindah ke Versi 1.1 setelah rilis; multi-mata uang tetap di Tahap 10
+- ~~Info lembut profil haul tambahan, laporan/insight, widget, tema (Tahap 7)~~ **selesai di kode 2026-10-24**; harga emas otomatis dipindah ke Versi 1.1 setelah rilis; multi-mata uang dipindah ke Versi 1.1 setelah rilis
 
 **Kode server (ada, tapi belum lengkap):**
 - Catat dan verifikasi pembelian Pro/Sync — Play Developer API + notifikasi waktu nyata (Tahap 9, High)
@@ -119,7 +119,7 @@ Pemilik memilih **Opsi A** — pertahankan keputusan 24 Sept, rilis 1 tetap menc
 
 **Terakhir, sebelum submit:**
 - Uji alur pembelian dengan penguji lisensi
-- ~~Sisa polish Tahap 7 (info profil haul, laporan/insight, widget, tema)~~ — selesai di kode 2026-10-24; tinggal verifikasi manual di perangkat (butir di Tahap 8). Multi-mata uang ada di Tahap 10
+- ~~Sisa polish Tahap 7 (info profil haul, laporan/insight, widget, tema)~~ — selesai di kode 2026-10-24; tinggal verifikasi manual di perangkat (butir di Tahap 8). Multi-mata uang dipindah ke Versi 1.1 setelah rilis
 - Kebijakan privasi + data safety, uji tertutup Play Console, store listing, case study
 
 ## Tahap 0 — Fondasi dan keputusan (In Progress)
@@ -300,7 +300,7 @@ Sesudah rilis (tidak masuk rilis 1): bot WhatsApp resmi tersinkron ke aplikasi (
 
 **Konsekuensi yang harus diikuti tahap lain:** Tahap 8 (Data safety dan kebijakan privasi menyebut server, UU PDP, dan Google Play mewajibkan hapus akun bila ada pembuatan akun); Tahap 7 (Google Play Billing untuk langganan Sync selain produk Pro); `auth-google.md` dan teks "Datamu tetap di ponselmu" di halaman masuk. ~~Skema Room perlu dirancang ulang untuk sync... menyentuh hampir semua tabel~~ — **ternyata tidak sebesar itu** (2026-10-24): putaran pertama (hanya transaksi EXPENSE) cuma butuh satu kolom baru (`money_transaction.synced_at`, migrasi v6→v7); tabel lain baru perlu disentuh kalau/ketika entitasnya ikut disync (lihat task Tahap 9).
 
-## Tahap 10 — Celah riset: fitur wajib (In Progress)
+## Tahap 10 — Celah riset: fitur wajib (Selesai)
 
 Menutup kesenjangan fitur wajib dari [riset pasar](research-market/research.md) (kecocokan sekitar 47% sebelum tahap ini, target sekitar 65–70%). Semua tanpa server. Ditambahkan 2026-09-23; disarankan selesai sebelum Tahap 8, atau minimal butir prioritas High.
 
@@ -312,9 +312,11 @@ Menutup kesenjangan fitur wajib dari [riset pasar](research-market/research.md) 
 - [x] Template pos lokal: arisan, THR dan Lebaran, kiriman orang tua, paylater (Medium) (2026-09-24): `LOCAL_CATEGORY_TEMPLATES` (Arisan, THR & Lebaran, Kiriman orang tua, Cicilan & paylater) muncul sebagai chip usulan di sheet "Kategori baru" (S13, Kelola akun dan kategori); mengetuk chip mengisi kolom nama tapi tetap bisa diubah, dan usulan yang sudah dipakai di ruang itu tidak ditawarkan lagi. Tanpa perubahan skema (hanya daftar nama, disimpan seperti kategori biasa). Teruji di emulator: chip mengisi nama dengan benar, tersimpan dan muncul di daftar kategori, dan usulan yang sudah dipakai hilang saat sheet dibuka lagi.
 - [x] Putuskan batas gratis akun dan ruang (Medium) (2026-09-24): akun tidak dibatasi (batas 3 dicabut karena riset menyebut multi-dompet terkunci premium adalah keluhan pengguna), ruang tetap 5. `Feature.UNLIMITED_ACCOUNTS`, `accountLimit`, `LedgerError.ACCOUNT_LIMIT_REACHED`, dan teks batas di S13 dihapus; `ManagementService` tak lagi bergantung pada `Entitlements`. Tes: akun ke-11 diterima, akun terarsip bisa dipulihkan tanpa batas
 - [x] Pintasan simpan cadangan ke Google Drive lewat Storage Access Framework (Low) (2026-09-24): `BackupShortcutFolder` di menu Lainnya > Backup dan data, bagian "Pintasan folder": folder SAF (`OpenDocumentTree`, mis. folder di Google Drive) dipilih sekali dengan izin permanen (`takePersistableUriPermission`), lalu Cadangkan berikutnya menulis langsung ke sana tanpa dialog "Simpan sebagai" berulang. Tanpa API atau OAuth Google Drive; SAF bekerja dengan penyedia dokumen mana pun yang terpasang, jadi bukan hanya Drive. Tombol Ganti dan Hapus; folder yang izinnya dicabut dari luar aplikasi (dihapus, akun dicabut) ditandai "tidak lagi bisa diakses" alih-alih gagal diam-diam. Tanpa pintasan, tombol Cadangkan tetap memakai dialog "Simpan sebagai" seperti sebelumnya (kompatibel mundur). Menambah dependensi `androidx.documentfile`. Teruji di emulator: pilih folder Documents, Cadangkan langsung menulis tanpa dialog, berkas terverifikasi ada di `/sdcard/Documents/` dengan nama dan ukuran benar, Hapus mengembalikan ke keadaan belum diatur.
-- [ ] Multi-mata uang (Pro, Low): menyentuh model inti `Money`; dipindah dari butir Pro Tahap 7
+- ~~Multi-mata uang (Pro, Low): menyentuh model inti `Money`; dipindah dari butir Pro Tahap 7~~ — dipindah ke Versi 1.1 setelah rilis (keputusan pemilik 2026-10-24: target Indonesia dulu, jadi rupiah saja di rilis 1)
 
 **Selesai bila:** transaksi berulang tidak menggandakan transaksi saat aplikasi lama tidak dibuka; utang-piutang bisa dicatat, dilunasi, dan piutang lancar mengalir ke harta zakat; sisa aman hari ini benar untuk bulan kosong dan jatah terlampaui; penguncian tetap lewat lapisan entitlement.
+
+**Status 2026-10-24:** semua butir selesai; satu-satunya yang terbuka, multi-mata uang, dipindah ke Versi 1.1 setelah rilis atas keputusan pemilik (rilis 1 untuk pasar Indonesia, rupiah saja). Tahap ditutup **Selesai**. Tes dan verifikasi emulator tiap butir tercatat di butirnya masing-masing.
 
 ## Tahap 11 — Input cerdas on-device (In Progress)
 
@@ -449,6 +451,7 @@ Dikerjakan **paling akhir**, setelah semua tahap lain (keputusan pemilik 2026-10
 Disetujui 2026-09-20; rancangan dan batasannya ada di "Disiplin mencatat" di [konsep.md](konsep.md). Tidak masuk 10 tahap di atas dan tidak menunda rilis pertama.
 
 - [ ] Harga emas otomatis (Pro) — dipindah dari Tahap 7 (2026-10-24). Rencana: server sendiri (Tahap 12) mengambil harga sekali sehari lalu melayaninya ke semua pengguna, supaya kunci vendor tidak ada di APK; kandidat sumber dan alasan penundaan ada di butir yang dicoret di Tahap 7. Sampai itu jadi, harga emas tetap input manual (gratis), di Android maupun web
+- [ ] Multi-mata uang (Pro) — dipindah dari Tahap 10 (2026-10-24, keputusan pemilik: target Indonesia dulu, rilis 1 hanya rupiah). Menyentuh model inti `Money` (uang selalu bilangan bulat satuan terkecil), jadi butuh rancangan terpisah: satuan terkecil per mata uang, kurs, pelaporan lintas mata uang, dan PDF multi-mata uang (Tahap 7)
 
 - [ ] Riset kebijakan Play Store untuk akses notifikasi (deklarasi, data safety, kebijakan data pengguna)
 - [ ] Parser notifikasi per aplikasi, dimulai dari aplikasi yang paling sering dipakai, dengan unit test memakai contoh teks
