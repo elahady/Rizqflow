@@ -101,6 +101,12 @@ interface RoomRepository {
 /** Jatah dan terpakai per ruang untuk satu rentang hari. Ruang tanpa baris dianggap nol. */
 data class RoomTotals(val allocated: Map<RoomId, Money>, val spent: Map<RoomId, Money>)
 
+/** Satu transaksi menunggu dikirim ke sync (Tahap 9) — lihat [TransactionRepository.pendingSync]. */
+data class PendingSyncTransaction(
+    val transaction: MoneyTransaction,
+    val changedAtMillis: Long,
+)
+
 interface TransactionRepository {
     suspend fun find(id: TransactionId): MoneyTransaction?
 
@@ -133,6 +139,28 @@ interface TransactionRepository {
 
     /** Jatah (alokasi dari pemasukan) dan terpakai (pengeluaran) per ruang antara dua hari (inklusif). */
     suspend fun roomTotals(from: LocalDate, to: LocalDate): RoomTotals
+
+    /**
+     * Pengeluaran di [roomId] yang belum terkirim ke sync (Tahap 9, kolom `synced_at` null).
+     * Penghapusan transaksi di ruang yang dibagi **belum** ikut tersinkron di putaran ini — hapus
+     * tetap hard-delete seperti sekarang, anggota lain tidak akan melihatnya hilang (keterbatasan
+     * yang disengaja, dicatat di roadmap.md, menyusul terpisah).
+     */
+    suspend fun pendingSync(roomId: RoomId): List<PendingSyncTransaction>
+
+    /** Tandai transaksi-transaksi ini sudah terkirim ke sync. */
+    suspend fun markSynced(ids: List<TransactionId>, atMillis: Long)
+
+    /**
+     * Terapkan satu baris hasil pull dari anggota lain. [transaction] data lengkap untuk baris
+     * baru/diubah — insert, atau timpa yang sudah ada bila [changedAtMillis] lebih baru dari
+     * [MoneyTransaction.updatedAtMillis] lokal (last-write-wins). Null bila [deleted] true: baris
+     * lokal (bila ada) dihapus seperti [delete] biasa — tombstone dari anggota lain diterapkan
+     * sebagai hapus wajar, bukan ciri khusus ruang yang dibagi (lihat catatan [pendingSync] soal
+     * hapus lokal yang belum ikut mengirim tombstone). Hasil terapan ini tidak pernah ditandai
+     * pending push lagi (datang dari luar, bukan ubahan lokal).
+     */
+    suspend fun applyFromSync(id: TransactionId, transaction: MoneyTransaction?, deviceId: String, changedAtMillis: Long, deleted: Boolean)
 }
 
 /** Pengaturan generik kunci/nilai dan hari yang ditandai "Tidak ada". Dasar pengingat malam (S26). */

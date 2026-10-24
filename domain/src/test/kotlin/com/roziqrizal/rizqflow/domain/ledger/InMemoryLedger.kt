@@ -27,6 +27,7 @@ class InMemoryLedger : WorkspaceRepository, AccountRepository, RoomRepository, T
     val transactionRows = linkedMapOf<TransactionId, MoneyTransaction>()
     val entryRows = linkedMapOf<String, AllocationEntry>()
     val favoriteRows = linkedMapOf<String, QuickFavorite>()
+    val syncedAtRows = mutableMapOf<TransactionId, Long>()
 
     /** Bila diisi, penyimpanan berikutnya melempar galat ini: untuk menguji atomisitas di pemanggil. */
     var failNextWrite: Throwable? = null
@@ -178,12 +179,14 @@ class InMemoryLedger : WorkspaceRepository, AccountRepository, RoomRepository, T
     override suspend fun save(transaction: MoneyTransaction) {
         maybeFail()
         transactionRows[transaction.id] = transaction
+        syncedAtRows.remove(transaction.id) // ubahan lokal baru selalu pending sync lagi
     }
 
     override suspend fun update(transaction: MoneyTransaction) {
         maybeFail()
         check(transaction.id in transactionRows) { "transaksi belum ada" }
         transactionRows[transaction.id] = transaction
+        syncedAtRows.remove(transaction.id)
     }
 
     override suspend fun replaceIncome(transaction: MoneyTransaction, entries: List<AllocationEntry>) {
@@ -196,6 +199,7 @@ class InMemoryLedger : WorkspaceRepository, AccountRepository, RoomRepository, T
     override suspend fun delete(id: TransactionId) {
         transactionRows.remove(id)
         entryRows.values.removeAll { it.incomeId == id }
+        syncedAtRows.remove(id)
     }
 
     override suspend fun between(from: LocalDate, to: LocalDate) = transactionRows.values
@@ -217,5 +221,28 @@ class InMemoryLedger : WorkspaceRepository, AccountRepository, RoomRepository, T
         val spent = inRange.filter { it.kind == TransactionKind.EXPENSE }.groupBy { it.roomId!! }
             .mapValues { (_, list) -> list.fold(Money.zero()) { a, e -> a + e.amount } }
         return RoomTotals(allocated, spent)
+    }
+
+    // ---- TransactionRepository: sync (Tahap 9)
+    override suspend fun pendingSync(roomId: RoomId): List<PendingSyncTransaction> =
+        transactionRows.values
+            .filter { it.roomId == roomId && it.id !in syncedAtRows }
+            .map { PendingSyncTransaction(it, changedAtMillis = it.updatedAtMillis) }
+
+    override suspend fun markSynced(ids: List<TransactionId>, atMillis: Long) {
+        ids.forEach { syncedAtRows[it] = atMillis }
+    }
+
+    override suspend fun applyFromSync(id: TransactionId, transaction: MoneyTransaction?, deviceId: String, changedAtMillis: Long, deleted: Boolean) {
+        if (deleted) {
+            delete(id)
+            return
+        }
+        requireNotNull(transaction) { "transaction wajib diisi bila deleted = false" }
+        val existing = transactionRows[id]
+        if (existing == null || changedAtMillis >= existing.updatedAtMillis) {
+            transactionRows[id] = transaction
+            syncedAtRows[id] = changedAtMillis // hasil terapan tidak pending push lagi
+        }
     }
 }
