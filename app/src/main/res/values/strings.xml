@@ -420,6 +420,13 @@
     <string name="tampilan_system">Otomatis</string>
     <string name="tampilan_light">Terang</string>
     <string name="tampilan_dark">Gelap</string>
+    <string name="tampilan_palette_title">Warna aksen</string>
+    <string name="tampilan_palette_body">Mengganti warna tombol dan penanda. Warna ruang dan status tetap sama supaya mudah dikenali. Palet tambahan ada di Rizqflow Pro.</string>
+    <string name="tampilan_palette_pro">%1$s · Pro</string>
+    <string name="palette_sage">Sage</string>
+    <string name="palette_laut">Laut</string>
+    <string name="palette_pasir">Pasir</string>
+    <string name="palette_anggur">Anggur</string>
 
     <!-- Rizqflow Pro: paywall S21 (Tahap 7). Beli dan Pulihkan pembelian lewat Google Play Billing
          (PurchaseController); harga dibaca dari Play Console, bukan dari string ini. -->

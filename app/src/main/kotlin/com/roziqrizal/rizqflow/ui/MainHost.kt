@@ -43,6 +43,7 @@ import com.roziqrizal.rizqflow.ui.zakat.ZakatFlow
 import com.roziqrizal.rizqflow.domain.model.RoomId
 import java.time.YearMonth
 import com.roziqrizal.rizqflow.domain.entitlement.Feature
+import com.roziqrizal.rizqflow.domain.entitlement.LivePlanEntitlements
 import com.roziqrizal.rizqflow.domain.entitlement.Plan
 import com.roziqrizal.rizqflow.ui.paywall.PaywallSheet
 import com.roziqrizal.rizqflow.ui.paywall.buyMessage
@@ -461,7 +462,12 @@ fun MainHost(
     )
     if (tampilanOpen) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            ThemeSettingsScreen(preference = themePreference, onClose = { tampilanOpen = false })
+            ThemeSettingsScreen(
+                preference = themePreference,
+                entitlements = LivePlanEntitlements { ownedPlans },
+                onOpenPaywall = { openPaywall(Feature.THEMES) },
+                onClose = { tampilanOpen = false },
+            )
         }
     }
     if (securityOpen) {

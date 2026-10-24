@@ -44,6 +44,20 @@ class PurchaseStore(private val storage: PlanStorage) {
     private val _plans = MutableStateFlow(readPlans())
     val plans: StateFlow<Set<Plan>> = _plans.asStateFlow()
 
+    companion object {
+        @Volatile
+        private var instance: PurchaseStore? = null
+
+        /**
+         * Satu instans untuk seluruh proses. Pembelian bersifat app-wide, tapi [plans] adalah StateFlow
+         * per instans: kalau tiap ruang kerja dan MainActivity memegang instansnya sendiri, membeli Pro
+         * lewat satu instans tidak terlihat oleh yang lain (mis. tema Pro di level aplikasi) sampai
+         * dibuat ulang. Berbagi satu instans menghilangkan selisih itu.
+         */
+        fun shared(context: Context): PurchaseStore =
+            instance ?: synchronized(this) { instance ?: PurchaseStore(context).also { instance = it } }
+    }
+
     fun grant(plan: Plan) = update(_plans.value + plan)
 
     fun revoke(plan: Plan) = update(_plans.value - plan)

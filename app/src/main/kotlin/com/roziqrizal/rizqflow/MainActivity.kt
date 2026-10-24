@@ -24,7 +24,10 @@ import com.roziqrizal.rizqflow.domain.auth.LocalAccountService
 import com.roziqrizal.rizqflow.domain.auth.Pbkdf2PasswordHasher
 import com.roziqrizal.rizqflow.ui.AppRoot
 import com.roziqrizal.rizqflow.ui.theme.RizqflowTheme
+import com.roziqrizal.rizqflow.billing.PurchaseStore
+import com.roziqrizal.rizqflow.domain.entitlement.LivePlanEntitlements
 import com.roziqrizal.rizqflow.ui.theme.ThemePreference
+import com.roziqrizal.rizqflow.ui.theme.effective
 import com.roziqrizal.rizqflow.ui.theme.resolveDarkTheme
 import java.util.UUID
 
@@ -73,17 +76,23 @@ class MainActivity : FragmentActivity() {
 
         val appLock = AppLockService(SharedPrefsSecurityStore(this), Pbkdf2PasswordHasher())
         val themePreference = ThemePreference(this)
+        val purchases = PurchaseStore.shared(this)
 
         setContent {
             val mode by themePreference.mode.collectAsState()
             val darkTheme = mode.resolveDarkTheme()
+            // Palet Pro hanya berlaku bila paket membukanya (satu lapisan entitlement); membaca `plans`
+            // di komposisi membuat tema langsung ikut berubah begitu Pro dibeli atau dipulihkan.
+            val storedPalette by themePreference.palette.collectAsState()
+            val plans by purchases.plans.collectAsState()
+            val palette = storedPalette.effective(LivePlanEntitlements { plans })
             // enableEdgeToEdge dipanggil sekali di onCreate hanya cocok untuk mode Otomatis; layar
             // Tampilan bisa memaksa terang/gelap berbeda dari sistem, jadi gaya bar sistem dihitung ulang.
             LaunchedEffect(darkTheme) {
                 val style = if (darkTheme) SystemBarStyle.dark(Color.TRANSPARENT) else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
             }
-            RizqflowTheme(darkTheme = darkTheme) {
+            RizqflowTheme(darkTheme = darkTheme, palette = palette) {
                 AppRoot(
                     controller = controller,
                     appLock = appLock,

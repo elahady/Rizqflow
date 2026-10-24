@@ -40,18 +40,22 @@ val RizqflowShapes = Shapes(
     large = RoundedCornerShape(20.dp),
 )
 
-/** Otomatis (bawaan) mengikuti mode gelap sistem; layar Tampilan bisa memaksa terang atau gelap lewat [ThemeMode]. */
+/**
+ * Otomatis (bawaan) mengikuti mode gelap sistem; layar Tampilan bisa memaksa terang atau gelap lewat
+ * [ThemeMode]. [palette] harus sudah melewati [effective] (pemanggil memeriksa paket, bukan di sini).
+ */
 @Composable
 fun RizqflowTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    palette: ThemePalette = ThemePalette.SAGE,
     content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(
-        LocalRizqflowColors provides if (darkTheme) RizqflowDarkExtra else RizqflowLightExtra,
+        LocalRizqflowColors provides extrasFor(palette, darkTheme),
         LocalSpacing provides Spacing(),
     ) {
         MaterialTheme(
-            colorScheme = if (darkTheme) RizqflowDarkScheme else RizqflowLightScheme,
+            colorScheme = if (darkTheme) darkSchemeFor(palette) else lightSchemeFor(palette),
             typography = RizqflowTypography,
             shapes = RizqflowShapes,
             content = content,

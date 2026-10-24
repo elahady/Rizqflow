@@ -89,6 +89,48 @@ internal val RizqflowDarkScheme: ColorScheme = darkColorScheme(
     outlineVariant = Color(0xFF424845),
 )
 
+/*
+ * Palet aksen tambahan (Pro). Hanya enam peran keluarga "primary" yang diganti, turunan dari pola
+ * Sage di atas (container sekitar lightness yang sama, teks di atasnya gelap/terang); semua peran
+ * lain memakai skema Sage. Kontras teks-di-atas-aksen (4,5:1) dijaga oleh ThemePaletteTest.
+ */
+private fun ColorScheme.withAccent(
+    primary: Long,
+    onPrimary: Long,
+    primaryContainer: Long,
+    onPrimaryContainer: Long,
+    inversePrimary: Long,
+    primaryFixed: Long,
+): ColorScheme = copy(
+    primary = Color(primary),
+    onPrimary = Color(onPrimary),
+    primaryContainer = Color(primaryContainer),
+    onPrimaryContainer = Color(onPrimaryContainer),
+    inversePrimary = Color(inversePrimary),
+    primaryFixed = Color(primaryFixed),
+)
+
+internal fun lightSchemeFor(palette: ThemePalette): ColorScheme = when (palette) {
+    ThemePalette.SAGE -> RizqflowLightScheme
+    ThemePalette.LAUT -> RizqflowLightScheme.withAccent(0xFF2C5D7C, 0xFFFFFFFF, 0xFF8DB1C7, 0xFF14303F, 0xFFA9CBE0, 0xFFCDE5F2)
+    ThemePalette.PASIR -> RizqflowLightScheme.withAccent(0xFF7A5A2A, 0xFFFFFFFF, 0xFFCDAE82, 0xFF3A2A0E, 0xFFE3C99B, 0xFFF1E3CB)
+    ThemePalette.ANGGUR -> RizqflowLightScheme.withAccent(0xFF664466, 0xFFFFFFFF, 0xFFB093B0, 0xFF2E1B2E, 0xFFD9BDD9, 0xFFEBD8EB)
+}
+
+internal fun darkSchemeFor(palette: ThemePalette): ColorScheme = when (palette) {
+    ThemePalette.SAGE -> RizqflowDarkScheme
+    ThemePalette.LAUT -> RizqflowDarkScheme.withAccent(0xFFA9CBE0, 0xFF12303F, 0xFF2C4A5C, 0xFFCDE5F2, 0xFF2C5D7C, 0xFF2C4A5C)
+    ThemePalette.PASIR -> RizqflowDarkScheme.withAccent(0xFFE3C99B, 0xFF3A2A0E, 0xFF5A4421, 0xFFF1E3CB, 0xFF7A5A2A, 0xFF5A4421)
+    ThemePalette.ANGGUR -> RizqflowDarkScheme.withAccent(0xFFD9BDD9, 0xFF2E1B2E, 0xFF5A3B5A, 0xFFEBD8EB, 0xFF664466, 0xFF5A3B5A)
+}
+
+/** Ruang ke-4 dan seterusnya memakai warna utama, jadi ikut berganti bersama palet; warna lain tetap. */
+internal fun extrasFor(palette: ThemePalette, darkTheme: Boolean): RizqflowExtraColors {
+    val base = if (darkTheme) RizqflowDarkExtra else RizqflowLightExtra
+    val scheme = if (darkTheme) darkSchemeFor(palette) else lightSchemeFor(palette)
+    return if (palette == ThemePalette.SAGE) base else base.withRoomNeutral(scheme.primary)
+}
+
 /**
  * Warna di luar ColorScheme Material: identitas ruang (kategorikal, tiga slot pertama sudah
  * divalidasi untuk buta warna dan kontras 3:1) dan status (tetap, tidak ikut tema).
@@ -107,6 +149,8 @@ class RizqflowExtraColors(
     val statusSerious: Color,
     val statusCritical: Color,
 ) {
+    fun withRoomNeutral(color: Color) = RizqflowExtraColors(room1, room2, room3, color, statusGood, statusWarning, statusSerious, statusCritical)
+
     /** Warna identitas ruang untuk slot 1, 2, 3; slot lain netral. */
     fun room(slot: Int): Color = when (slot) {
         1 -> room1

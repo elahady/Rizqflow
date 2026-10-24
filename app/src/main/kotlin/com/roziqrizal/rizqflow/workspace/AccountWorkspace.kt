@@ -108,7 +108,7 @@ class AccountWorkspace private constructor(
             val apiService = RizqflowApiClient.create(BuildConfig.API_BASE_URL)
             return AccountWorkspace(
                 local = LocalLedger.open(context, accountId),
-                purchases = PurchaseStore(context),
+                purchases = PurchaseStore.shared(context),
                 accountRemote = RetrofitAccountRemote(apiService),
                 apiTokenStore = SharedPrefsApiTokenStore(context),
                 roomKeyProvider = AndroidKeystoreRoomKeyProvider(context),

@@ -418,6 +418,13 @@
     <string name="tampilan_system">Automatic</string>
     <string name="tampilan_light">Light</string>
     <string name="tampilan_dark">Dark</string>
+    <string name="tampilan_palette_title">Accent color</string>
+    <string name="tampilan_palette_body">Changes the color of buttons and highlights. Room and status colors stay the same so they remain easy to recognize. Extra palettes come with Rizqflow Pro.</string>
+    <string name="tampilan_palette_pro">%1$s · Pro</string>
+    <string name="palette_sage">Sage</string>
+    <string name="palette_laut">Ocean</string>
+    <string name="palette_pasir">Sand</string>
+    <string name="palette_anggur">Plum</string>
 
     <!-- Rizqflow Pro: paywall S21 (Stage 7). Buy and Restore purchase go through Google Play Billing
          (PurchaseController); the price is read from Play Console, not from these strings. -->
