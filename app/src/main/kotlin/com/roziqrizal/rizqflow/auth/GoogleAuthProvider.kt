@@ -35,8 +35,9 @@ import kotlin.coroutines.resume
  * supaya salah konfigurasi (SHA-1, package, layar persetujuan) mudah dilacak; pengguna hanya
  * melihat pesan lembut.
  *
- * Aplikasi tidak menyimpan ID token maupun token akses: identitas dipakai untuk mengenali akun,
- * dan tidak ada server Rizqflow yang menerimanya. Harus dibuat di `onCreate` Activity karena
+ * ID token diteruskan lewat [SignInResult.Success.idToken] ke server Rizqflow sekali saat masuk
+ * (Tahap 9, `AccountRemote.loginWithGoogle`) lalu dilupakan — kelas ini sendiri tidak menyimpannya,
+ * token akses Gmail juga tidak disimpan. Harus dibuat di `onCreate` Activity karena
  * mendaftarkan peluncur hasil aktivitas.
  */
 class GoogleAuthProvider(
@@ -81,12 +82,13 @@ class GoogleAuthProvider(
             if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                 val google = GoogleIdTokenCredential.createFrom(credential.data)
                 SignInResult.Success(
-                    AuthSession(
+                    session = AuthSession(
                         accountId = google.id,
                         email = google.id,
                         displayName = google.displayName,
                         provider = AuthProviderType.GOOGLE,
                     ),
+                    idToken = google.idToken,
                 )
             } else {
                 SignInResult.Failed("jenis kredensial tidak dikenal")

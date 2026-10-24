@@ -1,8 +1,14 @@
 package com.roziqrizal.rizqflow.workspace
 
 import android.content.Context
+import com.roziqrizal.rizqflow.BuildConfig
 import com.roziqrizal.rizqflow.billing.PurchaseStore
 import com.roziqrizal.rizqflow.data.LocalLedger
+import com.roziqrizal.rizqflow.data.remote.RetrofitAccountRemote
+import com.roziqrizal.rizqflow.data.remote.RizqflowApiClient
+import com.roziqrizal.rizqflow.data.remote.SharedPrefsApiTokenStore
+import com.roziqrizal.rizqflow.domain.sync.AccountRemote
+import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
 import com.roziqrizal.rizqflow.domain.bill.BillReminderService
 import com.roziqrizal.rizqflow.domain.bill.BillService
 import com.roziqrizal.rizqflow.domain.debt.DebtReminderService
@@ -30,7 +36,12 @@ import java.util.UUID
  * masuk dan ditutup saat keluar; akun lain membuka berkas lain (satu database per akun).
  * Pengenal dibuat sebagai UUID dan waktu diambil dari jam sistem.
  */
-class AccountWorkspace private constructor(private val local: LocalLedger, val purchases: PurchaseStore) : AutoCloseable {
+class AccountWorkspace private constructor(
+    private val local: LocalLedger,
+    val purchases: PurchaseStore,
+    val accountRemote: AccountRemote,
+    val apiTokenStore: ApiTokenStore,
+) : AutoCloseable {
     private val newId: () -> String = { UUID.randomUUID().toString() }
 
     val repositories: LocalLedger get() = local
@@ -61,7 +72,20 @@ class AccountWorkspace private constructor(private val local: LocalLedger, val p
     override fun close() = local.close()
 
     companion object {
-        fun open(context: Context, accountId: String): AccountWorkspace =
-            AccountWorkspace(LocalLedger.open(context, accountId), PurchaseStore(context))
+        /**
+         * Klien HTTP (Tahap 9) dirakit di sini, per ruang kerja akun — bukan singleton app-wide —
+         * supaya otomatis ganti lingkup saat akun berganti, konsisten dengan database yang juga
+         * satu per akun. Gagal dihubungi server tidak menggagalkan [open]: offline-first berarti
+         * ruang kerja tetap terbuka penuh, pemanggil (`AccountRemote`) yang menangani jaringan mati.
+         */
+        fun open(context: Context, accountId: String): AccountWorkspace {
+            val apiService = RizqflowApiClient.create(BuildConfig.API_BASE_URL)
+            return AccountWorkspace(
+                local = LocalLedger.open(context, accountId),
+                purchases = PurchaseStore(context),
+                accountRemote = RetrofitAccountRemote(apiService),
+                apiTokenStore = SharedPrefsApiTokenStore(context),
+            )
+        }
     }
 }

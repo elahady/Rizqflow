@@ -52,7 +52,11 @@ object StartRouter {
 
 /** Hasil masuk dengan Google. */
 sealed interface SignInResult {
-    data class Success(val session: AuthSession) : SignInResult
+    /**
+     * [idToken] adalah token Google mentah, cuma untuk diteruskan sekali ke [AccountRemote][com.roziqrizal.rizqflow.domain.sync.AccountRemote]
+     * (Tahap 9) dan dilupakan — sengaja tidak masuk [AuthSession] karena itu disimpan lewat [SessionStore].
+     */
+    data class Success(val session: AuthSession, val idToken: String) : SignInResult
 
     /** Pengguna menutup dialog pilih akun. Bukan galat, tidak perlu pesan. */
     data object Cancelled : SignInResult

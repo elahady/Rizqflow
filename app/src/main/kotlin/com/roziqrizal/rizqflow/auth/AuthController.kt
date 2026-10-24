@@ -50,8 +50,18 @@ sealed interface AuthUiState {
 
     data class SignedOut(val busy: AuthBusy? = null, val message: AuthMessage? = null) : AuthUiState
 
-    /** [notice] ditampilkan sekali di menu utama, misalnya izin Gmail ditolak saat masuk. */
-    data class SignedIn(val session: AuthSession, val notice: AuthMessage? = null, val busy: AuthBusy? = null) : AuthUiState
+    /**
+     * [notice] ditampilkan sekali di menu utama, misalnya izin Gmail ditolak saat masuk.
+     * [pendingGoogleIdToken] cuma terisi sesaat sehabis masuk Google baru (bukan riwayat lama yang
+     * dimuat ulang): diambil-dan-dihapus sekali oleh pemanggil (lihat [consumeGoogleIdToken]) untuk
+     * diteruskan ke `AccountRemote.loginWithGoogle` (Tahap 9) begitu ruang kerja akunnya terbuka.
+     */
+    data class SignedIn(
+        val session: AuthSession,
+        val notice: AuthMessage? = null,
+        val busy: AuthBusy? = null,
+        val pendingGoogleIdToken: String? = null,
+    ) : AuthUiState
 }
 
 /**
@@ -98,7 +108,7 @@ class AuthController(
                         }
                     }
                     store.save(session)
-                    _state.value = AuthUiState.SignedIn(session, notice)
+                    _state.value = AuthUiState.SignedIn(session, notice, pendingGoogleIdToken = result.idToken)
                 }
 
                 SignInResult.Cancelled -> _state.value = AuthUiState.SignedOut()
@@ -187,6 +197,19 @@ class AuthController(
     fun dismissNotice() {
         val current = _state.value as? AuthUiState.SignedIn ?: return
         _state.value = current.copy(notice = null)
+    }
+
+    /**
+     * Ambil-dan-hapus [AuthUiState.SignedIn.pendingGoogleIdToken] sekali: dipanggil begitu ruang
+     * kerja akun ini terbuka dan siap meneruskannya ke `AccountRemote.loginWithGoogle` (Tahap 9).
+     * Null di panggilan berikutnya (riwayat masuk lama, atau sudah pernah diambil) supaya tidak
+     * terkirim ulang tiap rekomposisi.
+     */
+    fun consumeGoogleIdToken(): String? {
+        val current = _state.value as? AuthUiState.SignedIn ?: return null
+        val token = current.pendingGoogleIdToken ?: return null
+        _state.value = current.copy(pendingGoogleIdToken = null)
+        return token
     }
 
     fun signOut() {

@@ -64,6 +64,7 @@ class AuthControllerTest {
     // Putaran rendah supaya tes cepat; hash sungguhan tetap dipakai agar alur sandi diuji utuh.
     private val accounts = LocalAccountService(accountStore, Pbkdf2PasswordHasher(iterations = 1_000)) { "acc-${++counter}" }
     private val sesi = AuthSession("g-1", "roziq@example.com", "Roziq", AuthProviderType.GOOGLE)
+    private val idToken = "fake-id-token"
 
     @AfterTest
     fun tearDown() = scope.cancel()
@@ -95,12 +96,12 @@ class AuthControllerTest {
     @Test
     fun `masuk dengan Google menyimpan riwayat lalu ke menu utama`() {
         val store = FakeStore()
-        val c = controller(store, FakeProvider(signIn = { SignInResult.Success(sesi) }))
+        val c = controller(store, FakeProvider(signIn = { SignInResult.Success(sesi, idToken) }))
         c.start()
 
         c.signInWithGoogle()
 
-        assertEquals(AuthUiState.SignedIn(sesi), c.state.value)
+        assertEquals(AuthUiState.SignedIn(sesi, pendingGoogleIdToken = idToken), c.state.value)
         assertEquals(sesi, store.stored)
     }
 
@@ -113,7 +114,7 @@ class AuthControllerTest {
         c.signInWithGoogle()
         assertEquals(AuthUiState.SignedOut(busy = AuthBusy.GOOGLE), c.state.value)
 
-        menunggu.complete(SignInResult.Success(sesi))
+        menunggu.complete(SignInResult.Success(sesi, idToken))
         assertIs<AuthUiState.SignedIn>(c.state.value)
     }
 
@@ -165,7 +166,7 @@ class AuthControllerTest {
     @Test
     fun `masuk sekaligus Gmail menandai Gmail terhubung`() {
         val store = FakeStore()
-        val c = controller(store, FakeProvider(signIn = { SignInResult.Success(sesi) }))
+        val c = controller(store, FakeProvider(signIn = { SignInResult.Success(sesi, idToken) }))
         c.start()
 
         c.signInWithGoogle(alsoConnectGmail = true)
@@ -178,7 +179,7 @@ class AuthControllerTest {
 
     @Test
     fun `izin Gmail ditolak tetap masuk tanpa Gmail dan ada catatan`() {
-        val c = controller(provider = FakeProvider(signIn = { SignInResult.Success(sesi) }, gmail = { GmailConnectResult.Denied }))
+        val c = controller(provider = FakeProvider(signIn = { SignInResult.Success(sesi, idToken) }, gmail = { GmailConnectResult.Denied }))
         c.start()
 
         c.signInWithGoogle(alsoConnectGmail = true)
@@ -213,7 +214,7 @@ class AuthControllerTest {
 
     @Test
     fun `catatan dihapus setelah dibaca`() {
-        val c = controller(provider = FakeProvider(signIn = { SignInResult.Success(sesi) }, gmail = { GmailConnectResult.Denied }))
+        val c = controller(provider = FakeProvider(signIn = { SignInResult.Success(sesi, idToken) }, gmail = { GmailConnectResult.Denied }))
         c.start()
         c.signInWithGoogle(alsoConnectGmail = true)
 
@@ -403,12 +404,31 @@ class AuthControllerTest {
 
     @Test
     fun `masuk dengan Google tetap bisa saat akun lokal ada`() {
-        val c = controller(provider = FakeProvider(signIn = { SignInResult.Success(sesi) }))
+        val c = controller(provider = FakeProvider(signIn = { SignInResult.Success(sesi, idToken) }))
         c.start()
         daftarLalu(c)
 
         c.signInWithGoogle()
 
-        assertEquals(AuthUiState.SignedIn(sesi), c.state.value)
+        assertEquals(AuthUiState.SignedIn(sesi, pendingGoogleIdToken = idToken), c.state.value)
+    }
+
+    @Test
+    fun `consumeGoogleIdToken mengambil sekali lalu null`() {
+        val c = controller(provider = FakeProvider(signIn = { SignInResult.Success(sesi, idToken) }))
+        c.start()
+        c.signInWithGoogle()
+
+        assertEquals(idToken, c.consumeGoogleIdToken())
+        assertNull(c.consumeGoogleIdToken())
+        assertNull((c.state.value as AuthUiState.SignedIn).pendingGoogleIdToken)
+    }
+
+    @Test
+    fun `riwayat masuk lama tidak punya token tertunda`() {
+        val c = controller(FakeStore(sesi))
+        c.start()
+
+        assertNull(c.consumeGoogleIdToken())
     }
 }

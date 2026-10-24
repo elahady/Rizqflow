@@ -21,9 +21,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import com.roziqrizal.rizqflow.auth.AuthController
 import com.roziqrizal.rizqflow.auth.AuthUiState
 import com.roziqrizal.rizqflow.domain.auth.AuthProviderType
+import com.roziqrizal.rizqflow.domain.sync.RemoteResult
+import com.roziqrizal.rizqflow.sync.DeviceId
 import com.roziqrizal.rizqflow.ui.login.LoginScreen
 import com.roziqrizal.rizqflow.ui.login.RegisterScreen
 import com.roziqrizal.rizqflow.ui.security.AppLockScreen
@@ -125,6 +128,17 @@ fun AppRoot(
                         accountId = if (demo) AccountStorage.DEMO_ACCOUNT_ID else s.session.accountId,
                         onDemoFailed = { demo = false },
                     ) { workspace, restoreFromBackup ->
+                        // Begitu ruang kerja akun ini siap, teruskan ID token Google (kalau baru saja
+                        // masuk, bukan riwayat lama) ke server sekali (Tahap 9). Gagal/offline dibiarkan
+                        // diam-diam (tenang, bukan panik) -- app tetap jalan penuh tanpa server ini.
+                        val localContext = LocalContext.current
+                        LaunchedEffect(workspace, s.pendingGoogleIdToken) {
+                            val idToken = controller.consumeGoogleIdToken() ?: return@LaunchedEffect
+                            when (val result = workspace.accountRemote.loginWithGoogle(idToken, DeviceId.read(localContext))) {
+                                is RemoteResult.Success -> workspace.apiTokenStore.save(result.value.apiToken)
+                                is RemoteResult.Failure -> Unit
+                            }
+                        }
                         // Berganti antara data asli dan demo (atau setelah pulihkan cadangan) memulai
                         // menu utama dari awal (tab, layar terbuka): ruang kerjanya objek yang berbeda.
                         key(workspace) {
