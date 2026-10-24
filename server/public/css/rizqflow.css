@@ -725,6 +725,10 @@ input[type="number"].rf-input { font-variant-numeric: tabular-nums; }
 .au-switch { text-align: center; margin-top: 24px; font-size: 14px; color: var(--rf-on-surface-variant); }
 .au-notice { background: var(--rf-primary-fixed); color: var(--rf-on-primary-container); padding: 12px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.5; margin-bottom: 18px; }
 .au-hint { font-size: 12.5px; color: var(--rf-on-surface-variant); margin-top: 12px; text-align: center; }
+.au-field-hint { font-size: 12.5px; color: var(--rf-on-surface-variant); margin: 6px 0 0; }
+.au-code { text-align: center; font-family: var(--rf-font-display); font-size: 22px; letter-spacing: 0.4em; padding-left: calc(14px + 0.4em); font-variant-numeric: tabular-nums; }
+.au-linkbtn { background: none; border: 0; padding: 4px 8px; color: var(--rf-primary); font-family: var(--rf-font-ui); font-weight: 600; font-size: 14px; cursor: pointer; }
+.au-linkbtn:hover { text-decoration: underline; }
 .au-theme { position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--rf-outline-variant); background: var(--rf-surface-container-lowest); color: var(--rf-on-surface-variant); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
 .au-theme:hover { color: var(--rf-on-background); }
 .au-theme svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

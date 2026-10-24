@@ -1,7 +1,10 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\GoogleLoginController;
+use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\ReportPdfController;
 use App\Http\Controllers\TransactionExportController;
 use App\Http\Controllers\ZakatRekapController;
@@ -31,12 +34,24 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.attempt');
     Route::post('/auth/google', [GoogleLoginController::class, 'store'])->name('login.google');
 
-    // Masuk demo (email+sandi akun seed) hanya untuk pengembangan lokal; produksi hanya Google.
-    if (app()->environment('local', 'testing')) {
-        Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.demo');
-    }
+    // Daftar, verifikasi email, lupa/atur ulang kata sandi: butuh pengirim email. Selama saklar
+    // rizqflow.email_codes_enabled mati, middleware email-codes mengalihkan ke Masuk dengan pesan ramah.
+    Route::middleware('email-codes')->group(function () {
+        Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
+        Route::post('/register', [RegisteredUserController::class, 'store'])->name('register.store');
+
+        Route::get('/verifikasi-email', [EmailVerificationController::class, 'show'])->name('verification.show');
+        Route::post('/verifikasi-email', [EmailVerificationController::class, 'verify'])->name('verification.verify');
+        Route::post('/verifikasi-email/kirim-ulang', [EmailVerificationController::class, 'resend'])->name('verification.resend');
+
+        Route::get('/lupa-kata-sandi', [PasswordResetController::class, 'forgot'])->name('password.forgot');
+        Route::post('/lupa-kata-sandi', [PasswordResetController::class, 'sendCode'])->name('password.send');
+        Route::get('/reset-kata-sandi', [PasswordResetController::class, 'reset'])->name('password.reset');
+        Route::post('/reset-kata-sandi', [PasswordResetController::class, 'update'])->name('password.update');
+    });
 });
 
 Route::middleware('auth')->group(function () {

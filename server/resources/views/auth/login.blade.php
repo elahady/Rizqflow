@@ -1,8 +1,30 @@
 @php $googleClientId = config('services.google.client_id'); @endphp
 
-{{-- Masuk (docs/design/web-mockup/project/Masuk.dc.html, metode "google-saja"). Web hanya Masuk dengan
-     Google (keputusan 2026-10-18); form email+sandi hanya untuk demo di APP_ENV local/testing. --}}
+{{-- Masuk (docs/design/web-mockup/project/Masuk.dc.html, metode "email-google"): email+kata sandi dan
+     Google. Akun dengan email yang sama digabung (lihat App\Auth\GoogleAccountResolver). Notice
+     "Kamu sudah keluar" dan "Sesimu berakhir" datang lewat session('status') (auth-layout). --}}
 <x-auth-layout title="Masuk" tagline="Rezeki yang masuk dialirkan ke ruang-ruangmu: Memberi, Diri, Keluarga, supaya setiap hak terpenuhi.">
+    <form method="POST" action="{{ route('login.attempt') }}">
+        @csrf
+        <div class="au-field">
+            <label for="email">Email</label>
+            <input class="au-input" id="email" type="email" name="email" value="{{ old('email') }}" autocomplete="email" required>
+        </div>
+        <div class="au-field">
+            <label for="password">Kata sandi</label>
+            <input class="au-input" id="password" type="password" name="password" autocomplete="current-password" required>
+        </div>
+        @error('email')
+            <p class="au-error" role="alert"><x-rf.icon name="alert" /><span>{{ $message }}</span></p>
+        @enderror
+        @if (config('rizqflow.email_codes_enabled'))
+            <p class="au-link-row"><a href="{{ route('password.forgot') }}">Lupa kata sandi?</a></p>
+        @endif
+        <button type="submit" class="au-primary">Masuk</button>
+    </form>
+
+    <div class="au-divider">atau</div>
+
     @error('google')
         <p class="au-error au-error-lead" role="alert"><x-rf.icon name="alert" /><span>{{ $message }}</span></p>
     @enderror
@@ -15,7 +37,6 @@
         </form>
         <div id="rf-google-button" class="au-gsi" data-client_id="{{ $googleClientId }}"></div>
         <noscript><p class="au-hint">Aktifkan JavaScript untuk masuk dengan Google.</p></noscript>
-        <p class="au-hint">Pakai akun Google yang sama dengan aplikasi Android.</p>
 
         @push('scripts')
             <script>
@@ -65,23 +86,7 @@
         <p class="au-hint">Masuk dengan Google belum disiapkan (GOOGLE_CLIENT_ID kosong).</p>
     @endif
 
-    @if (Route::has('login.demo'))
-        <div class="au-divider">atau</div>
-        <form method="POST" action="{{ route('login.demo') }}">
-            @csrf
-            <div class="au-field">
-                <label for="email">Email</label>
-                <input class="au-input" id="email" type="email" name="email" value="{{ old('email', 'demo@rizqflow.test') }}" autocomplete="username" required>
-            </div>
-            @error('email')
-                <p class="au-error" role="alert"><x-rf.icon name="alert" /><span>{{ $message }}</span></p>
-            @enderror
-            <div class="au-field">
-                <label for="password">Kata sandi</label>
-                <input class="au-input" id="password" type="password" name="password" autocomplete="current-password" required>
-            </div>
-            <button type="submit" class="au-primary">Masuk demo</button>
-        </form>
-        <p class="au-hint">Hanya di lingkungan lokal · sandi akun demo: password</p>
+    @if (config('rizqflow.email_codes_enabled'))
+        <p class="au-switch">Belum punya akun? <a href="{{ route('register') }}">Daftar</a></p>
     @endif
 </x-auth-layout>

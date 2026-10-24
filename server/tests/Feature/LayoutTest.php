@@ -169,24 +169,25 @@ class LayoutTest extends TestCase
         $this->assertStringNotContainsString('class="rf-topbar"', $html);
     }
 
-    public function test_login_page_is_ok_for_guests_and_shows_the_demo_form_in_testing(): void
+    public function test_login_page_has_email_form_google_button_and_account_links(): void
     {
-        config(['services.google.client_id' => 'abc.apps.googleusercontent.com']);
+        config(['services.google.client_id' => 'abc.apps.googleusercontent.com', 'rizqflow.email_codes_enabled' => true]);
 
         $this->get(route('login'))
             ->assertOk()
             ->assertSee('<h1>Masuk</h1>', false)
-            ->assertSee('Pakai akun Google yang sama dengan aplikasi Android.')
+            ->assertSee('action="'.route('login.attempt').'"', false)
+            ->assertSee('name="email"', false)
+            ->assertSee('name="password"', false)
+            ->assertSee('Lupa kata sandi?')
+            ->assertSee('Belum punya akun?')
+            ->assertSee(route('register'), false)
             ->assertSee('rf-google-button', false)
             ->assertSee('accounts.google.com/gsi/client', false)
             ->assertSee('rizqflow:theme', false)
-            ->assertSee('action="'.route('login.demo').'"', false)
-            ->assertSee('Masuk demo')
-            ->assertSee('Hanya di lingkungan lokal')
             ->assertSee('data-rf-theme-toggle', false)
             ->assertSee('Rizqflow adalah bantuan hitung zakat, bukan fatwa.')
-            ->assertDontSee('Daftar')
-            ->assertDontSee('Lupa')
+            ->assertDontSee('Masuk demo')
             ->assertDontSee('24 kata');
     }
 

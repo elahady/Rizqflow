@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -61,6 +63,38 @@ class User extends Authenticatable
         $plans = array_map(fn (string $value) => Plan::from($value), $this->plans ?? []);
 
         return new Entitlements($plans);
+    }
+
+    /** Akun yang dibuat lewat Google belum punya kata sandi sampai menetapkannya di Profil. */
+    public function hasPassword(): bool
+    {
+        return $this->password !== null;
+    }
+
+    public function hasVerifiedEmail(): bool
+    {
+        return $this->email_verified_at !== null;
+    }
+
+    /**
+     * Putus sesi web akun ini (dipakai saat kata sandi diatur ulang atau diubah): kunci "ingat saya"
+     * diganti dan baris sesi di database dihapus. $exceptSessionId menjaga sesi yang sedang dipakai.
+     */
+    public function revokeWebSessions(?string $exceptSessionId = null): void
+    {
+        $this->forceFill(['remember_token' => Str::random(60)])->save();
+
+        if (config('session.driver') === 'database') {
+            DB::table(config('session.table', 'sessions'))
+                ->where('user_id', $this->id)
+                ->when($exceptSessionId, fn ($q) => $q->where('id', '!=', $exceptSessionId))
+                ->delete();
+        }
+    }
+
+    public function emailCodes(): HasMany
+    {
+        return $this->hasMany(EmailCode::class);
     }
 
     public function isPro(): bool

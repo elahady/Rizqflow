@@ -78,6 +78,61 @@
         </x-rf.banner>
     </section>
 
+    <section class="rf-card" id="kata-sandi" aria-label="Kata sandi">
+        <div class="rf-card-head">
+            <h2 class="rf-h2">Kata sandi</h2>
+        </div>
+
+        @if ($user->hasPassword())
+            <p class="rf-lead" style="margin:0 0 16px">
+                Kata sandi dipakai untuk masuk dengan email dan kata sandi, di samping Google. Mengubahnya
+                mengeluarkan perangkat lain dari akun ini.
+            </p>
+        @else
+            <x-rf.banner tone="info" style="margin-bottom:16px">
+                Akunmu masuk lewat Google dan belum punya kata sandi. Tetapkan satu supaya kamu juga bisa masuk
+                dengan email {{ $user->email }} dan kata sandi.
+            </x-rf.banner>
+        @endif
+
+        @if ($passwordSaved)
+            <x-rf.banner tone="good" role="status" style="margin-bottom:16px">
+                {{ $passwordSaved === 'set' ? 'Kata sandi sudah ditetapkan. Mulai sekarang kamu bisa masuk dengan email dan kata sandi.' : 'Kata sandi sudah diubah. Perangkat lain perlu masuk lagi.' }}
+            </x-rf.banner>
+        @endif
+
+        <form wire:submit="savePassword">
+            <div class="rf-form-grid">
+                @if ($user->hasPassword())
+                    <div class="rf-field">
+                        <label for="pw-current">Kata sandi saat ini</label>
+                        <input type="password" id="pw-current" class="rf-input" wire:model="current_password" autocomplete="current-password" required>
+                        @error('current_password')
+                            <p class="rf-error" role="alert"><x-rf.icon name="warn" />{{ $message }}</p>
+                        @enderror
+                    </div>
+                @endif
+                <div class="rf-field">
+                    <label for="pw-new">{{ $user->hasPassword() ? 'Kata sandi baru' : 'Kata sandi' }}</label>
+                    <input type="password" id="pw-new" class="rf-input" wire:model="password" autocomplete="new-password" required>
+                    <p class="rf-hint">Minimal 8 karakter, dan bukan kata sandi yang umum dipakai.</p>
+                    @error('password')
+                        <p class="rf-error" role="alert"><x-rf.icon name="warn" />{{ $message }}</p>
+                    @enderror
+                </div>
+                <div class="rf-field">
+                    <label for="pw-confirm">Ulangi kata sandi</label>
+                    <input type="password" id="pw-confirm" class="rf-input" wire:model="password_confirmation" autocomplete="new-password" required>
+                </div>
+            </div>
+            <div class="rf-actions" style="margin-top:16px">
+                <button type="submit" class="rf-btn primary">
+                    <x-rf.icon name="check" />{{ $user->hasPassword() ? 'Ubah kata sandi' : 'Tetapkan kata sandi' }}
+                </button>
+            </div>
+        </form>
+    </section>
+
     <section class="rf-card pf-danger">
         <div class="rf-card-head">
             <h2 class="rf-h2">Hapus akun</h2>

@@ -57,9 +57,78 @@ docker exec rizqflow pgrep -f "artisan migrate" || docker exec rizqflow cat /tmp
 Catatan:
 
 - `NGINX_LISTEN_IP_PROTOCOL=ipv4` wajib di `.env.production` (VPS tanpa IPv6).
-- `APP_ENV=production` mematikan masuk demo; hanya Masuk dengan Google. Origin
-  `https://rizqflow.roziqrizal.com` harus terdaftar di Authorized JavaScript origins klien Web
+- Masuk web: **Google** dan **email+kata sandi** (sejak 2026-10-24); akun dengan email yang sama
+  digabung. Masuk email+sandi tidak butuh pengirim email. **Daftar, verifikasi email, dan Lupa kata
+  sandi** butuh email dan dikendalikan saklar `EMAIL_CODES_ENABLED` (lihat "Email produksi (Brevo)"
+  di bawah): selama `MAIL_MAILER` belum diset di `.env.production` (bawaan `log`), saklar otomatis
+  mati, tautan Daftar dan "Lupa kata sandi?" hilang, dan route-nya mengalihkan ke Masuk dengan pesan
+  ramah. Akun Google tetap bisa menetapkan kata sandi di Profil tanpa email. Akun demo seed
+  (`demo@rizqflow.test` / `password`) hanya ada di database lokal; di produksi seed tidak dijalankan.
+- Origin `https://rizqflow.roziqrizal.com` harus terdaftar di Authorized JavaScript origins klien Web
   Google Cloud (lihat `docs/auth-google.md`).
+- Migrasi `2026_10_26_000001_create_email_codes_table` membuat tabel `email_codes` dan mengisi
+  `email_verified_at` akun lama (semua akun lama berasal dari Google, jadi dianggap terverifikasi).
+  Tidak ada worker antrean: email dikirim langsung saat permintaan (sinkron).
 - Data di produksi masih kosong per pengguna sampai sync Tahap 9; seed contoh **tidak** dijalankan
   di produksi.
 - Jangan generate ulang `APP_KEY` di produksi: sesi dan data terenkripsi dengan kunci lama tidak terbaca.
+
+## Email produksi (Brevo)
+
+Daftar, verifikasi email, dan Lupa kata sandi mengirim kode 6 angka lewat email. Penyedia yang dipilih
+pemilik: **Brevo SMTP** (paket gratis, 300 email per hari). Domain pengirim: `mail.roziqrizal.com`
+(subdomain khusus, supaya tidak mengganggu email `roziqrizal.com` yang sudah ada). Sebelum langkah ini
+selesai, fitur email tetap mati dan tersembunyi (saklar `EMAIL_CODES_ENABLED`, lihat Catatan).
+
+1. **Akun Brevo.** Daftar di brevo.com dengan email pemilik, verifikasi email akun, lengkapi profil
+   pengirim yang diminta Brevo. Pilih paket gratis.
+2. **Domain pengirim.** Di Brevo: *Senders, Domains & Dedicated IPs → Domains → Add a domain* →
+   `mail.roziqrizal.com`. Brevo menampilkan catatan DNS yang harus dibuat; **salin nilainya persis dari
+   dashboard Brevo** (nilai dan jumlahnya bisa berubah, jangan menyalin dari dokumen ini). Biasanya:
+   - TXT `brevo-code:...` untuk membuktikan kepemilikan domain,
+   - DKIM: dua CNAME `brevo1._domainkey.mail` dan `brevo2._domainkey.mail` (atau satu TXT DKIM),
+   - SPF: TXT `v=spf1 include:spf.brevo.com ~all` di `mail.roziqrizal.com` (kalau Brevo memintanya),
+   - DMARC: TXT `_dmarc.mail` berisi `v=DMARC1; p=none; rua=mailto:<email pemilik>` (mulai dari `p=none`).
+3. **Isi DNS di Cloudflare** (zona `roziqrizal.com`, DNS → Add record). Semua catatan email harus
+   **DNS only (awan abu-abu, bukan Proxied)**, kalau tidak DKIM tidak terbaca. Lalu di Brevo klik
+   *Authenticate this domain* dan tunggu statusnya hijau (bisa beberapa menit sampai jam).
+4. **Pengirim.** Di *Senders*, tambahkan pengirim `noreply@mail.roziqrizal.com` (nama "Rizqflow").
+   Karena domainnya sudah terautentikasi, alamat ini tidak butuh kotak masuk sungguhan.
+5. **Kunci SMTP.** Di Brevo: *SMTP & API → SMTP → Generate a new SMTP key* (nama `rizqflow-prod`).
+   Catat **Login SMTP** (bentuknya `xxxx@smtp-brevo.com`, bukan email akun) dan **kunci SMTP**
+   (hanya tampil sekali). Jangan ditempel ke chat atau commit.
+6. **`.env.production` di VPS** (`~/apps/rizqflow/server/.env.production`), tambahkan:
+
+   ```
+   MAIL_MAILER=smtp
+   MAIL_HOST=smtp-relay.brevo.com
+   MAIL_PORT=587
+   MAIL_USERNAME=<Login SMTP Brevo>
+   MAIL_PASSWORD=<kunci SMTP Brevo>
+   MAIL_FROM_ADDRESS="noreply@mail.roziqrizal.com"
+   MAIL_FROM_NAME="Rizqflow"
+   MAIL_DAILY_LIMIT=300
+   OWNER_EMAIL=<email pemilik, untuk peringatan 80% batas harian>
+   ```
+
+   `MAIL_SCHEME` dibiarkan kosong (port 587 memakai STARTTLS otomatis). `EMAIL_CODES_ENABLED` tidak
+   perlu diisi: menyala otomatis begitu `MAIL_MAILER` bukan `log`/`array`.
+7. **Terapkan.** `env_file` hanya dibaca saat container dibuat, jadi `docker compose up -d
+   --force-recreate` (bukan `restart`) dari `~/apps/rizqflow/server`.
+8. **Uji kirim.** Dari VPS:
+
+   ```bash
+   docker exec rizqflow php artisan tinker --execute="Mail::raw('Uji Rizqflow', fn (\$m) => \$m->to('<email pribadi>')->subject('Uji Rizqflow'));"
+   ```
+
+   Cek kotak masuk (dan spam). Buka headers pesan: `dkim=pass`, `spf=pass`, `dmarc=pass`. Di Brevo
+   *Transactional → Logs* kirimannya harus tercatat. Lalu uji dari peramban: buka
+   `https://rizqflow.roziqrizal.com/register` (tautan Daftar sudah muncul di halaman Masuk),
+   daftar dengan email Gmail pribadi, masukkan kode dari email, dan pastikan bisa masuk. Uji juga
+   "Lupa kata sandi?".
+9. **Batas harian.** Gratis 300 email per hari. Kalau pemakaian mencapai 80% (`MAIL_DAILY_LIMIT`),
+   pemilik dikirimi peringatan sekali per hari. Kalau terlewati, kode pendaftar baru tidak terkirim
+   sampai besok (Daftar tetap menjawab sama; pengguna bisa meminta kirim ulang).
+10. **Mundur.** Hapus `MAIL_MAILER` dari `.env.production` (atau set `EMAIL_CODES_ENABLED=false`) lalu
+    `--force-recreate`: Daftar dan Lupa kata sandi kembali tersembunyi, masuk email+sandi dan Google
+    tetap jalan.

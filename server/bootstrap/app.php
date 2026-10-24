@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Middleware\EnsureEmailCodesEnabled;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -15,7 +17,18 @@ return Application::configure(basePath: dirname(__DIR__))
         // Di VPS, traffic masuk lewat Cloudflare lalu nginx host (proxy ke container). Tanpa ini
         // Laravel mengira request HTTP biasa dan membuat URL http://, bukan https://.
         $middleware->trustProxies(at: '*');
+
+        $middleware->alias(['email-codes' => EnsureEmailCodesEnabled::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Sesi berakhir (token CSRF tak cocok, mis. form dibiarkan terbuka lama): kembali ke Masuk
+        // dengan notice, bukan halaman 419. Permintaan Livewire/JSON tetap ditangani Livewire.
+        $exceptions->render(function (HttpException $e, $request) {
+            if ($e->getStatusCode() !== 419 || $request->expectsJson() || $request->hasHeader('X-Livewire')) {
+                return null;
+            }
+
+            return redirect()->route('login')
+                ->with('status', 'Sesimu berakhir karena lama tidak dipakai. Masuk lagi untuk melanjutkan.');
+        });
     })->create();

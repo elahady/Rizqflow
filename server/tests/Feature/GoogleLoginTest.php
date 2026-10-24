@@ -102,13 +102,57 @@ class GoogleLoginTest extends TestCase
             ->assertSee('accounts.google.com/gsi/client');
     }
 
-    public function test_demo_login_still_works_in_testing_environment(): void
+    public function test_google_login_merges_into_password_account_with_same_email_and_keeps_its_password(): void
     {
-        $user = User::factory()->create(['email' => 'demo@rizqflow.test']);
+        $existing = User::factory()->create(['email' => 'roziq@example.com', 'password' => 'kopi-susu-gula-aren']);
+        $this->fakeGoogle();
 
-        $this->post(route('login.demo'), ['email' => 'demo@rizqflow.test', 'password' => 'password'])
-            ->assertRedirect(route('denah'));
+        $this->post(route('login.google'), ['credential' => 'valid-123'])->assertRedirect(route('denah'));
 
-        $this->assertAuthenticatedAs($user);
+        $this->assertSame(1, User::count());
+        $this->assertAuthenticatedAs($existing);
+        $existing->refresh();
+        $this->assertSame('123', $existing->google_sub);
+        $this->assertTrue($existing->hasPassword());
+        $this->assertTrue($existing->hasVerifiedEmail());
+    }
+
+    public function test_google_email_is_matched_ignoring_case(): void
+    {
+        $existing = User::factory()->create(['email' => 'roziq@example.com']);
+        $this->fakeGoogle(['email' => 'Roziq@Example.com']);
+
+        $this->post(route('login.google'), ['credential' => 'valid-123']);
+
+        $this->assertSame(1, User::count());
+        $this->assertAuthenticatedAs($existing);
+        $this->assertSame('roziq@example.com', $existing->fresh()->email);
+    }
+
+    public function test_google_account_is_created_verified_and_without_password(): void
+    {
+        $this->fakeGoogle();
+
+        $this->post(route('login.google'), ['credential' => 'valid-123']);
+
+        $user = User::sole();
+        $this->assertTrue($user->hasVerifiedEmail());
+        $this->assertFalse($user->hasPassword());
+    }
+
+    public function test_google_login_onto_unverified_password_account_drops_the_untrusted_password(): void
+    {
+        // Seseorang mendaftar dengan email ini (belum diverifikasi) dan memasang sandinya sendiri.
+        $squatted = User::factory()->unverified()->create(['email' => 'roziq@example.com', 'password' => 'sandi-penyerang-1']);
+        $squatted->emailCodes()->create(['purpose' => 'verify', 'code_hash' => 'x', 'expires_at' => now()->addMinutes(5)]);
+        $this->fakeGoogle();
+
+        $this->post(route('login.google'), ['credential' => 'valid-123']);
+
+        $squatted->refresh();
+        $this->assertAuthenticatedAs($squatted);
+        $this->assertTrue($squatted->hasVerifiedEmail());
+        $this->assertFalse($squatted->hasPassword());
+        $this->assertSame(0, $squatted->emailCodes()->whereNull('consumed_at')->count());
     }
 }
