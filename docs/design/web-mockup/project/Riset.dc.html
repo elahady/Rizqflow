@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Riset kebutuhan pasar</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="rizqflow.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:wght@400;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="rf" data-theme="{{theme}}">
+<div class="doc">
+
+<div>
+<div class="rf-eyebrow">Riset pasar · 24 Oktober 2026</div>
+<h1 class="doc-h1" style="margin-top: 10px">Apa yang dibutuhkan web financial tracker?</h1>
+<p class="doc-lead" style="margin-top: 14px">Pola yang paling konsisten di pesaing: web dipakai sebagai meja kerja untuk meninjau, memahami, dan merencanakan, sedangkan ponsel dipakai untuk mencatat. Rizqflow punya dua modal yang jarang dimiliki pesaing, yaitu metafora rezeki yang mengalir dan modul zakat. Keduanya paling pas ditampilkan di layar lebar.</p>
+</div>
+
+<div class="doc-grid">
+<div class="doc-card">
+<h3>1. Web adalah meja kerja</h3>
+<p>Edit massal, antrean tinjau, dan analisa visual lebih sering ada, atau lebih lengkap, di web. Ponsel tetap untuk catat kilat. Ini sejalan dengan keputusan Tahap 14.</p>
+</div>
+<div class="doc-card">
+<h3>2. Rezeki mengalir, bukan sekadar daftar</h3>
+<p>Diagram aliran (Sankey) adalah fitur khas web pesaing. Bagi Rizqflow ia wujud langsung dari metafora produk. Masalahnya, di web yang sudah live, pemasukan belum dialirkan ke ruang sama sekali.</p>
+</div>
+<div class="doc-card">
+<h3>3. Percaya dulu, baru fitur</h3>
+<p>Enkripsi ujung ke ujung berarti web butuh langkah buka kunci, tidak ada "lupa sandi", dan pengguna perlu melihat terang siapa melihat apa. Ekspor data dan status sinkron menjaga rasa aman.</p>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 14px">
+<div class="rf-sechead">
+<h2 class="rf-h2" style="font-size: 26px">Temuan dan implikasinya</h2>
+<div class="rf-row" style="gap: 14px">
+<span class="rf-row" style="gap: 6px"><span class="rf-ev k">Kuat</span><span class="rf-sub">dokumentasi resmi atau teks hukum</span></span>
+<span class="rf-row" style="gap: 6px"><span class="rf-ev s">Sedang</span><span class="rf-sub">beberapa sumber, atau satu sumber kredibel</span></span>
+<span class="rf-row" style="gap: 6px"><span class="rf-ev l">Lemah</span><span class="rf-sub">anekdot atau inferensi saya</span></span>
+</div>
+</div>
+<div class="rf-card" style="padding: 8px 16px">
+<div class="rf-scroll">
+<table class="doc-table" style="min-width: 860px">
+<thead>
+<tr><th>No</th><th>Temuan dan sumber</th><th>Keyakinan</th><th>Dipakai di mockup</th></tr>
+</thead>
+<tbody>
+
+<tr>
+<td class="n">1</td>
+<td>
+<b>Peninjauan dan edit massal condong ke web.</b>
+<p class="rf-sub" style="margin-top: 4px">Di Simplifi, edit massal ada di web tetapi belum di aplikasi seluler; pengguna menunda koreksi sampai bertemu komputer. Lunch Money menyediakan pilih rentang dengan Shift dan edit massal per kolom.</p>
+<div class="doc-src"><a href="https://community.simplifimoney.com/discussion/comment/55913">Komunitas Simplifi</a><a href="https://support.lunchmoney.app/finances/transactions/transaction-actions">Lunch Money: aksi transaksi</a></div>
+</td>
+<td><span class="rf-ev s">Sedang</span></td>
+<td>Transaksi menjadi tabel kerja: pilih banyak baris, ubah ruang dan pos secara massal, jumlahkan, ekspor.</td>
+</tr>
+
+<tr>
+<td class="n">2</td>
+<td>
+<b>Antrean "belum ditinjau" untuk data yang masuk otomatis.</b>
+<p class="rf-sub" style="margin-top: 4px">Lunch Money menandai transaksi impor sebagai belum ditinjau, menampilkan pengingat berisi daftar tersaring, dan menyediakan tombol tandai ditinjau massal. Transaksi yang dibuat manual langsung dianggap ditinjau.</p>
+<div class="doc-src"><a href="https://support.lunchmoney.app/finances/transactions/transaction-status">Lunch Money: status transaksi</a></div>
+</td>
+<td><span class="rf-ev k">Kuat</span></td>
+<td>Dipakai versi ringan: tab "Tak terlacak" (pos sistem yang sudah ada) sebagai antrean tinjau. Status "ditinjau" di model data belum diperlukan (disetujui 24 Okt 2026).</td>
+</tr>
+
+<tr>
+<td class="n">3</td>
+<td>
+<b>Diagram aliran dan laporan tersimpan.</b>
+<p class="rf-sub" style="margin-top: 4px">Pusat bantuan Monarch menyebut diagram Sankey hanya tersedia di web. Mereka juga menulis bahwa Sankey akun bersama adalah laporan tersimpan yang populer (klaim vendor), dan punya fitur Year in review.</p>
+<div class="doc-src"><a href="https://help.monarch.com/hc/en-us/articles/20504904768020-Cash-Flow">Monarch: Cash Flow</a><a href="https://www.monarch.com/blog/saved-reports-and-more">Monarch: laporan tersimpan</a><a href="https://monarchmoney.com/whats-new/your-2022-year-in-review">Monarch: Year in review</a></div>
+</td>
+<td><span class="rf-ev k">Kuat</span></td>
+<td>Analisa › Aliran, plus tombol "Simpan tampilan" (disimpan di peramban). Ringkasan tahunan jadi ide berikutnya.</td>
+</tr>
+
+<tr>
+<td class="n">4</td>
+<td>
+<b>Web sebagai perluasan, dengan dashboard berlapis.</b>
+<p class="rf-sub" style="margin-top: 4px">Copilot Money meluncurkan versi web akhir Desember 2025 sebagai perluasan dari aplikasi Apple. Monarch menawarkan dashboard yang bisa disesuaikan (kekayaan bersih, anggaran, tagihan mendatang). Panduan UX dashboard umum menganjurkan ringkasan dulu, rincian menyusul, dan konteks tren. Panduan itu bukan khusus keuangan pribadi.</p>
+<div class="doc-src"><a href="https://9to5mac.com/2026/01/01/copilot-money-brings-clarity-to-your-finances-now-on-the-web/">9to5Mac: Copilot di web</a><a href="https://experian.com/blogs/ask-experian/monarch-money-review/">Experian: ulasan Monarch</a><a href="https://www.uxpin.com/studio/blog/dashboard-design/">UXPin: prinsip dashboard</a></div>
+</td>
+<td><span class="rf-ev s">Sedang</span></td>
+<td>Denah berlapis: ringkasan, ruang, lalu agenda. "Sisa aman per hari" sebagai konteks.</td>
+</tr>
+
+<tr>
+<td class="n">5</td>
+<td>
+<b>Rumah tangga: pilih cakupan dan jelas soal privasi.</b>
+<p class="rf-sub" style="margin-top: 4px">Origin dan Waypoint memberi pengalih pandangan pribadi dan bersama; Monarch melabeli milik saya, kamu, dan kita; Honeydue memberi tingkat privasi per transaksi. Semua sumbernya adalah situs vendor.</p>
+<div class="doc-src"><a href="https://useorigin.com/resources/blog/finance-apps-that-let-you-add-a-partner-in-2026">Origin</a><a href="https://waypointbudget.com/budgeting-for-couples">Waypoint</a></div>
+</td>
+<td><span class="rf-ev s">Sedang</span></td>
+<td>Pengalih Pribadi/Keluarga dan tabel "Siapa melihat apa". Aturan akun lintas ruang 19 Okt 2026 dipertahankan, bukan privasi per transaksi.</td>
+</tr>
+
+<tr>
+<td class="n">6</td>
+<td>
+<b>Sistem nol-pengetahuan tidak punya "lupa sandi".</b>
+<p class="rf-sub" style="margin-top: 4px">Pada penyimpan sandi zero-knowledge, penyedia tidak bisa mereset sandi master. Solusi umumnya kode pemulihan yang ditampilkan sekali dan disimpan luring. Rizqflow sudah memilih kode 24 kata.</p>
+<div class="doc-src"><a href="https://maketecheasier.com/password-manager-zero-knowledge-recovery/">Make Tech Easier</a><a href="https://www.drupal.org/node/3594301">Proposal Drupal: pembungkusan ganda kunci</a></div>
+</td>
+<td><span class="rf-ev s">Sedang</span></td>
+<td>Layar Buka kunci jujur soal itu. Diputuskan 24 Okt 2026: kode 24 kata, dengan peringatan memakai perangkat sendiri dan kunci otomatis.</td>
+</tr>
+
+<tr>
+<td class="n">7</td>
+<td>
+<b>Zakat lewat lembaga resmi dapat menjadi pengurang pajak.</b>
+<p class="rf-sub" style="margin-top: 4px">UU 23/2011 Pasal 22: zakat yang dibayar ke BAZNAS atau LAZ dikurangkan dari penghasilan kena pajak. Bukti setor memuat nama, NPWP, nominal, tanggal, dan lembaga, lalu dilampirkan ke SPT. Sumber berbeda soal dasar pengurangnya (bruto atau penghasilan kena pajak), dan belum jelas bagi saya apakah zakat mal ikut.</p>
+<div class="doc-src"><a href="https://www.cnbcindonesia.com/news/20260315182802-4-719183/zakat-bisa-jadi-pengurang-tagihan-pajak-anda-ini-aturannya">CNBC Indonesia</a><a href="https://www.pajak.com/pajak/bukti-setor-zakat-sebagai-pengurang-pajak/">Pajak.com</a><a href="https://klikpajak.id/blog/zakat-pengurang-pajak/">KlikPajak</a></div>
+</td>
+<td><span class="rf-ev s">Sedang</span></td>
+<td>"Rekap zakat tahunan" (diputuskan masuk) sebagai daftar dan ekspor, tanpa menyimpan bukti setor di server, dengan peringatan bukan nasihat pajak. Lembaga dan nomor bukti ikut tersinkron dengan Android.</td>
+</tr>
+
+<tr>
+<td class="n">8</td>
+<td>
+<b>Peringatan keras membuat orang berhenti.</b>
+<p class="rf-sub" style="margin-top: 4px">Praktisi menyebut "lingkaran rasa malu": bilah merah dan peringatan boros membuat pengguna berhenti membuka aplikasi. Buktinya anekdot, bukan studi terukur. Arahnya sejalan dengan prinsip Rizqflow, tenang bukan panik.</p>
+<div class="doc-src"><a href="https://www.indiehackers.com/post/i-kept-quitting-every-budgeting-app-after-a-week-so-i-built-something-different-bf0df0bd37">Indie Hackers</a></div>
+</td>
+<td><span class="rf-ev l">Lemah</span></td>
+<td>Kuning plus ikon plus teks, tanpa merah. Bahasa positif ("aman ≈ Rp 175.500 per hari") menggantikan "melewati batas".</td>
+</tr>
+
+<tr>
+<td class="n">9</td>
+<td>
+<b>Pintasan keyboard dan catat cepat di web.</b>
+<p class="rf-sub" style="margin-top: 4px">Toshl menyediakan pintasan satu huruf di web untuk pengeluaran, pemasukan, dan transfer. Dalam penelusuran ini saya tidak menemukan aplikasi keuangan pribadi berbasis web dengan command palette sungguhan. Tidak ditemukan belum berarti tidak ada.</p>
+<div class="doc-src"><a href="https://toshl.com/blog/keyboard-shortcuts-web-app/">Toshl: pintasan web</a></div>
+</td>
+<td><span class="rf-ev s">Sedang</span></td>
+<td>Bilah "Cari atau catat cepat" (Ctrl K), tombol C dan R, serta J, K, X di tabel. Input bahasa natural butuh port parser dari Android.</td>
+</tr>
+
+<tr>
+<td class="n">10</td>
+<td>
+<b>Pengguna spreadsheet pindah bila impor dan ekspor mudah.</b>
+<p class="rf-sub" style="margin-top: 4px">Tidak ada sumber langsung tentang alasan pengguna Indonesia bertahan di Excel atau Google Sheets. Ini inferensi dari kebiasaan umum dan dari asal data pemilik (Transaksi Harian). Pelajaran Mint soal portabilitas data ada di riset lama.</p>
+</td>
+<td><span class="rf-ev l">Lemah</span></td>
+<td>Impor dan ekspor CSV kelas satu, tabel padat yang terasa seperti spreadsheet.</td>
+</tr>
+
+</tbody>
+</table>
+</div>
+</div>
+</div>
+
+<div class="doc-grid">
+
+<div class="doc-card">
+<h3>Yang tidak bisa saya pastikan</h3>
+<ul class="doc-list">
+<li><b>Pemakaian desktop pengguna Indonesia.</b> DataReportal 2026 tidak memuat pembagian perangkat. Ringkasan pencarian StatCounter menunjukkan desktop 56 sampai 62 persen lalu lintas web pada Juni sampai September 2026, tetapi itu pangsa lalu lintas, bukan pengguna, dan berubah antar bulan. Tidak dipakai sebagai dasar keputusan.</li>
+<li><b>Statistik "gagal sinkron keluhan terbesar (34 persen)".</b> Berasal dari agregator komersial dan tidak saya verifikasi. Rizqflow tanpa sinkron bank, jadi risiko setaranya adalah data basi karena lupa mencatat.</li>
+<li><b>Klaim fitur pesaing.</b> Banyak sumber adalah situs vendor, afiliasi, atau konten sponsor. Fiturnya belum saya cek langsung di produknya.</li>
+<li><b>Riset pengguna Rizqflow sendiri.</b> Belum ada. Tahap 0 (validasi minat) masih berjalan.</li>
+</ul>
+</div>
+
+<div class="doc-card">
+<h3>Sengaja belum diusulkan</h3>
+<ul class="doc-list">
+<li>Sinkron bank atau e-wallet otomatis: riset lama menyimpulkan rapuh dan terhambat lisensi di Indonesia.</li>
+<li>Bot WhatsApp, input AI, dan insight otomatis: sudah diputuskan menyusul setelah rilis.</li>
+<li>Multi-mata uang dan widget dashboard yang bisa disusun ulang: nilainya belum terbukti untuk pasar Anda.</li>
+</ul>
+</div>
+
+<div class="doc-card">
+<h3>Hubungan dengan riset lama</h3>
+<p>Riset di <code>docs/research-market/research.md</code> (24 September 2026) tetap berlaku untuk aplikasi secara umum: input cepat, multi-dompet, keluarga berbasis peran, pos lokal seperti zakat dan arisan, dan tanpa auto-sync bank di tahap awal. Papan ini hanya menambahkan lapisan khusus web.</p>
+</div>
+
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Tampilan"},"$preview":{"width":1360,"height":2400}}'>
+class Component extends DCLogic {
+renderVals() {
+return { theme: this.props.theme ?? 'light' };
+}
+}
+</script>
+</body>
+</html>

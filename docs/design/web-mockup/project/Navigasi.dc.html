@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Navigasi dan audit web saat ini</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="rizqflow.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:wght@400;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="rf" data-theme="{{theme}}">
+<div class="doc">
+
+<div>
+<div class="rf-eyebrow">Audit kode server/ · 24 Oktober 2026</div>
+<h1 class="doc-h1" style="margin-top: 10px">Navigasi dan audit web yang sudah live</h1>
+<p class="doc-lead" style="margin-top: 14px">Web yang live sudah punya 19 halaman Livewire, tetapi menu atasnya hanya menautkan 7 di antaranya. Dua belas halaman lain tersembunyi di balik tombol atau kartu. Dengan fitur baru, menu atas tidak akan muat. Sidebar bergrup disetujui pada 24 Oktober 2026.</p>
+</div>
+
+<div class="doc-grid" style="grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr))">
+
+<div class="doc-card" style="gap: 14px">
+<h3>Sekarang (layout.blade.php)</h3>
+<div class="mini-nav">
+<span class="rf-brand" style="padding: 0"><span class="rf-brand-mark" style="width: 26px; height: 26px; font-size: 14px">R</span><span class="rf-brand-name" style="font-size: 16px">Rizqflow</span></span>
+<a class="on" href="#">Denah</a><a href="#">Transaksi</a><a href="#">Ruang</a><a href="#">Zakat</a><a href="#">Akun</a><a href="#">Laporan</a>
+</div>
+<p class="rf-sub">Tujuh halaman terhubung langsung dari menu (enam item dan nama pengguna ke Profil). Dua belas halaman lain hanya bisa dicapai lewat:</p>
+<ul class="doc-list">
+<li><b>Tombol di Transaksi:</b> Berulang, Tagihan, Utang-piutang, Ekspor CSV.</li>
+<li><b>Tombol di Ruang:</b> Atur alokasi.</li>
+<li><b>Enam kartu di Laporan:</b> Grafik tren, Kekayaan bersih, Bandingkan periode, Proyeksi cashflow, Heatmap pencatatan, Impor CSV.</li>
+<li><b>Ketuk baris:</b> detail transaksi dan detail ruang.</li>
+</ul>
+<p class="rf-sub">Satu item menu, "Akun", sebenarnya memuat akun, kategori, dan favorit. Hub Laporan mencampur analisa dengan satu aksi (Impor CSV).</p>
+</div>
+
+<div class="doc-card" style="gap: 12px">
+<h3>Usulan sidebar</h3>
+<div style="display: flex; flex-direction: column; gap: 14px; font-size: 14px">
+<div class="rf-row" style="gap: 8px"><b>Denah</b><span class="rf-st susun">Disusun ulang</span></div>
+<div>
+<div class="rf-eyebrow" style="margin-bottom: 6px">Uang</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div class="rf-row" style="gap: 8px"><span>Transaksi</span><span class="rf-st susun">Tabel kerja + filter Tak terlacak</span></div>
+<div class="rf-row" style="gap: 8px"><span>Jadwal</span><span class="rf-st susun">Tagihan dan Berulang digabung</span></div>
+<div class="rf-row" style="gap: 8px"><span>Utang-piutang</span><span class="rf-st tetap">Tetap, naik ke menu</span></div>
+<div class="rf-row" style="gap: 8px"><span>Akun</span><span class="rf-st tetap">Tetap; kategori dan favorit jadi tab</span></div>
+</div>
+</div>
+<div>
+<div class="rf-eyebrow" style="margin-bottom: 6px">Ruang</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div class="rf-row" style="gap: 8px"><span>Ruang dan pos</span><span class="rf-st susun">Laju, riwayat; Aturan alokasi jadi tombol</span></div>
+<div class="rf-row" style="gap: 8px"><span>Zakat</span><span class="rf-st susun">Disusun ulang</span><span class="rf-st baru">Rekap tahunan baru</span></div>
+<div class="rf-row" style="gap: 8px"><span>Keluarga</span><span class="rf-st baru">Baru</span><span class="rf-st tunda">Menunggu Tahap 9</span></div>
+</div>
+</div>
+<div>
+<div class="rf-eyebrow" style="margin-bottom: 6px">Analisa (Pro)</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div class="rf-row" style="gap: 8px"><span>Hub bertab:</span><span class="rf-st baru">Aliran baru</span><span class="rf-st tetap">Tren</span><span class="rf-st tetap">Bandingkan</span><span class="rf-st tetap">Kekayaan bersih</span><span class="rf-st tetap">Proyeksi</span><span class="rf-st tetap">Kebiasaan</span></div>
+</div>
+</div>
+<div>
+<div class="rf-eyebrow" style="margin-bottom: 6px">Pengaturan</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div class="rf-row" style="gap: 8px"><span>Impor dan ekspor</span><span class="rf-st susun">Impor CSV, Ekspor CSV, PDF digabung</span></div>
+<div class="rf-row" style="gap: 8px"><span>Keamanan dan kunci</span><span class="rf-st baru">Baru</span><span class="rf-st tetap">Kode 24 kata (diputuskan)</span></div>
+<div class="rf-row" style="gap: 8px"><span>Profil dan paket</span><span class="rf-st tetap">Tetap</span></div>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+
+<div class="rf-card" style="display: flex; flex-direction: column; gap: 12px">
+<h2 class="rf-h2" style="font-size: 24px">Temuan audit tampilan web yang live</h2>
+<ul class="doc-list">
+<li><b>Panel "Catat transaksi" belum berfungsi.</b> Semua kolom di <code>transaksi.blade.php</code> berstatus disabled dengan teks "tampilan saja (scaffold)". Diputuskan 24 Oktober 2026: web ikut mencatat dan tersinkron dengan aplikasi Android, jadi panel ini perlu dilengkapi.</li>
+<li><b>Pemasukan belum dialirkan ke ruang di web.</b> Roadmap Tahap 14 mencatatnya sendiri. Denah menghitung dari persentase aturan saja, padahal "rezeki mengalir" adalah inti produk. Karena web ikut mencatat, potret alokasi tiap pemasukan harus dibuat web dengan aturan pembulatan yang sama seperti Android.</li>
+<li><b>Jalur data akhir berbeda dari scaffold.</b> Web live menyimpan data terbaca di database server. Setelah e2e, server tidak boleh bisa membacanya, jadi pencatatan di web harus dienkripsi di peramban dan dikirim lewat protokol sinkron, bukan ditulis ke tabel Laravel.</li>
+<li><b>Halaman masuk live hanya punya tombol Google</b> (Google Identity Services) dan form demo untuk lokal, tanpa langkah buka kunci. Kartu masuk habitflow (<code>auth-card.blade.php</code>) menjadi acuan tampilan yang baru.</li>
+<li><b>Daftar Transaksi berupa kartu satu baris.</b> Tidak ada kolom terpisah untuk ruang, pos, dan akun, tidak ada pilih banyak, dan filter hanya pencarian serta Semua, Masuk, Keluar.</li>
+<li><b>Denah tanpa pemilih periode dan tanpa agenda.</b> Tagihan dan transaksi berulang baru terlihat setelah membuka halaman lain.</li>
+<li><b>Gaya inline berulang di tiap Blade.</b> Kartu, pil, cincin, dan bar ditulis ulang di setiap halaman. Komponen Blade bersama menjaga konsistensi dengan <code>tokens.css</code>, dan satu langkah ini juga memudahkan mode gelap.</li>
+<li><b>Satu temuan kecil soal kontras.</b> Pil peringatan memakai <code>#8a6d13</code> di atas <code>#fef3d6</code>. Hitungan manual saya: sekitar 4,4 banding 1, sedikit di bawah batas 4,5 untuk teks kecil. Mockup ini memakai <code>#735a0b</code> (sekitar 5,9 banding 1).</li>
+</ul>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 14px">
+<h2 class="rf-h2" style="font-size: 24px">Urutan kerja yang disarankan</h2>
+<div class="doc-grid">
+<div class="doc-card">
+<span class="rf-st baru" style="align-self: flex-start">Fase 1 · tanpa ubah backend</span>
+<h3>Bisa mulai sekarang</h3>
+<ul class="doc-list">
+<li>Ganti menu atas menjadi sidebar (cukup <code>layout.blade.php</code>).</li>
+<li>Ekstrak komponen Blade: kartu, pil, cincin, bar.</li>
+<li>Restyle Denah dan Ruang.</li>
+<li>Transaksi jadi tabel dengan filter ruang, pos, akun, dan pilih banyak.</li>
+</ul>
+</div>
+<div class="doc-card">
+<span class="rf-st susun" style="align-self: flex-start">Fase 2 · pekerjaan model data</span>
+<h3>Mulai berfungsi seperti produk</h3>
+<ul class="doc-list">
+<li>Catat pengeluaran (baris cepat) dan Alirkan rezeki, dengan potret alokasi per pemasukan. Dibangun dulu di atas data seed.</li>
+<li>Filter "Tak terlacak" dan edit massal di Transaksi.</li>
+<li>Jadwal gabungan dan Analisa › Aliran.</li>
+<li>Rekap zakat: kolom lembaga dan nomor bukti.</li>
+</ul>
+</div>
+<div class="doc-card">
+<span class="rf-st tunda" style="align-self: flex-start">Fase 3 · menunggu Tahap 9 dan 13</span>
+<h3>Setelah sinkron data asli</h3>
+<ul class="doc-list">
+<li>Buka kunci dengan kode 24 kata.</li>
+<li>Klien sinkron di peramban: enkripsi yang kompatibel dengan Android, kirim dan tarik, konflik terakhir-menang.</li>
+<li>Tampilan Keluarga dan tabel akses.</li>
+<li>Status sinkron di bilah atas.</li>
+<li>Rekap zakat: kolom lembaga dan nomor bukti ikut protokol sinkron dan Android.</li>
+</ul>
+</div>
+</div>
+</div>
+
+<div class="rf-card" style="display: flex; flex-direction: column; gap: 12px; border-color: var(--rf-primary)">
+<h2 class="rf-h2" style="font-size: 24px">Keputusan</h2>
+<ol class="doc-list">
+<li><b>Sidebar, bukan menu atas.</b> Diputuskan 24 Oktober 2026.</li>
+<li><b>Web ikut mencatat, tersinkron dengan aplikasi Android.</b> Diputuskan 24 Oktober 2026 (sempat "hanya lihat", lalu diubah). Dampak: pencatatan di web harus dienkripsi di peramban dan masuk lewat protokol sinkron.</li>
+<li><b>Buka kunci dengan kode pemulihan 24 kata.</b> Diputuskan 24 Oktober 2026. Ini membuka blokir dua task terakhir Tahap 14.</li>
+<li><b>Rekap zakat tahunan masuk.</b> Diputuskan 24 Oktober 2026. Lembaga penerima dan nomor bukti setor menjadi dua kolom opsional baru yang ikut tersinkron di web, Android, dan protokol sinkron.</li>
+<li><b>Status "ditinjau" di model data: belum perlu.</b> Disetujui 24 Oktober 2026. Impor diarahkan ke pos "Tak terlacak", dan edit massal ruang dan pos menyelesaikan sisanya.</li>
+<li><b>Halaman masuk meniru habitflow</b> (email dan sandi + Google, Daftar, lupa sandi). Diminta 24 Oktober 2026. Ini berbeda dari keputusan 18 Oktober 2026 (web hanya Google, tanpa daftar dan email+sandi), jadi keputusan lama perlu diganti secara eksplisit di docs.</li>
+<li><b>Alur masuk dua langkah:</b> masuk (email dan sandi atau Google), lalu buka kunci dengan kode 24 kata. Lupa kata sandi hanya mereset akses akun, bukan kunci enkripsi.</li>
+</ol>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Tampilan"},"$preview":{"width":1360,"height":2000}}'>
+class Component extends DCLogic {
+renderVals() {
+return { theme: this.props.theme ?? 'light' };
+}
+}
+</script>
+</body>
+</html>

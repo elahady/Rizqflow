@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Keluarga (cakupan bersama)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="rizqflow.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:wght@400;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="rf" data-theme="{{theme}}">
+<div class="rf-app">
+
+<aside class="rf-side">
+<a class="rf-brand" href="Main.dc.html"><span class="rf-brand-mark">R</span><span class="rf-brand-name">Rizqflow</span></a>
+<div class="rf-seg rf-seg-full">
+<a class="rf-seg-btn" href="Main.dc.html">Pribadi</a>
+<a class="rf-seg-btn on" href="Keluarga.dc.html">Keluarga</a>
+</div>
+<nav class="rf-nav" aria-label="Menu utama">
+<div class="rf-nav-group">
+<a class="rf-nav-item" href="Main.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Denah</a>
+</div>
+<div class="rf-nav-group">
+<div class="rf-nav-label">Uang</div>
+<a class="rf-nav-item" href="Transaksi.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>Transaksi</a>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Jadwal</a>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M15 4l4 4-4 4"/><path d="M19 16H5M9 12l-4 4 4 4"/></svg>Utang-piutang</a>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M16 15h2"/></svg>Akun</a>
+</div>
+<div class="rf-nav-group">
+<div class="rf-nav-label">Ruang</div>
+<a class="rf-nav-item" href="Ruang.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Ruang dan pos</a>
+<a class="rf-nav-item" href="Zakat.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5C6.5 16.5 3 13 3 9.2 3 6.8 4.8 5 7.2 5c1.8 0 3.5 1 4.8 2.7C13.3 6 15 5 16.8 5 19.2 5 21 6.8 21 9.2c0 3.8-3.5 7.3-9 11.3z"/></svg>Zakat</a>
+<a class="rf-nav-item on" href="Keluarga.dc.html" aria-current="page"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17.5" cy="9" r="2.5"/><path d="M17 14.2c2.4.2 4.5 2.1 4.5 5.3"/></svg>Keluarga</a>
+</div>
+<div class="rf-nav-group">
+<div class="rf-nav-label">Analisa</div>
+<a class="rf-nav-item" href="Analisa.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 15l4-4 3 3 5-6"/></svg>Analisa<span class="rf-tagpro">PRO</span></a>
+</div>
+<div class="rf-nav-group">
+<div class="rf-nav-label">Pengaturan</div>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5"/><path d="M4 18v2h16v-2"/></svg>Impor dan ekspor</a>
+<a class="rf-nav-item" href="Kunci.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>Keamanan dan kunci</a>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>Profil dan paket</a>
+</div>
+</nav>
+<div class="rf-side-foot">
+<div class="rf-lock"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg><div><b>Data terenkripsi</b>Terbuka di peramban ini</div><a class="rf-link" href="Kunci.dc.html" style="margin-left: auto">Kunci</a></div>
+<div class="rf-user"><span class="rf-avatar">A</span><div><b>Ayu</b><span>Paket Gratis</span></div><a class="rf-link" href="Masuk.dc.html" style="margin-left: auto">Keluar</a></div>
+</div>
+</aside>
+
+<div class="rf-main">
+<header class="rf-topbar">
+<div class="rf-period"><button class="rf-iconbtn" type="button" aria-label="Bulan sebelumnya"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><span>Oktober 2026</span><button class="rf-iconbtn" type="button" aria-label="Bulan berikutnya"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div>
+<label class="rf-cmd"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg><input type="search" placeholder="Cari transaksi, atau catat cepat: kopi 25rb gopay" aria-label="Cari atau catat cepat"><span class="rf-kbd">Ctrl K</span></label>
+<span class="rf-pill good"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Tersinkron · 2 mnt lalu</span>
+<details class="rf-menu"><summary class="rf-btn primary"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Catat</summary>
+<div class="rf-menu-pop"><a href="Transaksi.dc.html">Pengeluaran<span class="rf-kbd">C</span></a><a href="Alirkan.dc.html">Rezeki masuk<span class="rf-kbd">R</span></a></div></details>
+</header>
+
+<main class="rf-content">
+
+<div class="rf-readout">
+<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17.5" cy="9" r="2.5"/><path d="M17 14.2c2.4.2 4.5 2.1 4.5 5.3"/></svg>
+<span>Kamu sedang melihat cakupan <b>Keluarga</b>: hanya ruang bersama dan transaksi yang dibagikan.</span>
+<a class="rf-link" href="Main.dc.html" style="margin-left: auto">Kembali ke Pribadi</a>
+</div>
+
+<div>
+<div class="rf-sub">Oktober 2026 · 2 anggota</div>
+<h1 class="rf-h1" style="font-size: 32px">Keluarga</h1>
+<p class="rf-lead">Ruang bersama Ayu dan Dimas. Setiap anggota hanya melihat apa yang memang dibagikan, dan tabel di bawah menjelaskannya dengan terang.</p>
+</div>
+
+<div class="rf-split">
+
+<div class="a" style="display: flex; flex-direction: column; gap: 20px">
+
+<section class="rf-card">
+<div class="rf-card-head"><h2 class="rf-h2">Siapa melihat apa</h2><span class="rf-sub">Aturan akun lintas ruang</span></div>
+<div class="rf-scroll">
+<table class="rf-table" style="min-width: 520px">
+<thead>
+<tr><th>Data</th><th>Kamu (Ayu)</th><th>Dimas</th></tr>
+</thead>
+<tbody>
+<tr>
+<td>Transaksi di ruang Keluarga</td>
+<td><span class="rf-yes"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>Melihat</span></td>
+<td><span class="rf-yes"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>Melihat</span></td>
+</tr>
+<tr>
+<td>Nama akun sumber transaksi (mis. BCA, GoPay)</td>
+<td><span class="rf-yes"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>Melihat</span></td>
+<td><span class="rf-yes"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>Melihat</span></td>
+</tr>
+<tr>
+<td>Saldo dan transaksi lain di akun itu</td>
+<td><span class="rf-yes"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>Melihat</span></td>
+<td><span class="rf-no"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/><path d="M4 4l16 16"/></svg>Tidak melihat</span></td>
+</tr>
+<tr>
+<td>Ruang pribadi (Diri dan Memberi)</td>
+<td><span class="rf-yes"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>Melihat</span></td>
+<td><span class="rf-no"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/><path d="M4 4l16 16"/></svg>Tidak melihat</span></td>
+</tr>
+<tr>
+<td>Aturan alokasi pribadi dan profil zakat</td>
+<td><span class="rf-yes"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>Melihat</span></td>
+<td><span class="rf-no"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/><path d="M4 4l16 16"/></svg>Tidak melihat</span></td>
+</tr>
+<tr>
+<td>Isi notifikasi di ponsel</td>
+<td class="rf-sub">Jenis dan ruang saja, tanpa nominal</td>
+<td class="rf-sub">Jenis dan ruang saja, tanpa nominal</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rf-sub" style="margin-top: 12px">Ditetapkan 19 Okt 2026: anggota ruang Keluarga melihat transaksi dan nama akun sumbernya, bukan saldo atau transaksi lain di akun itu.</p>
+</section>
+
+<section class="rf-card">
+<div class="rf-card-head"><h2 class="rf-h2">Aktivitas terbaru</h2><a class="rf-link" href="Transaksi.dc.html">Buka Transaksi →</a></div>
+<div>
+<div class="rf-rowline"><span class="rf-avatar" style="width: 32px; height: 32px; font-size: 13px">D</span><div class="rf-grow"><div><b>Dimas</b> mencatat Belanja pasar</div><div class="rf-sub">24 Okt · <span class="rf-roomname"><i class="rf-dot c3"></i>Keluarga › Dapur dan belanja</span> · Tunai</div></div><div class="rf-money">−Rp 187.500</div></div>
+<div class="rf-rowline"><span class="rf-avatar" style="width: 32px; height: 32px; font-size: 13px">A</span><div class="rf-grow"><div><b>Ayu</b> mencatat Token listrik</div><div class="rf-sub">23 Okt · <span class="rf-roomname"><i class="rf-dot c3"></i>Keluarga › Tagihan rumah</span> · BCA</div></div><div class="rf-money">−Rp 400.000</div></div>
+<div class="rf-rowline"><span class="rf-avatar" style="width: 32px; height: 32px; font-size: 13px">A</span><div class="rf-grow"><div><b>Ayu</b> mencatat SPP Oktober</div><div class="rf-sub">21 Okt · <span class="rf-roomname"><i class="rf-dot c3"></i>Keluarga › Anak dan sekolah</span> · BCA</div></div><div class="rf-money">−Rp 1.250.000</div></div>
+<div class="rf-rowline"><span class="rf-avatar" style="width: 32px; height: 32px; font-size: 13px">D</span><div class="rf-grow"><div><b>Dimas</b> mencatat Susu dan popok</div><div class="rf-sub">18 Okt · <span class="rf-roomname"><i class="rf-dot c3"></i>Keluarga › Anak dan sekolah</span> · BCA</div></div><div class="rf-money">−Rp 235.000</div></div>
+</div>
+</section>
+
+</div>
+
+<div class="b" style="display: flex; flex-direction: column; gap: 20px">
+
+<section class="rf-card">
+<h2 class="rf-h2" style="margin-bottom: 8px">Anggota</h2>
+<div>
+<div class="rf-rowline"><span class="rf-avatar">A</span><div class="rf-grow"><div style="font-weight: 700">Ayu (kamu)</div><div class="rf-sub">Pengelola</div></div><span class="rf-pill good"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Tersambung</span></div>
+<div class="rf-rowline"><span class="rf-avatar" style="background: var(--pill-info-bg); color: var(--pill-info-fg)">D</span><div class="rf-grow"><div style="font-weight: 700">Dimas</div><div class="rf-sub">Anggota pencatat · aktif 2 jam lalu</div></div><span class="rf-pill good"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Tersambung</span></div>
+</div>
+<div style="margin-top: 14px; padding: 14px; border: 1.5px dashed var(--rf-outline-variant); border-radius: 14px">
+<div style="font-weight: 700">Undang anggota</div>
+<p class="rf-sub" style="margin-top: 4px">Undangan dibuat dari aplikasi Android lewat kode QR, karena kunci ruang tersimpan di perangkat dan tidak pernah ada di server.</p>
+</div>
+</section>
+
+<section class="rf-card c3">
+<div class="rf-card-head" style="margin-bottom: 10px"><h2 class="rf-h2">Amplop bulanan</h2><span class="rf-sub">Okt 2026</span></div>
+<div class="rf-sub">Jatah Keluarga</div>
+<div style="font-size: 24px; font-weight: 700; margin-top: 2px">Rp 10.800.000</div>
+<div class="rf-sub" style="margin-top: 14px">Terpakai Rp 9.396.000, dicatat oleh:</div>
+<div style="margin-top: 10px; display: flex; flex-direction: column; gap: 14px">
+<div>
+<div class="rf-row" style="justify-content: space-between; flex-wrap: nowrap"><span style="font-weight: 700">Ayu</span><span class="rf-money">Rp 5.100.000</span></div>
+<div class="rf-track" style="margin-top: 6px"><i style="width: 54%"></i></div>
+</div>
+<div>
+<div class="rf-row" style="justify-content: space-between; flex-wrap: nowrap"><span style="font-weight: 700">Dimas</span><span class="rf-money">Rp 4.296.000</span></div>
+<div class="rf-track" style="margin-top: 6px"><i style="width: 46%"></i></div>
+</div>
+</div>
+<p class="rf-sub" style="margin-top: 14px">Sisa Rp 1.404.000 untuk 8 hari.</p>
+</section>
+
+<section class="rf-card">
+<h2 class="rf-h3" style="margin-bottom: 8px">Notifikasi aman</h2>
+<p class="rf-sub">Saat Dimas mencatat pengeluaran, ponselmu hanya menerima "Ada transaksi baru di Keluarga". Nominal dan nama pos tidak ikut terkirim lewat server notifikasi.</p>
+</section>
+
+</div>
+
+</div>
+
+<p class="rf-sub">Data contoh Oktober 2026. Rizqflow adalah bantuan hitung zakat, bukan fatwa.</p>
+
+</main>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Tampilan"},"$preview":{"width":1360,"height":1300}}'>
+class Component extends DCLogic {
+renderVals() {
+return { theme: this.props.theme ?? 'light' };
+}
+}
+</script>
+</body>
+</html>

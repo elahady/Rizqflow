@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Transaksi (tabel kerja)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="rizqflow.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:wght@400;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="rf" data-theme="{{theme}}">
+<div class="rf-app">
+
+<aside class="rf-side">
+<a class="rf-brand" href="Main.dc.html"><span class="rf-brand-mark">R</span><span class="rf-brand-name">Rizqflow</span></a>
+<div class="rf-seg rf-seg-full">
+<a class="rf-seg-btn on" href="Main.dc.html">Pribadi</a>
+<a class="rf-seg-btn" href="Keluarga.dc.html">Keluarga</a>
+</div>
+<nav class="rf-nav" aria-label="Menu utama">
+<div class="rf-nav-group">
+<a class="rf-nav-item" href="Main.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Denah</a>
+</div>
+<div class="rf-nav-group">
+<div class="rf-nav-label">Uang</div>
+<a class="rf-nav-item on" href="Transaksi.dc.html" aria-current="page"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>Transaksi</a>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Jadwal</a>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M15 4l4 4-4 4"/><path d="M19 16H5M9 12l-4 4 4 4"/></svg>Utang-piutang</a>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M16 15h2"/></svg>Akun</a>
+</div>
+<div class="rf-nav-group">
+<div class="rf-nav-label">Ruang</div>
+<a class="rf-nav-item" href="Ruang.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Ruang dan pos</a>
+<a class="rf-nav-item" href="Zakat.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5C6.5 16.5 3 13 3 9.2 3 6.8 4.8 5 7.2 5c1.8 0 3.5 1 4.8 2.7C13.3 6 15 5 16.8 5 19.2 5 21 6.8 21 9.2c0 3.8-3.5 7.3-9 11.3z"/></svg>Zakat</a>
+<a class="rf-nav-item" href="Keluarga.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17.5" cy="9" r="2.5"/><path d="M17 14.2c2.4.2 4.5 2.1 4.5 5.3"/></svg>Keluarga</a>
+</div>
+<div class="rf-nav-group">
+<div class="rf-nav-label">Analisa</div>
+<a class="rf-nav-item" href="Analisa.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 15l4-4 3 3 5-6"/></svg>Analisa<span class="rf-tagpro">PRO</span></a>
+</div>
+<div class="rf-nav-group">
+<div class="rf-nav-label">Pengaturan</div>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5"/><path d="M4 18v2h16v-2"/></svg>Impor dan ekspor</a>
+<a class="rf-nav-item" href="Kunci.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>Keamanan dan kunci</a>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>Profil dan paket</a>
+</div>
+</nav>
+<div class="rf-side-foot">
+<div class="rf-lock"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg><div><b>Data terenkripsi</b>Terbuka di peramban ini</div><a class="rf-link" href="Kunci.dc.html" style="margin-left: auto">Kunci</a></div>
+<div class="rf-user"><span class="rf-avatar">A</span><div><b>Ayu</b><span>Paket Gratis</span></div><a class="rf-link" href="Masuk.dc.html" style="margin-left: auto">Keluar</a></div>
+</div>
+</aside>
+
+<div class="rf-main">
+<header class="rf-topbar">
+<div class="rf-period"><button class="rf-iconbtn" type="button" aria-label="Bulan sebelumnya"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><span>Oktober 2026</span><button class="rf-iconbtn" type="button" aria-label="Bulan berikutnya"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div>
+<label class="rf-cmd"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg><input type="search" placeholder="Cari transaksi, atau catat cepat: kopi 25rb gopay" aria-label="Cari atau catat cepat"><span class="rf-kbd">Ctrl K</span></label>
+<span class="rf-pill good"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Tersinkron · 2 mnt lalu</span>
+<details class="rf-menu"><summary class="rf-btn primary"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Catat</summary>
+<div class="rf-menu-pop"><a href="Transaksi.dc.html">Pengeluaran<span class="rf-kbd">C</span></a><a href="Alirkan.dc.html">Rezeki masuk<span class="rf-kbd">R</span></a></div></details>
+</header>
+
+<main class="rf-content">
+
+<div class="rf-row" style="justify-content: space-between; align-items: flex-end">
+<div>
+<div class="rf-sub">Oktober 2026 · 47 transaksi</div>
+<h1 class="rf-h1" style="font-size: 32px">Transaksi</h1>
+</div>
+<div class="rf-row" style="gap: 10px">
+<a class="rf-btn ghost sm" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5"/><path d="M4 18v2h16v-2"/></svg>Impor CSV</a>
+<a class="rf-btn ghost sm" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5"/><path d="M4 18v2h16v-2"/></svg>Ekspor CSV</a>
+<a class="rf-btn tonal sm" href="Alirkan.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Rezeki masuk</a>
+</div>
+</div>
+
+<section class="rf-card">
+<div class="rf-card-head" style="margin-bottom: 12px"><h2 class="rf-h3">Catat pengeluaran</h2><span class="rf-sub">Tekan <span class="rf-kbd">C</span> di halaman mana pun</span></div>
+<div class="rf-quick">
+<div class="rf-field" style="flex: 0 0 120px"><label for="q-tgl">Tanggal</label><input class="rf-input" id="q-tgl" value="Hari ini" readonly></div>
+<div class="rf-field grow2"><label for="q-cat">Catatan (boleh bahasa natural)</label><input class="rf-input" id="q-cat" value="kopi 25rb gopay" readonly></div>
+<div class="rf-field"><span class="rf-label">Ruang › Pos</span><button class="rf-input rf-select" type="button" aria-label="Ruang dan pos: Diri, Jajan dan hobi"><span class="rf-roomname"><i class="rf-dot c2"></i>Diri › Jajan dan hobi</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+<div class="rf-field" style="flex: 0 0 130px"><span class="rf-label">Akun</span><button class="rf-input rf-select" type="button" aria-label="Akun: GoPay"><span>GoPay</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+<div class="rf-field" style="flex: 0 0 140px"><label for="q-amt">Nominal</label><input class="rf-input" id="q-amt" value="Rp 25.000" readonly style="font-weight: 700; text-align: right"></div>
+<button class="rf-btn primary" type="button">Simpan<span class="rf-kbd" style="background: transparent; color: var(--rf-on-primary); border-color: currentColor">Enter</span></button>
+</div>
+<div class="rf-parse">
+<span>Terbaca otomatis:</span>
+<span class="rf-pill info">Rp 25.000</span>
+<span class="rf-pill info">GoPay</span>
+<span class="rf-pill info">Diri › Jajan dan hobi (dari catatan serupa)</span>
+<span>· <span class="rf-kbd">Shift</span> + <span class="rf-kbd">Enter</span> simpan dan tambah lagi</span>
+</div>
+</section>
+
+<section class="rf-card" style="padding: 0; overflow: hidden">
+<div style="padding: 6px 20px 0">
+<div class="rf-tabs" style="border-bottom: 0">
+<button class="rf-tab {{tabAll}}" type="button" onClick="{{showAll}}">Semua<span class="rf-sub">47</span></button>
+<button class="rf-tab {{tabTak}}" type="button" onClick="{{showTak}}">Tak terlacak<span class="rf-count">3</span></button>
+</div>
+</div>
+<div class="rf-row" style="padding: 12px 20px; border-top: 1px solid var(--rf-outline-variant); border-bottom: 1px solid var(--rf-outline-variant)">
+<label class="rf-cmd" style="flex: 1 1 240px"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg><input type="search" placeholder="Cari catatan atau nominal" aria-label="Cari catatan atau nominal"></label>
+<button class="rf-chip" type="button">Semua ruang<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+<button class="rf-chip" type="button">Semua pos<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+<button class="rf-chip" type="button">Semua akun<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+<button class="rf-chip" type="button">Semua jenis<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+<button class="rf-btn ghost sm" type="button">Simpan tampilan</button>
+</div>
+
+<sc-if value="{{hasSel}}" hint-placeholder-val="{{false}}">
+<div style="padding: 12px 20px">
+<div class="rf-bulk">
+<b>{{selCount}} dipilih</b>
+<span>{{totalText}}</span>
+<button class="rf-btn ghost sm" type="button">Ubah ruang dan pos</button>
+<button class="rf-btn ghost sm" type="button">Pindah akun</button>
+<button class="rf-btn ghost sm" type="button">Ekspor pilihan (CSV)</button>
+<button class="rf-btn ghost sm" type="button">Hapus</button>
+<button class="rf-btn ghost sm" type="button" style="margin-left: auto" onClick="{{clearSel}}">Batal pilih</button>
+</div>
+</div>
+</sc-if>
+
+<div class="rf-scroll">
+<table class="rf-table" style="min-width: 860px">
+<thead>
+<tr>
+<th style="width: 44px"><input type="checkbox" checked="{{allSel}}" onChange="{{toggleAll}}" aria-label="Pilih semua baris yang tampil"></th>
+<th>Tanggal</th>
+<th>Catatan</th>
+<th>Ruang › Pos</th>
+<th>Akun</th>
+<th class="num">Nominal</th>
+</tr>
+</thead>
+<tbody>
+
+<tr class="{{row1}}">
+<td><input type="checkbox" checked="{{sel1}}" onChange="{{tog1}}" aria-label="Pilih Belanja pasar"></td>
+<td class="rf-sub" style="white-space: nowrap">24 Okt</td>
+<td><div style="font-weight: 700">Belanja pasar</div></td>
+<td><span class="rf-roomname"><i class="rf-dot c3"></i>Keluarga <span class="rf-sub">›</span> Dapur dan belanja</span></td>
+<td>Tunai</td>
+<td class="num"><span class="rf-money">−Rp 187.500</span></td>
+</tr>
+
+<tr class="{{row2}}">
+<td><input type="checkbox" checked="{{sel2}}" onChange="{{tog2}}" aria-label="Pilih Kopi susu"></td>
+<td class="rf-sub" style="white-space: nowrap">24 Okt</td>
+<td><div style="font-weight: 700">Kopi susu</div></td>
+<td><span class="rf-roomname"><i class="rf-dot c2"></i>Diri <span class="rf-sub">›</span> Jajan dan hobi</span></td>
+<td>GoPay</td>
+<td class="num"><span class="rf-money">−Rp 28.000</span></td>
+</tr>
+
+<tr class="{{row3}}">
+<td><input type="checkbox" checked="{{sel3}}" onChange="{{tog3}}" aria-label="Pilih QRIS Indomaret"></td>
+<td class="rf-sub" style="white-space: nowrap">23 Okt</td>
+<td><div style="font-weight: 700">QRIS Indomaret</div></td>
+<td><span class="rf-roomname"><i class="rf-dot c3"></i>Keluarga <span class="rf-sub">›</span> Tak terlacak</span></td>
+<td>BCA</td>
+<td class="num"><span class="rf-money">−Rp 289.000</span></td>
+</tr>
+
+<tr class="{{row4}}">
+<td><input type="checkbox" checked="{{sel4}}" onChange="{{tog4}}" aria-label="Pilih Token listrik"></td>
+<td class="rf-sub" style="white-space: nowrap">23 Okt</td>
+<td><div style="font-weight: 700">Token listrik</div></td>
+<td><span class="rf-roomname"><i class="rf-dot c3"></i>Keluarga <span class="rf-sub">›</span> Tagihan rumah</span></td>
+<td>BCA</td>
+<td class="num"><span class="rf-money">−Rp 400.000</span></td>
+</tr>
+
+<tr class="{{row5}}">
+<td><input type="checkbox" checked="{{sel5}}" onChange="{{tog5}}" aria-label="Pilih Gaji Oktober"></td>
+<td class="rf-sub" style="white-space: nowrap">22 Okt</td>
+<td><div style="font-weight: 700">Gaji Oktober</div></td>
+<td><span class="rf-roomname"><i class="rf-dot c1"></i><i class="rf-dot c2"></i><i class="rf-dot c3"></i>Dialirkan 10 / 30 / 60</span></td>
+<td>BCA</td>
+<td class="num"><span class="rf-money rf-in">+Rp 18.000.000</span></td>
+</tr>
+
+<tr class="{{row6}}">
+<td><input type="checkbox" checked="{{sel6}}" onChange="{{tog6}}" aria-label="Pilih Koreksi saldo BCA"></td>
+<td class="rf-sub" style="white-space: nowrap">22 Okt</td>
+<td><div style="font-weight: 700">Koreksi saldo BCA</div><div class="rf-sub">Selisih koreksi saldo</div></td>
+<td><span class="rf-roomname"><i class="rf-dot c3"></i>Keluarga <span class="rf-sub">›</span> Tak terlacak</span></td>
+<td>BCA</td>
+<td class="num"><span class="rf-money">−Rp 275.000</span></td>
+</tr>
+
+<tr class="{{row7}}">
+<td><input type="checkbox" checked="{{sel7}}" onChange="{{tog7}}" aria-label="Pilih SPP Oktober"></td>
+<td class="rf-sub" style="white-space: nowrap">21 Okt</td>
+<td><div style="font-weight: 700">SPP Oktober</div></td>
+<td><span class="rf-roomname"><i class="rf-dot c3"></i>Keluarga <span class="rf-sub">›</span> Anak dan sekolah</span></td>
+<td>BCA</td>
+<td class="num"><span class="rf-money">−Rp 1.250.000</span></td>
+</tr>
+
+<tr class="{{row8}}">
+<td><input type="checkbox" checked="{{sel8}}" onChange="{{tog8}}" aria-label="Pilih Tarik tunai"></td>
+<td class="rf-sub" style="white-space: nowrap">21 Okt</td>
+<td><div style="font-weight: 700">Tarik tunai</div></td>
+<td><span class="rf-roomname"><i class="rf-dot c3"></i>Keluarga <span class="rf-sub">›</span> Tak terlacak</span></td>
+<td>BCA</td>
+<td class="num"><span class="rf-money">−Rp 300.000</span></td>
+</tr>
+
+<tr class="{{row9}}">
+<td><input type="checkbox" checked="{{sel9}}" onChange="{{tog9}}" aria-label="Pilih Kiriman orang tua"></td>
+<td class="rf-sub" style="white-space: nowrap">20 Okt</td>
+<td><div style="font-weight: 700">Kiriman orang tua</div></td>
+<td><span class="rf-roomname"><i class="rf-dot c1"></i>Memberi <span class="rf-sub">›</span> Orang tua</span></td>
+<td>BCA</td>
+<td class="num"><span class="rf-money">−Rp 500.000</span></td>
+</tr>
+
+<tr class="{{row10}}">
+<td><input type="checkbox" checked="{{sel10}}" onChange="{{tog10}}" aria-label="Pilih Susu dan popok"></td>
+<td class="rf-sub" style="white-space: nowrap">18 Okt</td>
+<td><div style="font-weight: 700">Susu dan popok</div></td>
+<td><span class="rf-roomname"><i class="rf-dot c3"></i>Keluarga <span class="rf-sub">›</span> Anak dan sekolah</span></td>
+<td>BCA</td>
+<td class="num"><span class="rf-money">−Rp 235.000</span></td>
+</tr>
+
+<tr class="{{row11}}">
+<td><input type="checkbox" checked="{{sel11}}" onChange="{{tog11}}" aria-label="Pilih DCA reksa dana"></td>
+<td class="rf-sub" style="white-space: nowrap">17 Okt</td>
+<td><div style="font-weight: 700">DCA reksa dana</div><div class="rf-sub">Berulang</div></td>
+<td><span class="rf-roomname"><i class="rf-dot c2"></i>Diri <span class="rf-sub">›</span> Investasi</span></td>
+<td>BCA</td>
+<td class="num"><span class="rf-money">−Rp 1.000.000</span></td>
+</tr>
+
+<tr class="{{row12}}">
+<td><input type="checkbox" checked="{{sel12}}" onChange="{{tog12}}" aria-label="Pilih Internet rumah"></td>
+<td class="rf-sub" style="white-space: nowrap">15 Okt</td>
+<td><div style="font-weight: 700">Internet rumah</div><div class="rf-sub">Berulang</div></td>
+<td><span class="rf-roomname"><i class="rf-dot c3"></i>Keluarga <span class="rf-sub">›</span> Tagihan rumah</span></td>
+<td>BCA</td>
+<td class="num"><span class="rf-money">−Rp 385.000</span></td>
+</tr>
+
+</tbody>
+</table>
+</div>
+
+<div class="rf-row" style="justify-content: space-between; padding: 14px 20px; border-top: 1px solid var(--rf-outline-variant)">
+<span class="rf-sub">Menampilkan 12 dari 47 transaksi · Keluar <b style="color: var(--rf-on-background)">Rp 14.328.000</b> · Masuk <b style="color: var(--rf-on-background)">Rp 18.000.000</b></span>
+<span class="rf-sub">Pintasan: <span class="rf-kbd">J</span> <span class="rf-kbd">K</span> pindah baris · <span class="rf-kbd">X</span> pilih · <span class="rf-kbd">E</span> ubah · <span class="rf-kbd">/</span> cari</span>
+</div>
+</section>
+
+<p class="rf-sub">Data contoh Oktober 2026. Rizqflow adalah bantuan hitung zakat, bukan fatwa.</p>
+
+</main>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Tampilan"},"$preview":{"width":1360,"height":1500}}'>
+class Component extends DCLogic {
+toggle(id) {
+const st = this.state || {};
+const cur = st.selected || {};
+this.setState({ selected: { ...cur, [id]: !cur[id] } });
+}
+visibleIds() {
+const st = this.state || {};
+const TAK = { 3: true, 6: true, 8: true };
+const tab = st.tab || 'semua';
+const all = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+return all.filter((id) => tab !== 'tak' || TAK[id]);
+}
+toggleAll() {
+const st = this.state || {};
+const cur = st.selected || {};
+const vis = this.visibleIds();
+const every = vis.length > 0 && vis.every((id) => cur[id]);
+const next = { ...cur };
+vis.forEach((id) => { next[id] = !every; });
+this.setState({ selected: next });
+}
+renderVals() {
+const st = this.state || {};
+const TAK = { 3: true, 6: true, 8: true };
+const AMT = { 1: -187500, 2: -28000, 3: -289000, 4: -400000, 5: 18000000, 6: -275000, 7: -1250000, 8: -300000, 9: -500000, 10: -235000, 11: -1000000, 12: -385000 };
+const fmt = (n) => Math.round(n).toLocaleString('id-ID');
+const tab = st.tab || 'semua';
+const selected = st.selected || {};
+const out = {};
+let selCount = 0;
+let shown = 0;
+let shownSel = 0;
+let sumOut = 0;
+let sumIn = 0;
+for (let id = 1; id <= 12; id++) {
+const tak = !!TAK[id];
+const sel = !!selected[id];
+const hidden = tab === 'tak' && !tak;
+if (sel) {
+selCount++;
+if (AMT[id] < 0) sumOut += -AMT[id];
+else sumIn += AMT[id];
+}
+if (!hidden) {
+shown++;
+if (sel) shownSel++;
+}
+out['row' + id] = ((sel ? 'sel ' : '') + (tak ? 'need ' : '') + (hidden ? 'gone' : '')).trim();
+out['sel' + id] = sel;
+out['tog' + id] = () => this.toggle(id);
+}
+const parts = [];
+if (sumOut > 0) parts.push('Keluar Rp ' + fmt(sumOut));
+if (sumIn > 0) parts.push('Masuk Rp ' + fmt(sumIn));
+return {
+...out,
+theme: this.props.theme ?? 'light',
+selCount,
+hasSel: selCount > 0,
+totalText: parts.join(' · '),
+allSel: shown > 0 && shownSel === shown,
+tabAll: tab === 'semua' ? 'on' : '',
+tabTak: tab === 'tak' ? 'on' : '',
+showAll: () => this.setState({ tab: 'semua' }),
+showTak: () => this.setState({ tab: 'tak' }),
+toggleAll: () => this.toggleAll(),
+clearSel: () => this.setState({ selected: {} }),
+};
+}
+}
+</script>
+</body>
+</html>

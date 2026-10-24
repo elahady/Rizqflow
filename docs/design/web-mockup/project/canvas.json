@@ -1,0 +1,47 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-10-24T09:00:00Z" },
+  "title": "Mockup Web Rizqflow",
+  "launch": { "view": "canvas" },
+  "boards": {
+    "Masuk.dc.html": { "x": 0, "y": 4950, "w": 1360, "h": 900, "title": "Masuk (meniru habitflow)", "expand": "fill", "is_interactive": true },
+    "Kunci.dc.html": { "x": 1440, "y": 4950, "w": 1360, "h": 1100, "title": "Buka kunci (kode 24 kata)", "expand": "fill", "is_interactive": true },
+    "Main.dc.html": { "x": 2880, "y": 4950, "w": 1360, "h": 1500, "title": "Denah (beranda)", "expand": "fill", "is_interactive": true },
+    "Transaksi.dc.html": { "x": 0, "y": 7210, "w": 1360, "h": 1500, "title": "Transaksi (tabel kerja)", "expand": "fill", "is_interactive": true },
+    "Alirkan.dc.html": { "x": 1440, "y": 7210, "w": 1360, "h": 1100, "title": "Catat rezeki masuk (Alirkan)", "expand": "fill", "is_interactive": true },
+    "Analisa.dc.html": { "x": 2880, "y": 7210, "w": 1360, "h": 1950, "title": "Analisa: Aliran", "expand": "fill", "is_interactive": true },
+    "Ruang.dc.html": { "x": 0, "y": 9920, "w": 1360, "h": 1560, "title": "Ruang: Keluarga", "expand": "fill", "is_interactive": true },
+    "Zakat.dc.html": { "x": 1440, "y": 9920, "w": 1360, "h": 1550, "title": "Zakat dan rekap tahunan", "expand": "fill", "is_interactive": true },
+    "Keluarga.dc.html": { "x": 2880, "y": 9920, "w": 1360, "h": 1300, "title": "Keluarga (cakupan bersama)", "expand": "fill", "is_interactive": true },
+    "Riset.dc.html": { "x": 0, "y": 400, "w": 1360, "h": 3200, "title": "Riset kebutuhan pasar", "expand": "fill" },
+    "Navigasi.dc.html": { "x": 1440, "y": 400, "w": 1360, "h": 2300, "title": "Navigasi dan audit web saat ini", "expand": "fill" }
+  },
+  "order": [
+    "Riset.dc.html",
+    "Navigasi.dc.html",
+    "Masuk.dc.html",
+    "Kunci.dc.html",
+    "Main.dc.html",
+    "Transaksi.dc.html",
+    "Alirkan.dc.html",
+    "Analisa.dc.html",
+    "Ruang.dc.html",
+    "Zakat.dc.html",
+    "Keluarga.dc.html"
+  ],
+  "notes": {
+    "t-riset": { "x": 0, "y": 0, "text": "Riset dan arah desain", "kind": "title1", "maxW": 2800 },
+    "t-layar": { "x": 0, "y": 3900, "text": "Layar web (mode Play: mulai dari Masuk, lalu klik menu di sidebar)", "kind": "title1", "maxW": 4240 },
+    "n-masuk": { "x": 0, "y": 4310, "w": 420, "size": "s", "fill": "teal", "text": "Masuk. Meniru habitflow (auth-card): logo, judul, tagline, email dan sandi, 'atau', tombol Google, Daftar, Lupa sandi, tombol tema; ukuran dan pesan galat disalin dari sana. Tambahan khas Rizqflow: catatan bahwa setelah masuk perlu kode 24 kata. Tweaks > metode memberi versi Google saja (keputusan 18 Okt); Tweaks > state memberi galat, keluar, sesi berakhir. Daftar, verifikasi email, dan lupa sandi belum dibuat." },
+    "n-kunci": { "x": 1440, "y": 4310, "w": 420, "size": "s", "fill": "green", "text": "Buka kunci. Diputuskan 24 Okt 2026: kode 24 kata (opsi QR dibuang). Usulan tambahan saya: kunci hanya di memori tab dan terkunci otomatis setelah 15 menit. Tombol 'Isi contoh' hanya ada di mockup." },
+    "n-denah": { "x": 2880, "y": 4310, "w": 420, "size": "s", "fill": "teal", "text": "Denah. Berubah: sidebar menggantikan top-nav; 'sisa aman per hari' tiap ruang; agenda 7 hari menyatukan Tagihan dan Berulang; transaksi terbaru dan penanda 'Tak terlacak' di beranda. Bahasa tetap tenang, tanpa merah." },
+    "n-transaksi": { "x": 0, "y": 6570, "w": 420, "size": "s", "fill": "teal", "text": "Transaksi. Dari daftar kartu jadi tabel kerja: pilih banyak baris untuk ubah massal, menjumlah, dan mengekspor; tab 'Tak terlacak' menunjukkan yang belum punya pos. Pengeluaran dicatat lewat baris cepat; pemasukan lewat halaman Alirkan rezeki. Input bahasa natural butuh port parser dari Android." },
+    "n-alirkan": { "x": 1440, "y": 6570, "w": 420, "size": "s", "fill": "teal", "text": "Alirkan rezeki. Inti produk ('rezeki mengalir') belum ada di web: panel Catat sekarang cuma tampilan. Pratinjau memakai aturan sisa terbesar yang sama dengan AllocationEngine. Coba nominal Rp 1.234.567." },
+    "n-analisa": { "x": 2880, "y": 6570, "w": 420, "size": "s", "fill": "teal", "text": "Analisa. Enam halaman Laporan jadi satu hub bertab. 'Aliran' (Sankey) cocok dengan metafora produk dan di Monarch hanya ada di web. Setiap grafik punya tabel kembarannya (di bawah). Tetap Pro." },
+    "n-ruang": { "x": 0, "y": 9280, "w": 420, "size": "s", "fill": "teal", "text": "Ruang. Ditambah laju belanja vs laju jatah (geser hari), riwayat 6 bulan, pos jadi tabel. Pos yang melewati jatah ditandai lembut: kuning + ikon + teks, bukan merah." },
+    "n-zakat": { "x": 1440, "y": 9280, "w": 420, "size": "s", "fill": "teal", "text": "Zakat. 'Rekap tahunan' diputuskan masuk (24 Okt 2026). Lembaga penerima dan nomor bukti setor jadi dua kolom opsional baru yang ikut tersinkron (web, Android, protokol). Bukti setor sendiri tidak disimpan di server. Asumsi fikih tetap default sementara." },
+    "n-keluarga": { "x": 2880, "y": 9280, "w": 420, "size": "s", "fill": "teal", "text": "Keluarga. Cakupan Pribadi/Keluarga dan matriks 'siapa melihat apa' mengikuti aturan 19 Okt 2026 (anggota melihat transaksi dan nama akun sumber, bukan saldo). Undangan QR tetap dari aplikasi Android." },
+    "n-keputusan": { "x": 4320, "y": 4950, "w": 520, "size": "s", "fill": "green", "text": "Keputusan 24 Okt 2026: (1) sidebar, bukan menu atas. (2) Web ikut mencatat dan tersinkron dengan Android. (3) Buka kunci dengan kode 24 kata. (4) Rekap zakat tahunan masuk; kolom lembaga dan no. bukti ikut sinkron. (5) Status 'ditinjau': belum perlu. (6) Halaman masuk meniru habitflow (email + sandi + Google); ini berbeda dari keputusan 18 Okt 2026 dan perlu dicatat eksplisit di docs." }
+  },
+  "designSystems": []
+}

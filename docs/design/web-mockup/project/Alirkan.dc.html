@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Catat rezeki masuk (Alirkan)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="rizqflow.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:wght@400;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="rf" data-theme="{{theme}}">
+<div class="rf-app">
+
+<aside class="rf-side">
+<a class="rf-brand" href="Main.dc.html"><span class="rf-brand-mark">R</span><span class="rf-brand-name">Rizqflow</span></a>
+<div class="rf-seg rf-seg-full">
+<a class="rf-seg-btn on" href="Main.dc.html">Pribadi</a>
+<a class="rf-seg-btn" href="Keluarga.dc.html">Keluarga</a>
+</div>
+<nav class="rf-nav" aria-label="Menu utama">
+<div class="rf-nav-group">
+<a class="rf-nav-item" href="Main.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Denah</a>
+</div>
+<div class="rf-nav-group">
+<div class="rf-nav-label">Uang</div>
+<a class="rf-nav-item on" href="Transaksi.dc.html" aria-current="page"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>Transaksi</a>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Jadwal</a>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M15 4l4 4-4 4"/><path d="M19 16H5M9 12l-4 4 4 4"/></svg>Utang-piutang</a>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M16 15h2"/></svg>Akun</a>
+</div>
+<div class="rf-nav-group">
+<div class="rf-nav-label">Ruang</div>
+<a class="rf-nav-item" href="Ruang.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Ruang dan pos</a>
+<a class="rf-nav-item" href="Zakat.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5C6.5 16.5 3 13 3 9.2 3 6.8 4.8 5 7.2 5c1.8 0 3.5 1 4.8 2.7C13.3 6 15 5 16.8 5 19.2 5 21 6.8 21 9.2c0 3.8-3.5 7.3-9 11.3z"/></svg>Zakat</a>
+<a class="rf-nav-item" href="Keluarga.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17.5" cy="9" r="2.5"/><path d="M17 14.2c2.4.2 4.5 2.1 4.5 5.3"/></svg>Keluarga</a>
+</div>
+<div class="rf-nav-group">
+<div class="rf-nav-label">Analisa</div>
+<a class="rf-nav-item" href="Analisa.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 15l4-4 3 3 5-6"/></svg>Analisa<span class="rf-tagpro">PRO</span></a>
+</div>
+<div class="rf-nav-group">
+<div class="rf-nav-label">Pengaturan</div>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5"/><path d="M4 18v2h16v-2"/></svg>Impor dan ekspor</a>
+<a class="rf-nav-item" href="Kunci.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>Keamanan dan kunci</a>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>Profil dan paket</a>
+</div>
+</nav>
+<div class="rf-side-foot">
+<div class="rf-lock"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg><div><b>Data terenkripsi</b>Terbuka di peramban ini</div><a class="rf-link" href="Kunci.dc.html" style="margin-left: auto">Kunci</a></div>
+<div class="rf-user"><span class="rf-avatar">A</span><div><b>Ayu</b><span>Paket Gratis</span></div><a class="rf-link" href="Masuk.dc.html" style="margin-left: auto">Keluar</a></div>
+</div>
+</aside>
+
+<div class="rf-main">
+<header class="rf-topbar">
+<div class="rf-period"><button class="rf-iconbtn" type="button" aria-label="Bulan sebelumnya"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><span>Oktober 2026</span><button class="rf-iconbtn" type="button" aria-label="Bulan berikutnya"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div>
+<label class="rf-cmd"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg><input type="search" placeholder="Cari transaksi, atau catat cepat: kopi 25rb gopay" aria-label="Cari atau catat cepat"><span class="rf-kbd">Ctrl K</span></label>
+<span class="rf-pill good"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Tersinkron · 2 mnt lalu</span>
+<details class="rf-menu"><summary class="rf-btn primary"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Catat</summary>
+<div class="rf-menu-pop"><a href="Transaksi.dc.html">Pengeluaran<span class="rf-kbd">C</span></a><a href="Alirkan.dc.html">Rezeki masuk<span class="rf-kbd">R</span></a></div></details>
+</header>
+
+<main class="rf-content">
+
+<div>
+<a class="rf-link" href="Transaksi.dc.html">← Kembali ke Transaksi</a>
+<h1 class="rf-h1" style="font-size: 32px; margin-top: 8px">Catat rezeki masuk</h1>
+<p class="rf-lead">Rezeki yang masuk dialirkan ke ruang sesuai aturanmu. Pembagian di kanan berubah saat kamu mengetik nominal.</p>
+</div>
+
+<div class="rf-split">
+
+<section class="rf-card" style="flex: 5 1 400px; display: flex; flex-direction: column; gap: 20px">
+<div class="rf-field">
+<label for="amt">Nominal rezeki</label>
+<div class="rf-input big" style="display: flex; align-items: center; gap: 10px">
+<span style="color: var(--rf-on-surface-variant)">Rp</span>
+<input id="amt" type="text" inputmode="numeric" placeholder="0" value="{{amountText}}" onChange="{{onAmount}}" style="flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font: inherit; color: inherit" aria-label="Nominal rezeki dalam rupiah">
+</div>
+<div class="rf-row" style="gap: 8px">
+<span class="rf-help">Contoh:</span>
+<button class="rf-chip" type="button" onClick="{{useDefault}}">Rp 18.000.000</button>
+<button class="rf-chip" type="button" onClick="{{useExample}}">Rp 1.234.567 (ada sisa pembulatan)</button>
+</div>
+</div>
+
+<div class="rf-field">
+<span class="rf-label">Sumber</span>
+<div class="rf-row" style="gap: 8px">
+<span class="rf-chip on">Gaji</span><span class="rf-chip">Usaha</span><span class="rf-chip">Bonus</span><span class="rf-chip">Lainnya</span>
+</div>
+</div>
+
+<div class="rf-row" style="gap: 14px; align-items: flex-start">
+<div class="rf-field" style="flex: 1 1 160px"><span class="rf-label">Akun tujuan</span><button class="rf-input rf-select" type="button" aria-label="Akun tujuan: BCA"><span>BCA</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+<div class="rf-field" style="flex: 1 1 160px"><label for="tgl">Tanggal</label><input class="rf-input" id="tgl" value="22 Okt 2026" readonly></div>
+</div>
+
+<div class="rf-field"><label for="cat">Catatan</label><input class="rf-input" id="cat" value="Gaji Oktober" readonly></div>
+
+<div class="rf-row" style="gap: 10px; padding-top: 4px">
+<a class="rf-btn primary" href="Transaksi.dc.html">Simpan dan alirkan</a>
+<a class="rf-btn ghost" href="Transaksi.dc.html">Batal</a>
+</div>
+</section>
+
+<section class="rf-card" style="flex: 7 1 460px; display: flex; flex-direction: column; gap: 20px">
+<div class="rf-card-head" style="margin-bottom: 0">
+<h2 class="rf-h2">Pratinjau aliran</h2>
+<span class="rf-pill info">Aturan 10 / 30 / 60</span>
+</div>
+
+<div>
+<div class="rf-eyebrow">Rezeki yang dialirkan</div>
+<div class="rf-hero-amt" style="margin-top: 6px">Rp {{amountFmt}}</div>
+</div>
+
+<div>
+<div class="rf-stack" role="img" aria-label="Pembagian rezeki: Memberi 10 persen, Diri 30 persen, Keluarga 60 persen">
+<i class="c1" style="width: 10%"></i><i class="c2" style="width: 30%"></i><i class="c3" style="width: 60%"></i>
+</div>
+</div>
+
+<div>
+<div class="rf-rowline c1">
+<span class="rf-roomic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5C6.5 16.5 3 13 3 9.2 3 6.8 4.8 5 7.2 5c1.8 0 3.5 1 4.8 2.7C13.3 6 15 5 16.8 5 19.2 5 21 6.8 21 9.2c0 3.8-3.5 7.3-9 11.3z"/></svg></span>
+<div class="rf-grow">
+<div class="rf-row" style="justify-content: space-between; flex-wrap: nowrap"><div><b>Memberi</b> <span class="rf-sub">Menunaikan · 10%</span></div><div class="rf-money">Rp {{amt1}}</div></div>
+<div class="rf-track" style="margin-top: 8px"><i style="width: 10%"></i></div>
+</div>
+</div>
+<div class="rf-rowline c2">
+<span class="rf-roomic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg></span>
+<div class="rf-grow">
+<div class="rf-row" style="justify-content: space-between; flex-wrap: nowrap"><div><b>Diri</b> <span class="rf-sub">Menumbuhkan · 30%</span></div><div class="rf-money">Rp {{amt2}}</div></div>
+<div class="rf-track" style="margin-top: 8px"><i style="width: 30%"></i></div>
+</div>
+</div>
+<div class="rf-rowline c3">
+<span class="rf-roomic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17.5" cy="9" r="2.5"/><path d="M17 14.2c2.4.2 4.5 2.1 4.5 5.3"/></svg></span>
+<div class="rf-grow">
+<div class="rf-row" style="justify-content: space-between; flex-wrap: nowrap"><div><b>Keluarga</b> <span class="rf-sub">Mencukupi · 60%</span></div><div class="rf-money">Rp {{amt3}}</div></div>
+<div class="rf-track" style="margin-top: 8px"><i style="width: 60%"></i></div>
+</div>
+</div>
+</div>
+
+<div class="rf-readout">
+<span class="rf-pill good"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Jumlah bagian = nominal</span>
+<span>Rp {{amt1}} + Rp {{amt2}} + Rp {{amt3}} = Rp {{amountFmt}}</span>
+</div>
+
+<sc-if value="{{hasRemainder}}" hint-placeholder-val="{{false}}">
+<div class="rf-readout" style="background: var(--pill-info-bg); color: var(--pill-info-fg)">
+<span>Pembulatan: sisa Rp {{remainder}} dibagikan satu-satu ke ruang dengan pecahan terbesar (metode sisa terbesar), jadi total selalu persis nominal.</span>
+</div>
+</sc-if>
+
+<p class="rf-sub">Aturan baru hanya berlaku untuk rezeki berikutnya. Pembagian disimpan sebagai potret saat dicatat, jadi mengubah aturan nanti tidak mengubah riwayat. <a class="rf-link" href="#">Ubah aturan</a></p>
+</section>
+
+</div>
+
+<p class="rf-sub">Data contoh Oktober 2026. Rizqflow adalah bantuan hitung zakat, bukan fatwa.</p>
+
+</main>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Tampilan"},"$preview":{"width":1360,"height":1100}}'>
+class Component extends DCLogic {
+fmt(n) {
+return Math.round(n).toLocaleString('id-ID');
+}
+alloc(amount) {
+const bps = [1000, 3000, 6000];
+const floors = bps.map((b) => Math.floor((amount * b) / 10000));
+const frac = bps.map((b) => (amount * b) % 10000);
+const rest = amount - floors.reduce((a, b) => a + b, 0);
+const order = [0, 1, 2].sort((a, b) => frac[b] - frac[a] || a - b);
+const parts = floors.slice();
+for (let k = 0; k < rest; k++) {
+parts[order[k % 3]] += 1;
+}
+return { parts, rest };
+}
+renderVals() {
+const st = this.state || {};
+const amount = st.amount === undefined ? 18000000 : st.amount;
+const a = this.alloc(amount);
+return {
+theme: this.props.theme ?? 'light',
+amountText: amount > 0 ? this.fmt(amount) : '',
+amountFmt: this.fmt(amount),
+amt1: this.fmt(a.parts[0]),
+amt2: this.fmt(a.parts[1]),
+amt3: this.fmt(a.parts[2]),
+hasRemainder: a.rest > 0,
+remainder: this.fmt(a.rest),
+onAmount: (e) => {
+const digits = String(e.target.value).replace(/[^0-9]/g, '');
+const n = digits === '' ? 0 : Math.min(parseInt(digits, 10), 9999999999);
+this.setState({ amount: n });
+},
+useExample: () => this.setState({ amount: 1234567 }),
+useDefault: () => this.setState({ amount: 18000000 }),
+};
+}
+}
+</script>
+</body>
+</html>

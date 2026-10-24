@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Analisa: Aliran</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="rizqflow.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:wght@400;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="rf" data-theme="{{theme}}">
+<div class="rf-app">
+
+<aside class="rf-side">
+<a class="rf-brand" href="Main.dc.html"><span class="rf-brand-mark">R</span><span class="rf-brand-name">Rizqflow</span></a>
+<div class="rf-seg rf-seg-full">
+<a class="rf-seg-btn on" href="Main.dc.html">Pribadi</a>
+<a class="rf-seg-btn" href="Keluarga.dc.html">Keluarga</a>
+</div>
+<nav class="rf-nav" aria-label="Menu utama">
+<div class="rf-nav-group">
+<a class="rf-nav-item" href="Main.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Denah</a>
+</div>
+<div class="rf-nav-group">
+<div class="rf-nav-label">Uang</div>
+<a class="rf-nav-item" href="Transaksi.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>Transaksi</a>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Jadwal</a>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M15 4l4 4-4 4"/><path d="M19 16H5M9 12l-4 4 4 4"/></svg>Utang-piutang</a>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M16 15h2"/></svg>Akun</a>
+</div>
+<div class="rf-nav-group">
+<div class="rf-nav-label">Ruang</div>
+<a class="rf-nav-item" href="Ruang.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Ruang dan pos</a>
+<a class="rf-nav-item" href="Zakat.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5C6.5 16.5 3 13 3 9.2 3 6.8 4.8 5 7.2 5c1.8 0 3.5 1 4.8 2.7C13.3 6 15 5 16.8 5 19.2 5 21 6.8 21 9.2c0 3.8-3.5 7.3-9 11.3z"/></svg>Zakat</a>
+<a class="rf-nav-item" href="Keluarga.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17.5" cy="9" r="2.5"/><path d="M17 14.2c2.4.2 4.5 2.1 4.5 5.3"/></svg>Keluarga</a>
+</div>
+<div class="rf-nav-group">
+<div class="rf-nav-label">Analisa</div>
+<a class="rf-nav-item on" href="Analisa.dc.html" aria-current="page"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 15l4-4 3 3 5-6"/></svg>Analisa<span class="rf-tagpro">PRO</span></a>
+</div>
+<div class="rf-nav-group">
+<div class="rf-nav-label">Pengaturan</div>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5"/><path d="M4 18v2h16v-2"/></svg>Impor dan ekspor</a>
+<a class="rf-nav-item" href="Kunci.dc.html"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>Keamanan dan kunci</a>
+<a class="rf-nav-item" href="#"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>Profil dan paket</a>
+</div>
+</nav>
+<div class="rf-side-foot">
+<div class="rf-lock"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg><div><b>Data terenkripsi</b>Terbuka di peramban ini</div><a class="rf-link" href="Kunci.dc.html" style="margin-left: auto">Kunci</a></div>
+<div class="rf-user"><span class="rf-avatar">A</span><div><b>Ayu</b><span>Paket Pro (uji)</span></div><a class="rf-link" href="Masuk.dc.html" style="margin-left: auto">Keluar</a></div>
+</div>
+</aside>
+
+<div class="rf-main">
+<header class="rf-topbar">
+<div class="rf-period"><button class="rf-iconbtn" type="button" aria-label="Bulan sebelumnya"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><span>Oktober 2026</span><button class="rf-iconbtn" type="button" aria-label="Bulan berikutnya"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div>
+<label class="rf-cmd"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg><input type="search" placeholder="Cari transaksi, atau catat cepat: kopi 25rb gopay" aria-label="Cari atau catat cepat"><span class="rf-kbd">Ctrl K</span></label>
+<span class="rf-pill good"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Tersinkron · 2 mnt lalu</span>
+<details class="rf-menu"><summary class="rf-btn primary"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Catat</summary>
+<div class="rf-menu-pop"><a href="Transaksi.dc.html">Pengeluaran<span class="rf-kbd">C</span></a><a href="Alirkan.dc.html">Rezeki masuk<span class="rf-kbd">R</span></a></div></details>
+</header>
+
+<main class="rf-content">
+
+<div class="rf-row" style="justify-content: space-between; align-items: flex-end">
+<div>
+<div class="rf-sub">Oktober 2026 · Pribadi</div>
+<h1 class="rf-h1" style="font-size: 32px">Analisa</h1>
+</div>
+<span class="rf-pill info">Fitur Pro</span>
+</div>
+
+<div class="rf-tabs" role="tablist" aria-label="Jenis analisa">
+<button class="rf-tab on" type="button" role="tab" aria-selected="true">Aliran</button>
+<button class="rf-tab" type="button" role="tab" aria-selected="false">Tren</button>
+<button class="rf-tab" type="button" role="tab" aria-selected="false">Bandingkan</button>
+<button class="rf-tab" type="button" role="tab" aria-selected="false">Kekayaan bersih</button>
+<button class="rf-tab" type="button" role="tab" aria-selected="false">Proyeksi cashflow</button>
+<button class="rf-tab" type="button" role="tab" aria-selected="false">Kebiasaan</button>
+</div>
+
+<div class="rf-row" style="gap: 8px">
+<button class="rf-chip on" type="button">Bulan ini</button>
+<button class="rf-chip" type="button">3 bulan</button>
+<button class="rf-chip" type="button">12 bulan</button>
+<button class="rf-chip" type="button">Kustom</button>
+<button class="rf-chip" type="button">Semua akun<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+<span style="flex: 1 1 0"></span>
+<button class="rf-btn ghost sm" type="button">Simpan tampilan</button>
+<button class="rf-btn ghost sm" type="button">Unduh PDF</button>
+</div>
+
+<section class="rf-card">
+<div class="rf-card-head">
+<div>
+<h2 class="rf-h2">Dari mana rezeki datang, ke mana ia mengalir</h2>
+<p class="rf-sub" style="margin-top: 4px">Lebar pita sebanding dengan rupiah. Total Rp 18.000.000.</p>
+</div>
+<div class="rf-row" style="gap: 10px">
+<span class="rf-sub">Sorot ruang</span>
+<div class="rf-seg" role="group" aria-label="Sorot ruang">
+<button class="rf-seg-btn {{fAll}}" type="button" onClick="{{setAll}}">Semua</button>
+<button class="rf-seg-btn {{fM}}" type="button" onClick="{{setM}}">Memberi</button>
+<button class="rf-seg-btn {{fD}}" type="button" onClick="{{setD}}">Diri</button>
+<button class="rf-seg-btn {{fK}}" type="button" onClick="{{setK}}">Keluarga</button>
+</div>
+</div>
+</div>
+
+<div class="rf-scroll">
+<div style="min-width: 780px">
+<svg viewBox="0 0 1060 596" width="100%" role="img" aria-label="Diagram aliran rezeki Oktober 2026. Gaji Rp 18.000.000 mengalir ke Memberi Rp 1,8 juta, Diri Rp 5,4 juta, dan Keluarga Rp 10,8 juta, lalu ke pos dan sisa. Tabel di bawah memuat semua angka.">
+<text class="ch-axis" x="0" y="14">SUMBER</text>
+<text class="ch-axis" x="400" y="14">RUANG</text>
+<text class="ch-axis" x="800" y="14">POS DAN SISA</text>
+<g transform="translate(0 28)">
+
+<g class="c1" opacity="{{opM}}">
+<path class="sk-link" d="M170 68 C285 68 285 8 400 8 L400 51.2 C285 51.2 285 111.2 170 111.2 Z"/>
+<path class="sk-link" d="M570 8 C685 8 685 8 800 8 L800 39.2 C685 39.2 685 39.2 570 39.2 Z"/>
+<path class="sk-link" d="M570 39.2 C685 39.2 685 47.2 800 47.2 L800 59.2 C685 59.2 685 51.2 570 51.2 Z"/>
+<rect class="sk-room" x="400" y="8" width="170" height="43.2" rx="6"/>
+<rect class="sk-band" x="400" y="8" width="6" height="43.2" rx="3"/>
+<text class="sk-t1" x="418" y="25">Memberi</text>
+<text class="sk-t2" x="418" y="41">Rp 1,8 jt · 10%</text>
+<rect class="sk-node" x="800" y="8" width="12" height="31.2" rx="2"/>
+<text x="824" y="27.6"><tspan class="sk-n">Sedekah dan infak</tspan><tspan class="sk-v" dx="8">Rp 1,3 jt</tspan></text>
+<rect class="sk-node" x="800" y="47.2" width="12" height="12" rx="2"/>
+<text x="824" y="57.2"><tspan class="sk-n">Orang tua</tspan><tspan class="sk-v" dx="8">Rp 500 rb</tspan></text>
+</g>
+
+<g class="c2" opacity="{{opD}}">
+<path class="sk-link" d="M170 111.2 C285 111.2 285 83.2 400 83.2 L400 212.8 C285 212.8 285 240.8 170 240.8 Z"/>
+<path class="sk-link" d="M570 83.2 C685 83.2 685 83.2 800 83.2 L800 107.2 C685 107.2 685 107.2 570 107.2 Z"/>
+<path class="sk-link" d="M570 107.2 C685 107.2 685 115.2 800 115.2 L800 127.2 C685 127.2 685 119.2 570 119.2 Z"/>
+<path class="sk-link" d="M570 119.2 C685 119.2 685 135.2 800 135.2 L800 161.41 C685 161.41 685 145.41 570 145.41 Z"/>
+<path class="sk-link" d="M570 145.41 C685 145.41 685 169.41 800 169.41 L800 182.37 C685 182.37 685 158.37 570 158.37 Z"/>
+<path class="sk-link sisa" d="M570 158.37 C685 158.37 685 190.37 800 190.37 L800 244.8 C685 244.8 685 212.8 570 212.8 Z"/>
+<rect class="sk-room" x="400" y="83.2" width="170" height="129.6" rx="6"/>
+<rect class="sk-band" x="400" y="83.2" width="6" height="129.6" rx="3"/>
+<text class="sk-t1" x="418" y="146">Diri</text>
+<text class="sk-t2" x="418" y="163">Rp 5,4 jt · 30%</text>
+<rect class="sk-node" x="800" y="83.2" width="12" height="24" rx="2"/>
+<text x="824" y="99.2"><tspan class="sk-n">Investasi</tspan><tspan class="sk-v" dx="8">Rp 1 jt</tspan></text>
+<rect class="sk-node" x="800" y="115.2" width="12" height="12" rx="2"/>
+<text x="824" y="125.2"><tspan class="sk-n">Dana darurat</tspan><tspan class="sk-v" dx="8">Rp 500 rb</tspan></text>
+<rect class="sk-node" x="800" y="135.2" width="12" height="26.21" rx="2"/>
+<text x="824" y="152.3"><tspan class="sk-n">Jajan dan hobi</tspan><tspan class="sk-v" dx="8">Rp 1,09 jt</tspan></text>
+<rect class="sk-node" x="800" y="169.41" width="12" height="12.96" rx="2"/>
+<text x="824" y="179.9"><tspan class="sk-n">Transportasi</tspan><tspan class="sk-v" dx="8">Rp 540 rb</tspan></text>
+<rect class="sk-sisa" x="800" y="190.37" width="12" height="54.43" rx="2"/>
+<text x="824" y="221.6"><tspan class="sk-n">Sisa belum terpakai</tspan><tspan class="sk-v" dx="8">Rp 2,27 jt</tspan></text>
+</g>
+
+<g class="c3" opacity="{{opK}}">
+<path class="sk-link" d="M170 240.8 C285 240.8 285 268.8 400 268.8 L400 528 C285 528 285 500 170 500 Z"/>
+<path class="sk-link" d="M570 268.8 C685 268.8 685 268.8 800 268.8 L800 372.48 C685 372.48 685 372.48 570 372.48 Z"/>
+<path class="sk-link" d="M570 372.48 C685 372.48 685 380.48 800 380.48 L800 438.8 C685 438.8 685 430.8 570 430.8 Z"/>
+<path class="sk-link" d="M570 430.8 C685 430.8 685 446.8 800 446.8 L800 489.57 C685 489.57 685 473.57 570 473.57 Z"/>
+<path class="sk-link" d="M570 473.57 C685 473.57 685 497.57 800 497.57 L800 518.3 C685 518.3 685 494.3 570 494.3 Z"/>
+<path class="sk-link sisa" d="M570 494.3 C685 494.3 685 526.3 800 526.3 L800 560 C685 560 685 528 570 528 Z"/>
+<rect class="sk-room" x="400" y="268.8" width="170" height="259.2" rx="6"/>
+<rect class="sk-band" x="400" y="268.8" width="6" height="259.2" rx="3"/>
+<text class="sk-t1" x="418" y="396">Keluarga</text>
+<text class="sk-t2" x="418" y="413">Rp 10,8 jt · 60%</text>
+<rect class="sk-node" x="800" y="268.8" width="12" height="103.68" rx="2"/>
+<text x="824" y="324.6"><tspan class="sk-n">Dapur dan belanja</tspan><tspan class="sk-v" dx="8">Rp 4,32 jt</tspan></text>
+<rect class="sk-node" x="800" y="380.48" width="12" height="58.32" rx="2"/>
+<text x="824" y="413.6"><tspan class="sk-n">Anak dan sekolah</tspan><tspan class="sk-v" dx="8">Rp 2,43 jt</tspan></text>
+<rect class="sk-node" x="800" y="446.8" width="12" height="42.77" rx="2"/>
+<text x="824" y="472.2"><tspan class="sk-n">Tagihan rumah</tspan><tspan class="sk-v" dx="8">Rp 1,78 jt</tspan></text>
+<rect class="sk-node" x="800" y="497.57" width="12" height="20.74" rx="2"/>
+<text x="824" y="511.9"><tspan class="sk-n">Tak terlacak</tspan><tspan class="sk-v" dx="8">Rp 864 rb</tspan></text>
+<rect class="sk-sisa" x="800" y="526.3" width="12" height="33.7" rx="2"/>
+<text x="824" y="547.2"><tspan class="sk-n">Sisa belum terpakai</tspan><tspan class="sk-v" dx="8">Rp 1,4 jt</tspan></text>
+</g>
+
+<rect class="sk-src" x="0" y="68" width="170" height="432" rx="6"/>
+<rect class="sk-srcband" x="0" y="68" width="6" height="432" rx="3"/>
+<text class="sk-t1" x="20" y="280">Gaji Oktober</text>
+<text class="sk-t2" x="20" y="298">Rp 18.000.000</text>
+<text class="sk-t2" x="20" y="316">22 Okt · BCA</text>
+
+</g>
+</svg>
+</div>
+</div>
+
+<div class="rf-legend" style="margin-top: 12px">
+<span><i class="rf-dot c1"></i>Memberi</span>
+<span><i class="rf-dot c2"></i>Diri</span>
+<span><i class="rf-dot c3"></i>Keluarga</span>
+<span><i class="rf-dot" style="background: var(--rf-surface-container-highest); outline: 1px solid var(--rf-outline)"></i>Sisa belum terpakai</span>
+</div>
+
+<div class="rf-readout" style="margin-top: 14px">
+<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+<span>{{readout}}</span>
+</div>
+</section>
+
+<div class="rf-split">
+
+<section class="rf-card a">
+<div class="rf-card-head"><h2 class="rf-h2">Rincian (tabel kembaran grafik)</h2><span class="rf-sub">Oktober 2026</span></div>
+<div class="rf-scroll">
+<table class="rf-table" style="min-width: 560px">
+<thead>
+<tr><th>Ruang</th><th>Pos</th><th class="num">Rupiah</th><th class="num">% jatah ruang</th><th class="num">% rezeki</th></tr>
+</thead>
+<tbody>
+<tr><td><span class="rf-roomname"><i class="rf-dot c1"></i>Memberi</span></td><td>Sedekah dan infak</td><td class="num">1.300.000</td><td class="num">72,2%</td><td class="num">7,2%</td></tr>
+<tr><td><span class="rf-roomname"><i class="rf-dot c1"></i>Memberi</span></td><td>Orang tua</td><td class="num">500.000</td><td class="num">27,8%</td><td class="num">2,8%</td></tr>
+<tr><td><span class="rf-roomname"><i class="rf-dot c2"></i>Diri</span></td><td>Investasi</td><td class="num">1.000.000</td><td class="num">18,5%</td><td class="num">5,6%</td></tr>
+<tr><td><span class="rf-roomname"><i class="rf-dot c2"></i>Diri</span></td><td>Dana darurat</td><td class="num">500.000</td><td class="num">9,3%</td><td class="num">2,8%</td></tr>
+<tr><td><span class="rf-roomname"><i class="rf-dot c2"></i>Diri</span></td><td>Jajan dan hobi</td><td class="num">1.092.000</td><td class="num">20,2%</td><td class="num">6,1%</td></tr>
+<tr><td><span class="rf-roomname"><i class="rf-dot c2"></i>Diri</span></td><td>Transportasi</td><td class="num">540.000</td><td class="num">10,0%</td><td class="num">3,0%</td></tr>
+<tr><td><span class="rf-roomname"><i class="rf-dot c2"></i>Diri</span></td><td>Sisa belum terpakai</td><td class="num">2.268.000</td><td class="num">42,0%</td><td class="num">12,6%</td></tr>
+<tr><td><span class="rf-roomname"><i class="rf-dot c3"></i>Keluarga</span></td><td>Dapur dan belanja</td><td class="num">4.320.000</td><td class="num">40,0%</td><td class="num">24,0%</td></tr>
+<tr><td><span class="rf-roomname"><i class="rf-dot c3"></i>Keluarga</span></td><td>Anak dan sekolah</td><td class="num">2.430.000</td><td class="num">22,5%</td><td class="num">13,5%</td></tr>
+<tr><td><span class="rf-roomname"><i class="rf-dot c3"></i>Keluarga</span></td><td>Tagihan rumah</td><td class="num">1.782.000</td><td class="num">16,5%</td><td class="num">9,9%</td></tr>
+<tr><td><span class="rf-roomname"><i class="rf-dot c3"></i>Keluarga</span></td><td>Tak terlacak</td><td class="num">864.000</td><td class="num">8,0%</td><td class="num">4,8%</td></tr>
+<tr><td><span class="rf-roomname"><i class="rf-dot c3"></i>Keluarga</span></td><td>Sisa belum terpakai</td><td class="num">1.404.000</td><td class="num">13,0%</td><td class="num">7,8%</td></tr>
+</tbody>
+<tfoot>
+<tr><td colspan="2">Total rezeki</td><td class="num">18.000.000</td><td class="num"></td><td class="num">100%</td></tr>
+</tfoot>
+</table>
+</div>
+</section>
+
+<section class="rf-card b">
+<h2 class="rf-h2" style="margin-bottom: 6px">Yang terlihat bulan ini</h2>
+<div>
+<div class="rf-rowline">
+<span class="rf-roomic c3"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17.5" cy="9" r="2.5"/><path d="M17 14.2c2.4.2 4.5 2.1 4.5 5.3"/></svg></span>
+<p class="rf-grow">Keluarga menyerap 60% rezeki. Dari yang terpakai di sana, 46% jatuh ke Dapur dan belanja.</p>
+</div>
+<div class="rf-rowline">
+<span class="rf-roomic c2"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg></span>
+<p class="rf-grow">Diri masih menyisakan Rp 2.268.000, yaitu 42% dari jatahnya.</p>
+</div>
+<div class="rf-rowline">
+<span class="rf-roomic cn"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg></span>
+<p class="rf-grow">Rp 864.000 di Keluarga masih Tak terlacak (9% dari yang terpakai di sana). Rapikan lewat <a class="rf-link" href="Transaksi.dc.html">Transaksi</a>.</p>
+</div>
+</div>
+</section>
+
+</div>
+
+<p class="rf-sub">Data contoh Oktober 2026. Rizqflow adalah bantuan hitung zakat, bukan fatwa.</p>
+
+</main>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Tampilan"},"$preview":{"width":1360,"height":1800}}'>
+class Component extends DCLogic {
+renderVals() {
+const st = this.state || {};
+const f = st.focus || 'semua';
+const dim = 0.14;
+const op = (key) => (f === 'semua' || f === key ? 1 : dim);
+const texts = {
+semua: 'Semua ruang: Rp 14.328.000 terpakai dari Rp 18.000.000 (80%); sisa Rp 3.672.000.',
+m: 'Memberi: Rp 1.800.000 dari Rp 1.800.000 tersalurkan (100%), jatah bulan ini terpenuhi.',
+d: 'Diri: Rp 3.132.000 dari Rp 5.400.000 terpakai (58%); sisa Rp 2.268.000.',
+k: 'Keluarga: Rp 9.396.000 dari Rp 10.800.000 terpakai (87%); sisa Rp 1.404.000. Pos terbesar: Dapur dan belanja, 46% dari yang terpakai.',
+};
+const keyMap = { semua: 'semua', memberi: 'm', diri: 'd', keluarga: 'k' };
+const k = keyMap[f] || 'semua';
+return {
+theme: this.props.theme ?? 'light',
+opM: op('memberi'),
+opD: op('diri'),
+opK: op('keluarga'),
+fAll: f === 'semua' ? 'on' : '',
+fM: f === 'memberi' ? 'on' : '',
+fD: f === 'diri' ? 'on' : '',
+fK: f === 'keluarga' ? 'on' : '',
+setAll: () => this.setState({ focus: 'semua' }),
+setM: () => this.setState({ focus: 'memberi' }),
+setD: () => this.setState({ focus: 'diri' }),
+setK: () => this.setState({ focus: 'keluarga' }),
+readout: texts[k],
+};
+}
+}
+</script>
+</body>
+</html>

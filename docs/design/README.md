@@ -8,6 +8,7 @@ Arah visual **opsi A** (identitas homepage roziqrizal.com), diputuskan 2026-09-1
 |---|---|
 | [tokens.css](tokens.css) | Design tokens: satu tempat untuk warna, font, jarak, bentuk, dan gerak |
 | [prototype.html](prototype.html), [prototype.css](prototype.css), [prototype.js](prototype.js) | Prototipe klik (HTML, CSS, dan JavaScript murni, tanpa build) |
+| [web-mockup/](web-mockup/README.md) | Mockup web (artifact Claude Design, 2026-10-24): sumber 9 layar, papan riset dan navigasi, CSS bersama |
 
 ## Cara membuka
 
