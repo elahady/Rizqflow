@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.unit.dp
@@ -100,6 +101,8 @@ fun RizqflowApp(
     proOwned: Boolean = false,
     /** Saklar Pro untuk uji; hanya diisi di build debug (null = baris tidak tampil). */
     onToggleProDebug: (() -> Unit)? = null,
+    /** Hapus akun server (Tahap 9); null atau [AccountUi.local] = baris tidak tampil (akun lokal/uji tidak punya akun server). */
+    onDeleteAccount: (() -> Unit)? = null,
 ) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
@@ -155,7 +158,7 @@ fun RizqflowApp(
             TopTab.entries.forEach { tab ->
                 composable(tab.route) {
                     if (tab == TopTab.Lainnya && account != null) {
-                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport, onToggleProDebug)
+                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport, onToggleProDebug, onDeleteAccount)
                     } else if (tab == TopTab.Transaksi && transaksiContent != null) {
                         transaksiContent()
                     } else if (tab == TopTab.Ruang && ruangContent != null) {
@@ -244,6 +247,7 @@ private fun LainnyaScreen(
     onOpenDebts: (() -> Unit)? = null,
     onOpenReport: (() -> Unit)? = null,
     onToggleProDebug: (() -> Unit)? = null,
+    onDeleteAccount: (() -> Unit)? = null,
 ) {
     val spacing = MaterialTheme.spacing
     Column(
@@ -336,6 +340,12 @@ private fun LainnyaScreen(
         }
         OutlinedButton(onClick = onSignOut, modifier = Modifier.padding(top = spacing.s3)) {
             Text(stringResource(R.string.action_sign_out))
+        }
+        // Akun lokal/uji tidak pernah punya akun server (tidak lewat Masuk dengan Google), jadi tidak ada yang dihapus.
+        if (!account.local && onDeleteAccount != null) {
+            TextButton(onClick = onDeleteAccount, modifier = Modifier.padding(top = spacing.s2)) {
+                Text(stringResource(R.string.account_delete_action), color = MaterialTheme.colorScheme.error)
+            }
         }
     }
 }

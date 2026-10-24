@@ -107,6 +107,12 @@
     <string name="account_local">Akun lokal, hanya ada di ponsel ini</string>
     <string name="account_gmail_on">Gmail terhubung (izin baca)</string>
     <string name="account_gmail_off">Gmail belum terhubung</string>
+    <string name="account_delete_action">Hapus akun</string>
+    <string name="account_delete_confirm_title">Hapus akun?</string>
+    <string name="account_delete_confirm_body">Ini menghapus akun dan langganan Sync-mu di server saja — data keuanganmu di ponsel ini tidak disentuh dan tetap bisa dipakai. Kamu akan keluar setelah ini.</string>
+    <string name="account_delete_confirm_action">Hapus akun</string>
+    <string name="account_delete_done">Akun server dihapus.</string>
+    <string name="account_delete_failed">Gagal menghapus akun. Coba lagi.</string>
 
     <!-- Onboarding S02 sampai S04 -->
     <string name="onb_back">Kembali</string>

@@ -105,6 +105,12 @@
     <string name="account_local">Local account, only on this phone</string>
     <string name="account_gmail_on">Gmail connected (read access)</string>
     <string name="account_gmail_off">Gmail not connected</string>
+    <string name="account_delete_action">Delete account</string>
+    <string name="account_delete_confirm_title">Delete account?</string>
+    <string name="account_delete_confirm_body">This only deletes your account and Sync subscription on the server — your financial data on this phone is untouched and still usable. You\'ll be signed out after this.</string>
+    <string name="account_delete_confirm_action">Delete account</string>
+    <string name="account_delete_done">Server account deleted.</string>
+    <string name="account_delete_failed">Couldn\'t delete account. Try again.</string>
 
     <!-- Onboarding S02 to S04 -->
     <string name="onb_back">Back</string>

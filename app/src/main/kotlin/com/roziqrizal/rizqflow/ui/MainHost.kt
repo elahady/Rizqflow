@@ -62,11 +62,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.res.stringResource
 import com.roziqrizal.rizqflow.ui.catat.QuickCatatSheet
 import com.roziqrizal.rizqflow.domain.ledger.FavoriteUse
+import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -135,6 +137,8 @@ fun MainHost(
     var backupOpen by rememberSaveable { mutableStateOf(false) }
     var tampilanOpen by rememberSaveable { mutableStateOf(false) }
     var paywallOpen by rememberSaveable { mutableStateOf(false) }
+    var deleteAccountSheet by rememberSaveable { mutableStateOf(false) }
+    var deletingAccount by remember { mutableStateOf(false) }
     // Nama Feature yang memicu (S21 mendahulukan manfaatnya); null = manfaat umum dari menu Lainnya.
     var paywallTrigger by rememberSaveable { mutableStateOf<String?>(null) }
     fun openPaywall(trigger: Feature? = null) {
@@ -285,6 +289,34 @@ fun MainHost(
         }
     }
 
+    // Hapus akun server (Tahap 9): cuma menghapus akun dan langganan Sync di server, data ponsel
+    // tidak disentuh. Tanpa token tersimpan (akun ini tidak pernah berhasil masuk ke server, mis.
+    // selalu offline) dianggap sudah "bersih" di server -- langsung keluar tanpa memanggil jaringan.
+    fun deleteAccount() {
+        val token = workspace.apiTokenStore.read()
+        if (token == null) {
+            deleteAccountSheet = false
+            onSignOut()
+            return
+        }
+        deletingAccount = true
+        scope.launch {
+            when (workspace.accountRemote.deleteAccount(token)) {
+                is RemoteResult.Success -> {
+                    workspace.apiTokenStore.clear()
+                    deletingAccount = false
+                    deleteAccountSheet = false
+                    onSignOut()
+                }
+
+                is RemoteResult.Failure -> {
+                    deletingAccount = false
+                    notifier.show(context.getString(R.string.account_delete_failed))
+                }
+            }
+        }
+    }
+
     fun announceFavorite(use: FavoriteUse) {
         version++
         scope.launch {
@@ -397,6 +429,7 @@ fun MainHost(
         } else {
             null
         },
+        onDeleteAccount = { deleteAccountSheet = true },
     )
     if (tampilanOpen) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -531,6 +564,28 @@ fun MainHost(
                     modifier = Modifier.padding(top = 16.dp).fillMaxWidth().height(52.dp),
                 ) { Text(stringResource(R.string.demo_exit)) }
                 TextButton(onClick = { demoSheet = false }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.demo_stay)) }
+            }
+        }
+    }
+    if (deleteAccountSheet) {
+        ModalBottomSheet(onDismissRequest = { if (!deletingAccount) deleteAccountSheet = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
+                Text(stringResource(R.string.account_delete_confirm_title), style = MaterialTheme.typography.titleLarge)
+                Text(
+                    stringResource(R.string.account_delete_confirm_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                Button(
+                    onClick = ::deleteAccount,
+                    enabled = !deletingAccount,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.padding(top = 16.dp).fillMaxWidth().height(52.dp),
+                ) { Text(stringResource(R.string.account_delete_confirm_action)) }
+                TextButton(onClick = { deleteAccountSheet = false }, enabled = !deletingAccount, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.catat_date_cancel))
+                }
             }
         }
     }
