@@ -333,6 +333,15 @@ private fun ProfileBar(overview: GivingOverview, onSelect: (String) -> Unit, onA
                 TextButton(onClick = onArchive) { Text(stringResource(R.string.zakat_profile_archive), color = MaterialTheme.colorScheme.error) }
             }
         }
+        // Tanpa Pro hanya profil pertama yang pengingat haulnya aktif (monetisasi.md); profil tambahan
+        // yang tersisa setelah turun paket diberi tahu supaya pengingat yang diam tidak mengejutkan.
+        if (!overview.canAddProfile && overview.profile?.id != overview.profiles.firstOrNull()?.id) {
+            Text(
+                stringResource(R.string.zakat_profile_reminder_first_only),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

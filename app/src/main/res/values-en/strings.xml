@@ -754,6 +754,7 @@
     <string name="zakat_profile_name_hint">e.g. Spouse or Business</string>
     <string name="zakat_profile_archive_title">Archive %1$s?</string>
     <string name="zakat_profile_archive_body">This profile disappears from the list and its haul reminders stop. Its zakat history stays saved.</string>
+    <string name="zakat_profile_reminder_first_only">Reminders are active for the first profile only. Reminders for other profiles turn on with Rizqflow Pro.</string>
     <string name="zakat_profile_err_taken">That profile name is already used.</string>
     <string name="zakat_profile_err_name">Profile name must be 1 to 30 characters.</string>
     <string name="zakat_profile_err_last">The last profile cannot be archived.</string>

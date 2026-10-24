@@ -757,6 +757,7 @@
     <string name="zakat_profile_name_hint">mis. Istri atau Usaha</string>
     <string name="zakat_profile_archive_title">Arsipkan %1$s?</string>
     <string name="zakat_profile_archive_body">Profil ini hilang dari daftar dan pengingat haulnya berhenti. Riwayat zakatnya tetap tersimpan.</string>
+    <string name="zakat_profile_reminder_first_only">Pengingat aktif hanya untuk profil pertama. Pengingat profil lain menyala dengan Rizqflow Pro.</string>
     <string name="zakat_profile_err_taken">Nama profil itu sudah dipakai.</string>
     <string name="zakat_profile_err_name">Nama profil 1 sampai 30 karakter.</string>
     <string name="zakat_profile_err_last">Profil terakhir tidak bisa diarsipkan.</string>
