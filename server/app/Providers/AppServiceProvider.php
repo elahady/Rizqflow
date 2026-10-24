@@ -13,6 +13,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -48,6 +49,32 @@ class AppServiceProvider extends ServiceProvider
         // salah tingkah tidak menghabiskan kuota Play Developer API.
         RateLimiter::for('purchase-claim', fn (Request $request) => Limit::perMinute(10)
             ->by('purchase-claim:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+
+        // Putar token API (HANYA POST /auth/refresh): klien sah memutar token sekali dalam berbulan-bulan,
+        // jadi 10 per menit sangat longgar bagi klien yang benar dan menahan klien yang salah tingkah.
+        // Kunci per akun + nama token (= per perangkat, nama `android:<device_id>` ikut berputar), BUKAN
+        // per akun: pemegang token curian yang memutar token berulang hanya menghabiskan jatah garis
+        // keturunan token itu sendiri, tidak jatah perangkat lain milik korban. BUKAN per id token pula,
+        // sebab tiap rotasi menerbitkan id baru sehingga batasnya tak pernah tercapai. Logout dan
+        // DELETE /auth/tokens sengaja tanpa batas (idempoten, murah) supaya tak bisa dihalangi lewat refresh.
+        RateLimiter::for('api-token-refresh', function (Request $request) {
+            $user = $request->user();
+            $current = $user?->currentAccessToken();
+
+            $key = match (true) {
+                $user !== null && $current instanceof PersonalAccessToken => $user->getAuthIdentifier().'|'.md5($current->name),
+                $user !== null => (string) $user->getAuthIdentifier(),
+                default => (string) $request->ip(),
+            };
+
+            return Limit::perMinute(10)->by('api-token-refresh:'.$key);
+        });
+
+        // Masuk dengan Google dari aplikasi: tanpa token, jadi dibatasi per IP. 30 per menit, longgar
+        // karena banyak ponsel berbagi satu IP di balik NAT seluler; cukup untuk menahan banjir
+        // permintaan (tiap permintaan memanggil verifikasi Google dan bisa membuat akun/token).
+        RateLimiter::for('api-login', fn (Request $request) => Limit::perMinute(30)
+            ->by('api-login:'.$request->ip()));
 
         // Endpoint RTDN tanpa Sanctum: batas per IP melindungi pemeriksaan JWT dari banjir token palsu.
         // Batas longgar; Pub/Sub mengulang pesan yang ditolak 429.

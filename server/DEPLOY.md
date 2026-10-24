@@ -133,6 +133,66 @@ selesai, fitur email tetap mati dan tersembunyi (saklar `EMAIL_CODES_ENABLED`, l
     `--force-recreate`: Daftar dan Lupa kata sandi kembali tersembunyi, masuk email+sandi dan Google
     tetap jalan.
 
+## Token API Android (kedaluwarsa dan bisa dicabut)
+
+Tahap 12, kode selesai 2026-10-24 di `server/app/Auth/ApiTokenService.php` dan
+`server/app/Http/Controllers/Api/AccountController.php`. Token yang diterima aplikasi Android dari
+`POST /api/auth/google` tidak permanen (berbeda dari token permanen Al-Kaukaba): berlaku
+`API_TOKEN_TTL_DAYS` hari, bisa diputar, dan bisa dicabut. **Hanya terbukti lewat tes otomatis
+(SQLite di memori)**; belum pernah dijalankan di MySQL VPS atau terhadap aplikasi sungguhan.
+
+| Hal | Perilaku |
+|---|---|
+| `API_TOKEN_TTL_DAYS` | Masa berlaku token baru, dalam hari. Bilangan bulat 1 sampai 1825; kosong, huruf, pecahan, nol, negatif, atau lebih dari 1825 jatuh ke bawaan **90**. Bukan rahasia; ada di `server/.env.example`. Batas 1825 menjaga salah ketik dan kolom `expires_at` (TIMESTAMP MySQL, tak menampung tanggal setelah 2038) |
+| Masuk (`POST /api/auth/google`) | Jawaban 200 membawa `token`, `expires_at` (ISO-8601 UTC, mis. `2027-01-22T10:00:00Z`), dan `user`. `expires_at` juga tercatat di kolom `personal_access_tokens.expires_at` |
+| Token kedaluwarsa | Ditolak 401 JSON oleh `auth:sanctum` di semua endpoint terlindungi |
+| `POST /api/auth/refresh` | Memutar token yang dipakai: token itu dicabut, token baru (nama `android:<device_id>` dan abilities sama) terbit dengan masa berlaku penuh. 200 `{token, expires_at}`. 401 bila token tak sah atau sudah kedaluwarsa (klien masuk ulang dengan Google). Atomik: dua refresh bersamaan dengan token yang sama menghasilkan paling banyak satu token baru, yang lain 401 |
+| `POST /api/auth/logout` | Mencabut hanya token yang dipakai permintaan ini. 204 |
+| `DELETE /api/auth/tokens` | Mencabut semua token akun (keluar dari semua perangkat). 204 |
+| `device_id` dan plafon token | `device_id` di `POST /api/auth/google` opsional; bila ada harus 1 sampai 64 karakter `A-Z a-z 0-9 . _ -` (selain itu 422), tanpa itu dipakai nama bawaan `android:default`. Satu akun menyimpan paling banyak 20 token (`ApiTokenService::MAX_TOKENS_PER_ACCOUNT`): masuk dari perangkat baru saat sudah penuh membuang token yang paling lama tak dipakai (`last_used_at`, atau `created_at` bila belum pernah dipakai). Masuk ulang di perangkat yang sama tetap hanya mengganti token perangkat itu |
+| Batas laju | `POST /api/auth/refresh`: 10 per menit per akun dan perangkat (kunci akun + nama token, limiter `api-token-refresh`). `POST /api/auth/google`: 30 per menit per IP (limiter `api-login`, longgar karena NAT seluler; mengandalkan `trustProxies` agar IP asli terbaca lewat Cloudflare dan nginx). `POST /api/auth/logout` dan `DELETE /api/auth/tokens` **sengaja tanpa batas** (idempoten, murah): pemegang token curian tidak boleh bisa menghalangi pemilik keluar dari semua perangkat dengan menghabiskan jatah refresh. Lewat batas dijawab 429 |
+| Ubah dan reset kata sandi (web) | Mencabut semua token API akun. Mengubah sandi yang sudah ada tidak memutus sesi web yang sedang dipakai. Menetapkan sandi **pertama** untuk akun Google tidak mencabut apa pun (sama dengan aturan sesi web lain). Hapus akun juga mencabut semua token |
+
+**Batas yang tidak bisa dicegah server.** Refresh memutar token lewat satu transaksi: token lama dicabut
+saat token baru terbit. Bila respons refresh hilang di jaringan setelah rotasi berhasil di server,
+klien masih memegang token lama yang sudah dicabut dan tidak punya token baru; server tidak bisa
+mencegahnya (tidak ada cara aman memberi tahu klien token baru tanpa token lama). Klien pulih lewat 401
+pada permintaan berikutnya, lalu masuk ulang dengan Google.
+
+**Utang: batas `MAX_TTL_DAYS=1825` akan usang.** Kolom `expires_at` bertipe TIMESTAMP di MySQL, yang
+berhenti di 2038-01-19 03:14:07 UTC. Sejak sekitar **2033-01-20**, hari ini + 1825 hari melewati batas itu
+dan penerbitan token dengan `API_TOKEN_TTL_DAYS` mendekati 1825 gagal di MySQL. Perbaikannya (belum
+dikerjakan): batas dinamis (mis. `min(1825, hari tersisa sampai 2038-01-19)`) atau migrasi `expires_at`
+menjadi DATETIME. Dengan bawaan 90 hari, ini baru menggigit mulai sekitar Oktober 2037.
+
+**Deadlock InnoDB pada login bersamaan.** `issueForDevice` mengunci baris pengguna (`FOR UPDATE`) dan
+mengulang transaksi sampai 3 kali bila MySQL membatalkannya karena deadlock (kode 1213). Ini **tidak bisa
+dibuktikan di SQLite** (tes hanya membuktikan pengulangan atas kegagalan serupa deadlock); belum diuji
+terhadap MySQL VPS.
+
+Menerapkan perubahan `API_TOKEN_TTL_DAYS` di VPS: ubah `.env.production`, lalu `docker compose up -d
+--force-recreate` (`env_file` hanya dibaca saat container dibuat). Nilai baru hanya berlaku untuk
+token yang terbit sesudahnya. `config/sanctum.php` memakai nilai yang sama (dalam menit) sebagai
+jaring pengaman: token yang `created_at`-nya lebih tua dari masa berlaku ditolak walau `expires_at`-nya
+kosong atau lebih panjang, jadi memperpendek nilai ini juga memendekkan token yang sudah terbit.
+
+**Token yang sudah terbit sebelum fitur ini** (tanpa `expires_at`, mis. dari uji Tahap 9) tetap
+berfungsi, tetapi lewat jaring pengaman tadi kedaluwarsa 90 hari setelah dibuat (atau sesuai
+`API_TOKEN_TTL_DAYS`). Mereka masih bisa diputar lewat `POST /api/auth/refresh` selama belum lewat.
+
+### Pembersihan token kedaluwarsa (`sanctum:prune-expired`)
+
+Token kedaluwarsa sudah ditolak tanpa pembersihan; perintah ini hanya merapikan tabel. Dijadwalkan
+harian pukul 03:45 di `routes/console.php`, membuang token yang kedaluwarsa lebih dari 24 jam
+(dan token tanpa `expires_at` yang `created_at`-nya lewat masa berlaku ditambah 24 jam). **Penjadwal
+Laravel baru jalan bila ada cron `schedule:run` di VPS, dan saat ini belum ada**: cron yang sama
+dengan `play:reconcile` (lihat "Penjadwal" di bagian Pembelian Google Play di bawah), butir Tahap 12
+yang belum dikerjakan pemilik. Sampai itu terpasang, jalankan manual (aman diulang):
+
+```bash
+docker exec rizqflow php artisan sanctum:prune-expired
+```
+
 ## Pembelian Google Play (verifikasi pembelian dan notifikasi)
 
 Tahap 9, kode selesai 2026-10-24 di `server/app/Play/`. Aplikasi Android mengirim token pembelian Pro

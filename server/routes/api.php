@@ -8,7 +8,8 @@ use App\Http\Controllers\Api\SyncController;
 use Illuminate\Support\Facades\Route;
 
 // Akun server dan sinkronisasi untuk aplikasi Android (Tahap 9, server-sync.md).
-Route::post('/auth/google', [AccountController::class, 'login']);
+Route::post('/auth/google', [AccountController::class, 'login'])
+    ->middleware('throttle:api-login');
 
 // Real-time Developer Notifications Google Play (push Pub/Sub). TANPA Sanctum: pemanggilnya Google,
 // diautentikasi lewat JWT OIDC di header Authorization (lihat PlayNotificationController).
@@ -17,6 +18,16 @@ Route::post('/play/notifications', [PlayNotificationController::class, 'receive'
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/account', [AccountController::class, 'destroy']);
+
+    // Siklus hidup token API (Tahap 12): token kedaluwarsa (API_TOKEN_TTL_DAYS) dan bisa dicabut.
+    // refresh memutar token yang dipakai; logout mencabut token itu saja; tokens mencabut semua
+    // token akun. Batas laju HANYA di refresh (limiter `api-token-refresh`, AppServiceProvider); logout
+    // dan cabut-semua sengaja tanpa batas supaya pemegang token curian tak bisa menghalangi pemilik
+    // keluar dari semua perangkat dengan menghabiskan jatah refresh.
+    Route::post('/auth/refresh', [AccountController::class, 'refresh'])
+        ->middleware('throttle:api-token-refresh');
+    Route::post('/auth/logout', [AccountController::class, 'logout']);
+    Route::delete('/auth/tokens', [AccountController::class, 'revokeAll']);
 
     // Klaim pembelian Pro/Sync: token dikirim aplikasi, diverifikasi server ke Google Play lalu
     // mengisi users.plans (App\Play\PurchaseClaimService). Throttle per akun.

@@ -12,3 +12,9 @@ Artisan::command('inspire', function () {
 // "Pembelian Google Play"). Baru berjalan bila ada cron `php artisan schedule:run` tiap menit di
 // server; sampai itu dipasang (Tahap 12, kerja pemilik) perintah ini harus dijalankan manual.
 Schedule::command('play:reconcile')->dailyAt('03:30')->withoutOverlapping();
+
+// Buang token API yang sudah kedaluwarsa lebih dari 24 jam (Tahap 12, token kedaluwarsa dan bisa
+// dicabut). Token kedaluwarsa sudah ditolak 401 tanpa perintah ini; ini hanya merapikan tabel
+// personal_access_tokens. Sama seperti play:reconcile, baru berjalan bila ada cron `schedule:run`
+// di VPS (Tahap 12, kerja pemilik; lihat DEPLOY.md "Token API").
+Schedule::command('sanctum:prune-expired --hours=24')->dailyAt('03:45')->withoutOverlapping();

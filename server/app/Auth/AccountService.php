@@ -191,8 +191,10 @@ class AccountService
     /**
      * Tetapkan atau ganti kata sandi akun yang sedang masuk. Akun tanpa sandi (dibuat lewat Google)
      * menetapkan sandi pertama tanpa sandi lama; selain itu sandi lama wajib benar, salah 5 kali
-     * dikunci 15 menit. Saat mengganti sandi yang sudah ada, sesi web lain dicabut (sesi
-     * $currentSessionId dipertahankan). Mengembalikan [status PASSWORD_*, detik tunggu atau null].
+     * dikunci 15 menit. Saat mengganti sandi yang sudah ada, sesi web lain dan SEMUA token API
+     * dicabut (sesi $currentSessionId dipertahankan; perangkat Android masuk ulang dengan Google).
+     * Menetapkan sandi pertama tidak memutus apa pun: itu bukan perubahan kredensial yang ada.
+     * Mengembalikan [status PASSWORD_*, detik tunggu atau null].
      */
     public function changePassword(User $user, ?string $current, string $new, ?string $currentSessionId = null): array
     {
@@ -214,6 +216,7 @@ class AccountService
 
         $user->forceFill(['password' => $new])->save();
         if ($hadPassword) {
+            $user->tokens()->delete();
             $user->revokeWebSessions($currentSessionId);
         }
 

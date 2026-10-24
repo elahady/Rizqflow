@@ -1,5 +1,7 @@
 <?php
 
+use App\Auth\ApiTokenService;
+
 return [
 
     /*
@@ -24,5 +26,13 @@ return [
     // Kode 6 angka lewat email: masa berlaku (menit) dan batas salah per kode.
     'email_code_ttl_minutes' => 10,
     'email_code_max_attempts' => 5,
+
+    /*
+    | Masa berlaku token API Android (hari), dari env API_TOKEN_TTL_DAYS. Bilangan bulat positif;
+    | kosong atau tak sah jatuh ke 90 (aturan di ApiTokenService::parseTtlDays, juga dipakai
+    | config/sanctum.php untuk `expiration`). Token yang kedaluwarsa ditolak 401; klien memutarnya
+    | lewat POST /api/auth/refresh sebelum itu, atau masuk ulang dengan Google.
+    */
+    'api_token_ttl_days' => ApiTokenService::parseTtlDays(env('API_TOKEN_TTL_DAYS')),
 
 ];
