@@ -540,7 +540,8 @@ input[type="number"].rf-input { font-variant-numeric: tabular-nums; }
 .rf-datebox .d2 { font-size: 17px; font-weight: 800; line-height: 1.1; }
 
 /* ===== Tabel ===== */
-.rf-scroll { overflow-x: auto; }
+/* position: relative supaya .rf-sr-only (absolute) di dalam tabel ikut terpotong area gulir, tidak melebarkan halaman. */
+.rf-scroll { overflow-x: auto; position: relative; }
 .rf-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .rf-table th {
   text-align: left; font-size: 11.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
