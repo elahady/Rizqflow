@@ -7,6 +7,7 @@ use App\Models\Room;
 use App\Models\RoomRole;
 use App\Models\Transaction;
 use App\Support\Feature;
+use App\Support\MonthLedger;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
 use Livewire\Component;
@@ -167,10 +168,13 @@ class Ruang extends Component
     public function render(): View
     {
         $transactions = $this->room->transactions()->orderByDesc('occurred_on')->limit(5)->get();
+        // Jatah, terpakai, status, dan pos bulan ini diturunkan dari transaksi (MonthLedger).
+        $roomMonth = MonthLedger::for(auth()->user(), now())->room($this->room);
 
         return view('livewire.ruang', [
             'room' => $this->room,
-            'categories' => $this->room->categoryBreakdown(now()),
+            'roomMonth' => $roomMonth,
+            'categories' => $roomMonth->categoryBreakdown(),
             'transactions' => $transactions,
             'role' => $this->room->role,
             'today' => Carbon::today(),

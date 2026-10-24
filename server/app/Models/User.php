@@ -88,11 +88,6 @@ class User extends Authenticatable
         return $this->hasMany(Transaction::class)->orderByDesc('occurred_on');
     }
 
-    public function monthlySummaries(): HasMany
-    {
-        return $this->hasMany(MonthlySummary::class);
-    }
-
     public function recurringRules(): HasMany
     {
         return $this->hasMany(RecurringRule::class);

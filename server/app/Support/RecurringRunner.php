@@ -2,11 +2,10 @@
 
 namespace App\Support;
 
-use App\Models\Account;
 use App\Models\RecurringRule;
-use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Mencatat kemunculan aturan berulang (S33) yang jatuh pada hari ini atau sebelumnya. Tidak ada
@@ -14,6 +13,8 @@ use Illuminate\Support\Carbon;
  * halaman itu dibuka ("app dibuka"). Aman dipanggil berulang kali: begitu `next_due` sebuah aturan
  * sudah lewat hari ini, perulangannya berhenti sampai esok. Porting ringkas dari
  * RecurringService.runDue di :domain, tanpa dukungan transfer (belum ada di model data web).
+ * Pencatatan lewat App\Support\Ledger, jadi pemasukan berulang ikut dialirkan ke ruang (potret
+ * alokasi) dan saldo akun bergerak seperti transaksi biasa.
  */
 class RecurringRunner
 {
@@ -41,11 +42,21 @@ class RecurringRunner
                     break;
                 }
 
-                self::record($rule, $rule->next_due);
-                $recorded++;
+                try {
+                    DB::transaction(function () use ($user, $rule) {
+                        self::record($user, $rule, $rule->next_due);
 
-                $rule->next_due = RecurrenceSchedule::next($rule->start_date, $rule->frequency, $rule->next_due);
-                $rule->save();
+                        $rule->next_due = RecurrenceSchedule::next($rule->start_date, $rule->frequency, $rule->next_due);
+                        $rule->save();
+                    });
+                } catch (LedgerException) {
+                    // Mis. pos atau akunnya bukan milik pengguna ini lagi: tertahan, bukan galat halaman.
+                    $rule->refresh();
+                    $blocked[] = $rule;
+                    break;
+                }
+
+                $recorded++;
                 $steps++;
             }
         }
@@ -53,22 +64,16 @@ class RecurringRunner
         return ['recorded' => $recorded, 'blocked' => $blocked];
     }
 
-    private static function record(RecurringRule $rule, Carbon $date): void
+    private static function record(User $user, RecurringRule $rule, Carbon $date): void
     {
-        Transaction::create([
-            'user_id' => $rule->user_id,
-            'room_id' => $rule->room_id,
-            'category_id' => $rule->category_id,
-            'account_id' => $rule->account_id,
-            'recurring_rule_id' => $rule->id,
-            'type' => $rule->type,
-            'amount_minor' => $rule->amount_minor,
-            'category' => $rule->type === 'pengeluaran' ? $rule->category?->name : $rule->source,
-            'note' => $rule->note,
-            'occurred_on' => $date,
-        ]);
+        if ($rule->type === 'pemasukan') {
+            Ledger::recordIncome($user, $rule->amount_minor, $rule->account, $date, $rule->source, $rule->note, $rule->id);
 
-        $sign = $rule->type === 'pengeluaran' ? -1 : 1;
-        Account::where('id', $rule->account_id)->increment('balance_minor', $sign * $rule->amount_minor);
+            return;
+        }
+
+        Ledger::recordExpense($user, $rule->amount_minor, $rule->category, $rule->account, $date, $rule->note, [
+            'recurring_rule_id' => $rule->id,
+        ]);
     }
 }

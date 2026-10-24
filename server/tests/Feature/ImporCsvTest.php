@@ -146,4 +146,21 @@ class ImporCsvTest extends TestCase
         $component->assertSet('rows', [])->assertSet('accountId', null);
         $this->assertStringContainsString('1 transaksi berhasil diimpor', $component->get('status'));
     }
+
+    public function test_imported_income_is_allocated_to_rooms_with_a_snapshot(): void
+    {
+        $this->room->update(['allocation_percent' => 100]);
+
+        Livewire::actingAs($this->user)
+            ->test(ImporCsv::class)
+            ->set('file', $this->csv("2026-10-02,2000000,Gaji"))
+            ->set('accountId', $this->account->id)
+            ->call('confirmImport')
+            ->assertSet('error', null);
+
+        $income = Transaction::where('type', 'pemasukan')->first();
+        $this->assertSame([2_000_000], $income->allocationEntries->pluck('amount_minor')->all());
+        $this->assertSame([10_000], $income->allocationEntries->pluck('share_bp')->all());
+        $this->assertSame(3_000_000, $this->account->refresh()->balance_minor);
+    }
 }

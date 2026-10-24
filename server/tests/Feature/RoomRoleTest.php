@@ -31,7 +31,7 @@ class RoomRoleTest extends TestCase
         parent::setUp();
 
         $this->user = User::factory()->create();
-        $this->room = Room::create(['user_id' => $this->user->id, 'name' => 'Diri', 'type' => 'menumbuhkan', 'slot' => 2, 'sort_order' => 2, 'budget_minor' => 0, 'used_minor' => 0]);
+        $this->room = Room::create(['user_id' => $this->user->id, 'name' => 'Diri', 'type' => 'menumbuhkan', 'slot' => 2, 'sort_order' => 2]);
         $this->category = Category::create(['room_id' => $this->room->id, 'name' => 'Investasi', 'sort_order' => 1]);
         $this->account = Account::create(['user_id' => $this->user->id, 'name' => 'Bank Jago', 'type' => 'bank', 'balance_minor' => 10_000_000, 'sort_order' => 1]);
     }

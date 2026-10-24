@@ -9,10 +9,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Dompet/rekening (tunai, bank, e-wallet), versi web yang disederhanakan dari tabel `account`
- * Android (docs/model-data.md). `balance_minor` bergerak lewat TransaksiDetail (ubah dan hapus
- * transaksi, lihat app/Livewire/TransaksiDetail.php); belum ada cara mencatat transaksi baru di
- * web sama sekali (panel Catat di halaman Transaksi masih scaffold), jadi saldo belum bisa dites
- * dari nol — menyusul bersama Koreksi saldo dan Catat transaksi baru.
+ * Android (docs/model-data.md). Web belum punya saldo pembuka terpisah: `balance_minor` adalah saldo
+ * sekarang, digerakkan setiap transaksi dicatat, diubah, atau dihapus lewat App\Support\Ledger
+ * (beberapa halaman lama, mis. Tagihan, Zakat, Utang-piutang, masih menggerakkannya langsung).
+ * Boleh negatif: aplikasi mencatat, tidak memblokir pengeluaran yang melebihi saldo.
  */
 class Account extends Model
 {
@@ -24,6 +24,7 @@ class Account extends Model
 
     protected $casts = [
         'archived' => 'boolean',
+        'balance_minor' => 'integer',
     ];
 
     public function user(): BelongsTo

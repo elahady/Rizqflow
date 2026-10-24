@@ -2,25 +2,37 @@
 
 namespace App\Models;
 
-use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Support\Collection;
 
+/**
+ * Ruang (Memberi, Diri, Keluarga, ...). Yang tersimpan hanya identitas dan aturan alokasinya
+ * (`allocation_percent` untuk mode persentase, `allocation_cap_minor` untuk mode lanjutan);
+ * jatah, terpakai, dan status per bulan diturunkan dari transaksi lewat App\Support\MonthLedger
+ * (lihat RoomMonth), tidak pernah disimpan di sini (docs/model-data.md).
+ */
 class Room extends Model
 {
     use HasFactory;
 
+    public const TYPE_MENUNAIKAN = 'menunaikan';
+
+    public const TYPE_MENUMBUHKAN = 'menumbuhkan';
+
+    public const TYPE_MENCUKUPI = 'mencukupi';
+
     protected $fillable = [
         'user_id', 'name', 'icon', 'type', 'slot',
-        'allocation_percent', 'allocation_cap_minor', 'budget_minor', 'used_minor', 'sort_order', 'archived',
+        'allocation_percent', 'allocation_cap_minor', 'sort_order', 'archived',
     ];
 
     protected $casts = [
         'archived' => 'boolean',
+        'allocation_percent' => 'integer',
+        'allocation_cap_minor' => 'integer',
     ];
 
     public function user(): BelongsTo
@@ -46,86 +58,14 @@ class Room extends Model
         return $this->hasMany(Category::class);
     }
 
+    /** Potret alokasi dari pemasukan yang dialirkan ke ruang ini (dasar jatah per bulan). */
+    public function allocationEntries(): HasMany
+    {
+        return $this->hasMany(AllocationEntry::class);
+    }
+
     public function role(): HasOne
     {
         return $this->hasOne(RoomRole::class);
-    }
-
-    /**
-     * Pos-pos ruang ini untuk Detail ruang (S11) pada satu bulan, mengikuti RoomDetailLoader di :domain.
-     * Pembanding tiap pos adalah irisan jatah ruang menurut bobot bila pos punya bobot, kalau tidak
-     * seluruh jatah ruang. Pos aktif selalu tampil; pos terarsip dan pos sistem hanya bila bulan itu
-     * memakainya. Urut dari pengeluaran terbesar.
-     *
-     * @return Collection<int, array{category: Category, spent_minor: int, budget_minor: int, percent: ?int}>
-     */
-    public function categoryBreakdown(CarbonInterface $month): Collection
-    {
-        $spentBy = $this->transactions()
-            ->where('type', 'pengeluaran')
-            // Batas atas lewat endOfDay(): occurred_on tersimpan dengan waktu "00:00:00", dan
-            // whereBetween dengan string tanggal polos sebagai batas atas membandingkannya sebagai
-            // teks ("2026-10-31 00:00:00" > "2026-10-31"), jadi transaksi di hari terakhir bulan
-            // akan tersingkir diam-diam tanpa endOfDay() di sini.
-            ->whereBetween('occurred_on', [$month->copy()->startOfMonth()->toDateString(), $month->copy()->endOfMonth()->endOfDay()])
-            ->whereNotNull('category_id')
-            ->groupBy('category_id')
-            ->selectRaw('category_id, SUM(amount_minor) as total')
-            ->pluck('total', 'category_id');
-
-        $own = $this->categories()->get();
-        $weightTotal = $own->where('archived', false)->sum(fn (Category $c) => $c->weight ?? 0);
-
-        return $own
-            ->filter(fn (Category $c) => (! $c->archived && ! $c->is_system) || ($spentBy[$c->id] ?? 0) > 0)
-            ->map(function (Category $c) use ($spentBy, $weightTotal) {
-                $spent = (int) ($spentBy[$c->id] ?? 0);
-                $budget = $c->weight !== null && $weightTotal > 0
-                    ? intdiv($this->budget_minor * $c->weight, $weightTotal)
-                    : $this->budget_minor;
-
-                return [
-                    'category' => $c,
-                    'spent_minor' => $spent,
-                    'budget_minor' => $budget,
-                    // Dibulatkan ke bawah seperti progressBp di :domain; bisa lebih dari 100.
-                    'percent' => $budget > 0 ? intdiv($spent * 100, $budget) : null,
-                ];
-            })
-            ->sortBy([['spent_minor', 'desc'], [fn ($a, $b) => $a['category']->sort_order <=> $b['category']->sort_order]])
-            ->values();
-    }
-
-    public function usedPercent(): int
-    {
-        if ($this->budget_minor <= 0) {
-            return 0;
-        }
-
-        return (int) round(min($this->used_minor / $this->budget_minor, 1) * 100);
-    }
-
-    public function remainingMinor(): int
-    {
-        return max($this->budget_minor - $this->used_minor, 0);
-    }
-
-    /**
-     * Status ruang mengikuti tipenya (Menunaikan, Menumbuhkan, Mencukupi) — lihat docs/konsep.md.
-     * Ambang 85% untuk tipe Mencukupi dikonfirmasi 2026-09-20.
-     */
-    public function status(): string
-    {
-        $percent = $this->usedPercent();
-
-        if ($percent >= 100) {
-            return 'terpenuhi';
-        }
-
-        if ($this->type === 'mencukupi' && $percent >= 85) {
-            return 'perlu_perhatian';
-        }
-
-        return 'berjalan';
     }
 }

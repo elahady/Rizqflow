@@ -2,14 +2,17 @@
 
 namespace App\Livewire;
 
+use App\Support\MonthLedger;
 use App\Support\NetWorthSnapshotter;
 use App\Support\RecurringRunner;
+use App\Support\Rupiah;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
 /**
- * Beranda (S05 Denah) — ringkasan rezeki bulan ini, kartu ruang, dan "perlu perhatian".
- * Data masih dari seed/contoh (scaffold web tahap awal); sinkron data asli menyusul Tahap 9.
+ * Beranda (S05 Denah) — ringkasan rezeki bulan ini, kartu ruang, dan "perlu perhatian". Semua angka
+ * diturunkan dari transaksi dan potret alokasi lewat App\Support\MonthLedger (data seed/contoh
+ * sampai sinkron data asli menyusul).
  */
 class Denah extends Component
 {
@@ -37,19 +40,24 @@ class Denah extends Component
     public function render(): View
     {
         $user = auth()->user();
-        $month = now()->startOfMonth();
-
-        $summary = $user->monthlySummaries()->whereDate('month', $month)->first();
-        $rooms = $user->rooms()->active()->get();
+        $ledger = MonthLedger::for($user, now());
 
         $attention = [];
-        foreach ($rooms as $room) {
-            if ($room->status() === 'perlu_perhatian') {
-                $attention[] = [
-                    'text' => "Ruang {$room->name} hampir melewati jatah bulan ini",
-                    'pill' => $room->usedPercent().'%',
-                ];
-            }
+        foreach ($ledger->attention() as $item) {
+            $attention[] = match ($item['kind']) {
+                MonthLedger::ATTENTION_ROOM_OVER => [
+                    'text' => "Ruang {$item['room']->name} melewati jatah bulan ini",
+                    'pill' => $item['room_month']->percent().'%',
+                ],
+                MonthLedger::ATTENTION_ROOM_NEAR => [
+                    'text' => "Ruang {$item['room']->name} hampir melewati jatah bulan ini",
+                    'pill' => $item['room_month']->percent().'%',
+                ],
+                default => [
+                    'text' => Rupiah::format($item['amount_minor']).' rezeki bulan ini belum dialirkan',
+                    'pill' => 'Belum dialirkan',
+                ],
+            };
         }
 
         $zakat = $user->zakatProfiles()->where('status', 'haul_berjalan')->first();
@@ -65,8 +73,8 @@ class Denah extends Component
         return view('livewire.denah', [
             'recurringBanner' => $this->recurringBanner,
             'dateLabel' => now()->locale('id')->translatedFormat('l, j F Y'),
-            'summary' => $summary,
-            'rooms' => $rooms,
+            'ledger' => $ledger,
+            'rooms' => $ledger->rooms(),
             'attention' => $attention,
         ])->layout('components.layout', ['title' => 'Denah — Rizqflow']);
     }

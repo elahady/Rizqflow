@@ -15,33 +15,33 @@
         <div class="rf-card" style="padding:14px 20px; font-size:13.5px;">{{ $recurringBanner }}</div>
     @endif
 
-    @if ($summary)
+    @if ($ledger->incomeMinor > 0)
         <div class="rf-card" style="display:flex; flex-direction:column; gap:18px;">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
                 <div>
                     <div style="font-size:12px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--rf-on-surface-variant); margin-bottom:8px;">Rezeki bulan ini</div>
-                    <div style="font-size:40px; font-weight:700;">{{ Rupiah::format($summary->income_minor) }}</div>
+                    <div style="font-size:40px; font-weight:700;">{{ Rupiah::format($ledger->incomeMinor) }}</div>
                 </div>
             </div>
 
             <div>
                 <div style="display:flex; height:10px; border-radius:999px; overflow:hidden; background:var(--rf-surface-container-highest);">
-                    @foreach ($rooms as $room)
-                        @continue(!$room->allocation_percent)
-                        <div style="width:{{ $room->allocation_percent }}%; background:{{ $roomColors[$room->slot] ?? '#727874' }};" title="{{ $room->name }}"></div>
+                    @foreach ($rooms as $roomMonth)
+                        @continue($roomMonth->allocatedMinor <= 0)
+                        <div style="width:{{ intdiv($roomMonth->allocatedMinor * 100, $ledger->incomeMinor) }}%; background:{{ $roomColors[$roomMonth->room->slot] ?? '#727874' }};" title="{{ $roomMonth->room->name }}"></div>
                     @endforeach
                 </div>
                 <div style="display:flex; gap:20px; margin-top:12px; flex-wrap:wrap; font-size:13px; color:var(--rf-on-surface-variant);">
-                    @foreach ($rooms as $room)
+                    @foreach ($rooms as $roomMonth)
                         <span style="display:inline-flex; align-items:center; gap:6px;">
-                            <i style="width:10px; height:10px; border-radius:3px; background:{{ $roomColors[$room->slot] ?? '#727874' }}; display:inline-block;"></i>{{ $room->name }}
+                            <i style="width:10px; height:10px; border-radius:3px; background:{{ $roomColors[$roomMonth->room->slot] ?? '#727874' }}; display:inline-block;"></i>{{ $roomMonth->room->name }}
                         </span>
                     @endforeach
                 </div>
             </div>
 
             <div style="font-size:14px; color:var(--rf-on-surface-variant);">
-                Belum dialirkan: <span style="font-weight:700; color:var(--rf-on-background);">{{ Rupiah::format($summary->unallocated_minor) }}</span>
+                Belum dialirkan: <span style="font-weight:700; color:var(--rf-on-background);">{{ Rupiah::format($ledger->unallocatedMinor) }}</span>
             </div>
         </div>
     @endif
@@ -53,13 +53,14 @@
         </div>
 
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px;">
-            @foreach ($rooms as $room)
+            @foreach ($rooms as $roomMonth)
                 @php
-                    $percent = $room->usedPercent();
+                    $room = $roomMonth->room;
+                    $percent = $roomMonth->percent() ?? 0;
                     $circumference = 163.36;
                     $dash = round($circumference * min($percent, 100) / 100, 1);
                     $gap = round($circumference - $dash, 1);
-                    $status = $room->status();
+                    $status = $roomMonth->status();
                     $color = $roomColors[$room->slot] ?? '#727874';
                     $ringColor = $status === 'perlu_perhatian' ? 'var(--rf-status-warning)' : $color;
                 @endphp
@@ -77,16 +78,13 @@
                             <div style="font-size:18px; font-weight:700;">{{ $percent }}%</div>
                             <div style="font-size:12px; color:var(--rf-on-surface-variant);">
                                 @if ($status === 'terpenuhi') Terpenuhi
-                                @else Sisa {{ Rupiah::short($room->remainingMinor()) }}
+                                @else Sisa {{ Rupiah::short(max($roomMonth->remainingMinor(), 0)) }}
                                 @endif
                             </div>
                         </div>
                     </div>
-                    <div class="rf-pill {{ $status === 'terpenuhi' ? 'good' : ($status === 'perlu_perhatian' ? 'warn' : 'neutral') }}" style="margin-top:14px;">
-                        @if ($status === 'terpenuhi') Terpenuhi
-                        @elseif ($status === 'perlu_perhatian') Perlu perhatian
-                        @else Berjalan
-                        @endif
+                    <div class="rf-pill {{ $roomMonth->statusTone() }}" style="margin-top:14px;">
+                        {{ $roomMonth->statusLabel() }}
                     </div>
                 </a>
             @endforeach

@@ -3,8 +3,8 @@
 
     $roomColors = [1 => '#3b6fa8', 2 => '#c4653a', 3 => '#2a9a80', 4 => '#af6dec', 5 => '#a04177', 6 => '#099acf', 7 => '#998214', 8 => '#de4f74'];
     $color = $roomColors[$room->slot] ?? '#727874';
-    $percent = $room->usedPercent();
-    $status = $room->status();
+    $percent = $roomMonth->percent() ?? 0;
+    $status = $roomMonth->status();
     $circumference = 263.76; // r=42
     $dash = round($circumference * min($percent, 100) / 100, 1);
     $gap = round($circumference - $dash, 1);
@@ -25,16 +25,11 @@
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
                 <div style="width:32px; height:32px; border-radius:9px; background:{{ $color }}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700;">{{ mb_substr($room->name, 0, 1) }}</div>
                 <h1 class="rf-serif" style="font-size:26px;">{{ $room->name }}</h1>
-                <span class="rf-pill {{ $status === 'terpenuhi' ? 'good' : ($status === 'perlu_perhatian' ? 'warn' : 'neutral') }}">
-                    @if ($status === 'terpenuhi') Terpenuhi
-                    @elseif ($status === 'perlu_perhatian') Perlu perhatian
-                    @else Berjalan
-                    @endif
-                </span>
+                <span class="rf-pill {{ $roomMonth->statusTone() }}">{{ $roomMonth->statusLabel() }}</span>
             </div>
             <div style="font-size:15px; color:var(--rf-on-surface-variant);">
-                Terpakai <span style="font-weight:700; color:var(--rf-on-background);">{{ Rupiah::format($room->used_minor) }}</span>
-                dari jatah <span style="font-weight:700; color:var(--rf-on-background);">{{ Rupiah::format($room->budget_minor) }}</span>
+                Terpakai <span style="font-weight:700; color:var(--rf-on-background);">{{ Rupiah::format($roomMonth->spentMinor) }}</span>
+                dari jatah <span style="font-weight:700; color:var(--rf-on-background);">{{ Rupiah::format($roomMonth->allocatedMinor) }}</span>
             </div>
         </div>
         @if ($room->allocation_percent)

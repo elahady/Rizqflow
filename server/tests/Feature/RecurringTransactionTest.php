@@ -168,6 +168,26 @@ class RecurringTransactionTest extends TestCase
         $this->assertSame(1_000_000 - 150_000, $this->account->refresh()->balance_minor);
     }
 
+    public function test_running_due_records_a_recurring_income_with_its_allocation_snapshot(): void
+    {
+        $this->room->update(['allocation_percent' => 100]);
+        $rule = RecurringRule::create([
+            'user_id' => $this->user->id, 'type' => 'pemasukan', 'amount_minor' => 5_000_000,
+            'account_id' => $this->account->id, 'source' => 'Gaji',
+            'frequency' => 'bulanan', 'start_date' => Carbon::today(), 'next_due' => Carbon::today(), 'active' => true,
+        ]);
+
+        $result = RecurringRunner::runDue($this->user);
+
+        $this->assertSame(1, $result['recorded']);
+        $tx = Transaction::first();
+        $this->assertSame('pemasukan', $tx->type);
+        $this->assertSame($rule->id, $tx->recurring_rule_id);
+        $this->assertSame('Gaji', $tx->category);
+        $this->assertSame([5_000_000], $tx->allocationEntries->pluck('amount_minor')->all());
+        $this->assertSame(1_000_000 + 5_000_000, $this->account->refresh()->balance_minor);
+    }
+
     public function test_running_due_catches_up_multiple_missed_daily_occurrences(): void
     {
         RecurringRule::create([

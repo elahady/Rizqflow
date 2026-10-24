@@ -4,10 +4,12 @@ namespace Tests\Feature;
 
 use App\Livewire\TransaksiDetail;
 use App\Models\Account;
+use App\Models\AllocationEntry;
 use App\Models\Category;
 use App\Models\Room;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Support\Ledger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -252,5 +254,66 @@ class TransaksiDetailTest extends TestCase
             ->get(route('transaksi.detail', $tx))
             ->assertOk()
             ->assertSee('Rp 150.000');
+    }
+
+    // --- Potret alokasi pemasukan (Ledger) ---
+
+    public function test_editing_the_amount_of_a_snapshotted_income_recomputes_entries_with_the_stored_percentages(): void
+    {
+        $this->room->update(['allocation_percent' => 60]);
+        $diri = Room::create(['user_id' => $this->user->id, 'name' => 'Diri', 'type' => 'menumbuhkan', 'slot' => 2, 'sort_order' => 2, 'allocation_percent' => 40]);
+        $tx = Ledger::recordIncome($this->user, 10_000_000, $this->account, now(), 'Gaji', null);
+        $this->room->update(['allocation_percent' => 10]); // aturan baru tidak boleh memengaruhi potret lama
+
+        Livewire::actingAs($this->user)
+            ->test(TransaksiDetail::class, ['transaction' => $tx])
+            ->call('startEdit')
+            ->set('amount', '20000000')
+            ->call('save')
+            ->assertSet('error', null)
+            ->assertSet('editing', false);
+
+        $entries = $tx->fresh()->sortedAllocationEntries();
+        $this->assertSame([$this->room->id, $diri->id], $entries->pluck('room_id')->all());
+        $this->assertSame([12_000_000, 8_000_000], $entries->pluck('amount_minor')->all());
+        $this->assertSame(1_000_000 + 20_000_000, $this->account->refresh()->balance_minor);
+    }
+
+    public function test_deleting_a_snapshotted_income_removes_its_entries_and_reverses_the_balance(): void
+    {
+        $this->room->update(['allocation_percent' => 100]);
+        $tx = Ledger::recordIncome($this->user, 3_000_000, $this->account, now(), 'Gaji', null);
+
+        Livewire::actingAs($this->user)
+            ->test(TransaksiDetail::class, ['transaction' => $tx])
+            ->call('delete');
+
+        $this->assertSame(0, AllocationEntry::count());
+        $this->assertSame(1_000_000, $this->account->refresh()->balance_minor);
+    }
+
+    public function test_moving_an_expense_to_another_room_and_account_keeps_balances_consistent(): void
+    {
+        $tx = Ledger::recordExpense($this->user, 150_000, $this->category, $this->account, now(), null);
+        $gopay = Account::create(['user_id' => $this->user->id, 'name' => 'GoPay', 'type' => 'e_wallet', 'balance_minor' => 0, 'sort_order' => 2]);
+        $diri = Room::create(['user_id' => $this->user->id, 'name' => 'Diri', 'type' => 'menumbuhkan', 'slot' => 2, 'sort_order' => 2]);
+        $investasi = Category::create(['room_id' => $diri->id, 'name' => 'Investasi', 'sort_order' => 1]);
+
+        Livewire::actingAs($this->user)
+            ->test(TransaksiDetail::class, ['transaction' => $tx])
+            ->call('startEdit')
+            ->set('roomId', $diri->id)
+            ->set('categoryId', $investasi->id)
+            ->set('accountId', $gopay->id)
+            ->set('amount', '200000')
+            ->call('save')
+            ->assertSet('error', null);
+
+        $tx = $tx->fresh();
+        $this->assertSame($diri->id, $tx->room_id);
+        $this->assertSame('Investasi', $tx->category);
+        $this->assertSame(200_000, $tx->amount_minor);
+        $this->assertSame(1_000_000, $this->account->refresh()->balance_minor);
+        $this->assertSame(-200_000, $gopay->refresh()->balance_minor);
     }
 }

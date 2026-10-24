@@ -3,11 +3,13 @@
 namespace App\Livewire;
 
 use App\Models\Category;
-use App\Models\Room;
-use App\Models\Transaction;
 use App\Support\CsvTransactionImporter;
 use App\Support\Feature;
+use App\Support\Ledger;
+use App\Support\LedgerException;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -91,25 +93,24 @@ class ImporCsv extends Component
             return;
         }
 
-        $balanceDelta = 0;
-        foreach ($this->rows as $row) {
-            Transaction::create([
-                'user_id' => $user->id,
-                'account_id' => $account->id,
-                'room_id' => $row['type'] === 'pengeluaran' ? $room->id : null,
-                'category_id' => $row['type'] === 'pengeluaran' ? $category->id : null,
-                'category' => $row['type'] === 'pengeluaran' ? $category->name : null,
-                'type' => $row['type'],
-                'amount_minor' => $row['amount_minor'],
-                'note' => $row['note'],
-                'occurred_on' => $row['date'],
-            ]);
+        // Lewat Ledger: pemasukan ikut dialirkan ke ruang (potret alokasi) dan saldo akun bergerak.
+        // Satu transaksi database: satu baris yang ditolak membatalkan seluruh impor.
+        try {
+            DB::transaction(function () use ($user, $account, $category) {
+                foreach ($this->rows as $row) {
+                    $date = Carbon::parse($row['date']);
+                    if ($row['type'] === 'pengeluaran') {
+                        Ledger::recordExpense($user, $row['amount_minor'], $category, $account, $date, $row['note']);
+                    } else {
+                        Ledger::recordIncome($user, $row['amount_minor'], $account, $date, null, $row['note']);
+                    }
+                }
+            });
+        } catch (LedgerException $e) {
+            $this->error = 'Impor dibatalkan: '.$e->getMessage();
 
-            $balanceDelta += $row['type'] === 'pengeluaran' ? -$row['amount_minor'] : $row['amount_minor'];
+            return;
         }
-
-        $account->increment('balance_minor', $balanceDelta);
-
         $count = count($this->rows);
         $this->status = "{$count} transaksi berhasil diimpor ke {$account->name}.";
         $this->reset(['file', 'rows', 'skipped', 'accountId', 'roomId', 'categoryId']);
@@ -121,7 +122,7 @@ class ImporCsv extends Component
         $canUseReports = $user->entitlements()->isEnabled(Feature::ReportsAndInsights);
 
         $rooms = $user->rooms()->active()->orderBy('sort_order')->get();
-        $categories = $this->roomId ? (Room::find($this->roomId)?->categories()->where('archived', false)->orderBy('sort_order')->get() ?? collect()) : collect();
+        $categories = $this->roomId ? ($user->rooms()->find($this->roomId)?->categories()->where('archived', false)->orderBy('sort_order')->get() ?? collect()) : collect();
 
         return view('livewire.impor-csv', [
             'canUseReports' => $canUseReports,

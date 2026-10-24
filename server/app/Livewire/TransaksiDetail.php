@@ -4,19 +4,21 @@ namespace App\Livewire;
 
 use App\Models\Account;
 use App\Models\Category;
-use App\Models\Room;
 use App\Models\Transaction;
+use App\Support\Ledger;
+use App\Support\LedgerException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 /**
  * Detail dan ubah transaksi (S09): pengeluaran dan pemasukan bisa diubah dan dihapus, mengikuti
  * aturan di LedgerService.updateTransaction di :domain (akun/ruang/kategori terarsip boleh tetap
  * dipakai selama tidak diganti). Transfer belum ada di model data web, jadi tidak ditangani di sini.
- * Ruang dan alokasi pemasukan tidak bisa diedit dari sini, sama seperti mobile — web belum punya
- * alokasi pemasukan per ruang sama sekali, jadi ubah nominal pemasukan tidak perlu menghitung ulang apa pun.
- * Saldo akun (statis sejak Kelola, lihat app/Models/Account.php) kini ikut bergerak lewat ubah dan hapus di sini.
+ * Ruang dan alokasi pemasukan tidak bisa diedit dari sini, sama seperti mobile. Nominal, pos, akun,
+ * dan hapus lewat App\Support\Ledger: ubah nominal pemasukan menghitung ulang potret alokasinya
+ * dengan persentase saat dicatat, dan saldo akun ikut bergerak.
  */
 class TransaksiDetail extends Component
 {
@@ -70,7 +72,7 @@ class TransaksiDetail extends Component
     public function updatedRoomId(): void
     {
         // Berganti ruang mengosongkan kategori — kategori ruang lama tidak cocok lagi.
-        $room = $this->roomId ? Room::find($this->roomId) : null;
+        $room = $this->roomId ? auth()->user()->rooms()->find($this->roomId) : null;
         $ownCategoryIds = $room ? $room->categories()->pluck('id')->all() : [];
 
         if (! in_array($this->categoryId, $ownCategoryIds, true)) {
@@ -130,9 +132,6 @@ class TransaksiDetail extends Component
             return;
         }
 
-        $oldAmount = $this->transaction->amount_minor;
-        $oldAccountId = $this->transaction->account_id;
-
         if ($this->transaction->type === 'pengeluaran') {
             $room = $user->rooms()->find($this->roomId);
             if (! $room) {
@@ -158,15 +157,12 @@ class TransaksiDetail extends Component
                 return;
             }
 
-            $this->transaction->update([
-                'amount_minor' => $amount,
-                'room_id' => $room->id,
-                'category_id' => $category->id,
-                'category' => $category->name,
-                'account_id' => $account->id,
-                'note' => $note !== '' ? $note : null,
-                'occurred_on' => $date,
-            ]);
+            $changes = ['note' => $note !== '' ? $note : null, 'occurred_on' => $date];
+            $apply = function () use ($amount, $category, $account) {
+                Ledger::changeExpenseAmount($this->transaction, $amount);
+                Ledger::changeExpenseCategory($this->transaction, $category);
+                Ledger::changeAccount($this->transaction, $account);
+            };
         } else {
             $source = trim($this->source);
             if (mb_strlen($source) > self::SOURCE_MAX) {
@@ -175,55 +171,40 @@ class TransaksiDetail extends Component
                 return;
             }
 
-            $this->transaction->update([
-                'amount_minor' => $amount,
+            $changes = [
                 'category' => $source !== '' ? $source : null,
-                'account_id' => $account->id,
                 'note' => $note !== '' ? $note : null,
                 'occurred_on' => $date,
-            ]);
+            ];
+            $apply = function () use ($amount, $account) {
+                Ledger::changeIncomeAmount($this->transaction, $amount);
+                Ledger::changeAccount($this->transaction, $account);
+            };
         }
 
-        $this->applyBalanceDelta($this->transaction->type, $oldAccountId, $oldAmount, $account->id, $amount);
+        // Kolom biasa (catatan, tanggal, sumber) langsung disimpan; nominal, pos, dan akun lewat Ledger
+        // supaya saldo akun dan potret alokasi pemasukan ikut benar. Semuanya satu transaksi database.
+        try {
+            DB::transaction(function () use ($changes, $apply) {
+                $this->transaction->update($changes);
+                $apply();
+            });
+        } catch (LedgerException $e) {
+            $this->transaction->refresh();
+            $this->error = $e->getMessage();
+
+            return;
+        }
 
         $this->editing = false;
     }
 
     public function delete(): void
     {
-        $type = $this->transaction->type;
-        $accountId = $this->transaction->account_id;
-        $amount = $this->transaction->amount_minor;
-
-        $this->transaction->delete();
-
-        if ($accountId) {
-            // Hapus pengeluaran mengembalikan uangnya; hapus pemasukan mengambilnya kembali.
-            $delta = $type === 'pengeluaran' ? $amount : -$amount;
-            Account::where('id', $accountId)->increment('balance_minor', $delta);
-        }
+        // Saldo akun dibalik dan potret alokasi pemasukan ikut terhapus.
+        Ledger::delete($this->transaction);
 
         $this->redirect(route('transaksi'));
-    }
-
-    /**
-     * Pengeluaran mengurangi saldo akunnya, pemasukan menambahnya. Dipanggil setelah kolomnya
-     * tersimpan supaya saldo akun lama dan baru sama-sama disesuaikan bila akunnya ikut berganti.
-     */
-    private function applyBalanceDelta(string $type, ?int $oldAccountId, int $oldAmount, int $newAccountId, int $newAmount): void
-    {
-        $sign = $type === 'pengeluaran' ? -1 : 1;
-
-        if ($oldAccountId === $newAccountId) {
-            Account::where('id', $newAccountId)->increment('balance_minor', $sign * ($newAmount - $oldAmount));
-
-            return;
-        }
-
-        if ($oldAccountId) {
-            Account::where('id', $oldAccountId)->increment('balance_minor', $sign * -$oldAmount);
-        }
-        Account::where('id', $newAccountId)->increment('balance_minor', $sign * $newAmount);
     }
 
     public function render(): View

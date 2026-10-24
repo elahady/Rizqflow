@@ -13,9 +13,8 @@ use Livewire\Component;
  * ruang terakhir menurut urutan S10 otomatis menerima sisa. Mode lanjutan — prioritas dan batas
  * atas (Pro, porting AllocationEngine.allocateWaterfall di :domain): prioritas memakai urutan
  * rooms.sort_order yang sama, ruang terakhir selalu tak terbatas. Berlaku untuk pemasukan
- * berikutnya; riwayat yang sudah tercatat tidak berubah. Web belum punya proses pencatatan
- * pemasukan yang benar-benar memanggil mesin alokasi ini — halaman ini murni konfigurasi, sama
- * seperti mode persentase sebelumnya.
+ * berikutnya; riwayat yang sudah tercatat tidak berubah, karena tiap pemasukan menyimpan potret
+ * alokasinya sendiri (App\Support\Ledger::recordIncome). Halaman ini murni konfigurasi aturan.
  */
 class AturanAlokasi extends Component
 {
