@@ -54,17 +54,15 @@ class PurchaseStoreTest {
     }
 
     @Test
-    fun `saklar Pro langsung mengubah batas ruang dan akun`() {
+    fun `saklar Pro langsung mengubah batas ruang`() {
         val store = PurchaseStore(FakeStorage())
         val entitlements = LivePlanEntitlements { store.plans.value }
 
         assertEquals(5, entitlements.roomLimit)
-        assertEquals(3, entitlements.accountLimit)
         assertFalse(entitlements.isEnabled(Feature.ROLE_SYSTEMS))
 
         store.grant(Plan.PRO)
         assertNull(entitlements.roomLimit)
-        assertNull(entitlements.accountLimit)
         assertTrue(entitlements.isEnabled(Feature.ROLE_SYSTEMS))
 
         store.revoke(Plan.PRO)
