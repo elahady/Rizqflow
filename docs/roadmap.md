@@ -29,25 +29,25 @@ T9 --> T8["8 Rilis dan portofolio"]
 
 ## Jalur ke rilis (ringkasan kerja tersisa, 2026-10-23)
 
-Ringkasan ini **menyimpulkan, bukan menggantikan** checklist lengkap di tiap Tahap di bawah — dibuat untuk melihat jarak sebenarnya ke Tahap 8 (rilis) dalam satu pandangan. Diminta pemilik 2026-10-23 setelah target rilis 2 minggu disepakati di sesi lain; lihat "Catatan realita" di bagian bawah sebelum menganggap 2 minggu itu pasti cukup.
+Ringkasan ini **menyimpulkan, bukan menggantikan** checklist lengkap di tiap Tahap di bawah — dibuat untuk melihat jarak sebenarnya ke Tahap 8 (rilis) dalam satu pandangan. Diminta pemilik 2026-10-23 setelah target rilis 2 minggu disepakati di sesi lain; lihat "Catatan realita" di bagian bawah sebelum menganggap 2 minggu itu pasti cukup. **Diperbarui 2026-10-24** mengikuti progres hari itu (FLAG_SECURE, berkas CSV contoh, riset API harga emas dan library QR, login Google tersambung ke server) — detail lengkap tiap perubahan ada di checklist Tahap masing-masing, bukan diulang di sini.
 
 **Urutan menuju rilis:** Tahap 6 (hampir selesai, tinggal 2 verifikasi manual) → Tahap 7 (perlu Billing sungguhan) → Tahap 9+12+13 (server, sync, enkripsi — **blocker terbesar**) → Tahap 8 (rilis). Tahap 10 dan 11 sudah cukup untuk rilis (semua butir High selesai; sisanya Pro/Low, boleh menyusul tanpa menahan rilis).
 
 ### Blocker terbesar yang belum jadi baris tersendiri di manapun
 
-**Lapisan jaringan (HTTP client) Android — fondasinya sudah dibangun 2026-10-23.** `AccountRemote`/`SyncRemote`/`ApiTokenStore` (`:domain/sync`) dan implementasi Retrofit-nya (`:data/remote`) sudah ada dan teruji (13 tes, lihat task baru di Tahap 9) terhadap bentuk JSON persis yang divalidasi/dibalas `AccountController`/`SyncController`. Yang **belum**: disambungkan ke satu layar atau alur UI pun — login Google, tombol hapus akun, dan trigger sync push/pull semuanya masih memanggil kelas lama tanpa jaringan. Anggap penyambungan ini satu beban kerja tersendiri, terpisah dari lapisan jaringannya sendiri yang sudah selesai.
+**Lapisan jaringan (HTTP client) Android — fondasinya sudah dibangun 2026-10-23, login sudah tersambung 2026-10-24.** `AccountRemote`/`SyncRemote`/`ApiTokenStore` (`:domain/sync`) dan implementasi Retrofit-nya (`:data/remote`) sudah ada dan teruji (13 tes, lihat task Tahap 9). Masuk dengan Google kini beneran memanggil `AccountRemote.loginWithGoogle` lewat `AccountWorkspace` (lihat task baru Tahap 9, 2026-10-24) — ini sudah bukan beban kerja tersendiri lagi. Yang **masih** memanggil kelas lama tanpa jaringan: tombol hapus akun dan trigger sync push/pull.
 
 ### Sisa kerja per kelompok
 
 **Kode Android:**
-- ~~Klien HTTP + penyimpanan token~~ **sudah ada** (2026-10-23, lihat task baru Tahap 9) — tinggal disambungkan ke layar/alur di bawah, bukan dibangun dari nol lagi
+- ~~Klien HTTP + penyimpanan token~~ **sudah ada** (2026-10-23) dan ~~login Google~~ **sudah tersambung** (2026-10-24, lihat task baru Tahap 9) — sisa: hapus akun dan trigger sync push/pull
 - Layar tampilkan-sekali kode pemulihan + kirim kunci terbungkus ke server (Tahap 13)
 - Alur pulihkan di perangkat baru (Tahap 13, 9)
-- Perender/pemindai QR sungguhan untuk undang pasangan — library belum dipilih (Tahap 13)
+- Perender/pemindai QR sungguhan untuk undang pasangan — ~~library belum dipilih~~ **riset selesai 2026-10-24** (ML Kit + CameraX untuk pindai, `qrcode-kotlin` untuk render, lihat task Tahap 13), belum diimplementasi (Tahap 13)
 - UI ruang keluarga bersama + peran anggota + amplop bulanan (Tahap 9)
 - Wiring Firebase Cloud Messaging sungguhan (Tahap 13) — dependensi belum ditambahkan
 - Integrasi Google Play Billing sungguhan untuk Pro **dan** Sync, plus pulihkan pembelian (Tahap 7) — `PurchaseStore.grant()` sudah siap dipanggil, tinggal disambungkan
-- Info lembut profil haul tambahan, harga emas otomatis (API belum diriset), laporan/insight, multi-mata uang, widget, tema (Tahap 7, 10)
+- Info lembut profil haul tambahan, harga emas otomatis (~~API belum diriset~~ **riset selesai 2026-10-24**, kandidat Emas API ID — vendor pihak ketiga, perlu konfirmasi pemilik, lihat task Tahap 7), laporan/insight, multi-mata uang, widget, tema (Tahap 7, 10)
 
 **Kode server (ada, tapi belum lengkap):**
 - Catat dan verifikasi pembelian Pro/Sync — Play Developer API + notifikasi waktu nyata (Tahap 9, High)
@@ -61,7 +61,7 @@ Ringkasan ini **menyimpulkan, bukan menggantikan** checklist lengkap di tiap Tah
 - Uji restore backup database `rizqflow` (backup terjadwal sudah jalan, restore belum pernah dicoba)
 
 **Verifikasi manual yang masih berutang (kode sudah selesai, belum dibuktikan):**
-- Tahap 6: restore cadangan di **perangkat fisik lain** (baru teruji bolak-balik di emulator); file ekspor CSV dibuka di Sheets/Excel sungguhan
+- Tahap 6: restore cadangan di **perangkat fisik lain** (baru teruji bolak-balik di emulator; percobaan lewat emulator 2026-10-24 terhambat `adb install` macet permanen, lihat Status 2026-10-24 di Tahap 6); file ekspor CSV dibuka di Sheets/Excel sungguhan — **berkas contoh sudah siap** (`C:\Users\roziq\Downloads\rizqflow-export-contoh.csv`, dihasilkan+diverifikasi formatnya 2026-10-24 lewat `CsvExporter` asli), tinggal dibuka manual sekali
 - Tahap 13: **semua tes kripto yang lulus di Robolectric belum membuktikan Android Keystore sungguhan** — Tink diam-diam jatuh ke penyimpanan cleartext saat Keystore gagal di lingkungan tes, jadi "aman karena Keystore" baru boleh dipercaya setelah dicoba di emulator/perangkat dengan Keystore asli (lihat catatan JDK di CLAUDE.md)
 
 **Tahap 8 (birokrasi rilis) — sebaiknya dimulai PARALEL, bukan di akhir**, karena ada masa tunggu di luar kendali sendiri (review Google):
@@ -85,16 +85,20 @@ Pemilik memilih **Opsi A** — pertahankan keputusan 24 Sept, rilis 1 tetap menc
 
 **Sekarang juga, paralel (tidak saling menunggu):**
 - Tambah aplikasi Rizqflow baru di akun Play Console yang sudah ada (dipakai sejak Al-Kaukaba); cek profil pembayaran dan status syarat uji tertutup developer baru (Tahap 8) — bukan daftar dari nol lagi, tapi tetap mulai duluan karena ada bagian yang masih bisa makan waktu tunggu
-- 2 verifikasi manual Tahap 6 (restore di perangkat lain, buka CSV di Sheets/Excel) — murah, menutup Tahap 6 sepenuhnya
+- 2 verifikasi manual Tahap 6 (restore di perangkat lain, buka CSV di Sheets/Excel) — berkas CSV sudah siap (lihat di atas), tinggal dibuka; restore masih butuh HP fisik kedua
 - Salin konfigurasi Nginx ke repo + uji restore backup (Tahap 12) — tidak butuh kode baru
-- Riset sumber API harga emas (Tahap 7) dan pilih library QR scanner (Tahap 13) — riset cepat, membuka kerja berikutnya
 - Jalankan tes kripto Tahap 13 yang sudah ada di emulator/perangkat dengan Keystore asli (bukan cuma Robolectric) — membuktikan klaim "aman" yang masih tertunda
 
 **Sudah selesai (2026-10-23):**
-- ~~Bangun lapisan HTTP client Android~~ — selesai (`AccountRemote`/`SyncRemote`/`ApiTokenStore` + implementasi Retrofit, lihat task baru di Tahap 9), 13 tes hijau. Belum disambungkan ke UI — itu empat butir berikutnya.
+- ~~Bangun lapisan HTTP client Android~~ — selesai (`AccountRemote`/`SyncRemote`/`ApiTokenStore` + implementasi Retrofit, lihat task baru di Tahap 9), 13 tes hijau.
+
+**Sudah selesai (2026-10-24):**
+- ~~Login Google disambungkan ke server~~ — 2 keputusan pemilik dijawab (klien HTTP per `AccountWorkspace`, `GoogleAuthProvider` diubah menangkap dan meneruskan `idToken`) dan dikerjakan sekaligus, lihat task baru Tahap 9. Hapus akun dan trigger sync push/pull masih menyusul (tidak lagi terhambat keputusan, murni kerja implementasi)
+- ~~Riset sumber API harga emas~~ dan ~~pilih library QR scanner~~ — selesai diriset (kandidat Emas API ID untuk emas; ML Kit+CameraX/`qrcode-kotlin` untuk QR), belum final/diimplementasi, lihat task Tahap 7 dan 13
+- ~~FLAG_SECURE dihapus~~ — keputusan pemilik: kontrol screenshot/share data jadi di tangan user (Tahap 6, commit `7d88d9e`), termasuk tulis ulang bullet layar masuk S30 (commit `bd55957`)
 
 **Sekarang (lanjutan langsung, sebagian bisa paralel):**
-- Sambungkan akun server (login, hapus akun) dan sync (push/pull) dari aplikasi — **2 keputusan pemilik dulu sebelum ini jalan**: (1) di mana client dirakit (singleton app-wide di `RizqflowApplication`, atau per `AccountWorkspace`), (2) apakah `GoogleAuthProvider` yang ada sekarang sudah menghasilkan ID token dalam bentuk yang langsung dipakai `AccountRemote.loginWithGoogle`, atau perlu disesuaikan
+- Sambungkan hapus akun dan sync (push/pull) dari aplikasi ke `AccountRemote`/`SyncRemote` — login sudah jadi contoh polanya (lihat task Tahap 9, 2026-10-24), tidak ada lagi keputusan yang menahan
 - Alur kode pemulihan: tampilkan sekali, kirim ke server, pulihkan di perangkat baru
 - Perender/pemindai QR sungguhan untuk undang pasangan
 - UI ruang keluarga bersama + peran anggota + amplop bulanan, plus filter akses pull di server
