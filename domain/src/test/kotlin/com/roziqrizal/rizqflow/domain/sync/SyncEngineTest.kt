@@ -82,9 +82,11 @@ private class FakeSyncRemote : SyncRemote {
 }
 
 private class FakeApiTokenStore(private var token: String? = "token-1") : ApiTokenStore {
+    private var expiresAt: java.time.Instant? = null
     override fun read() = token
-    override fun save(token: String) { this.token = token }
-    override fun clear() { token = null }
+    override fun expiresAt() = expiresAt
+    override fun save(token: String, expiresAt: java.time.Instant?): Boolean { this.token = token; this.expiresAt = expiresAt; return true }
+    override fun clear() { token = null; expiresAt = null }
 }
 
 private class FakeSyncCursorStore : SyncCursorStore {

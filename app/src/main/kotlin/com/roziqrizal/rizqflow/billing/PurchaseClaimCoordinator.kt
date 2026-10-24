@@ -80,6 +80,13 @@ class PurchaseClaimCoordinator(
     private val memory: ClaimedTokenMemory = ClaimedTokenMemory(),
     /** Dibaca tiap [claim]: akun lokal dan demo mengembalikan false (lihat [purchaseClaimsAllowed]). */
     private val enabled: () -> Boolean = { true },
+    /**
+     * Dijalankan tiap [claim] SEBELUM token dibaca (Tahap 12): memutar token yang hampir kedaluwarsa
+     * (`TokenRefresher.refreshIfDue`) supaya klaim memakai token yang masih berlaku. Keputusan dan
+     * serialisasinya ada di pemutar, bukan di sini; 401 dari klaim ditangani `ServerSession` lewat
+     * remote yang sudah dibungkus, bukan di kelas ini.
+     */
+    private val refreshToken: suspend () -> Unit = {},
 ) {
     // Beberapa pemicu bisa jatuh bersamaan (buka aplikasi, selesai masuk, selesai beli): satu putaran
     // pada satu waktu, sehingga putaran kedua melihat ingatan putaran pertama dan tidak mengirim ganda.
@@ -87,8 +94,10 @@ class PurchaseClaimCoordinator(
 
     suspend fun claim(): ClaimReport {
         if (!enabled()) return ClaimReport.None
-        val apiToken = apiTokenStore.read() ?: return ClaimReport.None
         return try {
+            refreshToken()
+            // Dibaca SETELAH putar: token lama mungkin baru saja diganti dan sudah dicabut server.
+            val apiToken = apiTokenStore.read() ?: return ClaimReport.None
             mutex.withLock { claimLocked(apiToken) }
         } catch (e: CancellationException) {
             throw e

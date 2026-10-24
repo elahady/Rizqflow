@@ -1,10 +1,12 @@
 package com.roziqrizal.rizqflow.workspace
 
 import android.content.Context
+import android.util.Log
 import com.roziqrizal.rizqflow.BuildConfig
 import com.roziqrizal.rizqflow.billing.PurchaseStore
 import com.roziqrizal.rizqflow.data.LocalLedger
 import com.roziqrizal.rizqflow.data.crypto.AndroidKeystoreRoomKeyProvider
+import com.roziqrizal.rizqflow.data.remote.ApiBaseUrl
 import com.roziqrizal.rizqflow.data.remote.RetrofitAccountRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitPurchaseRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitRoomMembershipRemote
@@ -41,6 +43,9 @@ import com.roziqrizal.rizqflow.domain.role.RoleService
 import com.roziqrizal.rizqflow.domain.smartinput.SmartInputService
 import com.roziqrizal.rizqflow.domain.zakat.HaulReminderService
 import com.roziqrizal.rizqflow.domain.zakat.ZakatService
+import com.roziqrizal.rizqflow.sync.ServerLink
+import com.roziqrizal.rizqflow.sync.ServerSession
+import com.roziqrizal.rizqflow.sync.TokenRefresher
 import java.util.UUID
 
 /**
@@ -51,8 +56,11 @@ import java.util.UUID
 class AccountWorkspace private constructor(
     private val local: LocalLedger,
     val purchases: PurchaseStore,
+    /** Semua remote terlindungi di bawah ini sudah dibungkus [serverSession] (jawaban 401 ditangani satu tempat). */
     val accountRemote: AccountRemote,
     val apiTokenStore: ApiTokenStore,
+    /** Keadaan sesi server akun ini: token, masa berlaku, dan "perlu sambungkan ulang" (Tahap 12). */
+    val serverSession: ServerSession,
     val roomKeyProvider: RoomKeyProvider,
     private val syncRemote: SyncRemote,
     val roomMembershipRemote: RoomMembershipRemote,
@@ -98,6 +106,9 @@ class AccountWorkspace private constructor(
         cursorStore = syncCursorStore,
     )
 
+    /** Memutar token API sebelum kedaluwarsa (Tahap 12); satu per ruang kerja, jadi satu Mutex per akun. */
+    val tokenRefresher = TokenRefresher(serverSession, accountRemote)
+
     override fun close() = local.close()
 
     companion object {
@@ -108,19 +119,41 @@ class AccountWorkspace private constructor(
          * ruang kerja tetap terbuka penuh, pemanggil (`AccountRemote`) yang menangani jaringan mati.
          */
         fun open(context: Context, accountId: String): AccountWorkspace {
-            val apiService = RizqflowApiClient.create(BuildConfig.API_BASE_URL)
+            val apiService = RizqflowApiClient.create(resolveBaseUrl())
+            // Token server milik akun ini saja: akun lain di perangkat yang sama membaca berkas lain.
+            val tokenStore = SharedPrefsApiTokenStore(context, accountId)
+            // Satu-satunya tempat jawaban 401 ditangani: setiap remote terlindungi WAJIB lewat session.guard.
+            val session = ServerSession(tokenStore)
             return AccountWorkspace(
                 local = LocalLedger.open(context, accountId),
                 purchases = PurchaseStore.shared(context),
-                accountRemote = RetrofitAccountRemote(apiService),
-                // Token server milik akun ini saja: akun lain di perangkat yang sama membaca berkas lain.
-                apiTokenStore = SharedPrefsApiTokenStore(context, accountId),
+                accountRemote = session.guard(RetrofitAccountRemote(apiService)),
+                apiTokenStore = tokenStore,
+                serverSession = session,
                 roomKeyProvider = AndroidKeystoreRoomKeyProvider(context),
-                syncRemote = RetrofitSyncRemote(apiService),
-                roomMembershipRemote = RetrofitRoomMembershipRemote(apiService),
-                purchaseRemote = RetrofitPurchaseRemote(apiService),
+                syncRemote = session.guard(RetrofitSyncRemote(apiService)),
+                roomMembershipRemote = session.guard(RetrofitRoomMembershipRemote(apiService)),
+                purchaseRemote = session.guard(RetrofitPurchaseRemote(apiService)),
                 syncCursorStore = SharedPrefsSyncCursorStore(context),
             )
         }
+
+        /**
+         * Sesi server dan remote akun [accountId] TANPA membuka database akunnya. Dipakai keluar akun saat
+         * ruang kerja yang aktif ternyata ruang demo: token akun asli tetap harus dibersihkan dan dicabut.
+         */
+        fun serverLink(context: Context, accountId: String): ServerLink {
+            val session = ServerSession(SharedPrefsApiTokenStore(context, accountId))
+            return ServerLink(session, session.guard(RetrofitAccountRemote(RizqflowApiClient.create(resolveBaseUrl()))))
+        }
+
+        // Alamat dari BuildConfig diperiksa lagi di sini (lapis kedua setelah Gradle): alamat tak sah atau
+        // http di build rilis tidak pernah sampai ke Retrofit, dan aplikasi tetap terbuka offline.
+        private fun resolveBaseUrl(): String =
+            ApiBaseUrl.resolve(BuildConfig.API_BASE_URL, allowCleartext = BuildConfig.DEBUG) { reason ->
+                Log.e(TAG, "API_BASE_URL ditolak ($reason); semua pemanggilan server dinonaktifkan")
+            }
+
+        private const val TAG = "RizqflowWorkspace"
     }
 }

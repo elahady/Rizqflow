@@ -425,10 +425,143 @@ class AuthControllerTest {
     }
 
     @Test
+    fun `ID token yang tiba saat ruang kerja demo aktif dibuang, tidak diteruskan dan tidak tertinggal`() {
+        val c = controller(provider = FakeProvider(signIn = { SignInResult.Success(sesi, idToken) }))
+        c.start()
+        c.signInWithGoogle()
+
+        // Ruang kerja aktifnya milik akun demo: token akun asli tidak boleh sampai ke berkas token akun demo.
+        assertNull(c.consumeGoogleIdToken(forDemoWorkspace = true))
+
+        assertNull((c.state.value as AuthUiState.SignedIn).pendingGoogleIdToken, "dibersihkan, tidak menunggu giliran")
+        assertNull(c.consumeGoogleIdToken(), "tidak terkirim belakangan ke ruang kerja yang salah")
+    }
+
+    @Test
+    fun `ID token diteruskan seperti biasa bila ruang kerja bukan demo`() {
+        val c = controller(provider = FakeProvider(signIn = { SignInResult.Success(sesi, idToken) }))
+        c.start()
+        c.signInWithGoogle()
+
+        assertEquals(idToken, c.consumeGoogleIdToken(forDemoWorkspace = false))
+    }
+
+    @Test
     fun `riwayat masuk lama tidak punya token tertunda`() {
         val c = controller(FakeStore(sesi))
         c.start()
 
         assertNull(c.consumeGoogleIdToken())
+    }
+
+    // --- Sambungkan ulang ke server (Tahap 12) ---
+
+    @Test
+    fun `sambungkan ulang memakai akun yang sama dan menyerahkan ID token ke jalur masuk server`() {
+        val store = FakeStore(sesi)
+        val c = controller(store, FakeProvider(signIn = { SignInResult.Success(sesi, idToken) }))
+        c.start()
+
+        c.reconnectServer()
+
+        val state = c.state.value as AuthUiState.SignedIn
+        assertEquals(sesi, state.session, "sesi lokal tidak berganti")
+        assertNull(state.busy)
+        assertNull(state.notice)
+        assertEquals(idToken, c.consumeGoogleIdToken(), "ID token sekali pakai untuk AccountRemote.loginWithGoogle")
+        assertEquals(sesi, store.stored)
+    }
+
+    @Test
+    fun `selama dialog Google terbuka status sibuk dan ketukan kedua diabaikan`() {
+        var panggilan = 0
+        val menunggu = CompletableDeferred<SignInResult>()
+        val c = controller(FakeStore(sesi), FakeProvider(signIn = { panggilan++; menunggu.await() }))
+        c.start()
+
+        c.reconnectServer()
+        c.reconnectServer()
+
+        assertEquals(AuthBusy.GOOGLE, (c.state.value as AuthUiState.SignedIn).busy)
+        assertEquals(1, panggilan)
+        menunggu.complete(SignInResult.Success(sesi, idToken))
+        assertNull((c.state.value as AuthUiState.SignedIn).busy)
+    }
+
+    @Test
+    fun `akun Google yang berbeda ditolak dan tidak ada ID token yang diteruskan`() {
+        val lain = AuthSession("g-2", "lain@example.com", "Lain", AuthProviderType.GOOGLE)
+        val c = controller(FakeStore(sesi), FakeProvider(signIn = { SignInResult.Success(lain, idToken) }))
+        c.start()
+
+        c.reconnectServer()
+
+        val state = c.state.value as AuthUiState.SignedIn
+        assertEquals(sesi, state.session)
+        assertEquals(AuthMessage.RECONNECT_WRONG_ACCOUNT, state.notice)
+        assertNull(state.pendingGoogleIdToken)
+        assertNull(state.busy)
+    }
+
+    @Test
+    fun `menutup dialog akun saat sambung ulang kembali seperti semula tanpa pesan`() {
+        val c = controller(FakeStore(sesi), FakeProvider(signIn = { SignInResult.Cancelled }))
+        c.start()
+
+        c.reconnectServer()
+
+        assertEquals(AuthUiState.SignedIn(sesi), c.state.value)
+    }
+
+    @Test
+    fun `sambung ulang yang gagal memberi pesan lembut dan tidak macet`() {
+        val c = controller(FakeStore(sesi), FakeProvider(signIn = { SignInResult.Failed("x") }))
+        c.start()
+
+        c.reconnectServer()
+
+        assertEquals(AuthUiState.SignedIn(sesi, notice = AuthMessage.FAILED), c.state.value)
+        // Bisa dicoba lagi.
+        c.reconnectServer()
+        assertNull((c.state.value as AuthUiState.SignedIn).busy)
+    }
+
+    @Test
+    fun `build tanpa client ID memberi pesan belum disiapkan saat sambung ulang`() {
+        val c = controller(FakeStore(sesi), FakeProvider(signIn = { SignInResult.NotConfigured }))
+        c.start()
+
+        c.reconnectServer()
+
+        assertEquals(AuthUiState.SignedIn(sesi, notice = AuthMessage.NOT_CONFIGURED), c.state.value)
+    }
+
+    @Test
+    fun `akun lokal dan akun uji tidak bisa menyambung ulang ke server`() {
+        var panggilan = 0
+        val provider = FakeProvider(signIn = { panggilan++; SignInResult.Success(sesi, idToken) })
+        for (jenis in listOf(AuthProviderType.PASSWORD, AuthProviderType.DEBUG)) {
+            val bukanGoogle = AuthSession("akun-1", null, "Lokal", jenis, username = "lokal")
+            val c = controller(FakeStore(bukanGoogle), provider)
+            c.start()
+
+            c.reconnectServer()
+
+            assertEquals(AuthUiState.SignedIn(bukanGoogle), c.state.value)
+        }
+        assertEquals(0, panggilan)
+    }
+
+    @Test
+    fun `keluar saat dialog Google terbuka tidak dihidupkan lagi oleh hasil yang datang terlambat`() {
+        val menunggu = CompletableDeferred<SignInResult>()
+        val c = controller(FakeStore(sesi), FakeProvider(signIn = { menunggu.await() }))
+        c.start()
+        c.reconnectServer()
+
+        c.signOut()
+        menunggu.complete(SignInResult.Success(sesi, idToken))
+
+        assertEquals(AuthUiState.SignedOut(), c.state.value)
     }
 }

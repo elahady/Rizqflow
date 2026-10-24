@@ -26,6 +26,14 @@ interface RizqflowApiService {
     @POST("auth/google")
     suspend fun loginWithGoogle(@Body body: RequestBody): Response<ResponseBody>
 
+    /** Memutar token (`POST /api/auth/refresh`, Tahap 12): token ini dicabut dan token baru dikembalikan. Tanpa badan. */
+    @POST("auth/refresh")
+    suspend fun refreshToken(@Header("Authorization") bearerToken: String): Response<ResponseBody>
+
+    /** Mencabut hanya token yang dipakai permintaan ini (`POST /api/auth/logout`, 204). Tanpa badan. */
+    @POST("auth/logout")
+    suspend fun logout(@Header("Authorization") bearerToken: String): Response<ResponseBody>
+
     @DELETE("account")
     suspend fun deleteAccount(@Header("Authorization") bearerToken: String): Response<ResponseBody>
 
@@ -71,10 +79,22 @@ data class LoginRequestDto(
     @SerialName("device_id") val deviceId: String,
 )
 
+/**
+ * Jawaban `POST /auth/google`. [expiresAt] (ISO-8601 UTC) field aditif sejak Tahap 12: server lama
+ * tidak mengirimnya, jadi bawaannya null dan jawaban tanpa field itu tetap sukses.
+ */
 @Serializable
 data class LoginResponseDto(
     val token: String,
+    @SerialName("expires_at") val expiresAt: String? = null,
     val user: UserDto,
+)
+
+/** Jawaban `POST /auth/refresh`: `{"token":"...","expires_at":"..."}`. */
+@Serializable
+data class RefreshResponseDto(
+    val token: String,
+    @SerialName("expires_at") val expiresAt: String? = null,
 )
 
 @Serializable

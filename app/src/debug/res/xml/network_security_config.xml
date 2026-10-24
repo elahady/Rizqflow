@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KHUSUS DEBUG: izinkan http polos ke host mana pun (alamat LAN tidak bisa didaftar satu per satu).
+     Jangan dipindah ke src/main: akan ikut ke rilis. Sertifikat https tetap diverifikasi seperti biasa. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

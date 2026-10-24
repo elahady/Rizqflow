@@ -113,6 +113,13 @@
     <string name="account_delete_confirm_action">Hapus akun</string>
     <string name="account_delete_done">Akun server dihapus.</string>
     <string name="account_delete_failed">Gagal menghapus akun. Coba lagi.</string>
+    <string name="account_delete_session_expired">Sesi server sudah berakhir. Sambungkan ulang dari menu Lainnya dulu, baru hapus akun.</string>
+    <string name="menu_reconnect">Sambungkan ulang ke server</string>
+    <string name="menu_reconnect_sub">Sesi server berakhir. Data dan paketmu di ponsel aman; masuk dengan Google lagi supaya sync dan fitur server berjalan.</string>
+    <string name="menu_reconnect_busy">Menyambungkan…</string>
+    <string name="reconnect_failed">Belum bisa tersambung ke server. Coba lagi nanti.</string>
+    <string name="msg_reconnect_wrong_account">Akun Google yang dipilih berbeda dengan akun yang sedang masuk. Pilih akun yang sama untuk menyambungkan ulang.</string>
+    <string name="family_session_ended">Sesi server berakhir. Sambungkan ulang dari menu Lainnya; ruang dan transaksimu di ponsel tetap aman.</string>
 
     <!-- Onboarding S02 sampai S04 -->
     <string name="onb_back">Kembali</string>

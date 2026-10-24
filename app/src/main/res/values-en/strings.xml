@@ -111,6 +111,13 @@
     <string name="account_delete_confirm_action">Delete account</string>
     <string name="account_delete_done">Server account deleted.</string>
     <string name="account_delete_failed">Couldn\'t delete account. Try again.</string>
+    <string name="account_delete_session_expired">Your server session has ended. Reconnect from the More menu first, then delete the account.</string>
+    <string name="menu_reconnect">Reconnect to server</string>
+    <string name="menu_reconnect_sub">Your server session ended. Your data and plans on this phone are untouched; sign in with Google again to resume sync and server features.</string>
+    <string name="menu_reconnect_busy">Connecting…</string>
+    <string name="reconnect_failed">Couldn\'t reach the server yet. Try again later.</string>
+    <string name="msg_reconnect_wrong_account">The Google account you picked differs from the one signed in. Pick the same account to reconnect.</string>
+    <string name="family_session_ended">Your server session has ended. Reconnect from the More menu; your rooms and transactions on this phone are untouched.</string>
 
     <!-- Onboarding S02 to S04 -->
     <string name="onb_back">Back</string>

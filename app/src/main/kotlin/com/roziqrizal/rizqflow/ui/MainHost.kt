@@ -100,6 +100,13 @@ import kotlinx.coroutines.launch
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
+import com.roziqrizal.rizqflow.auth.AuthBusy
+import com.roziqrizal.rizqflow.domain.sync.RemoteError
+import com.roziqrizal.rizqflow.sync.DeleteAccountPlan
+import com.roziqrizal.rizqflow.sync.RefreshOutcome
+import com.roziqrizal.rizqflow.sync.planDeleteAccount
+import com.roziqrizal.rizqflow.sync.shouldOfferReconnect
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -134,6 +141,10 @@ fun MainHost(
     onExitDemo: () -> Unit = {},
     /** Bertambah setiap masuk ke server berhasil (token API baru tersimpan): saat itu pembelian lama dilaporkan. */
     serverLoginSignal: Int = 0,
+    /** "Sambungkan ulang ke server" (Tahap 12): masuk Google untuk akun yang sama; hasilnya kembali lewat [serverLoginSignal]. */
+    onReconnectServer: () -> Unit = {},
+    /** Bertambah setiap sambung ulang yang diminta pengguna gagal menjangkau server: satu kabar lembut. */
+    serverConnectFailedSignal: Int = 0,
 ) {
     val context = LocalContext.current
     var catat by rememberSaveable { mutableStateOf(false) }
@@ -189,6 +200,13 @@ fun MainHost(
     // Keputusan "boleh melapor" ada di purchaseClaimsAllowed dan PurchaseClaimCoordinator (keduanya diuji),
     // bukan di sini: koordinator membaca nilai terbaru tiap klaim, jadi berpindah ke demo berlaku seketika.
     val claimsEnabled by rememberUpdatedState(purchaseClaimsAllowed(demo, account.local))
+    // Memutar token server yang hampir kedaluwarsa (Tahap 12): saat dibuka dan sebelum klaim. Diam bila jaringan
+    // mati; 401 sudah ditangani ServerSession. Satu hal yang tidak boleh diam: token baru gagal ditulis ke disk.
+    suspend fun refreshServerToken() {
+        if (workspace.tokenRefresher.refreshIfDue() == RefreshOutcome.StorageFailed) {
+            Log.w("RizqflowSession", "Token server baru gagal ditulis ke penyimpanan; dipakai di proses ini saja, sesi bisa berakhir setelah aplikasi ditutup.")
+        }
+    }
     val purchaseClaims = remember(workspace) {
         val app = context.applicationContext as RizqflowApplication
         PurchaseClaimCoordinator(
@@ -197,8 +215,13 @@ fun MainHost(
             workspace.apiTokenStore,
             app.claimedPurchaseTokens,
             enabled = { claimsEnabled },
+            refreshToken = { refreshServerToken() },
         )
     }
+    // Baris "Sambungkan ulang ke server": hanya akun Google di data aslinya yang token servernya hilang/berakhir.
+    val needsReconnect by workspace.serverSession.needsReconnect.collectAsState()
+    val connectingToServer by workspace.serverSession.connecting.collectAsState()
+    val offerReconnect = shouldOfferReconnect(google = account.google, demo = demo, needsReconnect = needsReconnect)
     // Satu-satunya kabar dari server yang ditampilkan: token pembelian ini sudah dipakai akun Rizqflow lain.
     // Antre di belakang snackbar yang sedang tampil (bukan menimpanya), supaya "Pro sudah aktif" tidak hilang
     // dipotong kabar ini; kabarnya muncul sekali per token per proses (diatur PurchaseClaimCoordinator).
@@ -211,7 +234,9 @@ fun MainHost(
         scope.launch { reportPurchases() }
     }
     // Pulihkan diam-diam tiap aplikasi dibuka: pasang ulang atau ganti perangkat tidak menghilangkan Pro atau Sync.
-    // Paket lokal dibereskan lebih dulu; baru sesudahnya token pembelian dilaporkan ke server.
+    // Paket lokal dibereskan lebih dulu; baru sesudahnya token pembelian dilaporkan ke server. TIDAK ada panggilan
+    // ke server sebelum sync(): pemulihan paket dari Google Play tidak boleh menunggu jaringan yang menggantung.
+    // Memutar token tidak perlu dipanggil di sini; claim() memutarnya sendiri (refreshToken) sebelum melapor.
     LaunchedEffect(purchaseController, demo) {
         if (!demo) {
             purchaseController.sync()
@@ -386,28 +411,39 @@ fun MainHost(
     }
 
     // Hapus akun server (Tahap 9): cuma menghapus akun dan langganan Sync di server, data ponsel
-    // tidak disentuh. Tanpa token tersimpan (akun ini tidak pernah berhasil masuk ke server, mis.
-    // selalu offline) dianggap sudah "bersih" di server -- langsung keluar tanpa memanggil jaringan.
+    // tidak disentuh. Keputusannya ada di planDeleteAccount (diuji): tanpa token, keluar langsung HANYA bila akun
+    // ini memang tidak pernah punya akun server. Akun Google yang token servernya hilang karena sesi berakhir
+    // (401) tidak boleh keluar diam-diam, karena akun server dan langganannya masih ada: diminta sambungkan ulang dulu.
     fun deleteAccount() {
-        val token = workspace.apiTokenStore.read()
-        if (token == null) {
-            deleteAccountSheet = false
-            onSignOut()
-            return
-        }
-        deletingAccount = true
-        scope.launch {
-            when (workspace.accountRemote.deleteAccount(token)) {
-                is RemoteResult.Success -> {
-                    workspace.apiTokenStore.clear()
-                    deletingAccount = false
-                    deleteAccountSheet = false
-                    onSignOut()
-                }
+        when (val plan = planDeleteAccount(account.google, workspace.serverSession.token(), workspace.serverSession.hasEverHeldToken())) {
+            DeleteAccountPlan.SignOutOnly -> {
+                deleteAccountSheet = false
+                onSignOut()
+            }
 
-                is RemoteResult.Failure -> {
-                    deletingAccount = false
-                    notifier.show(context.getString(R.string.account_delete_failed))
+            DeleteAccountPlan.ReconnectFirst -> {
+                deleteAccountSheet = false
+                scope.launch { notifier.show(context.getString(R.string.account_delete_session_expired)) }
+            }
+
+            is DeleteAccountPlan.DeleteOnServer -> {
+                deletingAccount = true
+                scope.launch {
+                    // Jawaban 401 sudah ditangani ServerSession (token dibersihkan, baris sambung ulang muncul).
+                    when (val result = workspace.accountRemote.deleteAccount(plan.token)) {
+                        is RemoteResult.Success -> {
+                            workspace.serverSession.onAccountDeleted()
+                            deletingAccount = false
+                            deleteAccountSheet = false
+                            onSignOut()
+                        }
+
+                        is RemoteResult.Failure -> {
+                            deletingAccount = false
+                            val message = if (result.error == RemoteError.Unauthorized) R.string.account_delete_session_expired else R.string.account_delete_failed
+                            notifier.show(context.getString(message))
+                        }
+                    }
                 }
             }
         }
@@ -525,11 +561,19 @@ fun MainHost(
         } else {
             null
         },
-        onDeleteAccount = { deleteAccountSheet = true },
+        // Di mode demo ruang kerja aktifnya milik akun demo yang tidak punya token: menghapus "akun" dari sini hanya
+        // akan keluar tanpa menghapus apa pun di server. Baris disembunyikan sampai pengguna keluar dari demo.
+        onDeleteAccount = if (demo) null else ({ deleteAccountSheet = true }),
         onOpenFamilyScan = { familyScanOpen = true },
         onOpenSyncPaywall = { openPaywall(Feature.ENCRYPTED_SYNC) },
         syncOwned = Plan.SYNC in ownedPlans,
+        onReconnect = if (offerReconnect) onReconnectServer else null,
+        reconnectBusy = account.busy == AuthBusy.GOOGLE || connectingToServer,
     )
+    // Sambung ulang yang diminta pengguna tidak menjangkau server (offline, 503): satu kabar lembut, barisnya tetap ada.
+    LaunchedEffect(serverConnectFailedSignal) {
+        if (serverConnectFailedSignal > 0) notifier.show(context.getString(R.string.reconnect_failed))
+    }
     if (tampilanOpen) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             ThemeSettingsScreen(

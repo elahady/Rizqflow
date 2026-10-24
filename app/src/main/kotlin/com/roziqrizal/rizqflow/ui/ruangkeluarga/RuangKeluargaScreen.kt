@@ -42,11 +42,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.roziqrizal.rizqflow.R
 import com.roziqrizal.rizqflow.domain.model.RoomId
+import com.roziqrizal.rizqflow.domain.sync.RemoteError
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.RoomInvite
 import com.roziqrizal.rizqflow.domain.sync.RoomMemberInfo
 import com.roziqrizal.rizqflow.domain.sync.SyncResult
 import com.roziqrizal.rizqflow.sync.DeviceId
+import com.roziqrizal.rizqflow.sync.isUnauthorized
+import com.roziqrizal.rizqflow.sync.retryOnceIfRotated
+import com.roziqrizal.rizqflow.sync.sessionEndedBy
 import com.roziqrizal.rizqflow.ui.Notifier
 import com.roziqrizal.rizqflow.ui.theme.spacing
 import com.roziqrizal.rizqflow.workspace.AccountWorkspace
@@ -73,27 +77,49 @@ fun RuangKeluargaScreen(workspace: AccountWorkspace, roomId: RoomId, notifier: N
     var members by remember { mutableStateOf<List<RoomMemberInfo>?>(null) }
     var loadFailed by remember { mutableStateOf(false) }
     var signedIn by remember { mutableStateOf(true) }
+    var sessionEnded by remember { mutableStateOf(false) }
     var inviteSheet by rememberSaveable { mutableStateOf(false) }
     var syncing by remember { mutableStateOf(false) }
     var reloadKey by remember { mutableIntStateOf(0) }
 
     suspend fun loadMembers() {
-        val token = workspace.apiTokenStore.read()
-        if (token == null) {
+        val session = workspace.serverSession
+        // 401 padahal token sementara itu diputar (permintaan membawa token lama): diulang sekali dengan token baru,
+        // bukan dinyatakan "sesi berakhir" (lihat retryOnceIfRotated). null = tidak ada token (belum masuk).
+        val result = session.retryOnceIfRotated(
+            isUnauthorized = { it?.isUnauthorized() == true },
+            call = {
+                val token = session.token()
+                if (token == null) {
+                    null
+                } else {
+                    // Idempoten: memastikan diri sendiri terdaftar sebelum menampilkan daftar, supaya anggota
+                    // yang baru bergabung lewat QR langsung terlihat tanpa harus menekan Sinkronkan dulu.
+                    workspace.roomMembershipRemote.join(token, roomId.value)
+                    workspace.roomMembershipRemote.members(token, roomId.value)
+                }
+            },
+        )
+        if (result == null) {
             signedIn = false
             return
         }
         signedIn = true
-        // Idempoten: memastikan diri sendiri terdaftar sebelum menampilkan daftar, supaya anggota
-        // yang baru bergabung lewat QR langsung terlihat tanpa harus menekan Sinkronkan dulu.
-        workspace.roomMembershipRemote.join(token, roomId.value)
-        when (val result = workspace.roomMembershipRemote.members(token, roomId.value)) {
+        when (result) {
             is RemoteResult.Success -> {
                 members = result.value
                 loadFailed = false
             }
 
-            is RemoteResult.Failure -> loadFailed = true
+            // "Sesi berakhir" hanya dinyatakan bila ServerSession benar-benar menyatakannya (token sudah dibersihkan dan
+            // "perlu sambungkan ulang" naik); 401 lain yang sesinya masih sah diperlakukan sebagai gagal muat biasa.
+            is RemoteResult.Failure ->
+                if (session.sessionEndedBy(result)) {
+                    signedIn = false
+                    sessionEnded = true
+                } else {
+                    loadFailed = true
+                }
         }
     }
 
@@ -106,20 +132,35 @@ fun RuangKeluargaScreen(workspace: AccountWorkspace, roomId: RoomId, notifier: N
     fun syncNow() {
         syncing = true
         scope.launch {
-            val token = workspace.apiTokenStore.read()
-            if (token == null) {
-                signedIn = false
-                syncing = false
-                return@launch
-            }
-            workspace.roomMembershipRemote.join(token, roomId.value)
-            when (val result = workspace.sync.syncNow(roomId, DeviceId.read(context))) {
+            val session = workspace.serverSession
+            val deviceId = DeviceId.read(context)
+            // Sama seperti loadMembers: 401 karena token baru saja diputar diulang sekali, bukan "sesi berakhir".
+            val result = session.retryOnceIfRotated(
+                isUnauthorized = { it is SyncResult.Failed && it.error == RemoteError.Unauthorized },
+                call = {
+                    val token = session.token()
+                    if (token == null) {
+                        SyncResult.NotSignedIn
+                    } else {
+                        workspace.roomMembershipRemote.join(token, roomId.value)
+                        workspace.sync.syncNow(roomId, deviceId)
+                    }
+                },
+            )
+            when (result) {
                 is SyncResult.Success -> {
                     notifier.show(context.getString(R.string.family_sync_result, result.pushed, result.applied))
                     reloadKey++
                 }
 
-                is SyncResult.Failed -> notifier.show(context.getString(R.string.family_sync_failed))
+                is SyncResult.Failed ->
+                    if (session.sessionEndedBy(result.error)) {
+                        signedIn = false
+                        sessionEnded = true
+                    } else {
+                        notifier.show(context.getString(R.string.family_sync_failed))
+                    }
+
                 SyncResult.NotSignedIn -> signedIn = false
             }
             syncing = false
@@ -142,7 +183,7 @@ fun RuangKeluargaScreen(workspace: AccountWorkspace, roomId: RoomId, notifier: N
 
             if (!signedIn) {
                 Text(
-                    stringResource(R.string.family_not_signed_in),
+                    stringResource(if (sessionEnded) R.string.family_session_ended else R.string.family_not_signed_in),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = spacing.s4),

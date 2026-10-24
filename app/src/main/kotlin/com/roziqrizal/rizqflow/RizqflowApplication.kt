@@ -5,6 +5,10 @@ import com.roziqrizal.rizqflow.billing.BillingGateway
 import com.roziqrizal.rizqflow.billing.ClaimedTokenMemory
 import com.roziqrizal.rizqflow.billing.PlayBillingGateway
 import com.roziqrizal.rizqflow.notifications.ReminderNotifier
+import com.roziqrizal.rizqflow.sync.ServerSignOut
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class RizqflowApplication : Application() {
     /**
@@ -19,6 +23,12 @@ class RizqflowApplication : Application() {
      * pesan "dipakai akun lain" tidak muncul lagi tiap ruang kerja dibuka ulang (lihat [ClaimedTokenMemory]).
      */
     val claimedPurchaseTokens = ClaimedTokenMemory()
+
+    /**
+     * Keluar akun terhadap server (Tahap 12): pencabutan token di server berjalan di scope proses ini, bukan
+     * scope layar, karena ruang kerja dan menu utama sudah dibongkar begitu pengguna keluar.
+     */
+    val serverSignOut = ServerSignOut(CoroutineScope(SupervisorJob() + Dispatchers.IO))
 
     override fun onCreate() {
         super.onCreate()

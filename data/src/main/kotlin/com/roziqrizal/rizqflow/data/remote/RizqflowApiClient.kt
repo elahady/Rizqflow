@@ -11,16 +11,27 @@ import retrofit2.Retrofit
  * karena [RizqflowApiService] cuma memakai RequestBody/ResponseBody mentah, didukung Retrofit bawaan.
  */
 object RizqflowApiClient {
-    fun create(baseUrl: String): RizqflowApiService {
-        val okHttpClient = OkHttpClient.Builder()
+    /**
+     * Batas waktu SELURUH satu panggilan (sambung + kirim + tunggu + terima). `readTimeout` hanya menghitung jeda
+     * antar-byte, jadi server yang menetes jawaban sedikit demi sedikit atau jaringan yang menggantung bisa
+     * menahan satu panggilan jauh melewati 15 detik; batas ini yang menjamin pemanggil (putar token, klaim
+     * pembelian) tidak menunggu tanpa ujung. Lewat batas menjadi `IOException` ([RemoteError.Unreachable]).
+     */
+    internal const val CALL_TIMEOUT_SECONDS = 30L
+
+    internal fun httpClient(callTimeoutMillis: Long = TimeUnit.SECONDS.toMillis(CALL_TIMEOUT_SECONDS)): OkHttpClient =
+        OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
+            .callTimeout(callTimeoutMillis, TimeUnit.MILLISECONDS)
             .build()
 
-        return Retrofit.Builder()
+    fun create(baseUrl: String): RizqflowApiService = create(baseUrl, httpClient())
+
+    internal fun create(baseUrl: String, client: OkHttpClient): RizqflowApiService =
+        Retrofit.Builder()
             .baseUrl(baseUrl)
-            .client(okHttpClient)
+            .client(client)
             .build()
             .create(RizqflowApiService::class.java)
-    }
 }

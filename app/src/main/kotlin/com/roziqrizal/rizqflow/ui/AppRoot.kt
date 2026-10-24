@@ -24,11 +24,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.roziqrizal.rizqflow.RizqflowApplication
 import com.roziqrizal.rizqflow.auth.AuthController
 import com.roziqrizal.rizqflow.auth.AuthUiState
 import com.roziqrizal.rizqflow.domain.auth.AuthProviderType
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.sync.DeviceId
+import com.roziqrizal.rizqflow.sync.ServerLink
+import com.roziqrizal.rizqflow.sync.signOutAccount
+import com.roziqrizal.rizqflow.workspace.AccountWorkspace
 import com.roziqrizal.rizqflow.ui.login.LoginScreen
 import com.roziqrizal.rizqflow.ui.login.RegisterScreen
 import com.roziqrizal.rizqflow.ui.security.AppLockScreen
@@ -108,7 +112,13 @@ fun AppRoot(
                 var backgroundedAt by rememberSaveable { mutableStateOf<Long?>(null) }
                 // Isyarat "baru masuk ke server": bukan keadaan yang perlu bertahan, jadi tidak disimpan lintas proses.
                 var serverLoginSignal by remember { mutableIntStateOf(0) }
+                // Sambung ulang yang diminta pengguna (bukan masuk pertama): hanya yang ini diberi kabar bila gagal.
+                var manualReconnect by remember { mutableStateOf(false) }
+                var serverConnectFailedSignal by remember { mutableIntStateOf(0) }
                 val lockScope = rememberCoroutineScope()
+                // Scope untuk menyambung ke server: hidup selama menu utama akun ini ada, TIDAK ikut dibatalkan oleh
+                // perubahan kunci LaunchedEffect (lihat efek ID token di bawah).
+                val connectScope = rememberCoroutineScope()
                 val lifecycleOwner = LocalLifecycleOwner.current
 
                 LaunchedEffect(appLock) { locked = appLock.shouldLock(null) }
@@ -136,16 +146,34 @@ fun AppRoot(
                         // masuk, bukan riwayat lama) ke server sekali (Tahap 9). Gagal/offline dibiarkan
                         // diam-diam (tenang, bukan panik) -- app tetap jalan penuh tanpa server ini.
                         val localContext = LocalContext.current
+                        // Masuk pertama dan "Sambungkan ulang ke server" (Tahap 12) lewat jalur yang sama: ID token
+                        // sekali pakai -> ServerSession.connect, satu-satunya tempat token server disimpan.
                         LaunchedEffect(workspace, s.pendingGoogleIdToken) {
-                            val idToken = controller.consumeGoogleIdToken() ?: return@LaunchedEffect
-                            when (val result = workspace.accountRemote.loginWithGoogle(idToken, DeviceId.read(localContext))) {
-                                is RemoteResult.Success -> {
-                                    workspace.apiTokenStore.save(result.value.apiToken)
-                                    // Token server baru ada: MainHost melaporkan pembelian lama ke server (Tahap 9).
-                                    serverLoginSignal++
-                                }
+                            // Efek ini HANYA mengambil ID token (sinkron). Mengambilnya mengosongkan pendingGoogleIdToken, yang
+                            // mengubah kunci efek ini dan membatalkan coroutine-nya: pekerjaan jaringan tidak boleh berjalan
+                            // di sini (token server tidak akan pernah tersimpan). Ia dijalankan di connectScope, yang tidak ikut
+                            // berhenti karena kunci berubah; ServerSession.connect pun tidak membatalkan diri di tengah jalan.
+                            // Di ruang kerja demo token dibuang (bukan diteruskan): itu token akun asli.
+                            val demoNow = demo
+                            val idToken = controller.consumeGoogleIdToken(forDemoWorkspace = demoNow)
+                            if (idToken == null) {
+                                if (demoNow) manualReconnect = false
+                                return@LaunchedEffect
+                            }
+                            val manual = manualReconnect
+                            manualReconnect = false
+                            val deviceId = DeviceId.read(localContext)
+                            connectScope.launch {
+                                when (workspace.serverSession.connect(workspace.accountRemote, idToken, deviceId)) {
+                                    is RemoteResult.Success -> {
+                                        // Token server baru ada: MainHost melaporkan pembelian lama ke server (Tahap 9).
+                                        serverLoginSignal++
+                                    }
 
-                                is RemoteResult.Failure -> Unit
+                                    // Masuk pertama yang gagal/offline dibiarkan diam (tenang, bukan panik); hanya sambung
+                                    // ulang yang diminta pengguna mendapat satu kabar lembut, lalu barisnya tetap ada.
+                                    is RemoteResult.Failure -> if (manual) serverConnectFailedSignal++
+                                }
                             }
                         }
                         // Berganti antara data asli dan demo (atau setelah pulihkan cadangan) memulai
@@ -159,6 +187,7 @@ fun AppRoot(
                                 account = AccountUi(
                                     identifier = s.session.identifier,
                                     local = s.session.provider == AuthProviderType.PASSWORD,
+                                    google = s.session.provider == AuthProviderType.GOOGLE,
                                     displayName = s.session.displayName,
                                     gmailConnected = s.session.gmailConnected,
                                     busy = s.busy,
@@ -166,9 +195,26 @@ fun AppRoot(
                                 ),
                                 onConnectGmail = controller::connectGmail,
                                 onSignOut = {
-                                    demo = false
+                                    // Token lokal dibersihkan seketika; pencabutan di server upaya terbaik di latar
+                                    // (batas waktu pendek) dan TIDAK ditunggu: keluar tidak pernah bergantung pada jaringan.
+                                    // Di mode demo ruang kerja aktifnya milik akun demo, jadi sesi akun yang masuk
+                                    // diambil langsung (tanpa membuka databasenya). `demo` dibaca di sini, SEBELUM ada yang
+                                    // mengubahnya: mengosongkannya lebih dulu pernah membuat cabang demo tidak pernah jalan
+                                    // (token akun asli tidak dibersihkan). Tidak perlu `demo = false` di sini: efek di atas
+                                    // mengosongkannya begitu keadaan berubah menjadi SignedOut.
+                                    val serverSignOut = (localContext.applicationContext as RizqflowApplication).serverSignOut
+                                    serverSignOut.signOutAccount(
+                                        demoActive = demo,
+                                        workspaceLink = ServerLink(workspace.serverSession, workspace.accountRemote),
+                                        realAccountLink = { AccountWorkspace.serverLink(localContext, s.session.accountId) },
+                                    )
                                     controller.signOut()
                                 },
+                                onReconnectServer = {
+                                    manualReconnect = true
+                                    controller.reconnectServer()
+                                },
+                                serverConnectFailedSignal = serverConnectFailedSignal,
                                 onDismissNotice = controller::dismissNotice,
                                 quickCatatRequest = quickCatatRequest,
                                 demo = demo,

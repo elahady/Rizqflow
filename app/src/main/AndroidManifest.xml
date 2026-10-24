@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Akses jaringan untuk akun server dan sync (Tahap 9/12). Ditulis eksplisit; jangan mengandalkan izin ini
+         terbawa dari pustaka lain. Http polos tetap dilarang di rilis (lihat usesCleartextTraffic di bawah). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Notifikasi pengingat malam (S26); wajib diminta saat dijalankan di Android 13+. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
@@ -10,10 +14,14 @@
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <!-- allowBackup dimatikan: salinan otomatis tidak boleh keluar dari kendali pengguna.
-         Cadangan dibuat lewat backup terenkripsi milik aplikasi (lihat docs/konsep.md). -->
+         Cadangan dibuat lewat backup terenkripsi milik aplikasi (lihat docs/konsep.md).
+         usesCleartextTraffic="false" ditulis eksplisit (bawaan target SDK 28+ memang false) supaya manifest rilis
+         hasil gabungan membuktikan http dilarang. Build debug menimpanya lewat networkSecurityConfig di
+         src/debug (lihat app/src/debug/AndroidManifest.xml); hanya debug yang boleh memanggil http. -->
     <application
         android:name=".RizqflowApplication"
         android:allowBackup="false"
+        android:usesCleartextTraffic="false"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"

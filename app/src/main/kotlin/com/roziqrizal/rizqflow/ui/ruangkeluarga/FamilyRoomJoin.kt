@@ -9,6 +9,8 @@ import com.roziqrizal.rizqflow.domain.model.RoomKind
 import com.roziqrizal.rizqflow.domain.sync.RemoteError
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.RoomInvite
+import com.roziqrizal.rizqflow.sync.isUnauthorized
+import com.roziqrizal.rizqflow.sync.retryOnceIfRotated
 import com.roziqrizal.rizqflow.workspace.AccountWorkspace
 import java.util.UUID
 
@@ -33,7 +35,8 @@ sealed interface FamilyJoinResult {
  * keanggotaan tetap terdaftar bila pemanggilan pertama sempat gagal karena offline.
  */
 suspend fun joinSharedRoom(workspace: AccountWorkspace, invite: RoomInvite): FamilyJoinResult {
-    val token = workspace.apiTokenStore.read() ?: return FamilyJoinResult.NotSignedIn
+    val session = workspace.serverSession
+    if (session.token() == null) return FamilyJoinResult.NotSignedIn
 
     if (workspace.repositories.rooms.find(invite.roomId) == null) {
         val active = workspace.repositories.rooms.activeRooms()
@@ -52,7 +55,17 @@ suspend fun joinSharedRoom(workspace: AccountWorkspace, invite: RoomInvite): Fam
 
     workspace.roomKeyProvider.importRoomKey(invite.roomId, invite.exportedRoomKey)
 
-    return when (val result = workspace.roomMembershipRemote.join(token, invite.roomId.value)) {
+    // Token dibaca ulang di dalam panggilan: 401 karena token baru saja diputar (permintaan membawa token lama)
+    // diulang sekali dengan token baru, bukan dilaporkan sebagai kegagalan (lihat retryOnceIfRotated).
+    val result = session.retryOnceIfRotated(
+        isUnauthorized = { it?.isUnauthorized() == true },
+        call = {
+            val token = session.token()
+            if (token == null) null else workspace.roomMembershipRemote.join(token, invite.roomId.value)
+        },
+    )
+    return when (result) {
+        null -> FamilyJoinResult.NotSignedIn
         is RemoteResult.Success -> FamilyJoinResult.Success(invite.roomId)
         is RemoteResult.Failure -> FamilyJoinResult.Failed(result.error)
     }

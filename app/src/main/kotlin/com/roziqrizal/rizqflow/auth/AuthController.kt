@@ -42,6 +42,9 @@ enum class AuthMessage {
 
     /** Isian tidak lolos aturan yang seharusnya sudah dicek layar; lapis pengaman. */
     INVALID_INPUT,
+
+    /** Sambungkan ulang ke server dengan akun Google yang BERBEDA dari yang sedang masuk; ditolak. */
+    RECONNECT_WRONG_ACCOUNT,
 }
 
 sealed interface AuthUiState {
@@ -184,6 +187,41 @@ class AuthController(
         }
     }
 
+    /**
+     * Menyambungkan ulang akun Google yang SEDANG masuk ke server setelah token servernya hilang atau berakhir
+     * (Tahap 12). Memakai ulang jalur masuk Google yang sudah ada ([AuthProvider.signInWithGoogle], Credential
+     * Manager tidak ditulis ulang) dan jalur penerusan ID token yang sama dengan masuk pertama
+     * ([AuthUiState.SignedIn.pendingGoogleIdToken] diambil [consumeGoogleIdToken], lalu `AccountRemote.loginWithGoogle`
+     * lewat `ServerSession.connect`), jadi hanya ada satu jalur menyimpan token server.
+     *
+     * Sesi lokal TIDAK diganti dan data tidak disentuh: hanya token server yang dibuat ulang. Akun Google yang
+     * dipilih harus sama dengan akun yang sedang masuk; akun lain ditolak ([AuthMessage.RECONNECT_WRONG_ACCOUNT])
+     * supaya token server akun lain tidak menempel di ruang kerja ini. Dibatalkan pengguna: diam, kembali seperti semula.
+     */
+    fun reconnectServer() {
+        val current = _state.value as? AuthUiState.SignedIn ?: return
+        if (current.busy != null || current.session.provider != AuthProviderType.GOOGLE) return
+        _state.value = current.copy(busy = AuthBusy.GOOGLE, notice = null)
+        scope.launch {
+            val result = provider.signInWithGoogle()
+            // Baca ulang: selama dialog Google terbuka pengguna bisa keluar, jadi hanya timpa bila masih sesi yang sama.
+            val latest = _state.value as? AuthUiState.SignedIn ?: return@launch
+            if (latest.session.accountId != current.session.accountId) return@launch
+            _state.value = when (result) {
+                is SignInResult.Success ->
+                    if (result.session.accountId.equals(current.session.accountId, ignoreCase = true)) {
+                        latest.copy(busy = null, pendingGoogleIdToken = result.idToken)
+                    } else {
+                        latest.copy(busy = null, notice = AuthMessage.RECONNECT_WRONG_ACCOUNT)
+                    }
+
+                SignInResult.Cancelled -> latest.copy(busy = null)
+                SignInResult.NotConfigured -> latest.copy(busy = null, notice = AuthMessage.NOT_CONFIGURED)
+                is SignInResult.Failed -> latest.copy(busy = null, notice = AuthMessage.FAILED)
+            }
+        }
+    }
+
     /** Masuk uji tanpa akun Google. Hanya dipanggil dari tombol yang muncul di build debug. */
     fun signInDebug() {
         if (_state.value !is AuthUiState.SignedOut) return
@@ -204,12 +242,17 @@ class AuthController(
      * kerja akun ini terbuka dan siap meneruskannya ke `AccountRemote.loginWithGoogle` (Tahap 9).
      * Null di panggilan berikutnya (riwayat masuk lama, atau sudah pernah diambil) supaya tidak
      * terkirim ulang tiap rekomposisi.
+     *
+     * Bila [forDemoWorkspace] (ruang kerja yang aktif milik akun demo), token tetap diambil-dan-dihapus tetapi
+     * TIDAK dikembalikan: ID token itu milik akun asli, dan meneruskannya akan menyimpan token server akun asli di
+     * berkas token akun demo. Tidak ada token yang tertinggal menunggu giliran, jadi tidak ada yang bisa terkirim
+     * belakangan ke ruang kerja yang salah.
      */
-    fun consumeGoogleIdToken(): String? {
+    fun consumeGoogleIdToken(forDemoWorkspace: Boolean = false): String? {
         val current = _state.value as? AuthUiState.SignedIn ?: return null
         val token = current.pendingGoogleIdToken ?: return null
         _state.value = current.copy(pendingGoogleIdToken = null)
-        return token
+        return if (forDemoWorkspace) null else token
     }
 
     fun signOut() {

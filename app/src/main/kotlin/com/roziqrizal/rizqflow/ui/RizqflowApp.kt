@@ -109,6 +109,10 @@ fun RizqflowApp(
     onOpenSyncPaywall: (() -> Unit)? = null,
     /** Langganan Sync sedang aktif di perangkat ini (lihat `PurchaseStore`); menentukan subjudul baris Rizqflow Sync. */
     syncOwned: Boolean = false,
+    /** "Sambungkan ulang ke server" (Tahap 12); null = baris tidak tampil (akun lokal/demo atau sesi server masih berlaku). */
+    onReconnect: (() -> Unit)? = null,
+    /** Masuk ulang ke server sedang berjalan; baris menampilkan "Menyambungkan…" dan tidak bisa ditekan lagi. */
+    reconnectBusy: Boolean = false,
 ) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
@@ -164,7 +168,7 @@ fun RizqflowApp(
             TopTab.entries.forEach { tab ->
                 composable(tab.route) {
                     if (tab == TopTab.Lainnya && account != null) {
-                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport, onToggleProDebug, onDeleteAccount, onOpenFamilyScan, onOpenSyncPaywall, syncOwned)
+                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport, onToggleProDebug, onDeleteAccount, onOpenFamilyScan, onOpenSyncPaywall, syncOwned, onReconnect, reconnectBusy)
                     } else if (tab == TopTab.Transaksi && transaksiContent != null) {
                         transaksiContent()
                     } else if (tab == TopTab.Ruang && ruangContent != null) {
@@ -222,6 +226,8 @@ data class AccountUi(
     /** Email (akun Google) atau nama pengguna (akun lokal). */
     val identifier: String,
     val local: Boolean,
+    /** Masuk dengan Google: satu-satunya jenis akun yang punya akun server (dan bisa "Sambungkan ulang ke server"). */
+    val google: Boolean = false,
     val displayName: String?,
     val gmailConnected: Boolean,
     val busy: AuthBusy? = null,
@@ -257,6 +263,8 @@ private fun LainnyaScreen(
     onOpenFamilyScan: (() -> Unit)? = null,
     onOpenSyncPaywall: (() -> Unit)? = null,
     syncOwned: Boolean = false,
+    onReconnect: (() -> Unit)? = null,
+    reconnectBusy: Boolean = false,
 ) {
     val spacing = MaterialTheme.spacing
     Column(
@@ -272,6 +280,14 @@ private fun LainnyaScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = spacing.s2),
         )
+        // Baris lembut, bukan peringatan: hanya muncul bila sesi server berakhir, satu kalimat penjelasan, tanpa pop-up.
+        if (onReconnect != null) {
+            MenuRow(
+                stringResource(R.string.menu_reconnect),
+                stringResource(if (reconnectBusy) R.string.menu_reconnect_busy else R.string.menu_reconnect_sub),
+                onClick = { if (!reconnectBusy) onReconnect() },
+            )
+        }
         if (onOpenRules != null) MenuRow(stringResource(R.string.menu_rules), stringResource(R.string.menu_rules_sub), onOpenRules)
         if (onOpenManage != null) MenuRow(stringResource(R.string.menu_manage), stringResource(R.string.menu_manage_sub), onOpenManage)
         if (onOpenRecurring != null) MenuRow(stringResource(R.string.menu_recurring), stringResource(R.string.menu_recurring_sub), onOpenRecurring)

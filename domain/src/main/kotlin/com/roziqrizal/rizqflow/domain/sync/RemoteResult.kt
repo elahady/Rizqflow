@@ -18,7 +18,12 @@ sealed interface RemoteError {
     /** Tidak ada koneksi, server tidak terjangkau, atau request time out. */
     data object Unreachable : RemoteError
 
-    /** HTTP 401: token API tidak valid atau sudah dicabut (mis. akun dihapus dari perangkat lain). */
+    /**
+     * HTTP 401 dari endpoint terlindungi: token API tidak sah, sudah kedaluwarsa, atau sudah dicabut
+     * (mis. akun dihapus atau sandi diganti dari tempat lain). Berarti sesi server berakhir; satu
+     * tempat pusat (`ServerSession` di `:app`) yang membersihkan token dan menaikkan keadaan "perlu
+     * sambungkan ulang", bukan tiap pemanggil.
+     */
     data object Unauthorized : RemoteError
 
     /** HTTP 403: fitur butuh langganan Sync aktif (lihat `SyncController::denyWithoutSync` di server). */

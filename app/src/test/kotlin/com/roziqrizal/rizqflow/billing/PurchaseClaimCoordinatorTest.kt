@@ -19,14 +19,23 @@ import kotlinx.coroutines.yield
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
+import com.roziqrizal.rizqflow.sync.FailingPurchaseRemote
+import com.roziqrizal.rizqflow.sync.FakeAccountRemote
+import com.roziqrizal.rizqflow.sync.ServerSession
+import com.roziqrizal.rizqflow.sync.TokenRefresher
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** Token API palsu di memori; null berarti belum masuk ke server (akun lokal atau belum masuk Google). */
 private class FakeApiTokenStore(var token: String? = "api-token-1") : ApiTokenStore {
     override fun read() = token
-    override fun save(token: String) {
+
+    override fun expiresAt(): java.time.Instant? = null
+
+    override fun save(token: String, expiresAt: java.time.Instant?): Boolean {
         this.token = token
+        return true
     }
 
     override fun clear() {
@@ -90,7 +99,7 @@ class PurchaseClaimCoordinatorTest {
         assertTrue(remote.calls.isEmpty())
 
         // Masuk ke server berhasil: token tersimpan, lalu pemulihan pembelian lama dilaporkan.
-        tokenStore.save("api-token-baru")
+        tokenStore.save("api-token-baru", null)
         coordinator.claim()
 
         assertEquals(listOf(listOf(PurchaseClaim("rizqflow_pro", "token-PRO"))), remote.calls)
@@ -410,7 +419,7 @@ class PurchaseClaimCoordinatorTest {
         ownedByStore(owned(Plan.PRO))
         coordinator.claim()
 
-        tokenStore.save("api-token-akun-lain")
+        tokenStore.save("api-token-akun-lain", null)
         coordinator.claim()
 
         assertEquals(listOf("api-token-1", "api-token-akun-lain"), remote.apiTokens)
@@ -688,8 +697,101 @@ class PurchaseClaimCoordinatorTest {
         remote.reply = { statusFor(it) { ClaimStatus.CLAIMED_BY_OTHER } }
         assertTrue(coordinator.claim().showClaimedByOtherNotice)
 
-        tokenStore.save("api-token-akun-lain")
+        tokenStore.save("api-token-akun-lain", null)
 
         assertTrue(coordinator.claim().showClaimedByOtherNotice)
+    }
+
+    // --- Putar token sebelum klaim, dan 401 lewat ServerSession (Tahap 12) ---
+
+    @Test
+    fun `putar token dijalankan sebelum token dibaca, jadi klaim memakai token yang baru`() = runBlocking {
+        ownedByStore(owned(Plan.PRO))
+        val rotating = PurchaseClaimCoordinator(
+            gateway, remote, tokenStore, memory,
+            refreshToken = { tokenStore.save("api-token-hasil-putar", null) },
+        )
+
+        rotating.claim()
+
+        assertEquals(listOf("api-token-hasil-putar"), remote.apiTokens)
+    }
+
+    @Test
+    fun `putar token tidak dijalankan bila laporan dimatikan`() = runBlocking {
+        var rotations = 0
+        val disabled = PurchaseClaimCoordinator(gateway, remote, tokenStore, memory, enabled = { false }, refreshToken = { rotations++ })
+
+        disabled.claim()
+
+        assertEquals(0, rotations)
+        assertTrue(remote.calls.isEmpty())
+    }
+
+    @Test
+    fun `putar token yang mengakhiri sesi membuat klaim berhenti diam tanpa panggilan ke server`() = runBlocking {
+        ownedByStore(owned(Plan.PRO))
+        val ending = PurchaseClaimCoordinator(gateway, remote, tokenStore, memory, refreshToken = { tokenStore.clear() })
+
+        val report = ending.claim()
+
+        assertFalse(report.showClaimedByOtherNotice)
+        assertTrue(remote.calls.isEmpty())
+    }
+
+    @Test
+    fun `putar token yang melempar galat tidak menjatuhkan klaim`() = runBlocking {
+        ownedByStore(owned(Plan.PRO))
+        val broken = PurchaseClaimCoordinator(gateway, remote, tokenStore, memory, refreshToken = { error("meledak") })
+
+        assertFalse(broken.claim().showClaimedByOtherNotice)
+    }
+
+    @Test
+    fun `401 dari klaim diurus ServerSession, sesi berakhir, paket lokal utuh, lalu pulih setelah sambung ulang`() = runBlocking {
+        val store = PurchaseStore(FakePlanStorage())
+        ownedByStore(owned(Plan.PRO))
+        val controller = PurchaseController(store, gateway, revokeMissing = true)
+        controller.sync()
+        val session = ServerSession(tokenStore)
+        val guarded = PurchaseClaimCoordinator(gateway, session.guard(FailingPurchaseRemote(RemoteError.Unauthorized)), tokenStore, memory)
+
+        val report = guarded.claim()
+
+        // Penanganan 401 ada di satu tempat (ServerSession), bukan di koordinator ini.
+        assertFalse(report.showClaimedByOtherNotice)
+        assertNull(tokenStore.token)
+        assertTrue(session.needsReconnect.value)
+        assertEquals(setOf(Plan.PRO), store.plans.value, "paket dari Google Play tidak terpengaruh")
+
+        // Sesudah itu klaim berhenti diam sampai tersambung ulang: tidak ada panggilan server tanpa token.
+        guarded.claim()
+        assertTrue(remote.calls.isEmpty())
+
+        // Sambung ulang: token baru tersimpan lewat jalur yang sama dengan masuk, klaim berjalan normal.
+        session.connect(FakeAccountRemote(), "id-token", "perangkat-1")
+        val resumed = PurchaseClaimCoordinator(gateway, session.guard(remote), tokenStore, memory)
+        resumed.claim()
+        assertEquals(listOf("login-token"), remote.apiTokens)
+        assertFalse(session.needsReconnect.value)
+    }
+
+    @Test
+    fun `klaim sebelum kedaluwarsa memutar token lebih dulu lewat pemutar sungguhan dan memakai token barunya`() = runBlocking {
+        ownedByStore(owned(Plan.PRO))
+        val now = java.time.Instant.parse("2026-12-01T00:00:00Z")
+        val accountStore = com.roziqrizal.rizqflow.sync.FakeTokenStore("t-lama", now.plusSeconds(5L * 24 * 3600))
+        val session = ServerSession(accountStore)
+        val accountRemote = FakeAccountRemote(valid = setOf("t-lama"))
+        val refresher = TokenRefresher(session, session.guard(accountRemote), clock = { now })
+        val rotating = PurchaseClaimCoordinator(
+            gateway, session.guard(remote), accountStore, memory,
+            refreshToken = { refresher.refreshIfDue() },
+        )
+
+        rotating.claim()
+
+        assertEquals(listOf("refresh:t-lama"), accountRemote.calls)
+        assertEquals(listOf("rotated-1"), remote.apiTokens, "klaim memakai token hasil putar, bukan yang sudah dicabut")
     }
 }

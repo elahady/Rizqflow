@@ -128,6 +128,7 @@ internal fun messageText(message: AuthMessage): Int = when (message) {
     AuthMessage.WRONG_CREDENTIALS -> R.string.msg_wrong_credentials
     AuthMessage.USERNAME_TAKEN -> R.string.msg_username_taken
     AuthMessage.INVALID_INPUT -> R.string.msg_invalid_input
+    AuthMessage.RECONNECT_WRONG_ACCOUNT -> R.string.msg_reconnect_wrong_account
 }
 
 /** Pesan di bawah kolom untuk satu masalah isian. */
