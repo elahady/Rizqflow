@@ -28,6 +28,7 @@ kotlinxSerializationJson = "1.7.3"
 cameraX = "1.6.2"
 mlkitBarcodeScanning = "17.3.0"
 qrcodeKotlin = "4.5.0"
+playBilling = "9.1.0"
 
 [libraries]
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
@@ -68,6 +69,7 @@ androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycl
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraX" }
 mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkitBarcodeScanning" }
 qrcode-kotlin = { group = "io.github.g0dkar", name = "qrcode-kotlin", version.ref = "qrcodeKotlin" }
+play-billing = { group = "com.android.billingclient", name = "billing", version.ref = "playBilling" }
 
 [plugins]
 androidx-room = { id = "androidx.room", version.ref = "room" }

@@ -419,8 +419,8 @@
     <string name="tampilan_light">Light</string>
     <string name="tampilan_dark">Dark</string>
 
-    <!-- Rizqflow Pro: paywall S21 (Stage 7). Buy and Restore purchase are not yet wired to real
-         Google Play Billing; see PaywallSheet.kt and MainHost.kt. -->
+    <!-- Rizqflow Pro: paywall S21 (Stage 7). Buy and Restore purchase go through Google Play Billing
+         (PurchaseController); the price is read from Play Console, not from these strings. -->
     <string name="menu_pro">Rizqflow Pro</string>
     <string name="menu_pro_sub_owned">Active</string>
     <string name="menu_pro_debug">Pro (test, debug only)</string>
@@ -434,7 +434,15 @@
     <string name="pro_restore">Restore purchase</string>
     <string name="pro_later">Not now</string>
     <string name="pro_footer">Core features and zakat stay free.</string>
-    <string name="pro_purchase_unavailable">Rizqflow Pro isn\'t available for purchase yet. Coming after the app launches on Play Store.</string>
+    <string name="pro_price_unknown">Price is shown by Google Play at checkout</string>
+    <string name="pro_purchase_unavailable">Google Play can\'t be reached. Purchases only work for apps installed from the Play Store and need an internet connection.</string>
+    <string name="pro_buy_granted">Thank you! Rizqflow Pro is now active.</string>
+    <string name="pro_buy_pending">Your payment is still pending. Pro turns on automatically once it clears.</string>
+    <string name="pro_buy_already_owned">This Google Play account already owns Pro; it is active again.</string>
+    <string name="pro_buy_failed">The purchase didn\'t go through. Please try again in a moment.</string>
+    <string name="pro_restore_done">Your purchase was restored. Rizqflow Pro is active.</string>
+    <string name="pro_restore_nothing">Nothing to restore on this Google Play account.</string>
+    <string name="pro_restore_pending">Your payment is still pending. Pro turns on automatically once it clears.</string>
     <string name="pro_benefit_unlimited_rooms">Unlimited role rooms with per-role systems</string>
     <string name="pro_benefit_advanced_rules">Advanced allocation rules: priority, caps, overflow to other rooms</string>
     <string name="pro_benefit_multi_zakat">Multiple zakat profiles with reminders</string>

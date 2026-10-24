@@ -421,8 +421,8 @@
     <string name="tampilan_light">Terang</string>
     <string name="tampilan_dark">Gelap</string>
 
-    <!-- Rizqflow Pro: paywall S21 (Tahap 7). Beli dan Pulihkan pembelian belum terhubung ke Google
-         Play Billing sungguhan; lihat PaywallSheet.kt dan MainHost.kt. -->
+    <!-- Rizqflow Pro: paywall S21 (Tahap 7). Beli dan Pulihkan pembelian lewat Google Play Billing
+         (PurchaseController); harga dibaca dari Play Console, bukan dari string ini. -->
     <string name="menu_pro">Rizqflow Pro</string>
     <string name="menu_pro_sub_owned">Aktif</string>
     <string name="menu_pro_debug">Pro (uji, khusus debug)</string>
@@ -436,7 +436,15 @@
     <string name="pro_restore">Pulihkan pembelian</string>
     <string name="pro_later">Nanti saja</string>
     <string name="pro_footer">Fitur dasar dan zakat tetap gratis.</string>
-    <string name="pro_purchase_unavailable">Pembelian Rizqflow Pro belum tersedia. Menyusul setelah aplikasi dirilis di Play Store.</string>
+    <string name="pro_price_unknown">Harga tampil dari Google Play saat membeli</string>
+    <string name="pro_purchase_unavailable">Google Play tidak bisa dihubungi. Pembelian hanya bisa dari aplikasi yang dipasang lewat Play Store dan butuh koneksi internet.</string>
+    <string name="pro_buy_granted">Terima kasih! Rizqflow Pro sudah aktif.</string>
+    <string name="pro_buy_pending">Pembayaranmu masih menunggu. Pro aktif otomatis begitu pembayaran lunas.</string>
+    <string name="pro_buy_already_owned">Pro sudah dimiliki akun Google Play ini dan kini aktif kembali.</string>
+    <string name="pro_buy_failed">Pembelian belum berhasil. Coba lagi sebentar lagi.</string>
+    <string name="pro_restore_done">Pembelianmu dipulihkan. Rizqflow Pro aktif.</string>
+    <string name="pro_restore_nothing">Tidak ada pembelian untuk dipulihkan di akun Google Play ini.</string>
+    <string name="pro_restore_pending">Pembayaranmu masih menunggu. Pro aktif otomatis begitu lunas.</string>
     <string name="pro_benefit_unlimited_rooms">Ruang peran tak terbatas dengan sistem per peran</string>
     <string name="pro_benefit_advanced_rules">Aturan alokasi lanjutan: prioritas, batas atas, sisa mengalir ke ruang lain</string>
     <string name="pro_benefit_multi_zakat">Multi-profil zakat dengan pengingat</string>

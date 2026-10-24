@@ -72,6 +72,10 @@ dependencies {
     implementation(libs.play.services.auth)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
+    // Pembelian Pro (Tahap 7): Play Billing 9.1.0 (terbaru di Google Maven 2026-10-24). Memakai artefak
+    // `billing` biasa, bukan `billing-ktx`; pembungkus coroutine ada di PlayBillingGateway.
+    implementation(libs.play.billing)
+
     // Undang anggota ruang keluarga lewat QR (Tahap 9/13): pindai dengan ML Kit + CameraX, render
     // dengan qrcode-kotlin (murni Kotlin, tanpa menarik seluruh kodebase ZXing) -- keduanya sudah
     // diriset dan diputuskan di roadmap.md Tahap 13 (2026-10-24), bukan pilihan baru.

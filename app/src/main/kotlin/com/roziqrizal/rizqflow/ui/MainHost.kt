@@ -7,6 +7,11 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import com.roziqrizal.rizqflow.BuildConfig
+import com.roziqrizal.rizqflow.RizqflowApplication
+import com.roziqrizal.rizqflow.billing.BuyOutcome
+import com.roziqrizal.rizqflow.billing.PurchaseController
+import com.roziqrizal.rizqflow.billing.RestoreOutcome
+import com.roziqrizal.rizqflow.billing.findActivity
 import com.roziqrizal.rizqflow.domain.allocation.AllocationRule
 import com.roziqrizal.rizqflow.ui.denah.DenahScreen
 import com.roziqrizal.rizqflow.ui.kelola.KelolaScreen
@@ -40,6 +45,8 @@ import java.time.YearMonth
 import com.roziqrizal.rizqflow.domain.entitlement.Feature
 import com.roziqrizal.rizqflow.domain.entitlement.Plan
 import com.roziqrizal.rizqflow.ui.paywall.PaywallSheet
+import com.roziqrizal.rizqflow.ui.paywall.buyMessage
+import com.roziqrizal.rizqflow.ui.paywall.restoreMessage
 import com.roziqrizal.rizqflow.ui.ruang.RuangScreen
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
@@ -152,6 +159,20 @@ fun MainHost(
         paywallOpen = true
     }
     val ownedPlans by workspace.purchases.plans.collectAsState()
+    // Pembelian terikat ke akun Play perangkat; di build debug paket tidak dicabut otomatis supaya
+    // saklar "Pro (uji)" di menu Lainnya tidak hilang tiap aplikasi dibuka.
+    val purchaseController = remember(workspace) {
+        PurchaseController(workspace.purchases, (context.applicationContext as RizqflowApplication).billing, revokeMissing = !BuildConfig.DEBUG)
+    }
+    var proPrice by remember { mutableStateOf<String?>(null) }
+    var purchaseBusy by remember { mutableStateOf(false) }
+    // Pulihkan diam-diam tiap aplikasi dibuka: pasang ulang atau ganti perangkat tidak menghilangkan Pro.
+    LaunchedEffect(purchaseController, demo) {
+        if (!demo) purchaseController.sync()
+    }
+    LaunchedEffect(paywallOpen) {
+        if (paywallOpen && proPrice == null) proPrice = purchaseController.price(Plan.PRO)
+    }
     var handledQuick by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(quickCatatRequest) {
         if (quickCatatRequest > handledQuick) {
@@ -540,13 +561,26 @@ fun MainHost(
         ModalBottomSheet(onDismissRequest = { paywallOpen = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
             PaywallSheet(
                 trigger = paywallTrigger?.let { Feature.valueOf(it) },
+                priceText = proPrice,
+                busy = purchaseBusy,
                 onBuy = {
-                    paywallOpen = false
-                    scope.launch { notifier.show(context.getString(R.string.pro_purchase_unavailable)) }
+                    scope.launch {
+                        purchaseBusy = true
+                        val outcome = purchaseController.buy(Plan.PRO) { context.findActivity() }
+                        purchaseBusy = false
+                        // Sheet menutup hanya bila ada kabar akhir; dibatalkan tetap terbuka supaya bisa dicoba lagi.
+                        if (outcome != BuyOutcome.CANCELED) paywallOpen = false
+                        if (outcome != BuyOutcome.CANCELED) notifier.show(context.getString(buyMessage(outcome)))
+                    }
                 },
                 onRestore = {
-                    paywallOpen = false
-                    scope.launch { notifier.show(context.getString(R.string.pro_purchase_unavailable)) }
+                    scope.launch {
+                        purchaseBusy = true
+                        val outcome = purchaseController.restore()
+                        purchaseBusy = false
+                        paywallOpen = false
+                        notifier.show(context.getString(restoreMessage(outcome)))
+                    }
                 },
                 onDismiss = { paywallOpen = false },
             )

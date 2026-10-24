@@ -20,17 +20,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.roziqrizal.rizqflow.R
 import com.roziqrizal.rizqflow.domain.entitlement.Feature
-import com.roziqrizal.rizqflow.domain.money.Money
+import com.roziqrizal.rizqflow.billing.BuyOutcome
+import com.roziqrizal.rizqflow.billing.RestoreOutcome
 import com.roziqrizal.rizqflow.ui.RizqflowIcons
-import com.roziqrizal.rizqflow.ui.formatRupiah
 import com.roziqrizal.rizqflow.ui.theme.rizqflow
 import com.roziqrizal.rizqflow.ui.theme.spacing
-
-/**
- * Harga sekali bayar Pro. **Placeholder** dalam kisaran uji (docs/monetisasi.md, Rp 99-149 ribu);
- * harga final belum diputuskan pemilik produk, gampang diganti di satu tempat ini.
- */
-private val PRO_PRICE = Money.rupiah(129_000)
 
 /** Tiga manfaat bawaan (sama seperti mockup docs/ui-flow.md S21), dipakai saat tidak ada aksi pemicu spesifik. */
 private val DEFAULT_HIGHLIGHTS = listOf(Feature.UNLIMITED_ROOMS, Feature.ADVANCED_ALLOCATION_RULES, Feature.MULTI_ZAKAT_PROFILE)
@@ -61,12 +55,12 @@ private fun highlightsFor(trigger: Feature?): List<Feature> {
 /**
  * S21 Rizqflow Pro: bottom sheet paywall, bukan layar penuh (docs/ui-flow.md). [trigger] adalah
  * fitur yang memicu, ditampilkan lebih dulu di antara tiga manfaat; null memakai tiga manfaat umum
- * (dibuka dari menu Lainnya). [onBuy] dan [onRestore] BELUM terhubung ke Google Play Billing
- * sungguhan (menyusul Tahap 7 lanjutan, perlu listing Play Console/Tahap 8 dulu) — pemanggil wajib
- * memberi tahu pengguna secara jujur bahwa pembelian belum tersedia, bukan diam-diam membuka Pro.
+ * (dibuka dari menu Lainnya). [priceText] adalah harga yang sudah diformat Google Play (dibaca dari
+ * Play Console, tidak pernah ditanam di kode); null bila toko belum terhubung. [busy] mengunci
+ * tombol selama layar bayar atau pemulihan berjalan supaya tidak terpencet dua kali.
  */
 @Composable
-fun PaywallSheet(trigger: Feature?, onBuy: () -> Unit, onRestore: () -> Unit, onDismiss: () -> Unit) {
+fun PaywallSheet(trigger: Feature?, priceText: String?, busy: Boolean, onBuy: () -> Unit, onRestore: () -> Unit, onDismiss: () -> Unit) {
     val spacing = MaterialTheme.spacing
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4).padding(bottom = spacing.s4)) {
         Text(stringResource(R.string.pro_title), style = MaterialTheme.typography.headlineSmall)
@@ -78,14 +72,23 @@ fun PaywallSheet(trigger: Feature?, onBuy: () -> Unit, onRestore: () -> Unit, on
                 }
             }
         }
-        Text(
-            stringResource(R.string.pro_price, formatRupiah(PRO_PRICE)),
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(top = spacing.s5),
-        )
+        if (priceText != null) {
+            Text(
+                stringResource(R.string.pro_price, priceText),
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(top = spacing.s5),
+            )
+        } else {
+            Text(
+                stringResource(R.string.pro_price_unknown),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = spacing.s5),
+            )
+        }
         Text(stringResource(R.string.pro_no_subscription), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Button(onClick = onBuy, modifier = Modifier.padding(top = spacing.s4).fillMaxWidth().height(52.dp)) { Text(stringResource(R.string.pro_buy)) }
-        TextButton(onClick = onRestore, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.pro_restore)) }
+        Button(onClick = onBuy, enabled = !busy, modifier = Modifier.padding(top = spacing.s4).fillMaxWidth().height(52.dp)) { Text(stringResource(R.string.pro_buy)) }
+        TextButton(onClick = onRestore, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.pro_restore)) }
         TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.pro_later)) }
         Text(
             stringResource(R.string.pro_footer),
@@ -94,4 +97,23 @@ fun PaywallSheet(trigger: Feature?, onBuy: () -> Unit, onRestore: () -> Unit, on
             modifier = Modifier.padding(top = spacing.s2),
         )
     }
+}
+
+/** Pesan jujur untuk hasil menekan Beli; dipakai pemanggil lewat snackbar. */
+@StringRes
+fun buyMessage(outcome: BuyOutcome): Int = when (outcome) {
+    BuyOutcome.GRANTED -> R.string.pro_buy_granted
+    BuyOutcome.PENDING -> R.string.pro_buy_pending
+    BuyOutcome.ALREADY_OWNED -> R.string.pro_buy_already_owned
+    BuyOutcome.UNAVAILABLE -> R.string.pro_purchase_unavailable
+    BuyOutcome.CANCELED, BuyOutcome.FAILED -> R.string.pro_buy_failed
+}
+
+/** Pesan jujur untuk hasil Pulihkan pembelian. */
+@StringRes
+fun restoreMessage(outcome: RestoreOutcome): Int = when (outcome) {
+    RestoreOutcome.RESTORED -> R.string.pro_restore_done
+    RestoreOutcome.NOTHING_FOUND -> R.string.pro_restore_nothing
+    RestoreOutcome.PENDING -> R.string.pro_restore_pending
+    RestoreOutcome.UNAVAILABLE -> R.string.pro_purchase_unavailable
 }
