@@ -46,6 +46,13 @@ docker exec rizqflow pgrep -f "artisan migrate" || docker exec rizqflow cat /tmp
   habitflow juga sempat hilang total dari VPS dan PC lokal hari itu (diselamatkan lewat
   `docker exec <container> env` dari container lama yang masih hidup) — kalau `.env.production`
   rizqflow di repo ini pernah hilang, pakai cara yang sama sebagai jalan darurat terakhir.
+- **(24 Oktober 2026) Deploy redesain web** (commit `2b0b50c`): backup manual dulu
+  (`mysqldump` lewat `docker exec -e MYSQL_PWD=... shared-mysql`, hasil di
+  `~/backups-manual/rizqflow-pra-redesain-2026-10-24-0522.sql.gz`) karena migrasi menghapus kolom.
+  Container ternyata belum di-build ulang sejak 18 Oktober (deploy sebelumnya hanya `git pull`),
+  jadi 21 migrasi jalan sekaligus — semuanya DONE. `docker compose build` memakan lebih dari 10
+  menit (composer install), dan MySQL di sini lambat (tiap migrasi 1–50 detik), jadi pola
+  `docker exec -d` untuk migrasi memang perlu. Habitflow tidak tersentuh.
 
 Catatan:
 
