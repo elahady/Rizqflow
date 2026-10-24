@@ -14,6 +14,7 @@ import com.roziqrizal.rizqflow.domain.ledger.Category
 import com.roziqrizal.rizqflow.domain.ledger.FavoriteRepository
 import com.roziqrizal.rizqflow.domain.ledger.QuickFavorite
 import com.roziqrizal.rizqflow.domain.ledger.MoneyTransaction
+import com.roziqrizal.rizqflow.domain.ledger.PendingSyncTransaction
 import com.roziqrizal.rizqflow.domain.ledger.Room
 import com.roziqrizal.rizqflow.domain.ledger.RoomRepository
 import com.roziqrizal.rizqflow.domain.ledger.RoomTotals
@@ -198,4 +199,25 @@ class LocalTransactionRepository(private val db: RizqflowDatabase) : Transaction
         allocated = db.transactions().allocatedPerRoom(from.toEpochDay(), to.toEpochDay()).associate { RoomId(it.roomId) to Money.rupiah(it.total) },
         spent = db.transactions().spentPerRoom(from.toEpochDay(), to.toEpochDay()).associate { RoomId(it.roomId) to Money.rupiah(it.total) },
     )
+
+    // ---- Sync ruang keluarga (Tahap 9)
+    override suspend fun pendingSync(roomId: RoomId): List<PendingSyncTransaction> =
+        db.transactions().pendingSync(roomId.value).map { PendingSyncTransaction(it.toDomain(), changedAtMillis = it.updatedAt) }
+
+    override suspend fun markSynced(ids: List<TransactionId>, atMillis: Long) {
+        if (ids.isEmpty()) return
+        db.transactions().markSynced(ids.map { it.value }, atMillis)
+    }
+
+    override suspend fun applyFromSync(id: TransactionId, transaction: MoneyTransaction?, changedAtMillis: Long, deleted: Boolean) {
+        if (deleted) {
+            db.transactions().delete(id.value)
+            return
+        }
+        requireNotNull(transaction) { "transaction wajib diisi bila deleted = false" }
+        val existing = db.transactions().find(id.value)
+        if (existing == null || changedAtMillis >= existing.updatedAt) {
+            db.transactions().upsertFromSync(transaction.toEntity().copy(syncedAt = changedAtMillis))
+        }
+    }
 }

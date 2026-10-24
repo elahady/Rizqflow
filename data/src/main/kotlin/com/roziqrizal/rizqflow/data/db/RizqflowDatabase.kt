@@ -21,6 +21,9 @@ import androidx.room.RoomDatabase
  *
  * Versi 6 (2026-09-24): menambah tabel `debt` dan `debt_payment` untuk utang-piutang (Tahap 10, Gratis);
  * lihat [MIGRATION_5_6].
+ *
+ * Versi 7 (2026-10-24): menambah `money_transaction.synced_at` untuk sync ruang keluarga (Tahap 9);
+ * lihat [MIGRATION_6_7].
  */
 @Database(
     entities = [
@@ -45,7 +48,7 @@ import androidx.room.RoomDatabase
         DebtEntity::class,
         DebtPaymentEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 abstract class RizqflowDatabase : RoomDatabase() {

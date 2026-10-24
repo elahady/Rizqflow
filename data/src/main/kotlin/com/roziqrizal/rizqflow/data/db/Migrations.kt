@@ -120,3 +120,15 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_debt_payment_transaction_id` ON `debt_payment` (`transaction_id`)")
     }
 }
+
+/**
+ * Versi 6 ke 7 (2026-10-24): menambah `money_transaction.synced_at` untuk sync ruang keluarga
+ * (Tahap 9, roadmap.md "Ruang keluarga bersama"). Aditif saja: baris lama tidak tersentuh, kolom
+ * baru selalu null (belum pernah terkirim ke sync) sampai `SyncEngine` menandainya terkirim —
+ * lihat `TransactionRepository.pendingSync`/`markSynced` di `:domain`.
+ */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE money_transaction ADD COLUMN synced_at INTEGER DEFAULT NULL")
+    }
+}

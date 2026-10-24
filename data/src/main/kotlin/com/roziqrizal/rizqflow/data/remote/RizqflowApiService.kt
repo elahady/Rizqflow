@@ -11,6 +11,7 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Headers
 import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
@@ -40,6 +41,19 @@ interface RizqflowApiService {
         @Header("Authorization") bearerToken: String,
         @Query("after") after: Long,
         @Query("limit") limit: Int,
+    ): Response<ResponseBody>
+
+    /** Keanggotaan ruang yang dibagi (Tahap 9, roadmap.md "Ruang keluarga bersama"). */
+    @POST("rooms/{roomId}/join")
+    suspend fun joinRoom(
+        @Header("Authorization") bearerToken: String,
+        @Path("roomId") roomId: String,
+    ): Response<ResponseBody>
+
+    @GET("rooms/{roomId}/members")
+    suspend fun roomMembers(
+        @Header("Authorization") bearerToken: String,
+        @Path("roomId") roomId: String,
     ): Response<ResponseBody>
 }
 
@@ -104,3 +118,13 @@ data class PullResponseDto(
 /** Bentuk error Laravel standar: `{"message": "..."}` (kadang disertai `errors`, sengaja diabaikan). */
 @Serializable
 data class ErrorResponseDto(val message: String? = null)
+
+@Serializable
+data class RoomMemberDto(
+    val name: String? = null,
+    val email: String,
+    val you: Boolean,
+)
+
+@Serializable
+data class RoomMembersResponseDto(val members: List<RoomMemberDto>)

@@ -165,6 +165,17 @@ interface TransactionDao {
         """,
     )
     suspend fun spentPerRoom(fromDay: Long, toDay: Long): List<RoomTotal>
+
+    /** Pengeluaran di [roomId] yang belum terkirim ke sync (Tahap 9) — lihat `TransactionRepository.pendingSync`. */
+    @Query("SELECT * FROM money_transaction WHERE room_id = :roomId AND kind = 'EXPENSE' AND synced_at IS NULL")
+    suspend fun pendingSync(roomId: String): List<TransactionEntity>
+
+    @Query("UPDATE money_transaction SET synced_at = :atMillis WHERE id IN (:ids)")
+    suspend fun markSynced(ids: List<String>, atMillis: Long)
+
+    /** Insert atau timpa hasil pull dari anggota lain, dengan `synced_at` sudah terisi (tidak pending push lagi). */
+    @Upsert
+    suspend fun upsertFromSync(transaction: TransactionEntity)
 }
 
 @Dao

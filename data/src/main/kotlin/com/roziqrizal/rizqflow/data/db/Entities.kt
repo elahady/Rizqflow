@@ -112,6 +112,8 @@ data class TransactionEntity(
     val origin: TransactionOrigin,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
+    /** Null = belum terkirim ke sync (Tahap 9). Setiap tulis ulang lewat [toEntity] mengembalikannya ke null. */
+    @ColumnInfo(name = "synced_at") val syncedAt: Long? = null,
 )
 
 /** Potret alokasi satu pemasukan; yang belum dialirkan = nominal pemasukan dikurangi jumlah entrinya. */

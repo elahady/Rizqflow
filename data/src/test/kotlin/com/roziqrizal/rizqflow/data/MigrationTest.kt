@@ -8,6 +8,7 @@ import com.roziqrizal.rizqflow.data.db.MIGRATION_2_3
 import com.roziqrizal.rizqflow.data.db.MIGRATION_3_4
 import com.roziqrizal.rizqflow.data.db.MIGRATION_4_5
 import com.roziqrizal.rizqflow.data.db.MIGRATION_5_6
+import com.roziqrizal.rizqflow.data.db.MIGRATION_6_7
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
 import org.json.JSONObject
 import org.junit.Test
@@ -42,7 +43,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .build()
         try {
             db.openHelper.writableDatabase.query("SELECT share_bp, cap_amount FROM allocation_rule WHERE room_id = 'r1'").use { cursor ->
@@ -50,7 +51,7 @@ class MigrationTest {
                 assertEquals(10_000, cursor.getInt(0))
                 assertTrue(cursor.isNull(1))
             }
-            assertEquals(6, db.openHelper.readableDatabase.version)
+            assertEquals(7, db.openHelper.readableDatabase.version)
         } finally {
             db.close()
         }
@@ -65,7 +66,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .build()
         try {
             val sqlite = db.openHelper.writableDatabase
@@ -91,7 +92,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .build()
         try {
             db.openHelper.writableDatabase.query("SELECT COUNT(*) FROM recurring_rule").use { assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0)) }
@@ -119,7 +120,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .build()
         try {
             db.openHelper.writableDatabase.query("SELECT COUNT(*) FROM bill").use { assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0)) }
@@ -148,7 +149,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .build()
         try {
             val sqlite = db.openHelper.writableDatabase
@@ -162,6 +163,40 @@ class MigrationTest {
                 )
                 db.debts().upsertPayment(com.roziqrizal.rizqflow.data.db.DebtPaymentEntity("p1", "d1", 50_000, 20_001, null))
                 assertEquals(50_000, db.debts().allPayments().single().amount)
+            }
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
+    fun `versi 1 sampai 7 menambah synced_at yang kosong dan transaksi lama tetap bisa dibaca`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val dbFile = context.getDatabasePath(TEST_DB)
+        dbFile.delete()
+
+        buildSchemaVersion1(context, dbFile.path)
+
+        val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .build()
+        try {
+            kotlinx.coroutines.runBlocking {
+                db.accounts().upsert(com.roziqrizal.rizqflow.data.db.AccountEntity("a1", "Dompet", com.roziqrizal.rizqflow.domain.model.AccountKind.CASH, "IDR", 0, false, 0, null))
+                db.rooms().upsertCategory(com.roziqrizal.rizqflow.data.db.CategoryEntity("c1", "r1", "Belanja", null, false, false, 0))
+                db.transactions().insert(
+                    com.roziqrizal.rizqflow.data.db.TransactionEntity(
+                        "t1", com.roziqrizal.rizqflow.domain.model.TransactionKind.EXPENSE, 25_000, "IDR", "a1", null, "r1", "c1", null, 20_000, null,
+                        com.roziqrizal.rizqflow.domain.model.TransactionOrigin.MANUAL, 20_000, 20_000,
+                    ),
+                )
+                val stored = db.transactions().find("t1")!!
+                assertEquals(25_000, stored.amount)
+                assertEquals(null, stored.syncedAt)
+
+                db.transactions().markSynced(listOf("t1"), 30_000)
+                assertEquals(30_000L, db.transactions().find("t1")!!.syncedAt)
+                assertEquals(0, db.transactions().pendingSync("r1").size)
             }
         } finally {
             db.close()
