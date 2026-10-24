@@ -74,7 +74,7 @@ Ringkasan ini **menyimpulkan, bukan menggantikan** checklist lengkap di tiap Tah
 ### Keputusan yang masih punya pemilik (jangan dikerjakan sebelum dijawab)
 
 - ~~Cara browser web mendekripsi data sync e2e~~ **diputuskan 2026-10-24: kode pemulihan 24 kata** ([konsep.md](konsep.md), butir "Desain web baru"); sisanya (derivasi kunci di browser, penyimpanan selama sesi, kunci otomatis) masih terbuka
-- Metode masuk web: Google saja (keputusan 2026-10-18) atau email+sandi+Google meniru habitflow (permintaan untuk mockup, 2026-10-24); lihat [konsep.md](konsep.md)
+- ~~Metode masuk web~~ **diputuskan 2026-10-24: email+sandi dan Google** (mengikuti mockup, mencabut keputusan 2026-10-18; [konsep.md](konsep.md)). Masih terbuka: penyedia pengiriman email untuk kode verifikasi dan reset sandi di produksi
 - Kebijakan haul saat harta turun di bawah nisab di tengah tahun (fikih, perlu rujukan kitab)
 - Harga final Pro (placeholder Rp129rb, belum final)
 - Firebase Analytics dipakai atau tidak
@@ -389,6 +389,12 @@ Ditambahkan 2026-10-18: web dibuat (seperti habitflow.roziqrizal.com), membatalk
 
   Yang sengaja **tidak** dipindah 1:1 ke web: catat kilat (S24, didesain untuk jempol), notifikasi malam dan tangkap otomatis (S26–S28, soal perangkat Android), onboarding pola ruang pertama kali (S01–S04). Detail keputusan di [konsep.md](konsep.md) bagian "Posisi web diperluas".
 - [x] Autentikasi web final (2026-10-18): **ikut akun Google Android** (keputusan pemilik). Tombol Google Identity Services memakai client ID Web yang sama dengan Android; server memverifikasi ID token lewat `google/apiclient` di balik `GoogleIdTokenVerifier`, akun dikenali dari `sub` (akun lama dengan email sama dihubungkan). Daftar dan email+sandi dihapus; masuk demo hanya di lingkungan lokal. 7 tes fitur. Origin produksi sudah ditambahkan pemilik dan masuk dengan Google teruji berhasil di https://rizqflow.roziqrizal.com (2026-10-18)
+- [ ] **Masuk web dengan email+sandi** (diputuskan 2026-10-24, mencabut "Google saja"; [konsep.md](konsep.md)) — rincian, pola mengikuti habitflow/server (kode 6 angka lewat email, batas percobaan):
+  - [ ] Kartu Masuk varian email+sandi + Google sesuai Masuk.dc.html, galat "Email atau kata sandi salah", notice keluar/sesi berakhir (High)
+  - [ ] Daftar, verifikasi email dengan kode, lupa dan reset kata sandi (layar belum ada di mockup; ikuti gaya kartu masuk) (High)
+  - [ ] Akun Google lama bisa menambah sandi, akun email bisa menghubungkan Google (email sama = akun sama), ubah sandi di Profil (Medium)
+  - [ ] Pilih dan pasang penyedia pengiriman email di produksi — prasyarat verifikasi/reset; VPS belum punya (habitflow pun MAIL_MAILER=log) (High, keputusan pemilik)
+  - [ ] Endpoint akun server email+sandi untuk Android (Tahap 9) dan layar masuk Android memakai akun server yang sama (High)
 - [x] Deploy produksi (2026-10-18, **live** di https://rizqflow.roziqrizal.com; DNS Cloudflare dan JavaScript origin Google sudah diisi pemilik, dicek dari luar: http 301 ke https, `/` 302 ke `/login`, `/login` 200 lewat Cloudflare dengan cookie `secure`, tombol Google tampil; **masuk dengan Google sungguhan berhasil** oleh pemilik, akun produksi pertama tercipta dengan `google_sub` tanpa sandi dan tanpa galat di log): VPS IDCloudHost `103.54.170.198` bersama roziqrizal.com dan habitflow (bukan VPS Al-Kaukaba, sesuai aturan di repo build-server), domain `rizqflow.roziqrizal.com`. Container `rizqflow` healthy di `127.0.0.1:8082`, database `rizqflow` di `shared-mysql`, nginx site siap; langkah di [server/DEPLOY.md](../server/DEPLOY.md). **Sisa pemilik:** DNS A record di Cloudflare dan Authorized JavaScript origin `https://rizqflow.roziqrizal.com` di klien Web Google Cloud. Catatan: deploy pertama sempat menimpa container habitflow sekitar 2 menit karena nama project compose bentrok; sudah dipulihkan dan diperbaiki (`name: rizqflow`)
 
 **Selesai bila:** halaman web menampilkan data sync asli milik pengguna (bukan seed), autentikasi final terpasang, dan sudah live di domain produksi.
