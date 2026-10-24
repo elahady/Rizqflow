@@ -79,7 +79,7 @@ class AndroidKeystoreRoomKeyProviderTest {
     fun `pipa lengkap QR - ekspor, bungkus RoomInvite, pindai, impor - menghasilkan kunci yang sama`() {
         val pengundang = newProvider()
         val kunciPengundang = pengundang.getOrCreateRoomKey(ruangKeluarga)
-        val qrBytes = RoomInvite(ruangKeluarga, pengundang.exportRoomKey(ruangKeluarga)).encode()
+        val qrBytes = RoomInvite(ruangKeluarga, "Keluarga", pengundang.exportRoomKey(ruangKeluarga)).encode()
 
         val undangan = RoomInvite.decode(qrBytes)
         val pasangan = newProvider()

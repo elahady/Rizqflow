@@ -8,7 +8,7 @@ import kotlin.test.assertFailsWith
 /** Payload QR undangan ruang keluarga Tahap 13: bolak-balik encode/decode, dan checksum menangkap kerusakan. */
 class RoomInviteTest {
 
-    private val invite = RoomInvite(RoomId("ruang-keluarga-1"), byteArrayOf(1, 2, 3, 4, 5, 9, 9, 9))
+    private val invite = RoomInvite(RoomId("ruang-keluarga-1"), "Keluarga", byteArrayOf(1, 2, 3, 4, 5, 9, 9, 9))
 
     @Test
     fun `decode hasil encode mengembalikan undangan yang sama`() {
@@ -16,8 +16,8 @@ class RoomInviteTest {
     }
 
     @Test
-    fun `roomId kosong dan kunci kosong tetap bolak-balik`() {
-        val kosong = RoomInvite(RoomId(""), ByteArray(0))
+    fun `roomId, nama, dan kunci kosong tetap bolak-balik`() {
+        val kosong = RoomInvite(RoomId(""), "", ByteArray(0))
 
         assertEquals(kosong, RoomInvite.decode(kosong.encode()))
     }
