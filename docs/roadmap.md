@@ -31,7 +31,7 @@ T9 --> T8["8 Rilis dan portofolio"]
 
 Ringkasan ini **menyimpulkan, bukan menggantikan** checklist lengkap di tiap Tahap di bawah — dibuat untuk melihat jarak sebenarnya ke Tahap 8 (rilis) dalam satu pandangan. Diminta pemilik 2026-10-23 setelah target rilis 2 minggu disepakati di sesi lain; lihat "Catatan realita" di bagian bawah sebelum menganggap 2 minggu itu pasti cukup. **Diperbarui 2026-10-24** mengikuti progres hari itu (FLAG_SECURE, berkas CSV contoh, riset API harga emas dan library QR, login Google tersambung ke server) — detail lengkap tiap perubahan ada di checklist Tahap masing-masing, bukan diulang di sini.
 
-**Urutan menuju rilis:** Tahap 6 (hampir selesai, tinggal 2 verifikasi manual) → Tahap 7 (perlu Billing sungguhan) → Tahap 9+12+13 (server, sync, enkripsi — **blocker terbesar**) → Tahap 8 (rilis). Tahap 10 dan 11 sudah cukup untuk rilis (semua butir High selesai; sisanya Pro/Low, boleh menyusul tanpa menahan rilis).
+**Urutan menuju rilis:** ~~Tahap 6~~ **Selesai** (2026-10-24) → Tahap 7 (perlu Billing sungguhan) → Tahap 9+12+13 (server, sync, enkripsi — **blocker terbesar**) → Tahap 8 (rilis). Tahap 10 dan 11 sudah cukup untuk rilis (semua butir High selesai; sisanya Pro/Low, boleh menyusul tanpa menahan rilis).
 
 ### Blocker terbesar yang belum jadi baris tersendiri di manapun
 
@@ -61,7 +61,7 @@ Ringkasan ini **menyimpulkan, bukan menggantikan** checklist lengkap di tiap Tah
 - Uji restore backup database `rizqflow` (backup terjadwal sudah jalan, restore belum pernah dicoba)
 
 **Verifikasi manual yang masih berutang (kode sudah selesai, belum dibuktikan):**
-- Tahap 6: restore cadangan di **perangkat fisik lain** (baru teruji bolak-balik di emulator; percobaan lewat emulator 2026-10-24 terhambat `adb install` macet permanen, lihat Status 2026-10-24 di Tahap 6); file ekspor CSV dibuka di Sheets/Excel sungguhan — **berkas contoh sudah siap** (`C:\Users\roziq\Downloads\rizqflow-export-contoh.csv`, dihasilkan+diverifikasi formatnya 2026-10-24 lewat `CsvExporter` asli), tinggal dibuka manual sekali
+- ~~Tahap 6: restore cadangan di perangkat fisik lain; file ekspor CSV dibuka di Sheets/Excel sungguhan~~ **selesai dikonfirmasi 2026-10-24** — restore di dua HP fisik menghasilkan data identik, CSV terbuka normal di Excel/Sheets; Tahap 6 ditutup Selesai (lihat Status Tahap 6)
 - Tahap 13: **semua tes kripto yang lulus di Robolectric belum membuktikan Android Keystore sungguhan** — Tink diam-diam jatuh ke penyimpanan cleartext saat Keystore gagal di lingkungan tes, jadi "aman karena Keystore" baru boleh dipercaya setelah dicoba di emulator/perangkat dengan Keystore asli (lihat catatan JDK di CLAUDE.md)
 
 **Tahap 8 (birokrasi rilis) — sebaiknya dimulai PARALEL, bukan di akhir**, karena ada masa tunggu di luar kendali sendiri (review Google):
@@ -86,7 +86,6 @@ Pemilik memilih **Opsi A** — pertahankan keputusan 24 Sept, rilis 1 tetap menc
 
 **Sekarang juga, paralel (tidak saling menunggu):**
 - Tambah aplikasi Rizqflow baru di akun Play Console yang sudah ada (dipakai sejak Al-Kaukaba); cek profil pembayaran dan status syarat uji tertutup developer baru (Tahap 8) — bukan daftar dari nol lagi, tapi tetap mulai duluan karena ada bagian yang masih bisa makan waktu tunggu
-- 2 verifikasi manual Tahap 6 (restore di perangkat lain, buka CSV di Sheets/Excel) — berkas CSV sudah siap (lihat di atas), tinggal dibuka; restore masih butuh HP fisik kedua
 - Salin konfigurasi Nginx ke repo + uji restore backup (Tahap 12) — tidak butuh kode baru
 - Jalankan tes kripto Tahap 13 yang sudah ada di emulator/perangkat dengan Keystore asli (bukan cuma Robolectric) — membuktikan klaim "aman" yang masih tertunda
 
@@ -94,6 +93,7 @@ Pemilik memilih **Opsi A** — pertahankan keputusan 24 Sept, rilis 1 tetap menc
 - ~~Bangun lapisan HTTP client Android~~ — selesai (`AccountRemote`/`SyncRemote`/`ApiTokenStore` + implementasi Retrofit, lihat task baru di Tahap 9), 13 tes hijau.
 
 **Sudah selesai (2026-10-24):**
+- ~~2 verifikasi manual Tahap 6 (restore di 2 HP fisik, buka CSV di Excel/Sheets)~~ — keduanya hasil baik, Tahap 6 ditutup **Selesai**
 - ~~Login Google disambungkan ke server~~ — 2 keputusan pemilik dijawab (klien HTTP per `AccountWorkspace`, `GoogleAuthProvider` diubah menangkap dan meneruskan `idToken`) dan dikerjakan sekaligus, lihat task baru Tahap 9
 - ~~Hapus akun disambungkan ke server~~ — baris baru di menu Lainnya, lihat task baru Tahap 9. Trigger sync push/pull masih menyusul — beda kelas kerjaan, butuh UI ruang keluarga yang belum ada sama sekali, bukan sekadar sambungkan tombol
 - ~~Riset sumber API harga emas~~ dan ~~pilih library QR scanner~~ — selesai diriset (kandidat Emas API ID untuk emas; ML Kit+CameraX/`qrcode-kotlin` untuk QR), belum final/diimplementasi, lihat task Tahap 7 dan 13
@@ -212,7 +212,7 @@ Pembeda utama produk.
 
 **Status 2026-09-22:** semua kriteria terpenuhi (flow F5 teruji lewat ZakatTest dan emulator, disclaimer ringkas dan layar Tentang lengkap tampil, modul bisa dimatikan lewat sakelar persentase donasi tanpa kehilangan data). Pengingat haul (notifikasi) semula tersisa, lalu dikerjakan di Tahap 6 karena butuh infrastruktur notifikasi yang sama dengan S26 (selesai 2026-09-22). Keputusan tier pengingat haul (satu profil gratis, multi-profil Pro) disetujui pemilik 2026-09-24, sehingga seluruh kriteria terpenuhi dan tahap ditutup.
 
-## Tahap 6 — Keamanan, data, dan polish (In Progress)
+## Tahap 6 — Keamanan, data, dan polish (Selesai)
 
 - [x] Kunci PIN dan biometrik (S19): PIN 6 angka diketik dua kali, lima kali salah menahan sementara 30 detik tanpa menghapus data, biometrik hanya bisa aktif setelah ada PIN dan bila tersedia di perangkat, kunci otomatis (segera/1/5/15 menit) diperiksa lewat lifecycle Activity saat kembali dari latar belakang, start dingin selalu terkunci bila ada PIN, ~~FLAG_SECURE menyembunyikan nominal di tampilan aplikasi terakhir dan tangkapan layar~~ (dihapus 2026-10-24, keputusan pemilik: kontrol atas screenshot/share pengeluaran ada di tangan user sendiri, sistem tidak boleh membatasi — lihat `MainActivity.kt`); menu Lainnya > Keamanan untuk ubah PIN dan matikan kunci (keduanya minta PIN sekarang dulu); teruji ujung ke ujung di emulator termasuk lockout, kedua mode kunci otomatis, dan tampilan aplikasi terakhir (2026-09-22)
 - [x] Backup dan restore terenkripsi (S20) (2026-09-22): menu Lainnya > Backup dan data. Cadangkan menyalin berkas SQLite Room apa adanya (checkpoint WAL dulu supaya lengkap) dan mengenkripsinya AES-256-GCM dengan kunci PBKDF2-HMAC-SHA256 dari sandi pengguna (`BackupCrypto` di `:domain`, garam dan IV acak per cadangan, sandi minimal 6 karakter, dua kali ketik); berkas dibagikan lewat Storage Access Framework. Pulihkan meminta berkas lalu sandi dengan konfirmasi eksplisit menimpa data; sandi salah atau berkas rusak menampilkan pesan tanpa menyentuh data sekarang. Restore menutup ruang kerja, menimpa berkas database (menghapus sisa `-wal`/`-shm` lama), lalu membuka ulang — menu dan tab kembali ke Denah dengan data baru. Diuji: `BackupCryptoTest` (bolak-balik, sandi salah, berkas rusak, berkas terlalu pendek) di `:domain`; `:app:assembleDebug` dan unit test `:app`/`:data` lulus
@@ -231,6 +231,8 @@ Pembeda utama produk.
 **Status 2026-09-23:** seluruh tugas terdaftar di atas sudah selesai (termasuk butir Denah terakhir). Dua dari lima kriteria "Selesai bila" di atas masih menunggu verifikasi manual: **restore di perangkat fisik lain** (baru diuji bolak-balik di emulator/`BackupCryptoTest`, belum lintas perangkat) dan **berkas ekspor CSV dibuka di aplikasi spreadsheet sungguhan** (baru diperiksa isinya di emulator, belum di Sheets/Excel). PIN/biometrik dan koreksi saldo sudah terverifikasi sesuai kriteria.
 
 **Status 2026-10-24:** percobaan menyiapkan kedua verifikasi lewat emulator terhambat infrastruktur (uiautomator deadlock, `adb install` macet permanen di "Performing Streamed Install" walau RAM dan exclusion Defender sudah dibenahi — kemungkinan khusus mesin ini, belum ditemukan akar pastinya). Sebagai gantinya: **berkas CSV contoh sudah dihasilkan dan diverifikasi formatnya** lewat jalur `CsvExporter` asli (data dari `DemoData.seed`, test sementara dihapus setelah dipakai, tidak masuk repo) — tersimpan di `C:\Users\roziq\Downloads\rizqflow-export-contoh.csv`, header dan escape CSV terbukti benar; tinggal dibuka manual sekali di Excel/Sheets untuk menutup kriteria ini sepenuhnya. **Restore lintas-perangkat fisik tidak bisa dipintas** cara yang sama — intinya menguji Android Keystore dan SQLite sungguhan di hardware asli, dan catatan di atas (`AndroidKeySetManager` jatuh ke cleartext di Robolectric) justru membuktikan ini tidak bisa disimulasikan di JVM/emulator; tetap menunggu 2 perangkat fisik. Juga: **FLAG_SECURE pada baris PIN/biometrik di atas dihapus** (keputusan pemilik 2026-10-24, lihat commit `7d88d9e`) — screenshot/tangkapan layar aplikasi ini kini tidak lagi diblokir di tingkat sistem.
+
+**Status 2026-10-24 (lanjutan):** kedua verifikasi manual yang masih berutang di atas dikonfirmasi pemilik selesai hari ini dengan hasil baik — berkas CSV contoh terbuka normal di aplikasi spreadsheet sungguhan (Excel/Sheets), dan restore cadangan terenkripsi di dua HP fisik menghasilkan data identik dengan sumbernya. Seluruh kriteria "Selesai bila" di atas kini terpenuhi; tahap ditutup **Selesai**.
 
 ## Tahap 7 — Monetisasi dan Pro (In Progress)
 
