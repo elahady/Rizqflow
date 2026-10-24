@@ -50,8 +50,9 @@
 
     <!-- S30 Sign in -->
     <string name="login_tagline">Rezeki flows in, every right fulfilled.</string>
-    <string name="login_point_local">Your data stays on your phone, never sent to a server</string>
+    <string name="login_point_local">Your financial data is always encrypted — only you can read it</string>
     <string name="login_point_offline">Works without internet after signing in</string>
+    <string name="login_point_backup">Switching phones? Your data can still come with you</string>
     <string name="login_point_no_ads">No ads</string>
     <string name="login_google">Continue with Google</string>
     <string name="login_gmail">Connect Gmail</string>

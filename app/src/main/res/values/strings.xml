@@ -52,8 +52,9 @@
 
     <!-- S30 Masuk -->
     <string name="login_tagline">Rezeki mengalir, setiap hak terpenuhi.</string>
-    <string name="login_point_local">Datamu tetap di ponselmu, tidak dikirim ke server</string>
+    <string name="login_point_local">Data keuanganmu selalu terenkripsi, hanya kamu yang bisa baca</string>
     <string name="login_point_offline">Jalan tanpa internet setelah masuk</string>
+    <string name="login_point_backup">Ganti HP? Datamu tetap bisa dibawa</string>
     <string name="login_point_no_ads">Tanpa iklan</string>
     <string name="login_google">Lanjutkan dengan Google</string>
     <string name="login_gmail">Hubungkan Gmail</string>

@@ -178,7 +178,7 @@ fun LoginScreen(
 
         Spacer(Modifier.height(spacing.s3))
         Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            listOf(R.string.login_point_local, R.string.login_point_offline, R.string.login_point_no_ads).forEach {
+            listOf(R.string.login_point_local, R.string.login_point_offline, R.string.login_point_backup, R.string.login_point_no_ads).forEach {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                     Icon(RizqflowIcons.Centang, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                     Text(stringResource(it), style = MaterialTheme.typography.bodyMedium)
