@@ -16,10 +16,16 @@ object AccountStorage {
     const val DEMO_ACCOUNT_ID = "rizqflow-demo"
     private const val HASH_HEX_CHARS = 32
 
-    fun databaseName(accountId: String): String {
+    fun databaseName(accountId: String): String = "$PREFIX${scopeKey(accountId)}.db"
+
+    /**
+     * Kunci aman (32 heksadesimal, dari hash pengenal) untuk menamai penyimpanan lain yang juga satu per
+     * akun, mis. berkas SharedPreferences. Aturannya sama dengan [databaseName] dan tidak boleh berubah.
+     */
+    fun scopeKey(accountId: String): String {
         require(accountId.isNotBlank()) { "Pengenal akun tidak boleh kosong" }
         val digest = MessageDigest.getInstance("SHA-256").digest(accountId.toByteArray(Charsets.UTF_8))
         val hex = digest.joinToString("") { "%02x".format(it) }
-        return "$PREFIX${hex.take(HASH_HEX_CHARS)}.db"
+        return hex.take(HASH_HEX_CHARS)
     }
 }

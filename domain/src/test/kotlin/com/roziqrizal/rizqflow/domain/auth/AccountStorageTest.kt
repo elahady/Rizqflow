@@ -52,5 +52,19 @@ class AccountStorageTest {
     fun `pengenal kosong ditolak`() {
         assertFailsWith<IllegalArgumentException> { AccountStorage.databaseName("") }
         assertFailsWith<IllegalArgumentException> { AccountStorage.databaseName("   ") }
+        assertFailsWith<IllegalArgumentException> { AccountStorage.scopeKey("") }
+        assertFailsWith<IllegalArgumentException> { AccountStorage.scopeKey("   ") }
+    }
+
+    @Test
+    fun `kunci per akun aman, stabil, dan membedakan akun`() {
+        val key = AccountStorage.scopeKey("roziq@example.com")
+
+        assertTrue(Regex("[0-9a-f]{32}").matches(key), key)
+        assertEquals(key, AccountStorage.scopeKey("roziq@example.com"))
+        assertNotEquals(key, AccountStorage.scopeKey("lain@example.com"))
+        assertFalse(key.contains("roziq"))
+        // Nama database memakai kunci yang sama, jadi dua penyimpanan satu akun selalu searah.
+        assertEquals("rizqflow-$key.db", AccountStorage.databaseName("roziq@example.com"))
     }
 }

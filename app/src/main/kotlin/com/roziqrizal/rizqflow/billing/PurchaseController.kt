@@ -148,9 +148,14 @@ class PurchaseController(
      * pembayaran tertunda yang baru lunas, atau kode promo ditebus di Play Store) lalu membuka dan
      * meng-acknowledge-nya lewat [sync]. Berjalan sampai dibatalkan; dipanggil dari layar yang hidup selama
      * aplikasi terbuka, supaya janji "aktif otomatis begitu lunas" benar tanpa menunggu aplikasi dibuka ulang.
+     * [afterSync] dipanggil sesudah tiap [sync] selesai (mis. melaporkan pembelian yang baru lunas ke server);
+     * paket lokal sudah beres lebih dulu, jadi apa pun yang dilakukan [afterSync] tidak menunda atau mengubahnya.
      */
-    suspend fun syncOnExternalUpdates() {
-        gateway.externalUpdates.collect { sync() }
+    suspend fun syncOnExternalUpdates(afterSync: suspend () -> Unit = {}) {
+        gateway.externalUpdates.collect {
+            sync()
+            afterSync()
+        }
     }
 
     private suspend fun restoreAfterAlreadyOwned(plan: Plan): BuyOutcome {

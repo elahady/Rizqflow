@@ -16,7 +16,9 @@ import com.roziqrizal.rizqflow.domain.auth.AccountStorage
 import com.roziqrizal.rizqflow.domain.auth.AppLockService
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -104,6 +106,8 @@ fun AppRoot(
                 // konten tidak sempat berkedip sebelum pemeriksaan selesai).
                 var locked by rememberSaveable { mutableStateOf<Boolean?>(null) }
                 var backgroundedAt by rememberSaveable { mutableStateOf<Long?>(null) }
+                // Isyarat "baru masuk ke server": bukan keadaan yang perlu bertahan, jadi tidak disimpan lintas proses.
+                var serverLoginSignal by remember { mutableIntStateOf(0) }
                 val lockScope = rememberCoroutineScope()
                 val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -135,7 +139,12 @@ fun AppRoot(
                         LaunchedEffect(workspace, s.pendingGoogleIdToken) {
                             val idToken = controller.consumeGoogleIdToken() ?: return@LaunchedEffect
                             when (val result = workspace.accountRemote.loginWithGoogle(idToken, DeviceId.read(localContext))) {
-                                is RemoteResult.Success -> workspace.apiTokenStore.save(result.value.apiToken)
+                                is RemoteResult.Success -> {
+                                    workspace.apiTokenStore.save(result.value.apiToken)
+                                    // Token server baru ada: MainHost melaporkan pembelian lama ke server (Tahap 9).
+                                    serverLoginSignal++
+                                }
+
                                 is RemoteResult.Failure -> Unit
                             }
                         }
@@ -165,6 +174,7 @@ fun AppRoot(
                                 demo = demo,
                                 onEnterDemo = { demo = true },
                                 onExitDemo = { demo = false },
+                                serverLoginSignal = serverLoginSignal,
                             )
                         }
                     }

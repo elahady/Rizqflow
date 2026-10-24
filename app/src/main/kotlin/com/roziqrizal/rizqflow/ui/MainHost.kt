@@ -10,9 +10,12 @@ import com.roziqrizal.rizqflow.BuildConfig
 import com.roziqrizal.rizqflow.RizqflowApplication
 import com.roziqrizal.rizqflow.billing.BillingPeriod
 import com.roziqrizal.rizqflow.billing.BuyOutcome
+import com.roziqrizal.rizqflow.billing.PurchaseClaimCoordinator
 import com.roziqrizal.rizqflow.billing.PurchaseController
 import com.roziqrizal.rizqflow.billing.SubscriptionOffer
 import com.roziqrizal.rizqflow.billing.findActivity
+import com.roziqrizal.rizqflow.billing.opensPlan
+import com.roziqrizal.rizqflow.billing.purchaseClaimsAllowed
 import com.roziqrizal.rizqflow.widget.SafeToSpendWidget
 import com.roziqrizal.rizqflow.domain.allocation.AllocationRule
 import com.roziqrizal.rizqflow.ui.denah.DenahScreen
@@ -65,6 +68,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -128,6 +132,8 @@ fun MainHost(
     demo: Boolean = false,
     onEnterDemo: () -> Unit = {},
     onExitDemo: () -> Unit = {},
+    /** Bertambah setiap masuk ke server berhasil (token API baru tersimpan): saat itu pembelian lama dilaporkan. */
+    serverLoginSignal: Int = 0,
 ) {
     val context = LocalContext.current
     var catat by rememberSaveable { mutableStateOf(false) }
@@ -175,14 +181,52 @@ fun MainHost(
     var purchaseBusy by remember { mutableStateOf(false) }
     // Varian S21 dipilih dari paket yang dibutuhkan fitur pemicunya: fitur Sync membuka varian Sync.
     val paywallPlan = paywallPlanFor(paywallTrigger?.let { Feature.valueOf(it) })
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    // Laporan token pembelian ke server (Tahap 9). Hanya untuk akun yang punya token server (masuk dengan
+    // Google): akun lokal dan mode demo tidak pernah mengirim. Hanya LAPORAN di latar: tidak pernah
+    // mengubah paket lokal dan tidak pernah menghalangi beli atau pulihkan (lihat PurchaseClaimCoordinator).
+    // Keputusan "boleh melapor" ada di purchaseClaimsAllowed dan PurchaseClaimCoordinator (keduanya diuji),
+    // bukan di sini: koordinator membaca nilai terbaru tiap klaim, jadi berpindah ke demo berlaku seketika.
+    val claimsEnabled by rememberUpdatedState(purchaseClaimsAllowed(demo, account.local))
+    val purchaseClaims = remember(workspace) {
+        val app = context.applicationContext as RizqflowApplication
+        PurchaseClaimCoordinator(
+            app.billing,
+            workspace.purchaseRemote,
+            workspace.apiTokenStore,
+            app.claimedPurchaseTokens,
+            enabled = { claimsEnabled },
+        )
+    }
+    // Satu-satunya kabar dari server yang ditampilkan: token pembelian ini sudah dipakai akun Rizqflow lain.
+    // Antre di belakang snackbar yang sedang tampil (bukan menimpanya), supaya "Pro sudah aktif" tidak hilang
+    // dipotong kabar ini; kabarnya muncul sekali per token per proses (diatur PurchaseClaimCoordinator).
+    suspend fun reportPurchases() {
+        if (purchaseClaims.claim().showClaimedByOtherNotice) {
+            snackbar.showSnackbar(context.getString(R.string.purchase_claimed_by_other), duration = SnackbarDuration.Long)
+        }
+    }
+    fun reportPurchasesInBackground() {
+        scope.launch { reportPurchases() }
+    }
     // Pulihkan diam-diam tiap aplikasi dibuka: pasang ulang atau ganti perangkat tidak menghilangkan Pro atau Sync.
+    // Paket lokal dibereskan lebih dulu; baru sesudahnya token pembelian dilaporkan ke server.
     LaunchedEffect(purchaseController, demo) {
-        if (!demo) purchaseController.sync()
+        if (!demo) {
+            purchaseController.sync()
+            reportPurchases()
+        }
+    }
+    // Baru selesai masuk ke server: laporkan pembelian lama (pemulihan). Sebelum itu belum ada token server.
+    LaunchedEffect(purchaseClaims, serverLoginSignal) {
+        if (serverLoginSignal > 0) reportPurchases()
     }
     // Pembayaran tertunda yang baru lunas (atau kode promo yang ditebus) sampai ke aplikasi lewat toko,
     // bukan lewat tombol Beli yang menunggu: baca ulang toko supaya paketnya terbuka dan di-acknowledge.
+    // Pelaporan ke server dijalankan terpisah supaya jaringan yang lambat tidak menunda sync paket berikutnya.
     LaunchedEffect(purchaseController, demo) {
-        if (!demo) purchaseController.syncOnExternalUpdates()
+        if (!demo) purchaseController.syncOnExternalUpdates(afterSync = { reportPurchasesInBackground() })
     }
     LaunchedEffect(paywallOpen, paywallPlan) {
         if (!paywallOpen) return@LaunchedEffect
@@ -209,8 +253,6 @@ fun MainHost(
     LaunchedEffect(workspace, version, ownedPlans, demo) {
         if (!demo) SafeToSpendWidget.updateAll(context, workspace)
     }
-    val snackbar = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     val undoLabel = context.getString(R.string.action_undo)
 
     // Pengingat malam (S26): jadwalkan ulang setiap ruang kerja dibuka (juga menutupi kasus
@@ -609,6 +651,8 @@ fun MainHost(
                 purchaseBusy = true
                 val outcome = purchaseController.buy(plan, activity = { context.findActivity() }, period = period)
                 purchaseBusy = false
+                // Paket sudah terbuka dari Google Play; pelaporan ke server berjalan di latar dan tidak menunggu.
+                if (outcome.opensPlan()) reportPurchasesInBackground()
                 // Sheet menutup hanya bila ada kabar akhir; dibatalkan tetap terbuka supaya bisa dicoba lagi.
                 if (outcome != BuyOutcome.CANCELED) paywallOpen = false
                 if (outcome != BuyOutcome.CANCELED) notifier.show(context.getString(buyMessage(outcome, plan)))
@@ -620,6 +664,7 @@ fun MainHost(
                 purchaseBusy = true
                 val report = purchaseController.restoreReport()
                 purchaseBusy = false
+                if (report.opensPlan()) reportPurchasesInBackground()
                 paywallOpen = false
                 notifier.show(context.getString(restoreMessage(report, plan)))
             }

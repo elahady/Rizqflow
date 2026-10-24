@@ -6,6 +6,7 @@ import com.roziqrizal.rizqflow.billing.PurchaseStore
 import com.roziqrizal.rizqflow.data.LocalLedger
 import com.roziqrizal.rizqflow.data.crypto.AndroidKeystoreRoomKeyProvider
 import com.roziqrizal.rizqflow.data.remote.RetrofitAccountRemote
+import com.roziqrizal.rizqflow.data.remote.RetrofitPurchaseRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitRoomMembershipRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitSyncRemote
 import com.roziqrizal.rizqflow.data.remote.RizqflowApiClient
@@ -14,6 +15,7 @@ import com.roziqrizal.rizqflow.data.sync.JsonTransactionSyncCodec
 import com.roziqrizal.rizqflow.data.sync.SharedPrefsSyncCursorStore
 import com.roziqrizal.rizqflow.domain.sync.AccountRemote
 import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
+import com.roziqrizal.rizqflow.domain.sync.PurchaseRemote
 import com.roziqrizal.rizqflow.domain.sync.RoomKeyProvider
 import com.roziqrizal.rizqflow.domain.sync.RoomMembershipRemote
 import com.roziqrizal.rizqflow.domain.sync.SyncCursorStore
@@ -54,6 +56,7 @@ class AccountWorkspace private constructor(
     val roomKeyProvider: RoomKeyProvider,
     private val syncRemote: SyncRemote,
     val roomMembershipRemote: RoomMembershipRemote,
+    val purchaseRemote: PurchaseRemote,
     private val syncCursorStore: SyncCursorStore,
 ) : AutoCloseable {
     private val newId: () -> String = { UUID.randomUUID().toString() }
@@ -110,10 +113,12 @@ class AccountWorkspace private constructor(
                 local = LocalLedger.open(context, accountId),
                 purchases = PurchaseStore.shared(context),
                 accountRemote = RetrofitAccountRemote(apiService),
-                apiTokenStore = SharedPrefsApiTokenStore(context),
+                // Token server milik akun ini saja: akun lain di perangkat yang sama membaca berkas lain.
+                apiTokenStore = SharedPrefsApiTokenStore(context, accountId),
                 roomKeyProvider = AndroidKeystoreRoomKeyProvider(context),
                 syncRemote = RetrofitSyncRemote(apiService),
                 roomMembershipRemote = RetrofitRoomMembershipRemote(apiService),
+                purchaseRemote = RetrofitPurchaseRemote(apiService),
                 syncCursorStore = SharedPrefsSyncCursorStore(context),
             )
         }

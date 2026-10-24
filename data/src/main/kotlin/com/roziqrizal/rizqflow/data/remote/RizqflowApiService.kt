@@ -55,6 +55,14 @@ interface RizqflowApiService {
         @Header("Authorization") bearerToken: String,
         @Path("roomId") roomId: String,
     ): Response<ResponseBody>
+
+    /** Lapor token pembelian Pro/Sync ke server (Tahap 9, `Api\PurchaseController@claim`). */
+    @Headers("Content-Type: application/json")
+    @POST("purchases/claim")
+    suspend fun claimPurchases(
+        @Header("Authorization") bearerToken: String,
+        @Body body: RequestBody,
+    ): Response<ResponseBody>
 }
 
 @Serializable
@@ -128,3 +136,27 @@ data class RoomMemberDto(
 
 @Serializable
 data class RoomMembersResponseDto(val members: List<RoomMemberDto>)
+
+/** Badan `POST /purchases/claim`: `{"purchases":[{"product_id":"...","purchase_token":"..."}]}`. */
+@Serializable
+data class PurchaseClaimRequestDto(val purchases: List<PurchaseClaimItemDto>)
+
+@Serializable
+data class PurchaseClaimItemDto(
+    @SerialName("product_id") val productId: String,
+    @SerialName("purchase_token") val purchaseToken: String,
+)
+
+/** Jawaban 200: `plans` paket akun di server setelah klaim, `results` sejajar dengan urutan masukan. */
+@Serializable
+data class PurchaseClaimResponseDto(
+    val plans: List<String> = emptyList(),
+    val results: List<PurchaseClaimResultDto> = emptyList(),
+)
+
+/** [status] sengaja String mentah: nilai yang belum dikenal klien dipetakan ke status UNKNOWN, bukan gagal decode. */
+@Serializable
+data class PurchaseClaimResultDto(
+    @SerialName("product_id") val productId: String,
+    val status: String,
+)
