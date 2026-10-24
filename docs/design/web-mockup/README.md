@@ -2,7 +2,7 @@
 
 Mockup klik untuk web (`server/`), dibuat 2026-10-24 bersama pemilik memakai Claude Design (artifact). Folder ini adalah **sumber lengkap** mockup, disimpan di repo supaya tidak hilang kalau artifact tidak bisa dibuka.
 
-- **Artifact:** https://claude.ai/artifact/L3KMKzj1QXGV69hBBhoQKc (versi 15). Artifact ini **privat**: hanya terbuka di akun Claude yang membuatnya, kecuali dibagikan lewat menu Share. Dari akun lain, terbitkan ulang dari folder ini (lihat "Menerbitkan ulang").
+- **Artifact:** https://claude.ai/artifact/L3KMKzj1QXGV69hBBhoQKc (versi 15). Akses diatur lewat menu Share di claude.ai: per 2026-10-24 artifact dibagikan ke organisasi pemilik, jadi akun di luar organisasi itu tidak bisa membukanya kecuali diundang. Kalau tidak bisa dibuka, terbitkan ulang dari folder ini (lihat "Menerbitkan ulang").
 - **Keputusan dan konteks:** [../../konsep.md](../../konsep.md), butir "Desain web baru" (2026-10-24).
 - **Riset pasar khusus web:** [../../research-market/research-web.md](../../research-market/research-web.md).
 - Prototipe Android (S01 sampai S35) ada di [../prototype.html](../prototype.html); folder ini hanya untuk web.
