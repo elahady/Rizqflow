@@ -22,6 +22,8 @@ class TransaksiSearchTest extends TestCase
     {
         parent::setUp();
 
+        $this->travelTo('2026-10-24 10:00:00');
+
         $this->user = User::factory()->create();
         $this->account = Account::create(['user_id' => $this->user->id, 'name' => 'Bank Jago', 'type' => 'bank', 'sort_order' => 1]);
     }
@@ -65,12 +67,12 @@ class TransaksiSearchTest extends TestCase
 
         Livewire::actingAs($this->user)
             ->test(Transaksi::class)
-            ->set('filter', 'pemasukan')
+            ->set('jenis', 'pemasukan')
             ->assertSee('Gaji September')
             ->assertDontSee('Belanja mingguan');
     }
 
-    public function test_search_works_across_years_and_the_date_group_includes_the_year(): void
+    public function test_search_works_across_periods_and_years_and_the_date_includes_the_year(): void
     {
         $this->tx('pengeluaran', 150_000, 'Belanja lama', '2024-10-01');
         $this->tx('pengeluaran', 150_000, 'Belanja baru', '2026-10-01');
@@ -78,14 +80,15 @@ class TransaksiSearchTest extends TestCase
         $component = Livewire::actingAs($this->user)->test(Transaksi::class)->set('search', 'belanja');
 
         $component->assertSee('Belanja lama')->assertSee('Belanja baru');
-        $component->assertSee('1 October 2024')->assertSee('1 October 2026');
+        $component->assertSee('Hasil pencarian di semua periode');
+        $component->assertSee('1 Okt 2024')->assertSee('1 Okt 2026');
     }
 
     public function test_empty_state_message_differs_when_filtering_versus_truly_empty(): void
     {
         Livewire::actingAs($this->user)
             ->test(Transaksi::class)
-            ->assertSee('Belum ada transaksi.');
+            ->assertSee('Belum ada transaksi di Oktober 2026.');
 
         $this->tx('pengeluaran', 150_000, 'Belanja pasar', '2026-10-01');
 

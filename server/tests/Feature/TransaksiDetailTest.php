@@ -316,4 +316,113 @@ class TransaksiDetailTest extends TestCase
         $this->assertSame(1_000_000, $this->account->refresh()->balance_minor);
         $this->assertSame(-200_000, $gopay->refresh()->balance_minor);
     }
+    // --- Potret alokasi dan zakat mal di halaman detail ---
+
+    public function test_income_detail_shows_the_allocation_snapshot_with_percentages(): void
+    {
+        $this->room->update(['allocation_percent' => 60]);
+        Room::create(['user_id' => $this->user->id, 'name' => 'Diri', 'type' => 'menumbuhkan', 'slot' => 2, 'sort_order' => 2, 'allocation_percent' => 30]);
+        $tx = Ledger::recordIncome($this->user, 10_000_000, $this->account, now(), 'Gaji', 'Gaji Oktober');
+
+        $this->actingAs($this->user)->get(route('transaksi.detail', $tx))
+            ->assertOk()
+            ->assertSee('Dialirkan ke ruang')
+            ->assertSeeInOrder(['Keluarga', '60%', 'Rp 6.000.000', 'Diri', '30%', 'Rp 3.000.000', 'Belum dialirkan', 'Rp 1.000.000'])
+            ->assertSee('persentase di atas');
+    }
+
+    public function test_income_without_a_snapshot_says_it_is_not_allocated(): void
+    {
+        $tx = $this->income(2_000_000);
+
+        $this->actingAs($this->user)->get(route('transaksi.detail', $tx))
+            ->assertOk()
+            ->assertSee('Belum dialirkan');
+    }
+
+    public function test_expense_detail_has_no_allocation_card_and_no_zakat_fields_outside_zakat_pos(): void
+    {
+        $tx = $this->expense();
+
+        $this->actingAs($this->user)->get(route('transaksi.detail', $tx))
+            ->assertOk()
+            ->assertDontSee('Dialirkan ke ruang')
+            ->assertDontSee('Lembaga penerima');
+    }
+
+    public function test_zakat_expense_shows_and_edits_recipient_and_receipt(): void
+    {
+        $memberi = Room::create(['user_id' => $this->user->id, 'name' => 'Memberi', 'type' => 'menunaikan', 'slot' => 3, 'sort_order' => 2]);
+        $zakat = Category::create(['room_id' => $memberi->id, 'name' => Category::ZAKAT, 'is_system' => true, 'sort_order' => 1]);
+        $tx = Ledger::recordExpense($this->user, 500_000, $zakat, $this->account, now(), 'Zakat mal', ['recipient_institution' => 'Baznas', 'receipt_number' => 'BZ-001']);
+
+        $this->actingAs($this->user)->get(route('transaksi.detail', $tx))
+            ->assertOk()->assertSee('Lembaga penerima')->assertSee('Baznas')->assertSee('No. bukti setor')->assertSee('BZ-001');
+
+        Livewire::actingAs($this->user)
+            ->test(TransaksiDetail::class, ['transaction' => $tx])
+            ->assertSet('recipientInstitution', 'Baznas')
+            ->call('startEdit')
+            ->assertSee('Lembaga penerima')
+            ->set('recipientInstitution', '  Masjid Al-Falah ')
+            ->set('receiptNumber', '')
+            ->call('save')
+            ->assertSet('error', null);
+
+        $tx->refresh();
+        $this->assertSame('Masjid Al-Falah', $tx->recipient_institution);
+        $this->assertNull($tx->receipt_number);
+    }
+
+    public function test_zakat_fields_are_length_limited(): void
+    {
+        $memberi = Room::create(['user_id' => $this->user->id, 'name' => 'Memberi', 'type' => 'menunaikan', 'slot' => 3, 'sort_order' => 2]);
+        $zakat = Category::create(['room_id' => $memberi->id, 'name' => Category::ZAKAT, 'is_system' => true, 'sort_order' => 1]);
+        $tx = Ledger::recordExpense($this->user, 500_000, $zakat, $this->account, now(), null);
+
+        Livewire::actingAs($this->user)
+            ->test(TransaksiDetail::class, ['transaction' => $tx])
+            ->call('startEdit')
+            ->set('recipientInstitution', str_repeat('x', 101))
+            ->call('save')
+            ->assertSet('error', 'Lembaga penerima paling banyak 100 karakter.')
+            ->set('recipientInstitution', 'Baznas')
+            ->set('receiptNumber', str_repeat('9', 61))
+            ->call('save')
+            ->assertSet('error', 'Nomor bukti setor paling banyak 60 karakter.');
+
+        $this->assertNull($tx->refresh()->recipient_institution);
+    }
+
+    public function test_zakat_fields_appear_in_the_form_once_the_zakat_pos_is_picked(): void
+    {
+        $memberi = Room::create(['user_id' => $this->user->id, 'name' => 'Memberi', 'type' => 'menunaikan', 'slot' => 3, 'sort_order' => 2]);
+        $zakat = Category::create(['room_id' => $memberi->id, 'name' => Category::ZAKAT, 'is_system' => true, 'sort_order' => 1]);
+        $tx = $this->expense();
+
+        Livewire::actingAs($this->user)
+            ->test(TransaksiDetail::class, ['transaction' => $tx])
+            ->call('startEdit')
+            ->assertDontSee('Lembaga penerima')
+            ->set('roomId', $memberi->id)
+            ->set('categoryId', $zakat->id)
+            ->assertSee('Lembaga penerima')
+            ->set('recipientInstitution', 'Baznas')
+            ->call('save')
+            ->assertSet('error', null);
+
+        $this->assertSame('Baznas', $tx->refresh()->recipient_institution);
+    }
+
+    public function test_detail_of_an_expense_in_an_archived_room_still_renders_for_editing(): void
+    {
+        $tx = $this->expense();
+        $this->room->update(['archived' => true]);
+
+        Livewire::actingAs($this->user)
+            ->test(TransaksiDetail::class, ['transaction' => $tx])
+            ->call('startEdit')
+            ->assertSee('Keluarga')
+            ->assertSet('error', null);
+    }
 }

@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Account;
 use App\Models\Category;
+use App\Models\Room;
 use App\Models\Transaction;
 use App\Support\Ledger;
 use App\Support\LedgerException;
@@ -44,6 +45,11 @@ class TransaksiDetail extends Component
 
     public string $source = '';
 
+    /** Hanya untuk pengeluaran di pos Zakat mal (rekap zakat tahunan). */
+    public string $recipientInstitution = '';
+
+    public string $receiptNumber = '';
+
     public ?string $error = null;
 
     public function mount(Transaction $transaction): void
@@ -64,6 +70,8 @@ class TransaksiDetail extends Component
         if ($this->transaction->type === 'pengeluaran') {
             $this->roomId = $this->transaction->room_id;
             $this->categoryId = $this->transaction->category_id;
+            $this->recipientInstitution = $this->transaction->recipient_institution ?? '';
+            $this->receiptNumber = $this->transaction->receipt_number ?? '';
         } else {
             $this->source = $this->transaction->category ?? '';
         }
@@ -158,6 +166,25 @@ class TransaksiDetail extends Component
             }
 
             $changes = ['note' => $note !== '' ? $note : null, 'occurred_on' => $date];
+
+            // Lembaga penerima dan nomor bukti setor hanya bermakna di pos Zakat mal; di pos lain nilainya dibiarkan.
+            if ($category->isZakat()) {
+                $recipient = trim($this->recipientInstitution);
+                if (mb_strlen($recipient) > Ledger::RECIPIENT_MAX) {
+                    $this->error = 'Lembaga penerima paling banyak '.Ledger::RECIPIENT_MAX.' karakter.';
+
+                    return;
+                }
+                $receipt = trim($this->receiptNumber);
+                if (mb_strlen($receipt) > Ledger::RECEIPT_MAX) {
+                    $this->error = 'Nomor bukti setor paling banyak '.Ledger::RECEIPT_MAX.' karakter.';
+
+                    return;
+                }
+                $changes['recipient_institution'] = $recipient !== '' ? $recipient : null;
+                $changes['receipt_number'] = $receipt !== '' ? $receipt : null;
+            }
+
             $apply = function () use ($amount, $category, $account) {
                 Ledger::changeExpenseAmount($this->transaction, $amount);
                 Ledger::changeExpenseCategory($this->transaction, $category);
@@ -239,10 +266,17 @@ class TransaksiDetail extends Component
             }
         }
 
+        $this->transaction->loadMissing(['pos', 'room', 'account']);
+        // Kolom zakat tampil bila pos yang dipakai (atau yang sedang dipilih saat mengubah) adalah Zakat mal.
+        $zakat = $this->transaction->type === 'pengeluaran'
+            && ($this->editing ? $categories->firstWhere('id', $this->categoryId) : $this->transaction->pos)?->isZakat() === true;
+
         return view('livewire.transaksi-detail', [
             'rooms' => $rooms,
             'accounts' => $accounts,
             'categories' => $categories,
+            'zakat' => $zakat,
+            'entries' => $this->transaction->type === 'pemasukan' ? $this->transaction->sortedAllocationEntries() : collect(),
         ])->layout('components.layout', ['title' => 'Detail transaksi — Rizqflow']);
     }
 }
