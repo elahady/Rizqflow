@@ -103,6 +103,8 @@ fun RizqflowApp(
     onToggleProDebug: (() -> Unit)? = null,
     /** Hapus akun server (Tahap 9); null atau [AccountUi.local] = baris tidak tampil (akun lokal/uji tidak punya akun server). */
     onDeleteAccount: (() -> Unit)? = null,
+    /** Pindai undangan QR ruang keluarga (Tahap 9): bergabung ke ruang yang dibagi anggota lain. */
+    onOpenFamilyScan: (() -> Unit)? = null,
 ) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
@@ -158,7 +160,7 @@ fun RizqflowApp(
             TopTab.entries.forEach { tab ->
                 composable(tab.route) {
                     if (tab == TopTab.Lainnya && account != null) {
-                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport, onToggleProDebug, onDeleteAccount)
+                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport, onToggleProDebug, onDeleteAccount, onOpenFamilyScan)
                     } else if (tab == TopTab.Transaksi && transaksiContent != null) {
                         transaksiContent()
                     } else if (tab == TopTab.Ruang && ruangContent != null) {
@@ -248,6 +250,7 @@ private fun LainnyaScreen(
     onOpenReport: (() -> Unit)? = null,
     onToggleProDebug: (() -> Unit)? = null,
     onDeleteAccount: (() -> Unit)? = null,
+    onOpenFamilyScan: (() -> Unit)? = null,
 ) {
     val spacing = MaterialTheme.spacing
     Column(
@@ -269,6 +272,7 @@ private fun LainnyaScreen(
         if (onOpenBills != null) MenuRow(stringResource(R.string.menu_bills), stringResource(R.string.menu_bills_sub), onOpenBills)
         if (onOpenDebts != null) MenuRow(stringResource(R.string.menu_debts), stringResource(R.string.menu_debts_sub), onOpenDebts)
         if (onOpenReport != null) MenuRow(stringResource(R.string.menu_report), stringResource(R.string.menu_report_sub), onOpenReport)
+        if (onOpenFamilyScan != null) MenuRow(stringResource(R.string.menu_family_scan), stringResource(R.string.menu_family_scan_sub), onOpenFamilyScan)
         if (onToggleDemo != null) {
             MenuRow(
                 stringResource(R.string.menu_demo),

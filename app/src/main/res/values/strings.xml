@@ -667,6 +667,32 @@
     <string name="room_detail_role_sub_none">Trader atau Investor (Pro)</string>
     <string name="room_detail_role_sub_trader">Trader: batas risiko %1$s per trade</string>
     <string name="room_detail_role_sub_investor">Investor: DCA %1$s tiap tanggal %2$d</string>
+
+    <!-- Ruang keluarga bersama (Tahap 9) -->
+    <string name="room_detail_family_title">Ruang keluarga</string>
+    <string name="room_detail_family_sub">Bagikan ruang ini ke anggota keluarga lewat QR</string>
+    <string name="menu_family_scan">Pindai undangan ruang keluarga</string>
+    <string name="menu_family_scan_sub">Gabung ke ruang keluarga yang dibagikan anggota lain</string>
+    <string name="family_title">Ruang Keluarga</string>
+    <string name="family_not_signed_in">Masuk dengan Google dan langganan Sync diperlukan untuk berbagi ruang ini.</string>
+    <string name="family_members_title">Anggota</string>
+    <string name="family_members_you">Anda</string>
+    <string name="family_members_error">Gagal memuat anggota. Periksa koneksi lalu coba lagi.</string>
+    <string name="family_retry">Coba lagi</string>
+    <string name="family_invite_action">Undang anggota</string>
+    <string name="family_sync_action">Sinkronkan sekarang</string>
+    <string name="family_sync_result">%1$d transaksi terkirim, %2$d diterima</string>
+    <string name="family_sync_failed">Gagal sinkron. Periksa koneksi lalu coba lagi.</string>
+    <string name="family_invite_sheet_title">Pindai QR ini di perangkat anggota</string>
+    <string name="family_invite_sheet_hint">Tunjukkan QR ini saat bertemu langsung dengan anggota yang diundang — tidak dikirim lewat jaringan.</string>
+    <string name="family_scan_title">Pindai Undangan</string>
+    <string name="family_scan_hint">Arahkan kamera ke kode QR undangan ruang keluarga</string>
+    <string name="family_scan_invalid">Kode QR tidak valid atau rusak. Coba pindai ulang.</string>
+    <string name="family_scan_permission_denied">Izin kamera diperlukan untuk memindai undangan.</string>
+    <string name="family_scan_permission_action">Izinkan kamera</string>
+    <string name="family_join_not_signed_in">Masuk dengan Google dan langganan Sync diperlukan untuk bergabung.</string>
+    <string name="family_join_failed">Gagal bergabung. Periksa koneksi lalu coba lagi.</string>
+
     <string name="role_title">Peran ruang</string>
     <string name="role_intro">Beri ruang ini sistem sendiri. Semua uang tetap dicatat sebagai pengeluaran biasa; peran hanya membantu menjaga disiplin.</string>
     <string name="role_pick_trader_title">Trader</string>

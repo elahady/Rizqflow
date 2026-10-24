@@ -93,6 +93,8 @@ fun RoomDetailScreen(
     onOpenZakat: (RoomId) -> Unit = {},
     /** Sistem per peran (Pro): membuka layar Peran untuk ruang ini. */
     onOpenRole: (RoomId) -> Unit = {},
+    /** Ruang yang belum diarsipkan: membuka Ruang Keluarga (Tahap 9) untuk ruang ini. */
+    onOpenFamily: (RoomId) -> Unit = {},
 ) {
     val today = remember { LocalDate.now() }
     var detail by remember { mutableStateOf<RoomDetail?>(null) }
@@ -188,6 +190,26 @@ fun RoomDetailScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.room_detail_role_title), style = MaterialTheme.typography.titleSmall)
                         Text(roleSummary(role), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Icon(RizqflowIcons.PanahKanan, contentDescription = null)
+                }
+            }
+
+            if (!room.archived) {
+                Row(
+                    modifier = Modifier
+                        .padding(top = spacing.s4)
+                        .fillMaxWidth()
+                        .clickable(role = Role.Button) { onOpenFamily(room.id) }
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(12.dp))
+                        .padding(spacing.s3),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                ) {
+                    Icon(RizqflowIcons.Rumah, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.room_detail_family_title), style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.room_detail_family_sub), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Icon(RizqflowIcons.PanahKanan, contentDescription = null)
                 }

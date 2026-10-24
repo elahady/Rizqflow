@@ -664,6 +664,32 @@
     <string name="room_detail_role_sub_none">Trader or Investor (Pro)</string>
     <string name="room_detail_role_sub_trader">Trader: %1$s risk limit per trade</string>
     <string name="room_detail_role_sub_investor">Investor: DCA %1$s on day %2$d</string>
+
+    <!-- Shared family room (Tahap 9) -->
+    <string name="room_detail_family_title">Family room</string>
+    <string name="room_detail_family_sub">Share this room with family members via QR</string>
+    <string name="menu_family_scan">Scan family room invite</string>
+    <string name="menu_family_scan_sub">Join a family room shared by another member</string>
+    <string name="family_title">Family Room</string>
+    <string name="family_not_signed_in">Signing in with Google and a Sync subscription are required to share this room.</string>
+    <string name="family_members_title">Members</string>
+    <string name="family_members_you">You</string>
+    <string name="family_members_error">Couldn\'t load members. Check your connection and try again.</string>
+    <string name="family_retry">Try again</string>
+    <string name="family_invite_action">Invite a member</string>
+    <string name="family_sync_action">Sync now</string>
+    <string name="family_sync_result">%1$d transaction(s) sent, %2$d received</string>
+    <string name="family_sync_failed">Sync failed. Check your connection and try again.</string>
+    <string name="family_invite_sheet_title">Scan this QR on the member\'s device</string>
+    <string name="family_invite_sheet_hint">Show this QR when meeting the invited member in person — it is never sent over the network.</string>
+    <string name="family_scan_title">Scan Invite</string>
+    <string name="family_scan_hint">Point the camera at a family room invite QR code</string>
+    <string name="family_scan_invalid">Invalid or corrupted QR code. Try scanning again.</string>
+    <string name="family_scan_permission_denied">Camera permission is required to scan the invite.</string>
+    <string name="family_scan_permission_action">Allow camera</string>
+    <string name="family_join_not_signed_in">Signing in with Google and a Sync subscription are required to join.</string>
+    <string name="family_join_failed">Couldn\'t join. Check your connection and try again.</string>
+
     <string name="role_title">Room role</string>
     <string name="role_intro">Give this room a system of its own. All money is still recorded as ordinary expenses; the role only helps you stay disciplined.</string>
     <string name="role_pick_trader_title">Trader</string>

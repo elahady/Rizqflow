@@ -15,6 +15,10 @@ import com.roziqrizal.rizqflow.domain.ledger.ArchiveUndo
 import com.roziqrizal.rizqflow.ui.role.RoleFlow
 import com.roziqrizal.rizqflow.ui.ruang.AturanScreen
 import com.roziqrizal.rizqflow.ui.ruang.RoomDetailScreen
+import com.roziqrizal.rizqflow.ui.ruangkeluarga.FamilyJoinResult
+import com.roziqrizal.rizqflow.ui.ruangkeluarga.QrScanScreen
+import com.roziqrizal.rizqflow.ui.ruangkeluarga.RuangKeluargaScreen
+import com.roziqrizal.rizqflow.ui.ruangkeluarga.joinSharedRoom
 import com.roziqrizal.rizqflow.ui.about.AboutScreen
 import com.roziqrizal.rizqflow.ui.reconciliation.ReconciliationScreen
 import com.roziqrizal.rizqflow.ui.backup.BackupScreen
@@ -124,6 +128,8 @@ fun MainHost(
     var roomMonth by rememberSaveable { mutableStateOf("") }
     var zakatRoom by rememberSaveable { mutableStateOf<String?>(null) }
     var roleRoom by rememberSaveable { mutableStateOf<String?>(null) }
+    var familyRoom by rememberSaveable { mutableStateOf<String?>(null) }
+    var familyScanOpen by rememberSaveable { mutableStateOf(false) }
     var aboutOpen by rememberSaveable { mutableStateOf(false) }
     var reconcileAccount by rememberSaveable { mutableStateOf<String?>(null) }
     var reconcileOpen by rememberSaveable { mutableStateOf(false) }
@@ -430,6 +436,7 @@ fun MainHost(
             null
         },
         onDeleteAccount = { deleteAccountSheet = true },
+        onOpenFamilyScan = { familyScanOpen = true },
     )
     if (tampilanOpen) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -449,6 +456,29 @@ fun MainHost(
     if (reportOpen) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             ReportScreen(workspace = workspace, refreshKey = version, onClose = { reportOpen = false })
+        }
+    }
+    if (familyScanOpen) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Box {
+                QrScanScreen(
+                    onClose = { familyScanOpen = false },
+                    onScanned = { invite ->
+                        scope.launch {
+                            when (val result = joinSharedRoom(workspace, invite)) {
+                                is FamilyJoinResult.Success -> {
+                                    familyScanOpen = false
+                                    familyRoom = result.roomId.value
+                                }
+
+                                FamilyJoinResult.NotSignedIn -> notifier.show(context.getString(R.string.family_join_not_signed_in))
+                                is FamilyJoinResult.Failed -> notifier.show(context.getString(R.string.family_join_failed))
+                            }
+                        }
+                    },
+                )
+                SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
+            }
         }
     }
     if (debtsOpen) {
@@ -678,6 +708,20 @@ fun MainHost(
                     onArchived = ::announceRoomArchived,
                     onOpenZakat = { zakatRoom = it.value },
                     onOpenRole = { roleRoom = it.value },
+                    onOpenFamily = { familyRoom = it.value },
+                )
+                SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
+            }
+        }
+    } else if (familyRoom != null) {
+        // Sama seperti Zakat/Peran: dibuka dari Detail ruang tanpa menutupnya, jadi Kembali balik ke sana.
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Box {
+                RuangKeluargaScreen(
+                    workspace = workspace,
+                    roomId = RoomId(familyRoom.orEmpty()),
+                    notifier = notifier,
+                    onClose = { familyRoom = null },
                 )
                 SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
             }
