@@ -482,7 +482,18 @@ fun MainHost(
     }
     if (reportOpen) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            ReportScreen(workspace = workspace, refreshKey = version, onClose = { reportOpen = false })
+            Box {
+                ReportScreen(
+                    workspace = workspace,
+                    refreshKey = version,
+                    entitlements = LivePlanEntitlements { ownedPlans },
+                    notifier = notifier,
+                    onOpenPaywall = { openPaywall(Feature.REPORTS_AND_INSIGHTS) },
+                    onClose = { reportOpen = false },
+                )
+                // Layar ini menutupi Scaffold beserta snackbar-nya, jadi ia membawa SnackbarHost sendiri.
+                SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
+            }
         }
     }
     if (familyScanOpen) {

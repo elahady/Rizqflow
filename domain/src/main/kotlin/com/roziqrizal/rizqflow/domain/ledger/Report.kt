@@ -1,5 +1,7 @@
 package com.roziqrizal.rizqflow.domain.ledger
 
+import com.roziqrizal.rizqflow.domain.model.CategoryId
+import com.roziqrizal.rizqflow.domain.model.RoomId
 import com.roziqrizal.rizqflow.domain.model.TransactionKind
 import com.roziqrizal.rizqflow.domain.money.Money
 import com.roziqrizal.rizqflow.domain.money.sum
@@ -74,31 +76,43 @@ class ReportLoader(
 
         val allRoomsById = rooms.allRooms().associateBy { it.id }
         val allCategoriesById = rooms.allCategories().associateBy { it.id }
-        val expenseTx = currentTx.filter { it.kind == TransactionKind.EXPENSE }
-
-        val roomSpend = expenseTx.groupBy { it.roomId }
-            .mapNotNull { (roomId, txs) -> roomId?.let(allRoomsById::get)?.let { room -> RoomSpend(room, txs.map { it.amount }.sum()) } }
-            .sortedByDescending { it.amount }
-
-        val topCategories = expenseTx.groupBy { it.categoryId }
-            .mapNotNull { (categoryId, txs) ->
-                val category = categoryId?.let(allCategoriesById::get) ?: return@mapNotNull null
-                val room = allRoomsById[category.roomId] ?: return@mapNotNull null
-                ReportCategorySpend(category, room, txs.map { it.amount }.sum())
-            }
-            .sortedByDescending { it.amount }
-            .take(MonthlyReport.MAX_CATEGORIES)
 
         return MonthlyReport(
             month = month,
             income = MonthComparison(incomeOf(currentTx), incomeOf(previousTx)),
             expense = MonthComparison(expenseOf(currentTx), expenseOf(previousTx)),
-            roomSpend = roomSpend,
-            topCategories = topCategories,
+            roomSpend = roomSpendOf(currentTx, allRoomsById),
+            topCategories = topCategoriesOf(currentTx, allRoomsById, allCategoriesById, MonthlyReport.MAX_CATEGORIES),
         )
     }
-
-    private fun incomeOf(txs: List<MoneyTransaction>) = txs.filter { it.kind == TransactionKind.INCOME }.map { it.amount }.sum()
-
-    private fun expenseOf(txs: List<MoneyTransaction>) = txs.filter { it.kind == TransactionKind.EXPENSE }.map { it.amount }.sum()
 }
+
+// Agregasi bersama laporan bulanan dan tahunan (YearReport.kt): satu aturan, bukan dua salinan.
+
+internal fun incomeOf(txs: List<MoneyTransaction>) = txs.filter { it.kind == TransactionKind.INCOME }.map { it.amount }.sum()
+
+internal fun expenseOf(txs: List<MoneyTransaction>) = txs.filter { it.kind == TransactionKind.EXPENSE }.map { it.amount }.sum()
+
+/** Pengeluaran per ruang dari [txs] (jenis lain diabaikan), terbesar dulu; ruang terarsip tetap terhitung. */
+internal fun roomSpendOf(txs: List<MoneyTransaction>, roomsById: Map<RoomId, Room>): List<RoomSpend> =
+    txs.filter { it.kind == TransactionKind.EXPENSE }
+        .groupBy { it.roomId }
+        .mapNotNull { (roomId, group) -> roomId?.let(roomsById::get)?.let { room -> RoomSpend(room, group.map { it.amount }.sum()) } }
+        .sortedByDescending { it.amount }
+
+/** [limit] kategori pengeluaran terbesar dari [txs], dengan ruangnya. */
+internal fun topCategoriesOf(
+    txs: List<MoneyTransaction>,
+    roomsById: Map<RoomId, Room>,
+    categoriesById: Map<CategoryId, Category>,
+    limit: Int,
+): List<ReportCategorySpend> =
+    txs.filter { it.kind == TransactionKind.EXPENSE }
+        .groupBy { it.categoryId }
+        .mapNotNull { (categoryId, group) ->
+            val category = categoryId?.let(categoriesById::get) ?: return@mapNotNull null
+            val room = roomsById[category.roomId] ?: return@mapNotNull null
+            ReportCategorySpend(category, room, group.map { it.amount }.sum())
+        }
+        .sortedByDescending { it.amount }
+        .take(limit)
