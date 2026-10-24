@@ -4,11 +4,21 @@ import android.content.Context
 import com.roziqrizal.rizqflow.BuildConfig
 import com.roziqrizal.rizqflow.billing.PurchaseStore
 import com.roziqrizal.rizqflow.data.LocalLedger
+import com.roziqrizal.rizqflow.data.crypto.AndroidKeystoreRoomKeyProvider
 import com.roziqrizal.rizqflow.data.remote.RetrofitAccountRemote
+import com.roziqrizal.rizqflow.data.remote.RetrofitRoomMembershipRemote
+import com.roziqrizal.rizqflow.data.remote.RetrofitSyncRemote
 import com.roziqrizal.rizqflow.data.remote.RizqflowApiClient
 import com.roziqrizal.rizqflow.data.remote.SharedPrefsApiTokenStore
+import com.roziqrizal.rizqflow.data.sync.JsonTransactionSyncCodec
+import com.roziqrizal.rizqflow.data.sync.SharedPrefsSyncCursorStore
 import com.roziqrizal.rizqflow.domain.sync.AccountRemote
 import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
+import com.roziqrizal.rizqflow.domain.sync.RoomKeyProvider
+import com.roziqrizal.rizqflow.domain.sync.RoomMembershipRemote
+import com.roziqrizal.rizqflow.domain.sync.SyncCursorStore
+import com.roziqrizal.rizqflow.domain.sync.SyncEngine
+import com.roziqrizal.rizqflow.domain.sync.SyncRemote
 import com.roziqrizal.rizqflow.domain.bill.BillReminderService
 import com.roziqrizal.rizqflow.domain.bill.BillService
 import com.roziqrizal.rizqflow.domain.debt.DebtReminderService
@@ -41,6 +51,10 @@ class AccountWorkspace private constructor(
     val purchases: PurchaseStore,
     val accountRemote: AccountRemote,
     val apiTokenStore: ApiTokenStore,
+    val roomKeyProvider: RoomKeyProvider,
+    private val syncRemote: SyncRemote,
+    val roomMembershipRemote: RoomMembershipRemote,
+    private val syncCursorStore: SyncCursorStore,
 ) : AutoCloseable {
     private val newId: () -> String = { UUID.randomUUID().toString() }
 
@@ -69,6 +83,18 @@ class AccountWorkspace private constructor(
     val smartInput = SmartInputService(local.transactions)
     val demo = DemoData(setup, ledger, management, favorites, local.rooms)
 
+    /** Sync push/pull ruang keluarga, hanya transaksi (Tahap 9) — lihat [SyncEngine]. */
+    val sync = SyncEngine(
+        transactions = local.transactions,
+        rooms = local.rooms,
+        accounts = local.accounts,
+        roomKeys = roomKeyProvider,
+        syncRemote = syncRemote,
+        codec = JsonTransactionSyncCodec(),
+        apiTokenStore = apiTokenStore,
+        cursorStore = syncCursorStore,
+    )
+
     override fun close() = local.close()
 
     companion object {
@@ -85,6 +111,10 @@ class AccountWorkspace private constructor(
                 purchases = PurchaseStore(context),
                 accountRemote = RetrofitAccountRemote(apiService),
                 apiTokenStore = SharedPrefsApiTokenStore(context),
+                roomKeyProvider = AndroidKeystoreRoomKeyProvider(context),
+                syncRemote = RetrofitSyncRemote(apiService),
+                roomMembershipRemote = RetrofitRoomMembershipRemote(apiService),
+                syncCursorStore = SharedPrefsSyncCursorStore(context),
             )
         }
     }
