@@ -88,6 +88,37 @@ Pemilik memilih **Opsi A** — pertahankan keputusan 24 Sept, rilis 1 tetap menc
 
 **Ditegaskan 2026-10-24:** Sync dan ruang keluarga tetap masuk rilis 1, dan **semua pekerjaan sync harus selesai sebelum rilis** (pemilik menegaskan Opsi A; pemindahan Sync ke 1.1 yang sempat disetujui di hari yang sama dibatalkan). Konsekuensi: langganan Sync lewat Billing masuk Tahap 7 lagi, Firebase (FCM dan Analytics) ikut rilis 1, dan butir sync yang tadinya "ditunda ke putaran berikutnya" kini wajib (rinciannya di Tahap 9).
 
+### Urutan kerja berikutnya dan tindakan pemilik (2026-10-24)
+
+Dicatat supaya sesi baru bisa melanjutkan dari dokumen, bukan dari ingatan percakapan. **Urutan di bawah adalah usulan Claude, belum dikonfirmasi pemilik** (pemilik belum menjawab "mulai dari mana"). Semua pekerjaan Claude di sini hanya bisa dibuktikan lewat tes otomatis (dan screenshot Playwright untuk web), bukan di perangkat, karena `adb install` macet di mesin pengembang; tiap butir harus dicatat jujur sebagai "belum diuji di perangkat".
+
+**Bisa dikerjakan Claude tanpa menunggu pemilik, urut ketergantungan:**
+1. Tahap 7: langganan Sync lewat Play Billing (SUBS), diuji dengan gateway palsu
+2. Tahap 9: verifikasi pembelian di server (Pro dan Sync) dan tautan token ke akun; Android mengirim token setelah masuk. Mengikuti butir 1
+3. Tahap 12: token API yang kedaluwarsa dan bisa dicabut; alamat API yang bisa dikonfigurasi dan varian build untuk HP fisik
+4. Tahap 13: layar kode pemulihan, endpoint dan penyimpanan kunci terbungkus di server, alur pulihkan di perangkat baru
+5. Tahap 9: sinkron entitas selain pengeluaran
+6. Tahap 9: sinkron penghapusan, keyset baru ke anggota yang tetap, sync otomatis
+7. Tahap 9: konfirmasi tambahan Hapus akun, metrik anonim sisi server
+8. Tahap 14 (jalur paralel lewat subagen `rizqflow-worker`, tidak menyentuh file Android): kekurangan Pro di web (laporan tahunan, insight, PDF, tema, banner Trader)
+9. Tahap 14: endpoint email+sandi untuk akun server Android dan layar masuk Android
+10. Tahap 11: input suara, lalu OCR struk dan OCR mutasi/e-statement (akurasi baru bisa diukur setelah pemilik menyediakan contoh)
+11. Tahap 13: tes aturan akun lintas ruang
+12. Tahap 14: butir Low dari mockup dan sembilan butir "Kesejajaran web dengan Tahap 8–13" yang tidak menunggu protokol
+13. Tahap 14: sinkron data asli di web. **Terakhir**, setelah butir 4 dan 5 final supaya format protokolnya sudah tetap
+
+**Menunggu pemilik:**
+- Proyek Firebase untuk `com.roziqrizal.rizqflow` dan `google-services.json` (menahan wiring FCM, notifikasi anggota mencatat, dan Firebase Analytics)
+- Brevo SMTP di produksi (DNS dan kunci rahasia)
+- VPS: uji restore backup ke database uji, salin konfigurasi Nginx ke repo, DNS dan SSL `rizqflow-api`
+- Sesi uji dua HP fisik dengan APK debug dipasang manual: bagian A (widget, PDF, tema, grafik, Keystore) bisa sekarang, bagian B (QR dan sinkron) setelah API hidup
+- Sekitar 30 contoh OCR yang disamarkan (nanti, saat OCR siap diukur)
+- Rancangan peran anggota dan amplop bulanan: Claude menulis usulan rancangan, pemilik menyetujui, baru dikodekan (hak tiap peran belum didefinisikan di mana pun)
+- Tiga usulan web yang belum diputuskan (lihat Tahap 14, butir "Kesejajaran web dengan Tahap 8–13") dan konfirmasi sync otomatis (Tahap 9)
+- Harga final Pro; seluruh Tahap 8 (Play Console); jalur pemasaran P0–P4
+
+**Risiko yang berlaku sekarang:** web yang sudah live (`rizqflow.roziqrizal.com`) menyimpan data pencatatan dalam bentuk terbaca di server (scaffold), sedangkan produk menjanjikan data terenkripsi. Selama sinkron terenkripsi belum ada, jangan promosikan web ke publik dan arahkan daftar tunggu ke aplikasi, bukan ke web.
+
 ### Urutan eksekusi yang disarankan (lintas-Tahap, berdasar ketergantungan nyata)
 
 **Sekarang juga, paralel (tidak saling menunggu):**
