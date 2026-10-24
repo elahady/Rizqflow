@@ -8,7 +8,7 @@ Dokumen ini mencatat model bisnis yang sudah disepakati (2026-09-19). Angka harg
 
 **Pembaruan 2026-09-24:** server dan langganan Sync ikut **rilis pertama**, bukan fase 2 (lihat Tahap 9 di [roadmap.md](roadmap.md)). Pro tetap sekali bayar lewat Google Play Billing; Sync langganan lewat produk langganan Play dengan verifikasi di server. Baris "fase 2" di bawah dibaca sebagai "rilis 1".
 
-**Pembaruan 2026-10-24:** langganan Sync **dipindah ke rilis 1.1** (keputusan pemilik), bukan rilis pertama. Rilis pertama hanya menjual **Pro sekali bayar** lewat Google Play Billing. Alasan: verifikasi pembelian Sync di server, infrastruktur API (Tahap 12), uji ruang keluarga di dua perangkat fisik, dan pembuktian kripto di Keystore asli (Tahap 13) belum selesai; janji privasi "server tidak bisa membaca datamu" lebih baik dirilis setelah terbukti. Konsekuensi lain: Pro (sekitar Rp 99-129 ribu) dan Sync tahunan (Rp 149.000) tidak lagi bersaing di rilis yang sama. Harga Sync di bawah tetap berlaku untuk 1.1.
+**Pembaruan 2026-10-24 (dibalik di hari yang sama):** langganan Sync sempat dipindah ke rilis 1.1, lalu **pemilik membatalkannya: Sync dijual sejak rilis 1, dan semua pekerjaan sync harus selesai sebelum rilis**. Rilis pertama menjual **Pro sekali bayar** dan **langganan Sync** berdampingan lewat Google Play Billing. Alasan penundaan yang sempat dipakai (verifikasi pembelian Sync di server, infrastruktur API di Tahap 12, uji ruang keluarga di dua perangkat fisik, pembuktian kripto di Keystore asli di Tahap 13) kini menjadi pekerjaan yang harus selesai sebelum rilis, bukan alasan menunda; janji privasi "server tidak bisa membaca datamu" baru boleh dirilis setelah terbukti lewat pekerjaan itu. Harga Sync di bawah berlaku sejak rilis 1.
 
 ## Prinsip pembagian
 

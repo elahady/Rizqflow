@@ -67,5 +67,5 @@ Dua endpoint di `Api\SyncController`, keduanya butuh `auth:sanctum` dan `Feature
 
 ## Belum diputuskan
 
-- **Firebase Analytics** dipakai atau cukup Play Console plus data akun server.
+- ~~**Firebase Analytics** dipakai atau cukup Play Console plus data akun server.~~ **Diputuskan pemilik 2026-10-24: Firebase Analytics dan FCM dipakai di rilis 1.** Aturan: tidak ada data keuangan (nominal, nama, catatan, akun) di event atau properti pengguna; keduanya disebut di kebijakan privasi dan Data Safety; jumlah pengguna, Pro, dan Sync tetap dihitung dari server.
 - Skema Room perlu penanda waktu ubah, penanda hapus, dan pengenal perangkat di hampir semua tabel (menyentuh model data; lihat [model-data.md](model-data.md) saat dikerjakan).

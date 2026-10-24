@@ -9,7 +9,7 @@ Sebagian besar isi di bawah masih **usulan**. Yang sudah diputuskan ada di bagia
 - Landing page dan form daftar tunggu sudah live di [roziqrizal.com/karya/rizqflow](https://roziqrizal.com/karya/rizqflow) (repo `roziqrizalcom`, lihat Tahap 0 di roadmap.md), tapi belum ada trafik dan pendaftar. Ambang "minat tervalidasi" belum ditentukan.
 - Hero landing page masih ilustrasi konsep karena waktu dibuat aplikasinya dianggap belum ada. Sekarang aplikasi sudah sebagian besar jadi, jadi tangkapan layar sungguhan lebih meyakinkan.
 - Target rilis 4–8 minggu paruh waktu (Opsi A, lihat "Jalur ke rilis" di roadmap.md), jadi rilis kira-kira akhir November sampai Desember 2026.
-- Rilis pertama hanya menjual **Pro sekali bayar**; Sync baru di 1.1 ([monetisasi.md](monetisasi.md)). Harga Pro belum final (usulan Rp 99.000 dulu, naik begitu OCR/suara/laporan mendarat).
+- Rilis pertama menjual **Pro sekali bayar** dan **langganan Sync** ([monetisasi.md](monetisasi.md); Sync sempat dipindah ke 1.1 pada 2026-10-24 lalu dikembalikan ke rilis 1 oleh pemilik di hari yang sama). Harga Pro belum final (usulan Rp 99.000 dulu, naik begitu OCR/suara/laporan mendarat).
 - Pemilik bekerja sendiri, paruh waktu di sela kantor. Pemasaran harus murah waktu dan sebisa mungkin memakai ulang hasil kerja teknis sebagai bahan konten.
 
 ## Positioning (usulan, belum diputuskan)
@@ -80,7 +80,7 @@ Aturan main usulan:
 3. **Batas berhenti**: biaya per pendaftar (dihitung dari UTM) jauh di atas Rp 8.000 → hentikan, kembali ke organik.
 4. Boost lebih besar paling masuk akal (a) setelah aplikasi ada di Play Store, karena iklan langsung mengarah ke unduhan, dan (b) menjelang Ramadan.
 
-Hitungan membaik saat langganan Sync masuk di 1.1: satu pelanggan tahunan menyisakan sekitar Rp 127.000 per tahun dan berulang ([monetisasi.md](monetisasi.md)), jadi anggaran iklan lebih mudah kembali modal.
+Hitungan membaik begitu langganan Sync ikut dijual (rilis 1): satu pelanggan tahunan menyisakan sekitar Rp 127.000 per tahun dan berulang ([monetisasi.md](monetisasi.md)), jadi anggaran iklan lebih mudah kembali modal.
 
 ## Kalender
 
