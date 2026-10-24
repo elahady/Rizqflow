@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080" role="img" aria-label="Rizqflow">
+  <title>Rizqflow (foto profil media sosial)</title>
+  <rect width="1080" height="1080" fill="#30312F"/>
+  <svg x="160" y="304" width="760" height="472" viewBox="0 0 2880 1790">
+    <g transform="translate(180.0,0)">
+      <g transform="translate(0,740) scale(1,-1)">
+        <g transform="translate(0,0)"><path d="M65 0V730H300Q378 730 435.0 703.0Q492 676 523.5 626.0Q555 576 555 508Q555 437 520.5 381.0Q486 325 427 300L565 0H402L284 276H214V0ZM214 406H300Q350 406 377.5 431.0Q405 456 405 501Q405 548 377.5 574.0Q350 600 300 600H214Z" fill="#FAF9F7"/></g>
+        <g transform="translate(1280,0)"><path d="M75 0V140L343 590H83V730H514V590L245 140H525V0Z" fill="#FAF9F7"/></g>
+        <g transform="translate(1920,0)"><path d="M400 -180 288 4 319 -9Q315 -9 310.0 -9.5Q305 -10 300 -10Q228 -10 174.0 17.5Q120 45 90.0 95.0Q60 145 60 210V520Q60 587 90.0 636.0Q120 685 174.0 712.5Q228 740 300 740Q372 740 426.0 712.5Q480 685 510.0 635.5Q540 586 540 520V210Q540 145 512.5 95.5Q485 46 433 20L556 -180ZM300 121Q347 121 368.5 144.0Q390 167 390 210V520Q390 564 367.0 587.0Q344 610 300 610Q257 610 233.5 587.0Q210 564 210 520V210Q210 167 232.0 144.0Q254 121 300 121Z" fill="#FAF9F7"/></g>
+        <path d="M 790,50 C 790,320 1090,410 1090,680" fill="none" stroke="#7FA396" stroke-width="150" stroke-linecap="round"/>
+      </g>
+    </g>
+    <g transform="translate(0.0,1020)">
+      <g transform="translate(0,740) scale(1,-1)">
+        <g transform="translate(0,0)"><path d="M70 0V730H540V590H218V428H514V288H220V0Z" fill="#FAF9F7"/></g>
+        <g transform="translate(640,0)"><path d="M95 0V730H245V140H540V0Z" fill="#FAF9F7"/></g>
+        <g transform="translate(1920,0)"><path d="M78 0 10 730H133L170 242Q171 228 172.0 202.5Q173 177 174.5 149.5Q176 122 176 100Q178 122 180.5 149.5Q183 177 186.0 202.5Q189 228 190 242L244 730H358L410 242Q412 228 414.5 202.5Q417 177 420.5 149.5Q424 122 426 100Q427 122 428.0 149.5Q429 177 430.0 202.5Q431 228 432 242L466 730H590L517 0H361L312 485Q310 502 308.0 529.5Q306 557 304.0 587.0Q302 617 300 640Q299 617 297.0 587.0Q295 557 293.0 529.5Q291 502 289 485L235 0Z" fill="#FAF9F7"/></g>
+        <circle cx="1475" cy="180" r="110" fill="#3B6FA8"/>
+        <circle cx="1685" cy="180" r="110" fill="#2A9A80"/>
+        <circle cx="1580" cy="460" r="130" fill="#C4653A"/>
+        <circle cx="2765" cy="650" r="115" fill="#FAF9F7"/>
+      </g>
+    </g>
+  </svg>
+</svg>

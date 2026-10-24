@@ -426,7 +426,7 @@ Ditambahkan 2026-10-24 atas permintaan pemilik: pemasaran dijalankan **paralel**
 - [x] Diskusi strategi pemasaran paralel dan akun Instagram khusus, dicatat di [pemasaran.md](pemasaran.md) (2026-10-24)
 - [ ] Putuskan keputusan terbuka pemasaran: positioning, waktu per minggu, tampil sebagai founder, anggaran boost, pembuat desain konten (High; daftar lengkap di pemasaran.md)
 - [ ] Tentukan ambang "minat tervalidasi" untuk daftar tunggu (High) — dipakai untuk menutup butir "Validasi minat" di Tahap 0
-- [ ] Amankan satu nama akun yang sama di Instagram, Threads, TikTok, dan X (High) — `@rizqflow` di Instagram ternyata sudah dipakai pihak lain (2026-10-24); usulan `rizqflowapp`, keputusan dan cek pemakai `@rizqflow` di [pemasaran.md](pemasaran.md)
+- [ ] Amankan nama `rizqflowra` di Instagram, Threads, TikTok, dan X (High) — dipilih pemilik 2026-10-24 karena `@rizqflow` di Instagram sudah dipakai pihak lain. Foto profil 1080×1080 dan draf nama/bio/tautan siap di [pemasaran.md](pemasaran.md) bagian "Instagram dan boost" (`docs/design/logo/rizqflow-profile-square.png`). Sisa: buat akunnya (dikerjakan pemilik), cek nama yang sama di platform lain, dan cek siapa pemakai `@rizqflow`
 - [ ] Ganti hero landing page `/karya/rizqflow` dengan tangkapan layar aplikasi sungguhan (repo `roziqrizalcom`) (Medium)
 - [ ] Pasang analitik ringan yang menghormati privasi di landing page (mis. Umami di VPS) dan tetapkan pola UTM per saluran (Medium)
 - [ ] Siapkan 3–4 template konten visual mengikuti opsi A (`docs/design/tokens.css`) (Medium)
