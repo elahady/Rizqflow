@@ -1008,4 +1008,19 @@
     <string name="wealth_suggest_receivable">Dari Utang-piutang: %1$s (sisa piutang yang diperkirakan kembali)</string>
     <string name="wealth_suggest_debt">Dari Utang-piutang: %1$s (sisa utang yang jatuh tempo dalam 12 bulan atau tanpa jatuh tempo)</string>
     <string name="wealth_suggest_use">Pakai</string>
+
+    <!-- Widget Sisa aman hari ini (Pro) -->
+    <string name="widget_label">Sisa aman hari ini</string>
+    <string name="widget_pro_title">Widget catat kilat</string>
+    <string name="widget_pro_hint">Tersedia di Rizqflow Pro</string>
+    <string name="widget_none" translatable="false">–</string>
+    <string name="widget_hidden_amount" translatable="false">Rp •••</string>
+    <string name="widget_signed_out">Masuk ke Rizqflow dulu</string>
+    <string name="widget_locked">Dikunci. Ketuk untuk membuka aplikasi.</string>
+    <string name="widget_no_budget">Belum ada jatah harian</string>
+    <string name="widget_over">Jatah hari ini sudah terpakai</string>
+    <string name="widget_daily_budget">Jatah harian %1$s</string>
+    <string name="widget_catat">Catat</string>
+    <string name="widget_catat_description">Catat pengeluaran dengan cepat</string>
+    <string name="widget_description">Sisa aman hari ini dan tombol Catat kilat. Fitur Pro.</string>
 </resources>

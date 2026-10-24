@@ -1013,4 +1013,17 @@
     <string name="wealth_suggest_receivable">From Debts and loans: %1$s (what is left of loans expected to come back)</string>
     <string name="wealth_suggest_debt">From Debts and loans: %1$s (what is left of debts due within 12 months or with no due date)</string>
     <string name="wealth_suggest_use">Use</string>
+
+    <!-- Safe-to-spend widget (Pro) -->
+    <string name="widget_label">Safe to spend today</string>
+    <string name="widget_pro_title">Quick-add widget</string>
+    <string name="widget_pro_hint">Available with Rizqflow Pro</string>
+    <string name="widget_signed_out">Sign in to Rizqflow first</string>
+    <string name="widget_locked">Locked. Tap to open the app.</string>
+    <string name="widget_no_budget">No daily budget yet</string>
+    <string name="widget_over">Today\'s budget is used up</string>
+    <string name="widget_daily_budget">Daily budget %1$s</string>
+    <string name="widget_catat">Add</string>
+    <string name="widget_catat_description">Quickly add an expense</string>
+    <string name="widget_description">Safe to spend today and a quick-add button. Pro feature.</string>
 </resources>

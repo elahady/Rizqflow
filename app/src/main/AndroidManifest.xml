@@ -46,6 +46,23 @@
             </intent-filter>
         </service>
 
+        <!-- Widget layar utama "Sisa aman hari ini" (Pro). Tanggal, jam, dan zona waktu berubah menyegarkannya
+             supaya sisa aman ikut berganti hari; siaran itu dikecualikan dari pembatasan penerima manifest. -->
+        <receiver
+            android:name=".widget.SafeToSpendWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/safe_to_spend_widget_info" />
+        </receiver>
+
         <!-- Aksi notifikasi pengingat malam (Balas, Tidak ada): dipicu lewat PendingIntent, bukan intent tersirat. -->
         <receiver
             android:name=".notifications.ReminderActionReceiver"

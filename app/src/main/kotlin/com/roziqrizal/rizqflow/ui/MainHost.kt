@@ -12,6 +12,7 @@ import com.roziqrizal.rizqflow.billing.BuyOutcome
 import com.roziqrizal.rizqflow.billing.PurchaseController
 import com.roziqrizal.rizqflow.billing.RestoreOutcome
 import com.roziqrizal.rizqflow.billing.findActivity
+import com.roziqrizal.rizqflow.widget.SafeToSpendWidget
 import com.roziqrizal.rizqflow.domain.allocation.AllocationRule
 import com.roziqrizal.rizqflow.ui.denah.DenahScreen
 import com.roziqrizal.rizqflow.ui.kelola.KelolaScreen
@@ -183,6 +184,10 @@ fun MainHost(
     }
     // Berubah setiap ada transaksi yang disimpan, diubah, dihapus, atau diurungkan: daftar memuat ulang.
     var version by rememberSaveable { mutableIntStateOf(0) }
+    // Widget layar utama (Pro) ikut diperbarui tiap transaksi berubah atau paket berubah (beli, pulihkan, turun paket).
+    LaunchedEffect(workspace, version, ownedPlans, demo) {
+        if (!demo) SafeToSpendWidget.updateAll(context, workspace)
+    }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val undoLabel = context.getString(R.string.action_undo)

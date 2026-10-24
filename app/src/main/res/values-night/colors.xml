@@ -2,4 +2,10 @@
 <resources>
     <!-- Sama dengan token rf-background mode gelap. -->
     <color name="rf_background">#121412</color>
+    <color name="widget_background">#1E201E</color>
+    <color name="widget_stroke">#424845</color>
+    <color name="widget_text">#E3E3E0</color>
+    <color name="widget_text_muted">#C2C8C3</color>
+    <color name="widget_accent">#B3CCBF</color>
+    <color name="widget_on_accent">#1F352B</color>
 </resources>

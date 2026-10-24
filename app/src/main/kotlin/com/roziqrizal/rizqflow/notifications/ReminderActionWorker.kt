@@ -7,6 +7,7 @@ import androidx.work.WorkerParameters
 import com.roziqrizal.rizqflow.R
 import com.roziqrizal.rizqflow.domain.ledger.LedgerResult
 import com.roziqrizal.rizqflow.ui.formatRupiah
+import com.roziqrizal.rizqflow.widget.SafeToSpendWidget
 import com.roziqrizal.rizqflow.workspace.AccountWorkspace
 import java.time.LocalDate
 
@@ -29,6 +30,8 @@ class ReminderActionWorker(context: Context, params: WorkerParameters) : Corouti
                     if (result is LedgerResult.Success && parsed != null) {
                         val message = applicationContext.getString(R.string.reminder_reply_saved, formatRupiah(parsed.amount))
                         ReminderNotifier.showReplySaved(applicationContext, message)
+                        // Pengeluaran baru lewat balasan notifikasi mengubah sisa aman hari ini di widget.
+                        SafeToSpendWidget.updateAll(applicationContext, workspace)
                     } else {
                         // Tidak bisa diuraikan: tampilkan lagi notifikasi aslinya (dengan aksi) supaya bisa dicoba ulang.
                         ReminderNotifier.show(applicationContext, accountId)

@@ -4,4 +4,11 @@
     <color name="rf_background">#FAF9F7</color>
     <!-- Warna utama (sage) untuk latar ikon aplikasi. -->
     <color name="ic_launcher_background">#4D6359</color>
+    <!-- Widget Sisa aman hari ini (Pro): latar mengikuti token terang/gelap, aksen sage seperti ikon aplikasi. -->
+    <color name="widget_background">#FAF9F7</color>
+    <color name="widget_stroke">#C2C8C3</color>
+    <color name="widget_text">#1B1C1B</color>
+    <color name="widget_text_muted">#424845</color>
+    <color name="widget_accent">#4D6359</color>
+    <color name="widget_on_accent">#FFFFFF</color>
 </resources>
