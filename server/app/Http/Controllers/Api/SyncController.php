@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\RoomMember;
 use App\Models\SyncLogEntry;
 use App\Support\Feature;
 use Illuminate\Http\JsonResponse;
@@ -15,6 +16,9 @@ use Illuminate\Http\Request;
  * sejak kursor terakhir. Resolusi "siapa menang" (last-write-wins dari `changed_at`) dikerjakan di
  * aplikasi setelah mendekripsi, bukan di sini — server hanya menyimpan dan meneruskan apa adanya.
  * Pull dari kursor 0 di perangkat baru sekaligus berfungsi sebagai restore dari backup.
+ *
+ * [pull] juga mengirim baris ruang yang dibagi (lihat RoomMember/RoomMembershipController), tidak
+ * hanya baris milik akun sendiri — baris tanpa room_id (mis. Account) tetap selalu privat per akun.
  */
 class SyncController extends Controller
 {
@@ -45,6 +49,13 @@ class SyncController extends Controller
 
         $userId = $request->user()->id;
         $ids = [];
+
+        // Siapa pun yang push ke sebuah room_id otomatis jadi anggotanya (idempoten) — bootstrap
+        // keanggotaan tanpa butuh endpoint "buat ruang" terpisah, lihat RoomMembershipController.
+        $roomIds = array_unique(array_filter(array_column($data['entries'], 'room_id')));
+        foreach ($roomIds as $roomId) {
+            RoomMember::firstOrCreate(['user_id' => $userId, 'room_id' => $roomId]);
+        }
 
         foreach ($data['entries'] as $entry) {
             $ids[] = SyncLogEntry::create([
@@ -77,7 +88,15 @@ class SyncController extends Controller
         $after = (int) ($validated['after'] ?? 0);
         $limit = (int) ($validated['limit'] ?? self::DEFAULT_PULL_LIMIT);
 
-        $entries = SyncLogEntry::where('user_id', $request->user()->id)
+        $userId = $request->user()->id;
+        $sharedRoomIds = RoomMember::where('user_id', $userId)->pluck('room_id');
+
+        $entries = SyncLogEntry::where(function ($query) use ($userId, $sharedRoomIds) {
+            $query->where('user_id', $userId)
+                ->orWhere(function ($query) use ($sharedRoomIds) {
+                    $query->whereNotNull('room_id')->whereIn('room_id', $sharedRoomIds);
+                });
+        })
             ->where('id', '>', $after)
             ->orderBy('id')
             ->limit($limit)

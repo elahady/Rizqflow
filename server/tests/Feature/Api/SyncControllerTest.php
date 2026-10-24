@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\RoomMember;
 use App\Models\SyncLogEntry;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -196,5 +197,58 @@ class SyncControllerTest extends TestCase
         ])->assertOk();
 
         $this->assertNull(SyncLogEntry::sole()->room_id);
+    }
+
+    public function test_pushing_to_a_room_registers_membership_automatically(): void
+    {
+        $user = $this->syncUser();
+
+        $this->withHeaders($this->authHeader($user))->postJson('/api/sync/push', [
+            'entries' => [['room_id' => 'ruang-keluarga-1', 'record_type' => 'transaction', 'record_id' => 'tx-1', 'device_id' => 'pixel-1', 'payload' => 'a', 'changed_at' => '2026-10-19T10:00:00Z']],
+        ])->assertOk();
+
+        $this->assertSame(1, RoomMember::where('user_id', $user->id)->where('room_id', 'ruang-keluarga-1')->count());
+    }
+
+    public function test_pull_includes_entries_from_a_shared_room_pushed_by_another_member(): void
+    {
+        $owner = $this->syncUser();
+        $partner = $this->syncUser();
+
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/sync/push', [
+            'entries' => [['room_id' => 'ruang-keluarga-1', 'record_type' => 'transaction', 'record_id' => 'tx-1', 'device_id' => 'pixel-1', 'payload' => 'dari-owner', 'changed_at' => '2026-10-19T10:00:00Z']],
+        ])->assertOk();
+
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+
+        $this->app['auth']->forgetGuards();
+        $response = $this->withHeaders($this->authHeader($partner))->getJson('/api/sync/pull');
+
+        $response->assertOk()->assertJsonCount(1, 'entries');
+        $this->assertSame('dari-owner', $response->json('entries.0.payload'));
+    }
+
+    public function test_pull_does_not_leak_a_members_private_room_to_other_members(): void
+    {
+        $owner = $this->syncUser();
+        $partner = $this->syncUser();
+
+        // Ruang pribadi (room_id null) milik owner — tidak ada hubungannya dengan ruang keluarga.
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/sync/push', [
+            'entries' => [
+                ['room_id' => null, 'record_type' => 'account', 'record_id' => 'acc-private', 'device_id' => 'pixel-1', 'payload' => 'rahasia', 'changed_at' => '2026-10-19T10:00:00Z'],
+                ['room_id' => 'ruang-keluarga-1', 'record_type' => 'transaction', 'record_id' => 'tx-1', 'device_id' => 'pixel-1', 'payload' => 'dari-owner', 'changed_at' => '2026-10-19T10:00:01Z'],
+            ],
+        ])->assertOk();
+
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+
+        $this->app['auth']->forgetGuards();
+        $response = $this->withHeaders($this->authHeader($partner))->getJson('/api/sync/pull');
+
+        $response->assertOk()->assertJsonCount(1, 'entries');
+        $this->assertSame('tx-1', $response->json('entries.0.record_id'));
     }
 }

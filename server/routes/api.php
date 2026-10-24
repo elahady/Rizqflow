@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AccountController;
+use App\Http\Controllers\Api\RoomMembershipController;
 use App\Http\Controllers\Api\SyncController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,4 +14,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Butuh langganan Sync (Feature::EncryptedSync); lihat SyncController::denyWithoutSync.
     Route::post('/sync/push', [SyncController::class, 'push']);
     Route::get('/sync/pull', [SyncController::class, 'pull']);
+
+    // Keanggotaan ruang yang dibagi (ruang keluarga) — lihat RoomMembershipController.
+    Route::post('/rooms/{roomId}/join', [RoomMembershipController::class, 'join']);
+    Route::get('/rooms/{roomId}/members', [RoomMembershipController::class, 'members']);
 });

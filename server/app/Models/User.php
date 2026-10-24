@@ -122,4 +122,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(SyncLogEntry::class);
     }
+
+    public function roomMemberships(): HasMany
+    {
+        return $this->hasMany(RoomMember::class);
+    }
 }
