@@ -26,13 +26,13 @@ Pemisahan yang wajib walau satu VPS, karena ini data keuangan:
 | Deploy | Skrip deploy di repo (bukan `git pull` manual tanpa catatan); backup database dulu, migrate, cache konfigurasi dan rute, uji endpoint |
 | Rahasia | `.env` terpisah; kunci dan token tidak dibagi antar aplikasi |
 | Backup | Backup database Rizqflow terjadwal, dan restore-nya diuji |
-| Token | Kedaluwarsa dan bisa dicabut. **Jangan meniru token permanen Al-Kaukaba** |
+| Token | Kedaluwarsa dan bisa dicabut. **Jangan meniru token permanen Al-Kaukaba**. Diimplementasikan 2026-10-25, lihat bagian "Token API Android (Tahap 12)" di bawah |
 
 Catatan dari CLAUDE.md Al-Kaukaba yang berlaku juga di sini: setiap habis `git pull` yang mengubah rute, jalankan `route:cache` ulang; dan hindari rute yang berakhiran `.php` supaya tidak terkena masalah `location ~ \.php$` di Nginx.
 
 **Risiko yang diterima:** RAM VPS kemungkinan kecil (VS Code Server pernah dicopot demi hemat RAM) dan satu VPS yang bermasalah menjatuhkan semua situs di dalamnya. Spesifikasi (`free -m`, `df -h`, swap) dicek pemilik sebelum apa pun dipasang.
 
-**Alamat API di aplikasi bisa dikonfigurasi** (bukan ditanam), supaya pindah ke VPS khusus tidak membutuhkan rilis ulang yang rumit.
+**Alamat API di aplikasi bisa dikonfigurasi** (bukan ditanam), supaya pindah ke VPS khusus tidak membutuhkan rilis ulang yang rumit. Diimplementasikan 2026-10-25 sebagai konfigurasi saat build (bagian "Token API Android (Tahap 12)" di bawah); belum diuji di perangkat atau terhadap server hidup.
 
 ## Model kunci (Tahap 13)
 
@@ -139,6 +139,54 @@ Semua di bawah ini baru asumsi; pembuktiannya di Tahap 8 (penguji lisensi, aplik
 - **MySQL.** Semua tes memakai SQLite; `lockForUpdate` pada `PlanSynchronizer` dan jenis pengecualian pelanggaran unik di MySQL produksi belum terbukti. Migrasi `play_purchases` belum dijalankan di produksi dan server belum di-deploy.
 - **Batas ukuran** (token 4096 karakter, JWT 8192 byte, data Pub/Sub 64 KB, timeout Google 10 detik) adalah pilihan implementasi; panjang token Play sungguhan belum diperiksa, dan bila Play pernah menerbitkan token lebih panjang dari 4096 karakter, klaimnya ditolak 422.
 - **Android** belum diuji di perangkat atau terhadap server hidup; kabel Compose (`MainHost`, `AppRoot`) tidak punya tes, hanya keputusan di `PurchaseClaimCoordinator`.
+
+## Token API Android (Tahap 12)
+
+**Diimplementasikan 2026-10-25** (server: `server/app/Auth/ApiTokenService.php`, `Api\AccountController`, `config/sanctum.php`; Android: `TokenRefresher`, `ServerSession`, `ServerSignOut` di `:app/sync`). **Status: hanya terbukti lewat tes otomatis** (SQLite di memori dan remote palsu; dijalankan paksa, 0 gagal: server 1012 tes dan 22100 asersi, Android `:domain` 785, `:data` 198, `:app` 328). Tidak pernah diuji di perangkat atau emulator, di MySQL, atau terhadap server hidup; daftar yang belum terbukti ada di akhir bagian ini. Langkah operasional (variabel `.env`, penjadwal, pembersihan) ada di `server/DEPLOY.md` bagian "Token API Android".
+
+Tujuannya memenuhi aturan infrastruktur "token kedaluwarsa dan bisa dicabut, jangan meniru token permanen Al-Kaukaba". Catatan sejarah: sebelum 2026-10-25 `config/sanctum.php` tidak ada, sehingga `expiration` Sanctum bernilai null dan token yang diterbitkan sejak 2026-10-19 tidak pernah kedaluwarsa. Berkas itu kini ada dan token terbitan lama tanpa `expires_at` kedaluwarsa lewat jaring pengaman `created_at` (Guard menolak token yang `created_at`-nya lebih tua dari masa berlaku).
+
+### Masa berlaku dan penerbitan
+
+- Masa berlaku token baru `API_TOKEN_TTL_DAYS` hari: bilangan bulat 1 sampai 1825, bawaan **90**; kosong, huruf, pecahan, nol, negatif, atau di atas 1825 jatuh ke 90. Dicatat di kolom `personal_access_tokens.expires_at`. `ApiTokenService` adalah satu-satunya yang menerbitkan token dan menghitung masa berlakunya; `config/sanctum.php` memakai fungsi penguraian yang sama untuk `expiration` (dalam menit).
+- Token kedaluwarsa atau yang sudah dicabut ditolak 401 JSON oleh `auth:sanctum` di semua endpoint terlindungi (seluruh `/api/*` menjawab galat sebagai JSON).
+- **Plafon 20 token aktif per akun** (satu per perangkat): masuk dari perangkat baru saat sudah penuh membuang token yang paling lama tak dipakai (`last_used_at`, atau `created_at` bila belum pernah dipakai). Nama token `android:<device_id>`; masuk ulang di perangkat yang sama hanya mengganti token perangkat itu. `device_id` opsional di `POST /api/auth/google`, bila ada 1 sampai 64 karakter `A-Za-z0-9._-` (selain itu 422), tanpa itu `android:default`. Aplikasi mengirim UUID acak per pemasangan.
+- Penerbitan per perangkat (`issueForDevice`) satu transaksi: kunci baris pengguna `FOR UPDATE`, token lama perangkat itu dicabut, kelebihan dibuang, token baru terbit. Bila MySQL membatalkan transaksi karena deadlock (kode 1213), diulang sampai 3 kali.
+
+### Endpoint
+
+| Endpoint | Autentikasi dan batas | Fungsi |
+|---|---|---|
+| `POST /api/auth/google` | Tanpa token; **30 per menit per IP** (limiter `api-login`) | Body `{"credential":"<ID token Google>","device_id":"..."}`. 200 `{"token":"...","expires_at":"2027-01-22T10:00:00Z","user":{"id","name","email"}}` (`expires_at` ISO-8601 UTC detik penuh). 422 bila ID token tidak sah atau `device_id` salah bentuk |
+| `POST /api/auth/refresh` | `auth:sanctum`; **10 per menit** per akun + nama token perangkat (limiter `api-token-refresh`) | Memutar token yang dipakai: token itu dicabut, token baru (nama dan abilities sama) terbit dengan masa berlaku penuh. 200 `{"token","expires_at"}`. 401 bila kedaluwarsa atau sudah dicabut; klien lalu masuk ulang dengan Google |
+| `POST /api/auth/logout` | `auth:sanctum`; **sengaja tanpa throttle** | Mencabut hanya token yang dipakai (204). Token perangkat lain tetap |
+| `DELETE /api/auth/tokens` | `auth:sanctum`; **sengaja tanpa throttle** | Mencabut semua token akun, keluar dari semua perangkat (204) |
+
+- **Rotasi atomik.** Pencabutan adalah `DELETE` atas id token dalam satu transaksi dengan penerbitan token baru; hanya satu dari dua refresh bersamaan dengan token yang sama yang melihat tepat satu baris terhapus, jadi paling banyak satu token baru terbit dan yang kalah dijawab 401 tanpa menerbitkan apa pun. Bila penerbitan gagal, token lama tetap utuh.
+- **Kunci throttle refresh** adalah akun + nama token perangkat, bukan id token, sebuah penyimpangan sadar: id token berganti di tiap rotasi, jadi batas per id tidak pernah tercapai. Akibatnya pemegang token curian yang memutar berulang hanya menghabiskan jatah garis keturunan token itu, bukan jatah perangkat lain milik korban.
+- **Logout dan cabut-semua tanpa throttle** supaya pemegang token curian tidak bisa menghalangi pemilik mencabut dengan menghabiskan jatah (429). Efeknya idempoten, tetapi panggilan kedua dengan token yang sudah dicabut dijawab 401 oleh `auth:sanctum`.
+- **Kata sandi.** Mengubah kata sandi yang sudah ada dan mereset kata sandi mencabut semua token API akun (mengubah sandi tidak memutus sesi web yang sedang dipakai). Menetapkan sandi **pertama** untuk akun Google tidak mencabut apa pun. Hapus akun juga mencabut semua token.
+- **Pembersihan.** `sanctum:prune-expired --hours=24` dijadwalkan harian 03:45 di `routes/console.php`. Token kedaluwarsa sudah ditolak tanpa itu; perintah ini hanya merapikan tabel. Penjadwal Laravel baru jalan bila ada cron `schedule:run` di VPS dan **cron itu belum ada** (butir Tahap 12, kerja pemilik; cron yang sama dengan `play:reconcile`).
+
+### Perilaku di Android
+
+- `TokenRefreshPolicy` (`:domain`, murni): token diputar bila sisa masa berlakunya 30 hari atau kurang; jeda minimum 1 hari antar putar (jam ponsel yang salah tidak membuat putar tiap aplikasi dibuka); token lama yang tanggalnya belum diketahui diputar sekali. Yang menentukan sesi berakhir adalah jawaban 401 server, bukan jam ponsel.
+- `TokenRefresher`: satu putar pada satu waktu (Mutex), berjalan `NonCancellable`, token baru **disimpan sebelum dipakai** (token lama sudah dicabut server), penulisan di dispatcher IO. Refresh tidak mendahului sync paket Play.
+- `ServerSession` (satu per `AccountWorkspace`) adalah satu-satunya penangan 401: semua remote dibungkus guard (`GuardedRemotes.kt`) kecuali `loginWithGoogle`. 401 membersihkan token dan menaikkan keadaan perlu-sambungkan-ulang; baris "Sambungkan ulang ke server" di menu Lainnya (hanya akun Google) masuk Google ulang untuk akun yang sama. Kegagalan lain, termasuk jaringan mati, tidak pernah mencabut apa pun. Aplikasi tetap offline-first: sesi berakhir hanya menghentikan sync dan fitur server, tidak menyentuh data lokal maupun paket dari Google Play.
+- `ServerSignOut`: keluar tidak menunggu jaringan. Token lokal dibersihkan secara sinkron, pencabutan di server (`POST /api/auth/logout`) dicoba di latar dengan batas 5 detik sebagai upaya terbaik; berlaku juga saat keluar dari mode demo. Konsekuensinya, token yang gagal dicabut karena offline tetap hidup di server sampai berakhir (90 hari), walau sudah tidak ada di perangkat.
+- Hapus akun setelah sesi berakhir tidak lagi berpura-pura sukses: pengguna diarahkan menyambungkan ulang dulu. Baris Hapus akun disembunyikan di mode demo.
+- **Alamat API** dikonfigurasi saat build (`BuildConfig.API_BASE_URL`, prioritas `-PrizqflowApiBaseUrl`, lalu `rizqflow.apiBaseUrl` di `local.properties`, lalu env `RIZQFLOW_API_BASE_URL`, lalu bawaan per build type); rilis wajib `https://` dan alamat wajib berakhir `/`. Panggilan jaringan dibatasi `callTimeout` 30 detik. Http polos hanya diizinkan di build debug lewat network security config khusus debug. Cara memakainya untuk HP fisik ada di [roadmap.md](roadmap.md) Tahap 9 dan CLAUDE.md "Proyek Android".
+
+### Yang belum terbukti, keputusan pemilik, dan utang
+
+- **Belum pernah dicoba** di perangkat atau emulator, di MySQL, atau terhadap server hidup. Penyambungan lambda Compose di `AppRoot`/`MainHost` hanya terbukti lolos kompilasi (keputusannya sudah diekstrak ke fungsi murni yang teruji); alur Credential Manager untuk sambungkan ulang tidak teruji; cleartext debug baru terbukti lewat isi manifest gabungan (debug `usesCleartextTraffic=true` dengan `networkSecurityConfig`, rilis `false` tanpa `networkSecurityConfig`), belum lewat panggilan http sungguhan.
+- **Deadlock InnoDB** pada login bersamaan tidak teruji: SQLite tidak punya gap lock dan mengabaikan `FOR UPDATE`, jadi tes hanya membuktikan bahwa kegagalan serupa deadlock diulang, bukan bahwa MySQL tidak lagi menemuinya.
+- **IP asli untuk throttle masuk** (30 per menit per IP) bergantung pada `trustProxies` dan IP asli yang diteruskan Cloudflare dan nginx, **belum dicek di VPS**. Bila yang terbaca selalu IP proxy, batas itu berlaku untuk semua pengguna sekaligus.
+- **Masa tenggang token lama setelah rotasi: tidak dikerjakan, keputusan pemilik.** Bila proses aplikasi mati tepat antara jawaban refresh dan penyimpanan token baru, sesi hilang dan pulih lewat masuk ulang Google (data lokal aman). Masa tenggang beberapa detik mengecilkan kasus itu tetapi memperpanjang jendela bagi token curian. Hal serupa bila jawaban refresh hilang di jaringan setelah rotasi berhasil di server.
+- **Sesi sliding**: token yang terus diputar tidak pernah memaksa masuk Google ulang. Bila perlu batas keras, simpan `created_at` rantai awal; catatan desain, belum diputuskan.
+- **Utang `MAX_TTL_DAYS` 1825:** kolom `expires_at` bertipe TIMESTAMP di MySQL berhenti di 2038-01-19, jadi sekitar 2033-01-20 batas 1825 hari usang. Perbaikan: batas dinamis atau kolom DATETIME.
+- **Daftar perangkat** yang masuk dengan tombol cabut belum ada di UI mana pun; `DELETE /api/auth/tokens` belum dipakai layar mana pun (butir Tahap 14).
+- Migrasi dan konfigurasi belum di-deploy; Hapus akun setelah sesi berakhir tidak punya tes pada tingkat layar.
 
 ## Belum diputuskan
 
