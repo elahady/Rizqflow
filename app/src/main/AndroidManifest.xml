@@ -4,6 +4,11 @@
     <!-- Notifikasi pengingat malam (S26); wajib diminta saat dijalankan di Android 13+. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Pindai undangan QR ruang keluarga (Tahap 9/13); diminta saat runtime, hanya saat layar itu dibuka. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
     <!-- allowBackup dimatikan: salinan otomatis tidak boleh keluar dari kendali pengguna.
          Cadangan dibuat lewat backup terenkripsi milik aplikasi (lihat docs/konsep.md). -->
     <application

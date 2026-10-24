@@ -72,6 +72,16 @@ dependencies {
     implementation(libs.play.services.auth)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
+    // Undang anggota ruang keluarga lewat QR (Tahap 9/13): pindai dengan ML Kit + CameraX, render
+    // dengan qrcode-kotlin (murni Kotlin, tanpa menarik seluruh kodebase ZXing) -- keduanya sudah
+    // diriset dan diputuskan di roadmap.md Tahap 13 (2026-10-24), bukan pilihan baru.
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.mlkit.barcode.scanning)
+    implementation(libs.qrcode.kotlin)
+
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.kotlin.test.junit5) // menghubungkan kotlin.test ke JUnit 5 di modul Android
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
