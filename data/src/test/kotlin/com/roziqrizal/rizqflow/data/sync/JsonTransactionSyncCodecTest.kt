@@ -9,9 +9,13 @@ import com.roziqrizal.rizqflow.domain.model.TransactionKind
 import com.roziqrizal.rizqflow.domain.money.Money
 import com.roziqrizal.rizqflow.domain.sync.TransactionSyncPayloadCorrupt
 import java.time.LocalDate
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
 class JsonTransactionSyncCodecTest {
@@ -50,6 +54,26 @@ class JsonTransactionSyncCodecTest {
 
         assertNull(decoded.categoryName)
         assertNull(decoded.note)
+    }
+
+    /**
+     * Aturan akun lintas ruang (Tahap 13): anggota ruang bersama hanya menerima NAMA akun sumber. Payload tidak
+     * boleh memuat id akun lokal pengirim, saldo, atau bidang lain di luar daftar ini.
+     */
+    @Test
+    fun `payload ke anggota ruang hanya memuat nama akun, bukan id akun lokal atau saldo`() {
+        val transaction = expense().copy(accountId = AccountId("acc-lokal-rahasia-42"))
+
+        val json = String(codec.encode(transaction, accountName = "Dompet", categoryName = "Belanja"))
+        val fields = Json.parseToJsonElement(json).jsonObject
+
+        assertEquals(
+            setOf("id", "amount_minor", "currency", "account_name", "category_name", "occurred_on", "note"),
+            fields.keys,
+        )
+        assertEquals("Dompet", fields.getValue("account_name").jsonPrimitive.content)
+        assertFalse(json.contains("acc-lokal-rahasia-42"), "id akun lokal pengirim tidak boleh ikut terkirim")
+        assertFalse(json.contains("balance", ignoreCase = true) || json.contains("saldo", ignoreCase = true), "saldo akun tidak boleh ikut terkirim")
     }
 
     @Test

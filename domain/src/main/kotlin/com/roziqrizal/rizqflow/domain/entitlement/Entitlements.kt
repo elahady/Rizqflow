@@ -19,6 +19,7 @@ enum class Feature(val requiredPlan: Plan) {
     HOME_WIDGET(Plan.PRO),
     THEMES(Plan.PRO),
     NOTIFICATION_CAPTURE(Plan.PRO),
+    VOICE_INPUT(Plan.PRO),
     ENCRYPTED_SYNC(Plan.SYNC),
     SHARED_FAMILY_ROOM(Plan.SYNC),
 }

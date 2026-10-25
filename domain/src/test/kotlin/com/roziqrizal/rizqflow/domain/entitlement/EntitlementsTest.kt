@@ -26,6 +26,13 @@ class EntitlementsTest {
     }
 
     @Test
+    fun `input suara adalah fitur Pro, terkunci di paket gratis dan Sync`() {
+        assertFalse(PlanEntitlements().isEnabled(Feature.VOICE_INPUT))
+        assertFalse(PlanEntitlements(setOf(Plan.SYNC)).isEnabled(Feature.VOICE_INPUT))
+        assertTrue(PlanEntitlements(setOf(Plan.PRO)).isEnabled(Feature.VOICE_INPUT))
+    }
+
+    @Test
     fun `paket Sync membuka fitur Sync tetapi bukan fitur Pro`() {
         val sync = PlanEntitlements(setOf(Plan.SYNC))
 

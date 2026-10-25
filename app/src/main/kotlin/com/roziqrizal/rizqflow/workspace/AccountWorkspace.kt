@@ -89,7 +89,7 @@ class AccountWorkspace private constructor(
     // Status pembelian sungguhan lewat Google Play Billing menyusul (Tahap 7 lanjutan, perlu listing
     // Play Console dulu); [purchases] sudah jadi satu-satunya sumber, dibaca ulang tiap dipanggil
     // supaya perubahan paket langsung berlaku tanpa membuka ulang ruang kerja ini.
-    private val entitlements: Entitlements = LivePlanEntitlements { purchases.plans.value }
+    val entitlements: Entitlements = LivePlanEntitlements { purchases.plans.value }
     val rules = RuleService(local.rooms, entitlements, newId)
     val management = ManagementService(local.accounts, local.rooms, newId)
     val favorites = FavoriteService(local.favorites, local.accounts, local.rooms, ledger, newId, System::currentTimeMillis)

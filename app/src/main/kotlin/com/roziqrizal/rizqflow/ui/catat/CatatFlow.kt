@@ -63,6 +63,7 @@ import com.roziqrizal.rizqflow.R
 import com.roziqrizal.rizqflow.domain.allocation.AllocationEngine
 import com.roziqrizal.rizqflow.domain.allocation.AllocationResult
 import com.roziqrizal.rizqflow.domain.allocation.AllocationRule
+import com.roziqrizal.rizqflow.domain.entitlement.Feature
 import com.roziqrizal.rizqflow.domain.ledger.AllocationEntry
 import com.roziqrizal.rizqflow.domain.ledger.BudgetWarning
 import com.roziqrizal.rizqflow.domain.ledger.CatatContext
@@ -136,6 +137,8 @@ fun CatatFlow(
     /** Bila diisi, layar ini menjadi Detail transaksi (S09): kolom terisi dari transaksi itu, tanpa tab dan tanpa pratinjau. */
     editing: TransactionId? = null,
     onDeleted: (TransactionSnapshot) -> Unit = {},
+    /** Membuka paywall Pro untuk fitur tertentu (mis. input suara di catat cerdas); diisi MainHost. */
+    onOpenPaywall: (Feature) -> Unit = {},
 ) {
     val today = remember { LocalDate.now() }
     var loaded by remember { mutableStateOf<CatatContext?>(null) }
@@ -587,6 +590,10 @@ fun CatatFlow(
                 smartInputOpen = false
             },
             onDismiss = { smartInputOpen = false },
+            onVoiceLocked = {
+                smartInputOpen = false
+                onOpenPaywall(Feature.VOICE_INPUT)
+            },
         )
     }
 }

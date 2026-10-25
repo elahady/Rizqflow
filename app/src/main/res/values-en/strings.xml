@@ -112,6 +112,9 @@
     <string name="account_delete_done">Server account deleted.</string>
     <string name="account_delete_failed">Couldn\'t delete account. Try again.</string>
     <string name="account_delete_session_expired">Your server session has ended. Reconnect from the More menu first, then delete the account.</string>
+    <string name="account_delete_pin_prompt">Enter your app lock PIN to continue.</string>
+    <string name="account_delete_pin_verified">PIN correct. The delete button is now active.</string>
+    <string name="account_delete_word_prompt">App lock isn\'t on. Type HAPUS (all capitals) to continue.</string>
     <string name="menu_reconnect">Reconnect to server</string>
     <string name="menu_reconnect_sub">Your server session ended. Your data and plans on this phone are untouched; sign in with Google again to resume sync and server features.</string>
     <string name="menu_reconnect_busy">Connecting…</string>
@@ -169,6 +172,11 @@
     <string name="catat_smart_input_placeholder">gojek 23rb dari gopay</string>
     <string name="catat_smart_input_unreadable">No amount recognized yet.</string>
     <string name="catat_smart_input_use">Use</string>
+    <string name="catat_voice_start">Speak to log</string>
+    <string name="catat_voice_locked">Voice input (Pro)</string>
+    <string name="catat_voice_locked_hint">Voice input is part of Rizqflow Pro. Tap the microphone icon to see Pro.</string>
+    <string name="catat_voice_prompt">Say your entry, for example: gojek 23rb dari gopay</string>
+    <string name="catat_voice_unavailable">Speech recognition isn\'t available on this device. Type the sentence instead.</string>
     <string name="catat_tab_income">Income</string>
     <string name="catat_tab_expense">Expense</string>
     <string name="catat_tab_transfer">Transfer</string>
@@ -466,6 +474,7 @@
     <string name="pro_benefit_widget">Quick-log widget</string>
     <string name="pro_benefit_themes">Extra themes</string>
     <string name="pro_benefit_notification_capture">Auto-capture from notifications</string>
+    <string name="pro_benefit_voice_input">Voice input for smart entry</string>
     <string name="restore_done_pro_inactive">Your purchases were restored, but Pro isn\'t active on this Google Play account.</string>
 
     <!-- Rizqflow Sync: the Sync variant of paywall S21 (Stage 7). Monthly or yearly subscription through

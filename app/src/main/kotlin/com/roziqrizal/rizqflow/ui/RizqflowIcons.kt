@@ -93,6 +93,13 @@ object RizqflowIcons {
 
     val Petir: ImageVector = strokeIcon("Petir", "M13 3 5 13.5h6L10 21l8-10.5h-6z")
 
+    val Mikrofon: ImageVector = strokeIcon(
+        "Mikrofon",
+        "M12 3.5a3 3 0 0 0-3 3v5.5a3 3 0 0 0 6 0V6.5a3 3 0 0 0-3-3z",
+        "M5.5 11.5a6.5 6.5 0 0 0 13 0",
+        "M12 18v2.5",
+    )
+
     val Rumah: ImageVector = strokeIcon(
         "Rumah",
         "M3.5 11.2 12 3.8l8.5 7.4",
