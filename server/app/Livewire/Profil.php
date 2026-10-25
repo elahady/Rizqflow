@@ -39,6 +39,14 @@ class Profil extends Component
     /** Pesan hasil terakhir pada bagian perangkat yang masuk (cabut satu atau semua). */
     public ?string $deviceNotice = null;
 
+    /** Kata sandi untuk konfirmasi hapus akun (akun yang punya sandi). */
+    public string $deletePassword = '';
+
+    /** Ketikan konfirmasi hapus akun (akun tanpa sandi): harus persis [DELETE_WORD]. */
+    public string $deleteWord = '';
+
+    public const DELETE_WORD = 'HAPUS';
+
     /**
      * Cabut satu perangkat: hapus baris token Sanctum milik akun ini. Padanan `POST /api/auth/logout`
      * untuk perangkat lain, lewat sesi web. Id dicari lewat relasi akun, jadi id milik akun lain tidak
@@ -102,9 +110,43 @@ class Profil extends Component
         $this->passwordSaved = $hadPassword ? 'changed' : 'set';
     }
 
-    public function deleteAccount(): void
+    /**
+     * Hapus akun: akun yang punya sandi wajib mengisi sandi yang benar (dicek lewat
+     * [AccountService::verifyPassword], dengan throttle yang sama dengan ganti sandi); akun tanpa sandi
+     * (masuk lewat Google saja) wajib mengetik HAPUS persis. Tombol di sisi tampilan juga menunggu
+     * teks itu, tetapi server tetap memeriksa.
+     */
+    public function deleteAccount(AccountService $accounts): void
     {
         $user = auth()->user();
+        $this->resetErrorBag();
+
+        if ($user->hasPassword()) {
+            $this->validate([
+                'deletePassword' => ['required', 'string'],
+            ], [
+                'deletePassword.required' => 'Isi kata sandimu untuk menghapus akun.',
+            ]);
+
+            [$status, $wait] = $accounts->verifyPassword($user, $this->deletePassword);
+
+            if ($status === AccountService::PASSWORD_THROTTLED) {
+                $this->addError('deletePassword', 'Terlalu banyak percobaan. Coba lagi dalam '.$wait.' detik.');
+
+                return;
+            }
+
+            if ($status === AccountService::PASSWORD_WRONG) {
+                $this->reset('deletePassword');
+                $this->addError('deletePassword', 'Kata sandi salah.');
+
+                return;
+            }
+        } elseif ($this->deleteWord !== self::DELETE_WORD) {
+            $this->addError('deleteWord', 'Ketik HAPUS dengan huruf kapital semua untuk konfirmasi.');
+
+            return;
+        }
 
         Auth::logout();
         session()->invalidate();

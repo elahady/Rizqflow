@@ -29,16 +29,19 @@ class ApiTokenService
     public const TRANSACTION_ATTEMPTS = 3;
 
     /**
-     * Batas atas yang masuk akal. Selain menangkap salah ketik, kolom `expires_at` bertipe TIMESTAMP di
-     * MySQL tidak menampung tanggal setelah 2038, jadi nilai yang jauh melewatinya menggagalkan
-     * penerbitan token. Nilai di atas batas dianggap tak sah dan jatuh ke bawaan.
-     *
-     * UTANG: 1825 hari (5 tahun) hanya aman sampai sekitar 2033-01-20; sesudah itu hari ini + 1825
-     * hari melewati batas TIMESTAMP MySQL (2038-01-19 03:14:07 UTC) dan batas ini ikut usang. Perbaikan:
-     * batas dinamis (mis. min(1825, hari tersisa sampai 2038-01-19)) atau migrasi `expires_at`
-     * menjadi DATETIME. Dicatat juga di DEPLOY.md.
+     * Batas atas input `API_TOKEN_TTL_DAYS` (menangkap salah ketik). Ini hanya batas input; batas kolom
+     * `expires_at` (TIMESTAMP MySQL tidak menampung tanggal setelah 2038) ditangani di [expiresAt]
+     * dengan memotong masa berlaku ke [columnCeiling], sehingga nilai sah yang melewatinya tidak pernah
+     * menggagalkan penerbitan token.
      */
     public const MAX_TTL_DAYS = 1825;
+
+    /**
+     * Batas tertinggi `expires_at` di kolom TIMESTAMP MySQL, UTC. Batas sebenarnya 2038-01-19 03:14:07
+     * UTC; dipotong ke tengah malam di hari itu supaya pasti di bawahnya (selisih 3 jam tak berarti
+     * untuk masa berlaku token).
+     */
+    public const MYSQL_TIMESTAMP_CEILING = '2038-01-19 00:00:00';
 
     /**
      * Ubah nilai mentah (mis. env `API_TOKEN_TTL_DAYS`) jadi jumlah hari. Hanya bilangan bulat positif
@@ -63,12 +66,24 @@ class ApiTokenService
     }
 
     /**
-     * Saat token yang diterbitkan sekarang kedaluwarsa. Dibulatkan ke detik penuh supaya nilai yang
-     * dijawab ke klien sama persis dengan yang tersimpan di kolom `expires_at` (tanpa pecahan detik).
+     * Saat token yang diterbitkan sekarang kedaluwarsa: sekarang + masa berlaku, dipotong ke
+     * [columnCeiling] bila melewatinya (batas dinamis). Sampai sekitar 2033 masa berlaku penuh tetap
+     * utuh; sesudahnya token baru makin pendek dan pada 2038 hanya sisa hari sampai batas. Dibulatkan
+     * ke detik penuh supaya nilai yang dijawab ke klien sama persis dengan yang tersimpan di kolom
+     * `expires_at` (tanpa pecahan detik).
      */
     public function expiresAt(): Carbon
     {
-        return now()->addDays($this->ttlDays())->startOfSecond();
+        $wanted = now()->addDays($this->ttlDays());
+        $ceiling = self::columnCeiling();
+
+        return ($wanted->greaterThan($ceiling) ? $ceiling : $wanted)->startOfSecond();
+    }
+
+    /** Batas tertinggi `expires_at` yang masih muat di kolom TIMESTAMP MySQL, dalam UTC. */
+    public static function columnCeiling(): Carbon
+    {
+        return Carbon::parse(self::MYSQL_TIMESTAMP_CEILING, 'UTC');
     }
 
     /** Terbitkan token baru dengan masa berlaku penuh. */

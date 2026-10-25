@@ -201,17 +201,10 @@ class AccountService
         $hadPassword = $user->hasPassword();
 
         if ($hadPassword) {
-            $key = 'password-change-fail:'.$user->id;
-            if (RateLimiter::tooManyAttempts($key, 5)) {
-                return [self::PASSWORD_THROTTLED, RateLimiter::availableIn($key)];
+            [$status, $wait] = $this->verifyPassword($user, (string) $current);
+            if ($status !== self::PASSWORD_OK) {
+                return [$status, $wait];
             }
-
-            if ($current === null || ! Hash::check($current, $user->password)) {
-                RateLimiter::hit($key, 900);
-
-                return [self::PASSWORD_WRONG, null];
-            }
-            RateLimiter::clear($key);
         }
 
         $user->forceFill(['password' => $new])->save();
@@ -219,6 +212,29 @@ class AccountService
             $user->tokens()->delete();
             $user->revokeWebSessions($currentSessionId);
         }
+
+        return [self::PASSWORD_OK, null];
+    }
+
+    /**
+     * Cek kata sandi akun untuk aksi berisiko di sesi yang sedang masuk (ganti dan hapus akun). Akun
+     * tanpa sandi tidak boleh memakainya. Memakai kunci throttle yang SAMA dengan ganti sandi (salah 5
+     * kali dikunci 15 menit), supaya sandi tidak bisa ditebak lewat jalur lain. Mengembalikan
+     * [status PASSWORD_*, detik tunggu atau null].
+     */
+    public function verifyPassword(User $user, string $password): array
+    {
+        $key = 'password-change-fail:'.$user->id;
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            return [self::PASSWORD_THROTTLED, RateLimiter::availableIn($key)];
+        }
+
+        if (! $user->hasPassword() || ! Hash::check($password, $user->password)) {
+            RateLimiter::hit($key, 900);
+
+            return [self::PASSWORD_WRONG, null];
+        }
+        RateLimiter::clear($key);
 
         return [self::PASSWORD_OK, null];
     }

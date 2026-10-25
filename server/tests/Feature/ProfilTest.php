@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\PersonalAccessToken;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /** Profil: hapus akun (Tahap 9), tetapkan/ubah kata sandi (masuk email+sandi web). */
@@ -19,12 +20,13 @@ class ProfilTest extends TestCase
 
     public function test_deleting_account_removes_user_and_related_data_and_logs_out(): void
     {
-        $user = User::factory()->create(['google_sub' => '123']);
+        $user = $this->googleUser();
         $room = Room::create(['user_id' => $user->id, 'name' => 'Keluarga', 'type' => 'mencukupi', 'slot' => 1, 'sort_order' => 1]);
         $user->createToken('android:pixel-1');
 
         Livewire::actingAs($user)
             ->test(Profil::class)
+            ->set('deleteWord', 'HAPUS')
             ->call('deleteAccount')
             ->assertRedirect(route('login'));
 
@@ -32,6 +34,133 @@ class ProfilTest extends TestCase
         $this->assertSame(0, User::count());
         $this->assertModelMissing($room);
         $this->assertSame(0, PersonalAccessToken::count());
+    }
+
+    public function test_account_with_a_password_is_deleted_only_with_the_correct_password(): void
+    {
+        $user = User::factory()->create(['password' => 'kopi-susu-gula-aren']);
+        $room = Room::create(['user_id' => $user->id, 'name' => 'Keluarga', 'type' => 'mencukupi', 'slot' => 1, 'sort_order' => 1]);
+
+        Livewire::actingAs($user)->test(Profil::class)
+            ->set('deletePassword', 'salah-banget-sandinya')
+            ->call('deleteAccount')
+            ->assertHasErrors(['deletePassword'])
+            ->assertNoRedirect();
+
+        $this->assertSame(1, User::count());
+        $this->assertModelExists($room);
+        $this->assertAuthenticatedAs($user);
+
+        Livewire::actingAs($user)->test(Profil::class)
+            ->set('deletePassword', 'kopi-susu-gula-aren')
+            ->call('deleteAccount')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('login'));
+
+        $this->assertGuest();
+        $this->assertSame(0, User::count());
+        $this->assertModelMissing($room);
+    }
+
+    public function test_account_with_a_password_must_type_a_password_before_deleting(): void
+    {
+        $user = User::factory()->create(['password' => 'kopi-susu-gula-aren']);
+
+        Livewire::actingAs($user)->test(Profil::class)
+            ->set('deleteWord', 'HAPUS')
+            ->call('deleteAccount')
+            ->assertHasErrors(['deletePassword' => 'required']);
+
+        $this->assertSame(1, User::count());
+    }
+
+    public function test_wrong_password_for_deleting_shares_the_lockout_with_changing_the_password(): void
+    {
+        $user = User::factory()->create(['password' => 'kopi-susu-gula-aren']);
+        $component = Livewire::actingAs($user)->test(Profil::class);
+
+        foreach (range(1, 5) as $i) {
+            $component->set('deletePassword', 'salah-banget-sandinya')->call('deleteAccount');
+        }
+
+        $component->set('deletePassword', 'kopi-susu-gula-aren')->call('deleteAccount')
+            ->assertHasErrors(['deletePassword']);
+
+        $this->assertSame(1, User::count());
+    }
+
+    /** Akun tanpa sandi (Google saja) wajib mengetik HAPUS persis; teks lain ditolak dan akun tetap ada. */
+    #[DataProvider('wrongDeleteWords')]
+    public function test_google_account_must_type_the_word_exactly(string $typed): void
+    {
+        $user = $this->googleUser();
+
+        Livewire::actingAs($user)->test(Profil::class)
+            ->set('deleteWord', $typed)
+            ->call('deleteAccount')
+            ->assertHasErrors(['deleteWord'])
+            ->assertNoRedirect();
+
+        $this->assertSame(1, User::count());
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public static function wrongDeleteWords(): array
+    {
+        return [
+            'kosong' => [''],
+            'huruf kecil' => ['hapus'],
+            'campuran' => ['Hapus'],
+            'ada spasi' => ['HAPUS '],
+            'ada tanda baca' => ['HAPUS!'],
+            'kata lain' => ['ya'],
+        ];
+    }
+
+    public function test_google_account_does_not_delete_with_a_password_field(): void
+    {
+        $user = $this->googleUser();
+
+        Livewire::actingAs($user)->test(Profil::class)
+            ->set('deletePassword', 'kopi-susu-gula-aren')
+            ->call('deleteAccount')
+            ->assertHasErrors(['deleteWord']);
+
+        $this->assertSame(1, User::count());
+    }
+
+    /** Tombol Hapus akun di HTML: Blade `@disabled` menulis atribut `disabled` tanpa nilai. */
+    private function deleteButtonIsDisabled(string $html): bool
+    {
+        return (bool) preg_match('/<button[^>]*class="rf-btn danger"[^>]*\sdisabled[\s>]/', $html);
+    }
+
+    public function test_delete_form_asks_for_the_password_or_the_typed_word_and_has_no_browser_confirm(): void
+    {
+        $google = $this->actingAs($this->googleUser())->get(route('profil'))
+            ->assertOk()
+            ->assertSee('Ketik HAPUS untuk konfirmasi')
+            ->assertDontSee('Kata sandi untuk konfirmasi')
+            ->assertDontSee('wire:confirm');
+        $this->assertTrue($this->deleteButtonIsDisabled($google->getContent()));
+
+        $this->actingAs(User::factory()->create())->get(route('profil'))
+            ->assertOk()
+            ->assertSee('Kata sandi untuk konfirmasi')
+            ->assertDontSee('Ketik HAPUS untuk konfirmasi')
+            ->assertDontSee('wire:confirm');
+    }
+
+    public function test_google_account_delete_button_waits_for_the_exact_word(): void
+    {
+        $component = Livewire::actingAs($this->googleUser())->test(Profil::class);
+        $this->assertTrue($this->deleteButtonIsDisabled($component->html()));
+
+        $component->set('deleteWord', 'hapus');
+        $this->assertTrue($this->deleteButtonIsDisabled($component->html()));
+
+        $component->set('deleteWord', 'HAPUS');
+        $this->assertFalse($this->deleteButtonIsDisabled($component->html()));
     }
 
     public function test_profile_page_shows_name_and_email(): void
