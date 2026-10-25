@@ -20,6 +20,7 @@ use App\Livewire\ImporEkspor;
 use App\Livewire\Jadwal;
 use App\Livewire\KekayaanBersih;
 use App\Livewire\Kelola;
+use App\Livewire\LaporanTahunan;
 use App\Livewire\Profil;
 use App\Livewire\ProyeksiCashflow;
 use App\Livewire\Ruang;
@@ -81,6 +82,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/laporan/kekayaan-bersih', KekayaanBersih::class)->name('laporan.kekayaan-bersih');
     Route::get('/laporan/bandingkan', BandingkanPeriode::class)->name('laporan.bandingkan');
     Route::get('/laporan/bandingkan/pdf', [ReportPdfController::class, 'bandingkanPeriode'])->name('laporan.bandingkan.pdf');
+    Route::get('/laporan/tahunan', LaporanTahunan::class)->name('laporan.tahunan');
     Route::get('/laporan/cashflow', ProyeksiCashflow::class)->name('laporan.cashflow');
     Route::get('/laporan/heatmap', HeatmapPencatatan::class)->name('laporan.heatmap');
     Route::get('/laporan/impor-csv', ImporCsv::class)->name('laporan.impor-csv');
