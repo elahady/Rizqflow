@@ -78,6 +78,55 @@
         </x-rf.banner>
     </section>
 
+    @php
+        $syncLabels = [
+            'aktif' => ['label' => 'Aktif', 'tone' => 'good'],
+            'masa_tenggang' => ['label' => 'Masa tenggang', 'tone' => 'warn'],
+            'berakhir' => ['label' => 'Berakhir', 'tone' => 'neutral'],
+            'tidak_ada' => ['label' => 'Tidak berlangganan', 'tone' => 'neutral'],
+        ];
+        $syncOn = $syncLabels[$sync['state']];
+        $syncDate = $sync['expires_at']?->locale('id')->translatedFormat('j F Y');
+    @endphp
+
+    <section class="rf-card" id="langganan-sync" aria-label="Langganan Sync">
+        <div class="rf-card-head">
+            <h2 class="rf-h2">Langganan Sync</h2>
+        </div>
+
+        <div class="rf-rowline pf-plan">
+            <div class="rf-grow">
+                <b>Status</b>
+                <p>
+                    @switch($sync['state'])
+                        @case('aktif')
+                            @if ($syncDate === null)
+                                Sync aktif. Tidak ada tanggal berakhir yang tercatat di server.
+                            @elseif ($sync['renewing'])
+                                Diperpanjang otomatis oleh Google Play. Periode berjalan sampai {{ $syncDate }}.
+                            @else
+                                Berlaku sampai {{ $syncDate }}. Tidak diperpanjang otomatis.
+                            @endif
+                            @break
+                        @case('masa_tenggang')
+                            Pembayaran belum berhasil. Sync tetap bisa dipakai sampai {{ $syncDate }}; perbarui metode pembayaran di Google Play.
+                            @break
+                        @case('berakhir')
+                            Langganan berakhir{{ $syncDate ? ' pada '.$syncDate : '' }}. Fitur sync terkunci sampai berlangganan lagi.
+                            @break
+                        @default
+                            Kamu belum berlangganan Sync. Sync dipakai untuk sinkron antar-perangkat dan ruang keluarga bersama.
+                    @endswitch
+                </p>
+            </div>
+            <x-rf.pill :tone="$syncOn['tone']">{{ $syncOn['label'] }}</x-rf.pill>
+        </div>
+
+        <x-rf.banner tone="info" style="margin-top:16px">
+            Kelola langganan lewat Google Play di perangkat Android-mu, termasuk memperbarui atau membatalkannya. Web belum menyediakan pembayaran, jadi langganan tidak bisa dibeli dari sini.
+        </x-rf.banner>
+    </section>
+
     <section class="rf-card" id="kata-sandi" aria-label="Kata sandi">
         <div class="rf-card-head">
             <h2 class="rf-h2">Kata sandi</h2>
