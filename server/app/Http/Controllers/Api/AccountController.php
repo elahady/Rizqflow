@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Auth\AccountService;
 use App\Auth\ApiTokenService;
 use App\Auth\GoogleAccountResolver;
 use App\Auth\GoogleIdTokenVerifier;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,8 +16,9 @@ use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 
 /**
- * Akun server untuk aplikasi Android (Tahap 9, server-sync.md): tukar ID token Google jadi token
- * API Sanctum untuk endpoint sync berikutnya, putar/cabut token (Tahap 12), dan hapus akun.
+ * Akun server untuk aplikasi Android (Tahap 9, server-sync.md): tukar ID token Google (atau email+sandi,
+ * Tahap 14, [loginWithPassword]) jadi token API Sanctum untuk endpoint sync berikutnya, putar/cabut token
+ * (Tahap 12), dan hapus akun.
  * Verifikasi dan pencarian/pembuatan akun memakai kelas yang sama dengan masuk web
  * ([GoogleIdTokenVerifier], [GoogleAccountResolver]) karena ID token Android memverifikasi audiens
  * (client ID Web) yang sama — satu akun yang sama dikenali di kedua platform lewat `sub`.
@@ -45,10 +48,64 @@ class AccountController extends Controller
 
         $user = $resolver->resolve($claims);
 
-        // Satu token aktif per perangkat: token lama dengan nama yang sama dicabut dulu, supaya
-        // masuk ulang di perangkat yang sama tidak menumpuk token. Jumlah token per akun juga
-        // dibatasi (ApiTokenService::MAX_TOKENS_PER_ACCOUNT, yang terlama dibuang), jadi device_id
-        // yang terus berganti pun tidak menumpuk token tanpa batas.
+        return self::accountResponse($request, $user, $tokens);
+    }
+
+    /**
+     * Masuk dengan email+sandi (Tahap 14, server-sync.md): akun server yang SAMA dengan masuk web. Aturan dan batas
+     * gagalnya dari [AccountService::checkLogin] (5 gagal per menit per IP, 10 per 15 menit per email). Galat selalu
+     * 422 dengan pesan Bahasa Indonesia yang siap ditampilkan; email tak dikenal, akun tanpa sandi (hanya Google),
+     * dan sandi salah dijawab sama persis supaya tidak membocorkan email yang terdaftar. Email yang belum
+     * diverifikasi tidak dapat token: kodenya dikirim seperti di web, lalu klien diminta verifikasi lewat web.
+     * Jawaban sukses sama bentuknya dengan [login] (token, expires_at, user).
+     */
+    public function loginWithPassword(Request $request, AccountService $accounts, ApiTokenService $tokens): JsonResponse
+    {
+        $request->validate([
+            'email' => ['required', 'string', 'email'],
+            'password' => ['required', 'string'],
+            'device_id' => ['sometimes', 'nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9._-]+$/'],
+        ]);
+
+        [$status, $detail] = $accounts->checkLogin((string) $request->input('email'), (string) $request->input('password'), (string) $request->ip());
+
+        if ($status === AccountService::LOGIN_THROTTLED) {
+            throw ValidationException::withMessages([
+                'email' => ['Terlalu banyak percobaan. Coba lagi dalam '.$detail.' detik.'],
+            ]);
+        }
+
+        if ($status === AccountService::LOGIN_INVALID) {
+            throw ValidationException::withMessages(['email' => ['Email atau kata sandi salah.']]);
+        }
+
+        // Kata sandi benar tapi email belum diverifikasi: sama seperti web, kodenya dikirim (bila pengiriman aktif)
+        // dan tidak ada token. Klien tidak punya layar verifikasi, jadi pesannya menunjuk ke web.
+        if ($status === AccountService::LOGIN_UNVERIFIED) {
+            if (! config('rizqflow.email_codes_enabled')) {
+                throw ValidationException::withMessages([
+                    'email' => ['Emailmu belum diverifikasi dan pengiriman kode belum tersedia. Masuk dengan Google untuk sementara.'],
+                ]);
+            }
+
+            $accounts->sendVerification($detail);
+
+            throw ValidationException::withMessages([
+                'email' => ['Emailmu belum diverifikasi. Kode verifikasi sudah kami kirim ke email itu; verifikasi lewat web Rizqflow, lalu masuk lagi di sini.'],
+            ]);
+        }
+
+        return self::accountResponse($request, $detail, $tokens);
+    }
+
+    /**
+     * Terbitkan token untuk perangkat ini dan bentuk jawaban masuk (dipakai masuk Google dan email+sandi).
+     * Satu token aktif per perangkat: token lama dengan nama yang sama dicabut dulu, supaya masuk ulang di perangkat
+     * yang sama tidak menumpuk token. Jumlah token per akun juga dibatasi (ApiTokenService::MAX_TOKENS_PER_ACCOUNT,
+     * yang terlama dibuang), jadi device_id yang terus berganti pun tidak menumpuk token tanpa batas.
+     */
+    private static function accountResponse(Request $request, User $user, ApiTokenService $tokens): JsonResponse
+    {
         $token = $tokens->issueForDevice($user, self::tokenName($request));
 
         return response()->json([

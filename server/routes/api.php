@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\Route;
 Route::post('/auth/google', [AccountController::class, 'login'])
     ->middleware('throttle:api-login');
 
+// Masuk dengan email+sandi (Tahap 14): akun server yang sama dengan masuk web, aturan dan batas gagalnya
+// juga sama (AccountService::checkLogin). Batas laju per IP memakai limiter `api-login` yang sama.
+Route::post('/auth/login', [AccountController::class, 'loginWithPassword'])
+    ->middleware('throttle:api-login');
+
 // Real-time Developer Notifications Google Play (push Pub/Sub). TANPA Sanctum: pemanggilnya Google,
 // diautentikasi lewat JWT OIDC di header Authorization (lihat PlayNotificationController).
 Route::post('/play/notifications', [PlayNotificationController::class, 'receive'])
