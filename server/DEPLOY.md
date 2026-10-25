@@ -143,7 +143,7 @@ Tahap 12, kode selesai 2026-10-24 di `server/app/Auth/ApiTokenService.php` dan
 
 | Hal | Perilaku |
 |---|---|
-| `API_TOKEN_TTL_DAYS` | Masa berlaku token baru, dalam hari. Bilangan bulat 1 sampai 1825; kosong, huruf, pecahan, nol, negatif, atau lebih dari 1825 jatuh ke bawaan **90**. Bukan rahasia; ada di `server/.env.example`. Batas 1825 menjaga salah ketik dan kolom `expires_at` (TIMESTAMP MySQL, tak menampung tanggal setelah 2038) |
+| `API_TOKEN_TTL_DAYS` | Masa berlaku token baru, dalam hari. Bilangan bulat 1 sampai 1825; kosong, huruf, pecahan, nol, negatif, atau lebih dari 1825 jatuh ke bawaan **90**. Bukan rahasia; ada di `server/.env.example`. Batas 1825 hanya menjaga salah ketik; kolom `expires_at` (TIMESTAMP MySQL, tak menampung tanggal setelah 2038) dijaga dengan memotong masa berlaku ke 2038-01-19 00:00:00 UTC (lihat "Batas kolom `expires_at`" di bawah) |
 | Masuk (`POST /api/auth/google`) | Jawaban 200 membawa `token`, `expires_at` (ISO-8601 UTC, mis. `2027-01-22T10:00:00Z`), dan `user`. `expires_at` juga tercatat di kolom `personal_access_tokens.expires_at` |
 | Token kedaluwarsa | Ditolak 401 JSON oleh `auth:sanctum` di semua endpoint terlindungi |
 | `POST /api/auth/refresh` | Memutar token yang dipakai: token itu dicabut, token baru (nama `android:<device_id>` dan abilities sama) terbit dengan masa berlaku penuh. 200 `{token, expires_at}`. 401 bila token tak sah atau sudah kedaluwarsa (klien masuk ulang dengan Google). Atomik: dua refresh bersamaan dengan token yang sama menghasilkan paling banyak satu token baru, yang lain 401 |
@@ -159,11 +159,14 @@ klien masih memegang token lama yang sudah dicabut dan tidak punya token baru; s
 mencegahnya (tidak ada cara aman memberi tahu klien token baru tanpa token lama). Klien pulih lewat 401
 pada permintaan berikutnya, lalu masuk ulang dengan Google.
 
-**Utang: batas `MAX_TTL_DAYS=1825` akan usang.** Kolom `expires_at` bertipe TIMESTAMP di MySQL, yang
-berhenti di 2038-01-19 03:14:07 UTC. Sejak sekitar **2033-01-20**, hari ini + 1825 hari melewati batas itu
-dan penerbitan token dengan `API_TOKEN_TTL_DAYS` mendekati 1825 gagal di MySQL. Perbaikannya (belum
-dikerjakan): batas dinamis (mis. `min(1825, hari tersisa sampai 2038-01-19)`) atau migrasi `expires_at`
-menjadi DATETIME. Dengan bawaan 90 hari, ini baru menggigit mulai sekitar Oktober 2037.
+**Batas kolom `expires_at` (TIMESTAMP MySQL, berhenti di 2038-01-19 03:14:07 UTC) ditangani dengan batas
+dinamis.** `ApiTokenService::expiresAt()` memotong masa berlaku ke `ApiTokenService::columnCeiling()`
+(2038-01-19 00:00:00 UTC) bila `sekarang + API_TOKEN_TTL_DAYS` melewatinya, sehingga penerbitan tidak
+pernah gagal saat `INSERT`. Akibatnya: sampai sekitar 2033 masa berlaku penuh tetap utuh (dengan 1825
+hari, token yang terbit sesudah sekitar 2033-01-20 mulai terpotong); sesudahnya token baru makin pendek
+dan pada 2038 hanya sisa hari sampai batas. Perilaku ini **hanya terbukti lewat tes SQLite**
+(`ApiTokenExpiryTest`, bagian batas kolom TIMESTAMP), belum di MySQL. Migrasi `expires_at` menjadi
+DATETIME belum dikerjakan; kalau masa berlaku panjang setelah 2038 dibutuhkan, itu langkah berikutnya.
 
 **Deadlock InnoDB pada login bersamaan.** `issueForDevice` mengunci baris pengguna (`FOR UPDATE`) dan
 mengulang transaksi sampai 3 kali bila MySQL membatalkannya karena deadlock (kode 1213). Ini **tidak bisa

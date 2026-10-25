@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Auth\ApiTokenService;
 use App\Auth\GoogleIdTokenVerifier;
 use App\Models\User;
 use Illuminate\Console\Scheduling\Schedule;
@@ -194,6 +195,52 @@ class ApiTokenExpiryTest extends TestCase
     {
         $this->assertSame(90, config('rizqflow.api_token_ttl_days'));
         $this->assertSame(config('rizqflow.api_token_ttl_days') * 24 * 60, config('sanctum.expiration'));
+    }
+
+    // --- batas kolom TIMESTAMP MySQL (2038) ---------------------------------------------------
+
+    public function test_a_max_ttl_that_stays_before_the_column_ceiling_is_not_cut(): void
+    {
+        $this->fakeGoogle();
+        config(['rizqflow.api_token_ttl_days' => ApiTokenService::MAX_TTL_DAYS]);
+
+        // 26 Okt 2026 + 1825 hari = 23 Okt 2031 (2028 kabisat ikut terhitung).
+        $this->login()->assertOk()->assertJsonPath('expires_at', '2031-10-23T10:00:00Z');
+        $this->assertSame('2031-10-23 10:00:00', PersonalAccessToken::sole()->expires_at->utc()->format('Y-m-d H:i:s'));
+    }
+
+    #[DataProvider('ttlNearTheCeiling')]
+    public function test_expiry_is_cut_to_the_mysql_timestamp_ceiling_only_when_it_would_pass_it(string $now, int $ttl, string $expected): void
+    {
+        $this->fakeGoogle();
+        $this->travelTo($now);
+        config(['rizqflow.api_token_ttl_days' => $ttl]);
+
+        $this->login()->assertOk()->assertJsonPath('expires_at', $expected);
+        $this->assertSame(str_replace(['T', 'Z'], [' ', ''], $expected), PersonalAccessToken::sole()->expires_at->utc()->format('Y-m-d H:i:s'));
+    }
+
+    public static function ttlNearTheCeiling(): array
+    {
+        return [
+            'sembilan puluh hari, masih di bawah batas' => ['2037-10-01 10:00:00', 90, '2037-12-30T10:00:00Z'],
+            'sembilan puluh hari, melewati batas lalu dipotong' => ['2037-12-01 10:00:00', 90, '2038-01-19T00:00:00Z'],
+            'batas maks 1825 hari saat 2033, dipotong' => ['2033-01-20 10:00:00', ApiTokenService::MAX_TTL_DAYS, '2038-01-19T00:00:00Z'],
+        ];
+    }
+
+    public function test_a_token_cut_at_the_ceiling_stops_working_there(): void
+    {
+        $this->fakeGoogle();
+        $this->travelTo('2037-12-01 10:00:00');
+        $token = $this->login()->json('token');
+        User::sole()->forceFill(['plans' => ['sync']])->save();
+
+        $this->travelTo('2038-01-18 23:59:59');
+        $this->api('GET', '/api/sync/pull', $token)->assertOk();
+
+        $this->travelTo('2038-01-19 00:00:01');
+        $this->api('GET', '/api/sync/pull', $token)->assertUnauthorized();
     }
 
     // --- token kedaluwarsa ditolak ------------------------------------------------------------
