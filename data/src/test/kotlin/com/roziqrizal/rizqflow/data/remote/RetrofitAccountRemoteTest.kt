@@ -12,8 +12,10 @@ import org.junit.Before
 import org.junit.Test
 import java.time.Instant
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /** [RetrofitAccountRemote] terhadap server HTTP sungguhan ([MockWebServer]), bukan mock interface. */
 class RetrofitAccountRemoteTest {
@@ -261,5 +263,71 @@ class RetrofitAccountRemoteTest {
         server.shutdown()
 
         assertEquals(RemoteResult.Failure(RemoteError.Unreachable), remote.logout(apiToken = "t"))
+    }
+
+    // --- Masuk dengan email+sandi (Tahap 14) ---
+
+    @Test
+    fun `masuk email sukses mengirim email, sandi, dan device_id lalu membaca token dan masa berlakunya`() = runBlocking {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "application/json")
+                .setBody("""{"token":"abc123","expires_at":"2027-01-22T10:00:00Z","user":{"id":7,"name":"Roziq","email":"roziq@example.com"}}"""),
+        )
+
+        val result = remote.loginWithEmail(email = "roziq@example.com", password = "kopi-susu", deviceId = "pixel-9")
+
+        assertEquals(
+            RemoteResult.Success(
+                ApiAccount(
+                    apiToken = "abc123",
+                    userId = 7,
+                    name = "Roziq",
+                    email = "roziq@example.com",
+                    expiresAt = Instant.parse("2027-01-22T10:00:00Z"),
+                ),
+            ),
+            result,
+        )
+        val sent = server.takeRequest()
+        assertEquals("/auth/login", sent.path)
+        assertEquals("""{"email":"roziq@example.com","password":"kopi-susu","device_id":"pixel-9"}""", sent.body.readUtf8())
+    }
+
+    @Test
+    fun `masuk email yang ditolak 422 membawa pesan Bahasa Indonesia dari server`() = runBlocking {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(422)
+                .setHeader("Content-Type", "application/json")
+                .setBody("""{"message":"Email atau kata sandi salah.","errors":{"email":["Email atau kata sandi salah."]}}"""),
+        )
+
+        val result = remote.loginWithEmail(email = "roziq@example.com", password = "salah", deviceId = "pixel-9")
+
+        assertEquals(RemoteResult.Failure(RemoteError.Rejected("Email atau kata sandi salah.")), result)
+    }
+
+    @Test
+    fun `masuk email saat server gangguan mengembalikan Unexpected dengan kodenya`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(500))
+
+        assertEquals(RemoteResult.Failure(RemoteError.Unexpected(500)), remote.loginWithEmail("a@b.c", "x", "pixel-9"))
+    }
+
+    @Test
+    fun `masuk email saat server tidak terjangkau mengembalikan Unreachable, bukan melempar`() = runBlocking {
+        server.shutdown()
+
+        assertEquals(RemoteResult.Failure(RemoteError.Unreachable), remote.loginWithEmail("a@b.c", "x", "pixel-9"))
+    }
+
+    @Test
+    fun `sandi tidak pernah tercetak lewat toString permintaan masuk email`() {
+        val body = EmailLoginRequestDto(email = "roziq@example.com", password = "rahasia-banget", deviceId = "pixel-9")
+
+        assertFalse(body.toString().contains("rahasia-banget"))
+        assertTrue(body.toString().contains("roziq@example.com"))
     }
 }

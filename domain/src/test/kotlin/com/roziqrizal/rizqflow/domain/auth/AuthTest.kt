@@ -39,6 +39,13 @@ class AuthTest {
     }
 
     @Test
+    fun `akun email+sandi server wajib punya email dan memakai email sebagai identitas`() {
+        val akun = AuthSession("roziq@example.com", "roziq@example.com", "Roziq", AuthProviderType.EMAIL)
+        assertEquals("roziq@example.com", akun.identifier)
+        assertFailsWith<IllegalArgumentException> { AuthSession("id", null, null, AuthProviderType.EMAIL) }
+    }
+
+    @Test
     fun `akun Google wajib punya email`() {
         assertFailsWith<IllegalArgumentException> { AuthSession("id", null, null, AuthProviderType.GOOGLE) }
         assertEquals("roziq@example.com", sesi.identifier)

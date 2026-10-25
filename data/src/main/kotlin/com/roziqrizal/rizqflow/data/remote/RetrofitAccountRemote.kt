@@ -9,34 +9,49 @@ import java.time.DateTimeException
 import java.time.Instant
 import java.time.OffsetDateTime
 import kotlinx.serialization.SerializationException
+import okhttp3.ResponseBody
+import retrofit2.Response
 
 /** Implementasi [AccountRemote] sungguhan lewat [RizqflowApiService] (Tahap 9, token berumur Tahap 12). */
 class RetrofitAccountRemote(private val service: RizqflowApiService) : AccountRemote {
     override suspend fun loginWithGoogle(idToken: String, deviceId: String): RemoteResult<ApiAccount> =
         safeCall {
             val request = jsonBody(LoginRequestDto.serializer(), LoginRequestDto(credential = idToken, deviceId = deviceId))
-            val response = service.loginWithGoogle(request)
-            val body = response.body()
-            if (response.isSuccessful && body != null) {
-                // Sama seperti refresh: badan 200 yang rusak jadi kegagalan biasa, bukan crash.
-                try {
-                    val decoded = body.decodeJson(LoginResponseDto.serializer())
-                    RemoteResult.Success(
-                        ApiAccount(
-                            apiToken = decoded.token,
-                            userId = decoded.user.id,
-                            name = decoded.user.name,
-                            email = decoded.user.email,
-                            expiresAt = parseExpiresAt(decoded.expiresAt),
-                        ),
-                    )
-                } catch (_: SerializationException) {
-                    RemoteResult.Failure(RemoteError.Unexpected(response.code()))
-                }
-            } else {
-                response.toFailure()
-            }
+            parseLoginResponse(service.loginWithGoogle(request))
         }
+
+    override suspend fun loginWithEmail(email: String, password: String, deviceId: String): RemoteResult<ApiAccount> =
+        safeCall {
+            val request = jsonBody(
+                EmailLoginRequestDto.serializer(),
+                EmailLoginRequestDto(email = email, password = password, deviceId = deviceId),
+            )
+            parseLoginResponse(service.loginWithEmail(request))
+        }
+
+    /** Jawaban masuk (Google maupun email+sandi) jadi [RemoteResult]; galat aturan dipetakan lewat [toFailure]. */
+    private fun parseLoginResponse(response: Response<ResponseBody>): RemoteResult<ApiAccount> {
+        val body = response.body()
+        return if (response.isSuccessful && body != null) {
+            // Sama seperti refresh: badan 200 yang rusak jadi kegagalan biasa, bukan crash.
+            try {
+                val decoded = body.decodeJson(LoginResponseDto.serializer())
+                RemoteResult.Success(
+                    ApiAccount(
+                        apiToken = decoded.token,
+                        userId = decoded.user.id,
+                        name = decoded.user.name,
+                        email = decoded.user.email,
+                        expiresAt = parseExpiresAt(decoded.expiresAt),
+                    ),
+                )
+            } catch (_: SerializationException) {
+                RemoteResult.Failure(RemoteError.Unexpected(response.code()))
+            }
+        } else {
+            response.toFailure()
+        }
+    }
 
     override suspend fun refresh(apiToken: String): RemoteResult<RefreshedToken> =
         safeCall {
