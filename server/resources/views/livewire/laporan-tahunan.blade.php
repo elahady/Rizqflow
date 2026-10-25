@@ -6,6 +6,9 @@
     <x-rf.page-head :sub="'Tahun '.$year.' · Pribadi'" title="Analisa">
         <x-slot:actions>
             <x-rf.pill tone="info" icon="">Fitur Pro</x-rf.pill>
+            @if ($canUseReports)
+                <a href="{{ route('laporan.tahunan.pdf', ['tahun' => $year]) }}" class="rf-btn ghost sm"><x-rf.icon name="download" />Unduh PDF</a>
+            @endif
         </x-slot:actions>
     </x-rf.page-head>
 

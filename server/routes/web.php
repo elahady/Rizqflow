@@ -82,7 +82,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/laporan/kekayaan-bersih', KekayaanBersih::class)->name('laporan.kekayaan-bersih');
     Route::get('/laporan/bandingkan', BandingkanPeriode::class)->name('laporan.bandingkan');
     Route::get('/laporan/bandingkan/pdf', [ReportPdfController::class, 'bandingkanPeriode'])->name('laporan.bandingkan.pdf');
+    Route::get('/laporan/bulanan/pdf', [ReportPdfController::class, 'bulanan'])->name('laporan.bulanan.pdf');
     Route::get('/laporan/tahunan', LaporanTahunan::class)->name('laporan.tahunan');
+    Route::get('/laporan/tahunan/pdf', [ReportPdfController::class, 'tahunan'])->name('laporan.tahunan.pdf');
     Route::get('/laporan/cashflow', ProyeksiCashflow::class)->name('laporan.cashflow');
     Route::get('/laporan/heatmap', HeatmapPencatatan::class)->name('laporan.heatmap');
     Route::get('/laporan/impor-csv', ImporCsv::class)->name('laporan.impor-csv');

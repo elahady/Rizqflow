@@ -6,6 +6,9 @@
         <x-slot:actions>
             <x-rf.pill tone="info" icon="">Fitur Pro</x-rf.pill>
             @if ($canUseReports)
+                @if ($granularity === 'bulan')
+                    <a href="{{ route('laporan.bulanan.pdf', ['bulan' => $periodA]) }}" class="rf-btn ghost sm"><x-rf.icon name="download" />PDF laporan bulanan</a>
+                @endif
                 <a href="{{ route('laporan.bandingkan.pdf', ['granularity' => $granularity, 'periodA' => $periodA, 'periodB' => $periodB]) }}" class="rf-btn ghost sm"><x-rf.icon name="download" />Unduh PDF</a>
             @endif
         </x-slot:actions>
