@@ -44,6 +44,7 @@ private val Feature.benefitText: Int
         Feature.HOME_WIDGET -> R.string.pro_benefit_widget
         Feature.THEMES -> R.string.pro_benefit_themes
         Feature.NOTIFICATION_CAPTURE -> R.string.pro_benefit_notification_capture
+        Feature.VOICE_INPUT -> R.string.pro_benefit_voice_input
         // Fitur Sync memicu varian Sync ([SyncPaywallSheet], lihat [paywallPlanFor]), bukan sheet Pro ini.
         Feature.ENCRYPTED_SYNC, Feature.SHARED_FAMILY_ROOM -> R.string.pro_benefit_unlimited_rooms
     }

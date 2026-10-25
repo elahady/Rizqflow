@@ -171,6 +171,11 @@
     <string name="catat_smart_input_placeholder">gojek 23rb dari gopay</string>
     <string name="catat_smart_input_unreadable">Belum ada nominal yang terbaca.</string>
     <string name="catat_smart_input_use">Gunakan</string>
+    <string name="catat_voice_start">Bicara untuk catat</string>
+    <string name="catat_voice_locked">Input suara (Pro)</string>
+    <string name="catat_voice_locked_hint">Input suara tersedia di Rizqflow Pro. Ketuk ikon mikrofon untuk melihat Pro.</string>
+    <string name="catat_voice_prompt">Sebutkan catatanmu, misalnya: gojek 23rb dari gopay</string>
+    <string name="catat_voice_unavailable">Pengenal suara tidak tersedia di perangkat ini. Ketik saja kalimatnya.</string>
     <string name="catat_tab_income">Pemasukan</string>
     <string name="catat_tab_expense">Pengeluaran</string>
     <string name="catat_tab_transfer">Transfer</string>
@@ -468,6 +473,7 @@
     <string name="pro_benefit_widget">Widget catat kilat</string>
     <string name="pro_benefit_themes">Tema tambahan</string>
     <string name="pro_benefit_notification_capture">Tangkap otomatis dari notifikasi</string>
+    <string name="pro_benefit_voice_input">Input suara untuk catat cerdas</string>
     <string name="restore_done_pro_inactive">Pembelianmu dipulihkan, tetapi pembelian Pro belum aktif di akun Google Play ini.</string>
 
     <!-- Rizqflow Sync: varian Sync dari paywall S21 (Tahap 7). Langganan bulanan atau tahunan lewat

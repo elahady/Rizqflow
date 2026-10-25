@@ -1,5 +1,7 @@
 package com.roziqrizal.rizqflow.ui.catat
 
+import android.content.ActivityNotFoundException
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -12,6 +14,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -34,6 +37,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import com.roziqrizal.rizqflow.R
+import com.roziqrizal.rizqflow.domain.entitlement.Feature
 import com.roziqrizal.rizqflow.domain.ledger.CatatContext
 import com.roziqrizal.rizqflow.domain.ledger.CatatDraft
 import com.roziqrizal.rizqflow.domain.model.TransactionKind
@@ -58,7 +62,15 @@ import java.time.LocalDate
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun SmartInputSheet(workspace: AccountWorkspace, catatContext: CatatContext, today: LocalDate, onUse: (CatatDraft) -> Unit, onDismiss: () -> Unit) {
+fun SmartInputSheet(
+    workspace: AccountWorkspace,
+    catatContext: CatatContext,
+    today: LocalDate,
+    onUse: (CatatDraft) -> Unit,
+    onDismiss: () -> Unit,
+    /** Dipanggil saat ikon mikrofon ditekan tanpa Pro; pemanggil menutup sheet ini dan membuka paywall. */
+    onVoiceLocked: () -> Unit = {},
+) {
     var smartContext by remember { mutableStateOf<SmartInputContext?>(null) }
     LaunchedEffect(Unit) { smartContext = workspace.smartInput.contextFor(catatContext, today) }
 
@@ -70,6 +82,17 @@ fun SmartInputSheet(workspace: AccountWorkspace, catatContext: CatatContext, tod
         val focusRequester = remember { FocusRequester() }
         val focusManager = LocalFocusManager.current
         LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
+        // Input suara: hanya Pro (Feature.VOICE_INPUT). Hasil pengenal masuk ke kolom teks yang sama, lalu
+        // diurai dan ditampilkan seperti ketikan; tidak pernah tersimpan sendiri.
+        val voiceUnlocked = workspace.entitlements.isEnabled(Feature.VOICE_INPUT)
+        var voiceUnavailable by remember { mutableStateOf(false) }
+        val speech = rememberLauncherForActivityResult(SpeechRecognitionContract()) { spoken ->
+            if (spoken != null) {
+                text = spoken
+                voiceUnavailable = false
+            }
+        }
 
         fun use() {
             val current = entry ?: return
@@ -97,8 +120,42 @@ fun SmartInputSheet(workspace: AccountWorkspace, catatContext: CatatContext, tod
                         focusManager.clearFocus()
                     }
                 }),
+                trailingIcon = {
+                    IconButton(onClick = {
+                        if (!voiceUnlocked) {
+                            onVoiceLocked()
+                            return@IconButton
+                        }
+                        try {
+                            speech.launch(Unit)
+                        } catch (e: ActivityNotFoundException) {
+                            voiceUnavailable = true
+                        }
+                    }) {
+                        Icon(
+                            RizqflowIcons.Mikrofon,
+                            contentDescription = stringResource(if (voiceUnlocked) R.string.catat_voice_start else R.string.catat_voice_locked),
+                        )
+                    }
+                },
                 modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
             )
+            if (!voiceUnlocked) {
+                Text(
+                    stringResource(R.string.catat_voice_locked_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = spacing.s2),
+                )
+            }
+            if (voiceUnavailable) {
+                Text(
+                    stringResource(R.string.catat_voice_unavailable),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = spacing.s2),
+                )
+            }
 
             if (text.isNotBlank()) {
                 if (entry != null) {

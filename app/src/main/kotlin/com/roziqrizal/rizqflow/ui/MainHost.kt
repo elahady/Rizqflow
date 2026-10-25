@@ -882,12 +882,13 @@ fun MainHost(
                 onClose = { editId = null },
                 onSaved = ::announce,
                 onDeleted = ::announceDelete,
+                onOpenPaywall = { openPaywall(it) },
             )
         }
     } else if (catat) {
         // Surface menangkap sentuhan supaya tidak tembus ke menu utama di bawahnya.
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            CatatFlow(workspace, onClose = { catat = false }, onSaved = ::announce)
+            CatatFlow(workspace, onClose = { catat = false }, onSaved = ::announce, onOpenPaywall = { openPaywall(it) })
         }
     } else if (kelola) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
