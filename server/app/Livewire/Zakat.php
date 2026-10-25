@@ -8,6 +8,7 @@ use App\Support\Feature;
 use App\Support\Ledger;
 use App\Support\LedgerException;
 use App\Support\Rupiah;
+use App\Support\ZakatDebtSuggestion;
 use App\Support\ZakatRekap;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
@@ -155,6 +156,18 @@ class Zakat extends Component
         $this->haulTotalDays = $profile?->haul_total_days !== null ? (string) $profile->haul_total_days : '';
         $this->profileError = null;
         $this->editingProfile = true;
+    }
+
+    /**
+     * Tombol Pakai di bawah "Harta bersih": mengisi form dengan sisa piutang dari Utang-piutang, yang
+     * dihitung ulang di server. Belum tersimpan sampai form disimpan (saveProfile).
+     */
+    public function usePiutangSuggestion(): void
+    {
+        $suggested = ZakatDebtSuggestion::receivableMinor(auth()->user());
+        if ($suggested > 0) {
+            $this->netWealth = (string) $suggested;
+        }
     }
 
     public function cancelEditProfile(): void
@@ -391,6 +404,8 @@ class Zakat extends Component
             'rekapRows' => $rekap,
             'rekapTotal' => ZakatRekap::totalMinor($rekap),
             'rekapCsv' => ZakatRekap::csv($user, $year),
+            // Saran hanya saat form profil terbuka, seperti S15 Android yang menampilkannya di layar harta.
+            'piutangSuggestion' => $this->editingProfile ? ZakatDebtSuggestion::receivableMinor($user) : 0,
         ])->layout('components.layout', ['title' => 'Zakat dan Haul — Rizqflow']);
     }
 }

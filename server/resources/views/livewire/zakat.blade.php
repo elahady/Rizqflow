@@ -84,6 +84,12 @@
                 <div class="rf-field">
                     <label for="zakat-wealth">Harta bersih (Rp)</label>
                     <input class="rf-input" type="number" id="zakat-wealth" wire:model="netWealth" min="0">
+                    @if ($piutangSuggestion > 0 && (string) $piutangSuggestion !== $netWealth)
+                        <div class="rf-row" style="gap: 8px; flex-wrap: wrap; margin-top: 6px">
+                            <span class="rf-sub">Dari Utang-piutang: {{ Rupiah::format($piutangSuggestion) }} (sisa piutang yang diperkirakan kembali)</span>
+                            <button type="button" class="rf-btn ghost sm" wire:click="usePiutangSuggestion">Pakai</button>
+                        </div>
+                    @endif
                 </div>
                 <div class="rf-field">
                     <label for="zakat-nisab">Nisab hari ini (Rp)</label>
