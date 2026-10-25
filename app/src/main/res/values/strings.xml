@@ -114,6 +114,9 @@
     <string name="account_delete_done">Akun server dihapus.</string>
     <string name="account_delete_failed">Gagal menghapus akun. Coba lagi.</string>
     <string name="account_delete_session_expired">Sesi server sudah berakhir. Sambungkan ulang dari menu Lainnya dulu, baru hapus akun.</string>
+    <string name="account_delete_pin_prompt">Masukkan PIN kunci aplikasi untuk melanjutkan.</string>
+    <string name="account_delete_pin_verified">PIN benar. Tombol hapus sekarang aktif.</string>
+    <string name="account_delete_word_prompt">Kunci aplikasi belum aktif. Ketik HAPUS (huruf besar semua) untuk melanjutkan.</string>
     <string name="menu_reconnect">Sambungkan ulang ke server</string>
     <string name="menu_reconnect_sub">Sesi server berakhir. Data dan paketmu di ponsel aman; masuk dengan Google lagi supaya sync dan fitur server berjalan.</string>
     <string name="menu_reconnect_busy">Menyambungkan…</string>

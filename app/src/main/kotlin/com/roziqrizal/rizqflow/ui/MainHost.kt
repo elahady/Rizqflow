@@ -40,10 +40,12 @@ import com.roziqrizal.rizqflow.domain.debt.DebtPayment
 import com.roziqrizal.rizqflow.ui.debt.DebtsScreen
 import com.roziqrizal.rizqflow.ui.report.ReportScreen
 import com.roziqrizal.rizqflow.ui.reminder.ReminderSettingsScreen
+import com.roziqrizal.rizqflow.ui.security.DeleteAccountConfirmContent
 import com.roziqrizal.rizqflow.ui.security.SecuritySettingsScreen
 import com.roziqrizal.rizqflow.ui.theme.ThemePreference
 import com.roziqrizal.rizqflow.ui.theme.ThemeSettingsScreen
 import com.roziqrizal.rizqflow.domain.auth.AppLockService
+import com.roziqrizal.rizqflow.domain.auth.DeleteAccountConfirmation
 import com.roziqrizal.rizqflow.ui.zakat.ZakatFlow
 import com.roziqrizal.rizqflow.domain.model.RoomId
 import java.time.YearMonth
@@ -856,14 +858,14 @@ fun MainHost(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp),
                 )
-                Button(
-                    onClick = ::deleteAccount,
-                    enabled = !deletingAccount,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    modifier = Modifier.padding(top = 16.dp).fillMaxWidth().height(52.dp),
-                ) { Text(stringResource(R.string.account_delete_confirm_action)) }
-                TextButton(onClick = { deleteAccountSheet = false }, enabled = !deletingAccount, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.catat_date_cancel))
+                // Konfirmasi tambahan (keputusan pemilik 2026-10-24): PIN bila kunci aplikasi aktif, bila tidak ketik HAPUS.
+                Column(modifier = Modifier.padding(top = 16.dp)) {
+                    DeleteAccountConfirmContent(
+                        confirmation = remember(appLock) { DeleteAccountConfirmation(appLock) },
+                        busy = deletingAccount,
+                        onConfirm = ::deleteAccount,
+                        onCancel = { deleteAccountSheet = false },
+                    )
                 }
             }
         }
