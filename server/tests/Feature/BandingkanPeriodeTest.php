@@ -125,4 +125,58 @@ class BandingkanPeriodeTest extends TestCase
             ->set('periodA', '2030')
             ->assertOk();
     }
+
+    public function test_insight_kalimat_tahunan_muncul_untuk_tahun_yang_dipilih(): void
+    {
+        $this->tx('pemasukan', 2_000_000, Carbon::parse('2026-01-05'));
+        $this->tx('pengeluaran', 900_000, Carbon::parse('2026-03-05'), $this->room->id, $this->category->id);
+        $this->tx('pengeluaran', 100_000, Carbon::parse('2026-04-05'), $this->room->id, $this->category->id);
+
+        $component = Livewire::actingAs($this->user)
+            ->test(BandingkanPeriode::class)
+            ->set('granularity', 'tahun')
+            ->set('periodA', '2026')
+            ->set('periodB', '2025');
+
+        $component->assertSee('Insight 2026')
+            ->assertSee('Bulan paling boros: Mar 2026 (Rp 900.000).')
+            ->assertSee('Bulan paling hemat: Apr 2026 (Rp 100.000).')
+            ->assertSee('Kamu menyisihkan 50% dari pemasukan setahun.')
+            ->assertSee('Rata-rata pengeluaran Rp 500.000 per bulan, dari 2 bulan yang punya pengeluaran.');
+    }
+
+    public function test_insight_tidak_dihitung_di_satuan_bulan(): void
+    {
+        $this->tx('pengeluaran', 900_000, Carbon::parse('2026-03-05'), $this->room->id, $this->category->id);
+
+        $component = Livewire::actingAs($this->user)
+            ->test(BandingkanPeriode::class)
+            ->set('granularity', 'bulan')
+            ->set('periodA', '2026-03');
+
+        $this->assertSame([], $component->viewData('insightSentences'));
+    }
+
+    public function test_tahun_tanpa_data_tidak_menampilkan_insight(): void
+    {
+        $component = Livewire::actingAs($this->user)
+            ->test(BandingkanPeriode::class)
+            ->set('granularity', 'tahun')
+            ->set('periodA', '2024');
+
+        $this->assertSame([], $component->viewData('insightSentences'));
+    }
+
+    public function test_insight_tidak_muncul_untuk_pengguna_tanpa_pro(): void
+    {
+        $this->user->update(['plans' => []]);
+        $this->tx('pengeluaran', 900_000, Carbon::parse('2026-03-05'), $this->room->id, $this->category->id);
+
+        $component = Livewire::actingAs($this->user)
+            ->test(BandingkanPeriode::class)
+            ->set('granularity', 'tahun')
+            ->set('periodA', '2026');
+
+        $this->assertSame([], $component->viewData('insightSentences'));
+    }
 }
