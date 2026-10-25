@@ -154,7 +154,10 @@ class SyncEngine(
             categoryId = categoryId.id,
             occurredOn = decoded.occurredOn,
             note = decoded.note,
-            origin = TransactionOrigin.IMPORT,
+            // SHARED (bukan IMPORT): pengeluaran anggota lain di ruang bersama bukan data pribadi pengguna ini, jadi
+            // pencatat dan backfill sinkron entitas penuh (sync-desain.md, Tahap 1) mengecualikannya dari cakupan pribadi.
+            // Tidak ada kode yang membaca origin untuk saldo, jatah, riwayat, laporan, atau ekspor; hanya tulis.
+            origin = TransactionOrigin.SHARED,
             createdAtMillis = changedAtMillis,
             updatedAtMillis = changedAtMillis,
         )

@@ -106,14 +106,14 @@ interface TransactionDao {
     suspend fun insert(transaction: TransactionEntity)
 
     @Update
-    suspend fun update(transaction: TransactionEntity)
+    suspend fun update(transaction: TransactionEntity): Int
 
     @Query("SELECT * FROM money_transaction WHERE id = :id")
     suspend fun find(id: String): TransactionEntity?
 
     /** Alokasi ikut terhapus lewat ON DELETE CASCADE. */
     @Query("DELETE FROM money_transaction WHERE id = :id")
-    suspend fun delete(id: String)
+    suspend fun delete(id: String): Int
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertEntries(entries: List<AllocationEntryEntity>)
@@ -190,7 +190,7 @@ interface FavoriteDao {
     suspend fun upsert(favorite: QuickFavoriteEntity)
 
     @Query("DELETE FROM quick_favorite WHERE id = :id")
-    suspend fun delete(id: String)
+    suspend fun delete(id: String): Int
 }
 
 @Dao
@@ -220,12 +220,18 @@ interface ZakatDao {
     @Upsert
     suspend fun upsertGoldPrice(price: GoldPriceEntity)
 
+    @Query("SELECT * FROM gold_price WHERE day = :day")
+    suspend fun findGoldPrice(day: Long): GoldPriceEntity?
+
     @Query("SELECT * FROM wealth_check WHERE profile_id = :profileId ORDER BY day")
     suspend fun checks(profileId: String): List<WealthCheckEntity>
 
     /** Satu pemeriksaan per hari: baris hari yang sama dihapus dulu supaya tidak menumpuk. */
     @Query("DELETE FROM wealth_check WHERE profile_id = :profileId AND day = :day")
     suspend fun clearCheckOfDay(profileId: String, day: Long)
+
+    @Query("SELECT id FROM wealth_check WHERE profile_id = :profileId AND day = :day")
+    suspend fun checkIdsOfDay(profileId: String, day: Long): List<String>
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertCheck(check: WealthCheckEntity)
@@ -255,10 +261,10 @@ interface RoleDao {
     suspend fun allDca(): List<DcaPlanEntity>
 
     @Query("DELETE FROM trader_profile WHERE room_id = :roomId")
-    suspend fun deleteTrader(roomId: String)
+    suspend fun deleteTrader(roomId: String): Int
 
     @Query("DELETE FROM dca_plan WHERE room_id = :roomId")
-    suspend fun deleteDca(roomId: String)
+    suspend fun deleteDca(roomId: String): Int
 }
 
 @Dao
@@ -288,7 +294,7 @@ interface RecurringDao {
     suspend fun upsert(rule: RecurringRuleEntity)
 
     @Query("DELETE FROM recurring_rule WHERE id = :id")
-    suspend fun delete(id: String)
+    suspend fun delete(id: String): Int
 }
 
 @Dao
@@ -303,7 +309,7 @@ interface BillDao {
     suspend fun upsert(bill: BillEntity)
 
     @Query("DELETE FROM bill WHERE id = :id")
-    suspend fun delete(id: String)
+    suspend fun delete(id: String): Int
 }
 
 @Dao
@@ -318,7 +324,7 @@ interface DebtDao {
     suspend fun upsert(debt: DebtEntity)
 
     @Query("DELETE FROM debt WHERE id = :id")
-    suspend fun delete(id: String)
+    suspend fun delete(id: String): Int
 
     @Query("SELECT * FROM debt_payment ORDER BY paid_on, id")
     suspend fun allPayments(): List<DebtPaymentEntity>
@@ -326,9 +332,20 @@ interface DebtDao {
     @Query("SELECT * FROM debt_payment WHERE id = :id")
     suspend fun findPayment(id: String): DebtPaymentEntity?
 
+    @Query("SELECT id FROM debt_payment WHERE debt_id = :debtId")
+    suspend fun paymentIdsOf(debtId: String): List<String>
+
+    /** Utang yang transaksi awalnya [transactionId]; kolomnya jadi NULL (SET NULL) bila transaksi itu dihapus. */
+    @Query("SELECT id FROM debt WHERE initial_transaction_id = :transactionId")
+    suspend fun idsByInitialTransaction(transactionId: String): List<String>
+
+    /** Pelunasan yang transaksinya [transactionId]; kolomnya jadi NULL (SET NULL) bila transaksi itu dihapus. */
+    @Query("SELECT id FROM debt_payment WHERE transaction_id = :transactionId")
+    suspend fun paymentIdsByTransaction(transactionId: String): List<String>
+
     @Upsert
     suspend fun upsertPayment(payment: DebtPaymentEntity)
 
     @Query("DELETE FROM debt_payment WHERE id = :id")
-    suspend fun deletePayment(id: String)
+    suspend fun deletePayment(id: String): Int
 }

@@ -31,6 +31,12 @@ data class AccountEntity(
     val archived: Boolean,
     @ColumnInfo(name = "sort_order") val sortOrder: Int,
     @ColumnInfo(name = "last_reconciled_on") val lastReconciledOn: Long?,
+    /**
+     * Versi 8 (Tahap 1 sync-desain.md): akun anggota virtual untuk pengeluaran pasangan di ruang bersama
+     * (label + penulis); null untuk akun milik pengguna sendiri. Baris berpenanda ini wajib disaring dari
+     * semua daftar dan hitungan akun nyata. Belum ada yang mengisinya sampai Tahap 2.
+     */
+    @ColumnInfo(name = "shared_from", defaultValue = "NULL") val sharedFrom: String? = null,
 )
 
 @Entity(tableName = "room")
@@ -361,4 +367,66 @@ data class DebtPaymentEntity(
     val amount: Long,
     @ColumnInfo(name = "paid_on") val paidOn: Long,
     @ColumnInfo(name = "transaction_id") val transactionId: String?,
+)
+
+/*
+ * Penyimpanan sinkron (versi 8, Tahap 1 sync-desain.md bagian E, USULAN Claude). Semua tabel di sini
+ * adalah keadaan sinkron lokal, bukan data keuangan; tidak ikut disinkronkan.
+ */
+
+/**
+ * Satu versi per rekaman per cakupan: stempel (changed_at), tombstone (deleted), dan penanda kotor.
+ * [deviceId] menyimpan perangkat penulis versi ini agar aturan urutan total (changed_at, tombstone,
+ * deviceId) bisa memutus seri; null = perangkat ini sendiri. (Kolom ini tambahan dari daftar di
+ * sync-desain.md bagian E, yang belum menyebutnya padahal aturan bagian D membutuhkannya.)
+ */
+@Entity(
+    tableName = "sync_record",
+    primaryKeys = ["scope", "record_type", "record_id"],
+    indices = [Index("scope", "dirty")],
+)
+data class SyncRecordEntity(
+    val scope: String,
+    @ColumnInfo(name = "record_type") val recordType: String,
+    @ColumnInfo(name = "record_id") val recordId: String,
+    @ColumnInfo(name = "changed_at") val changedAt: Long,
+    val deleted: Boolean,
+    val dirty: Boolean,
+    @ColumnInfo(name = "pushed_changed_at") val pushedChangedAt: Long?,
+    val author: String?,
+    @ColumnInfo(name = "device_id") val deviceId: String?,
+)
+
+/** Posisi pull terakhir per cakupan (menggantikan SharedPreferences, ikut berkas DB akun yang sama). */
+@Entity(tableName = "sync_cursor")
+data class SyncCursorEntity(
+    @PrimaryKey val scope: String,
+    @ColumnInfo(name = "after_id") val afterId: Long,
+)
+
+/** Masalah sinkron yang dicatat; [kind] disimpan sebagai teks (nama `SyncIssueKind`). */
+@Entity(tableName = "sync_issue")
+data class SyncIssueEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val scope: String,
+    @ColumnInfo(name = "record_type") val recordType: String,
+    @ColumnInfo(name = "record_id") val recordId: String,
+    @ColumnInfo(name = "server_id") val serverId: Long?,
+    val kind: String,
+    val detail: String?,
+    @ColumnInfo(name = "raw_row") val rawRow: String?,
+    val attempts: Int,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+)
+
+/** Keanggotaan ruang bersama di perangkat ini (tanpa rahasia). Ikut terhapus bila ruangnya dihapus. */
+@Entity(
+    tableName = "shared_room",
+    foreignKeys = [ForeignKey(RoomEntity::class, ["id"], ["room_id"], onDelete = ForeignKey.CASCADE)],
+)
+data class SharedRoomEntity(
+    @PrimaryKey @ColumnInfo(name = "room_id") val roomId: String,
+    val role: String,
+    val status: String,
+    @ColumnInfo(name = "joined_at") val joinedAt: Long,
 )

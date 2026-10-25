@@ -20,6 +20,11 @@ dependencies {
     // Hanya pustaka JVM murni; tidak menyeret Android.
     implementation(libs.kotlinx.coroutines.core)
 
+    // Hanya runtime JSON (JsonObject, parseToJsonElement) untuk amplop sinkron: bingkai plaintext harus
+    // membuktikan wireId cocok dengan type+id di dalam JSON-nya. Tanpa plugin serialization dan tanpa
+    // Android, jadi :domain tetap Kotlin/JVM murni (Tahap 1 sync-desain.md).
+    implementation(libs.kotlinx.serialization.json)
+
     testImplementation(platform(libs.junit.bom))
     testImplementation(kotlin("test"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

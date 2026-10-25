@@ -132,3 +132,40 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
         db.execSQL("ALTER TABLE money_transaction ADD COLUMN synced_at INTEGER DEFAULT NULL")
     }
 }
+
+/**
+ * Versi 7 ke 8 (2026-10-25, Tahap 1 sync-desain.md bagian E, USULAN Claude): menambah tabel sinkron
+ * `sync_record`, `sync_cursor`, `sync_issue`, `shared_room`, dan kolom `account.shared_from`.
+ * Aditif dan non-destruktif: empat tabel baru yang kosong dan satu kolom yang selalu null, tidak ada
+ * baris lama yang ditulis ulang. `money_transaction.synced_at` (v7) dibiarkan karena SQLite API 26
+ * tidak bisa DROP COLUMN dan SyncEngine lama masih memakainya. Pernyataannya sama dengan `createSql`
+ * di berkas skema 8.json supaya skema hasil migrasi identik dengan skema yang dibuat dari nol.
+ * Salinan berkas sebelum migrasi dibuat oleh `PreMigrateGuard` di LocalLedger.open.
+ */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `sync_record` (`scope` TEXT NOT NULL, `record_type` TEXT NOT NULL, " +
+                "`record_id` TEXT NOT NULL, `changed_at` INTEGER NOT NULL, `deleted` INTEGER NOT NULL, " +
+                "`dirty` INTEGER NOT NULL, `pushed_changed_at` INTEGER, `author` TEXT, `device_id` TEXT, " +
+                "PRIMARY KEY(`scope`, `record_type`, `record_id`))",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_sync_record_scope_dirty` ON `sync_record` (`scope`, `dirty`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `sync_cursor` (`scope` TEXT NOT NULL, `after_id` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`scope`))",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `sync_issue` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`scope` TEXT NOT NULL, `record_type` TEXT NOT NULL, `record_id` TEXT NOT NULL, " +
+                "`server_id` INTEGER, `kind` TEXT NOT NULL, `detail` TEXT, `raw_row` TEXT, " +
+                "`attempts` INTEGER NOT NULL, `created_at` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `shared_room` (`room_id` TEXT NOT NULL, `role` TEXT NOT NULL, " +
+                "`status` TEXT NOT NULL, `joined_at` INTEGER NOT NULL, PRIMARY KEY(`room_id`), " +
+                "FOREIGN KEY(`room_id`) REFERENCES `room`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("ALTER TABLE `account` ADD COLUMN `shared_from` TEXT DEFAULT NULL")
+    }
+}

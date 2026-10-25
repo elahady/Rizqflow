@@ -24,6 +24,10 @@ import androidx.room.RoomDatabase
  *
  * Versi 7 (2026-10-24): menambah `money_transaction.synced_at` untuk sync ruang keluarga (Tahap 9);
  * lihat [MIGRATION_6_7].
+ *
+ * Versi 8 (2026-10-25, Tahap 1 sync-desain.md, USULAN Claude): menambah `sync_record`, `sync_cursor`,
+ * `sync_issue`, `shared_room`, dan `account.shared_from` untuk sinkron entitas penuh; lihat
+ * [MIGRATION_7_8]. Aditif saja; `money_transaction.synced_at` (v7, dipakai SyncEngine lama) dibiarkan.
  */
 @Database(
     entities = [
@@ -47,8 +51,12 @@ import androidx.room.RoomDatabase
         BillEntity::class,
         DebtEntity::class,
         DebtPaymentEntity::class,
+        SyncRecordEntity::class,
+        SyncCursorEntity::class,
+        SyncIssueEntity::class,
+        SharedRoomEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class RizqflowDatabase : RoomDatabase() {
@@ -62,4 +70,5 @@ abstract class RizqflowDatabase : RoomDatabase() {
     abstract fun recurring(): RecurringDao
     abstract fun bills(): BillDao
     abstract fun debts(): DebtDao
+    abstract fun sync(): SyncDao
 }

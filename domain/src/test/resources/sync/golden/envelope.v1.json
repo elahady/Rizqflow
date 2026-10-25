@@ -1,0 +1,33 @@
+{
+  "_doc": "Vektor emas amplop sinkron v1 (Tahap 1 sync-desain.md, USULAN). Dihasilkan SEKALI dengan JDK AES/GCM/NoPadding murni (bukan dari kode aplikasi) supaya klien web dan PHP bisa memverifikasi interoperabilitas. Format di berkas ini: ciphertextHex = ciphertext || tag(16) dengan iv (12 byte) terpisah di ivHex, tanpa awalan kunci Tink; aplikasi Android memakai Tink AEAD yang menambah awalan 5 byte sendiri, jadi vektor ini membuktikan AAD, bingkai, dan wireId, BUKAN format kabel Tink.",
+  "wireIdVectors": [
+    {"type": "transaction", "id": "tx-20260101-abc", "wireId": "4QbHNiEpiKF9t5L_vAaTJx"},
+    {"type": "debt_payment", "id": "p1", "wireId": "cUcbGUoTrcOI2hNUYtezqm"},
+    {"type": "allocation_config", "id": "allocation_config", "wireId": "El5afOqnQnNNcdIeG7SeyR"},
+    {"type": "day_check", "id": "d:20450", "wireId": "9ZGw0i9vEyddes-6TMv3fY"},
+    {"type": "quick_favorite", "id": "kopi pagi é世", "wireId": "1s_vXR73ae2dE39r2zK-tO"}
+  ],
+  "aadVectors": [
+    {"scope": "a", "type": "transaction", "id": "tx-20260101-abc", "changedAtMs": 1767225600000, "deleted": false, "deviceId": "device-0001", "aad": "rizqflow-sync/1|a|4QbHNiEpiKF9t5L_vAaTJx|1767225600000|0|device-0001"},
+    {"scope": "a", "type": "transaction", "id": "tx-20260101-abc", "changedAtMs": 1767225600001, "deleted": true, "deviceId": "device-0002", "aad": "rizqflow-sync/1|a|4QbHNiEpiKF9t5L_vAaTJx|1767225600001|1|device-0002"},
+    {"scope": "r:room-keluarga", "type": "debt_payment", "id": "p1", "changedAtMs": 1000, "deleted": false, "deviceId": "dev-z", "aad": "rizqflow-sync/1|r:room-keluarga|cUcbGUoTrcOI2hNUYtezqm|1000|0|dev-z"},
+    {"scope": "a", "type": "allocation_config", "id": "allocation_config", "changedAtMs": 0, "deleted": false, "deviceId": "d", "aad": "rizqflow-sync/1|a|El5afOqnQnNNcdIeG7SeyR|0|0|d"},
+    {"scope": "a", "type": "day_check", "id": "d:20450", "changedAtMs": 9223372036854775807, "deleted": true, "deviceId": "device-0001", "aad": "rizqflow-sync/1|a|9ZGw0i9vEyddes-6TMv3fY|9223372036854775807|1|device-0001"}
+  ],
+  "encryptionVector": {
+    "algorithm": "AES-256-GCM",
+    "keyHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "ivHex": "a0a1a2a3a4a5a6a7a8a9aaab",
+    "scope": "a",
+    "type": "transaction",
+    "id": "tx-1",
+    "wireId": "sZzeDWm8p-37TOSy4lkuVQ",
+    "changedAtMs": 1767225600000,
+    "deleted": false,
+    "deviceId": "device-0001",
+    "aad": "rizqflow-sync/1|a|sZzeDWm8p-37TOSy4lkuVQ|1767225600000|0|device-0001",
+    "plaintextJson": "{\"v\":1,\"type\":\"transaction\",\"id\":\"tx-1\",\"d\":{\"amount\":25000,\"note\":\"kopi\"}}",
+    "framedLength": 256,
+    "ciphertextHex": "e653070f33e9388e4e47f3aa771fe2e452d82b71fcc4230fe86749e85d875768b6547ddddb5a7e0c7db026ac2b40f8db2676293d0ca43844736b3b6e945ca7dedbc8e04d0a878f8f848bdd65f2ceccbacd0baba4c5c1997aee753e9ab19a4d948f842bab03ae8f9b9edb06508588ed28245061aede359b3c2fcfdea4b455f24dc511b07fd34280173759fe8b124a91d688d9ad6bbed0fa8cfdcdbdf5afc7342bc6181fb1b66a4016820a2b226fd2b6e17726fd980266ae3e828276395c821f5734364cc960d1bbedf35d40cf492432b552e9e4e83f63d8b8edc158e55dc6da6768513221b96dd93fc0bc425f420b407f0bbdc23f895270876badad6a65332892b4c341d3b5daa06c80f15abe722990d0"
+  }
+}

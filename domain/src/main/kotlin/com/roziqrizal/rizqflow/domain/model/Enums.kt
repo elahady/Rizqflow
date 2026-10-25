@@ -16,8 +16,13 @@ enum class RoomKind { MENUNAIKAN, MENUMBUHKAN, MENCUKUPI }
  */
 enum class TransactionKind { INCOME, EXPENSE, TRANSFER, LOAN_OUT, LOAN_IN }
 
-/** Dari mana transaksi berasal. */
-enum class TransactionOrigin { MANUAL, QUICK, REPLY, CORRECTION, DRAFT, IMPORT, RECURRING, BILL, LOAN }
+/**
+ * Dari mana transaksi berasal. [SHARED] (Tahap 1 sync-desain.md, USULAN) menandai pengeluaran anggota
+ * lain di ruang bersama yang diterima lewat sinkron; baru dipakai Tahap 2, disimpan sebagai teks
+ * (aditif, tanpa migrasi kolom). Baris `SHARED` bukan milik cakupan pribadi dan tidak dicatat sebagai
+ * perubahan lokal.
+ */
+enum class TransactionOrigin { MANUAL, QUICK, REPLY, CORRECTION, DRAFT, IMPORT, RECURRING, BILL, LOAN, SHARED }
 
 /** Jenis baris di profil harta zakat; [DEDUCTION] adalah pengurang (utang jangka pendek). */
 enum class WealthKind { GOLD, CASH_SAVINGS, INVESTMENT, RECEIVABLE, OTHER, DEDUCTION }

@@ -9,6 +9,7 @@ import com.roziqrizal.rizqflow.data.db.MIGRATION_3_4
 import com.roziqrizal.rizqflow.data.db.MIGRATION_4_5
 import com.roziqrizal.rizqflow.data.db.MIGRATION_5_6
 import com.roziqrizal.rizqflow.data.db.MIGRATION_6_7
+import com.roziqrizal.rizqflow.data.db.MIGRATION_7_8
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
 import org.json.JSONObject
 import org.junit.Test
@@ -43,7 +44,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .build()
         try {
             db.openHelper.writableDatabase.query("SELECT share_bp, cap_amount FROM allocation_rule WHERE room_id = 'r1'").use { cursor ->
@@ -51,7 +52,7 @@ class MigrationTest {
                 assertEquals(10_000, cursor.getInt(0))
                 assertTrue(cursor.isNull(1))
             }
-            assertEquals(7, db.openHelper.readableDatabase.version)
+            assertEquals(8, db.openHelper.readableDatabase.version)
         } finally {
             db.close()
         }
@@ -66,7 +67,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .build()
         try {
             val sqlite = db.openHelper.writableDatabase
@@ -92,7 +93,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .build()
         try {
             db.openHelper.writableDatabase.query("SELECT COUNT(*) FROM recurring_rule").use { assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0)) }
@@ -120,7 +121,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .build()
         try {
             db.openHelper.writableDatabase.query("SELECT COUNT(*) FROM bill").use { assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0)) }
@@ -149,7 +150,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .build()
         try {
             val sqlite = db.openHelper.writableDatabase
@@ -178,7 +179,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .build()
         try {
             kotlinx.coroutines.runBlocking {

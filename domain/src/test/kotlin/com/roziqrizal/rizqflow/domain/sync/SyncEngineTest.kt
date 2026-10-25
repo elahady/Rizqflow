@@ -171,6 +171,8 @@ class SyncEngineTest {
         val applied = ledgerB.transactionRows[TransactionId("tx-1")]
         assertEquals(Money(50_000), applied?.amount)
         assertEquals("Belanja mingguan", applied?.note)
+        // Bukan IMPORT: baris anggota lain bukan data pribadi (dikecualikan dari pencatat dan backfill sinkron entitas penuh).
+        assertEquals(TransactionOrigin.SHARED, applied?.origin)
         assertEquals(categoryId, applied?.categoryId)
     }
 

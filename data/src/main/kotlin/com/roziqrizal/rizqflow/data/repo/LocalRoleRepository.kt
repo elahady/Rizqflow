@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.roziqrizal.rizqflow.data.db.DcaPlanEntity
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
 import com.roziqrizal.rizqflow.data.db.TraderProfileEntity
+import com.roziqrizal.rizqflow.data.sync.SyncRecorder
 import com.roziqrizal.rizqflow.domain.allocation.BasisPoints
 import com.roziqrizal.rizqflow.domain.model.AccountId
 import com.roziqrizal.rizqflow.domain.model.CategoryId
@@ -12,22 +13,33 @@ import com.roziqrizal.rizqflow.domain.money.Money
 import com.roziqrizal.rizqflow.domain.role.DcaPlan
 import com.roziqrizal.rizqflow.domain.role.RoleRepository
 import com.roziqrizal.rizqflow.domain.role.TraderProfile
+import com.roziqrizal.rizqflow.domain.sync.SyncRecordType
 
-class LocalRoleRepository(private val db: RizqflowDatabase) : RoleRepository {
+class LocalRoleRepository(private val db: RizqflowDatabase, private val recorder: SyncRecorder) : RoleRepository {
     override suspend fun trader(roomId: RoomId): TraderProfile? = db.roles().trader(roomId.value)?.toDomain()
 
-    override suspend fun saveTrader(profile: TraderProfile) = db.roles().upsertTrader(profile.toEntity())
+    override suspend fun saveTrader(profile: TraderProfile) {
+        db.withTransaction {
+            db.roles().upsertTrader(profile.toEntity())
+            recorder.changed(SyncRecordType.TRADER_PROFILE, profile.roomId.value)
+        }
+    }
 
     override suspend fun dca(roomId: RoomId): DcaPlan? = db.roles().dca(roomId.value)?.toDomain()
 
-    override suspend fun saveDca(plan: DcaPlan) = db.roles().upsertDca(plan.toEntity())
+    override suspend fun saveDca(plan: DcaPlan) {
+        db.withTransaction {
+            db.roles().upsertDca(plan.toEntity())
+            recorder.changed(SyncRecordType.DCA_PLAN, plan.roomId.value)
+        }
+    }
 
     override suspend fun allDca(): List<DcaPlan> = db.roles().allDca().map { it.toDomain() }
 
     override suspend fun remove(roomId: RoomId) {
         db.withTransaction {
-            db.roles().deleteTrader(roomId.value)
-            db.roles().deleteDca(roomId.value)
+            if (db.roles().deleteTrader(roomId.value) > 0) recorder.deleted(SyncRecordType.TRADER_PROFILE, roomId.value)
+            if (db.roles().deleteDca(roomId.value) > 0) recorder.deleted(SyncRecordType.DCA_PLAN, roomId.value)
         }
     }
 }

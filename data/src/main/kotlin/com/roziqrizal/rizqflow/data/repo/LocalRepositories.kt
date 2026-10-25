@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.roziqrizal.rizqflow.data.db.AppSettingEntity
 import com.roziqrizal.rizqflow.data.db.AllocationRuleEntity
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
+import com.roziqrizal.rizqflow.data.sync.SyncRecorder
 import com.roziqrizal.rizqflow.domain.allocation.AllocationCap
 import com.roziqrizal.rizqflow.domain.allocation.AllocationMode
 import com.roziqrizal.rizqflow.domain.allocation.AllocationRule
@@ -26,15 +27,25 @@ import com.roziqrizal.rizqflow.domain.model.CategoryId
 import com.roziqrizal.rizqflow.domain.model.RoomId
 import com.roziqrizal.rizqflow.domain.model.TransactionId
 import com.roziqrizal.rizqflow.domain.model.TransactionKind
+import com.roziqrizal.rizqflow.domain.model.TransactionOrigin
 import com.roziqrizal.rizqflow.domain.money.Money
+import com.roziqrizal.rizqflow.domain.sync.SyncRecordIds
+import com.roziqrizal.rizqflow.domain.sync.SyncRecordType
 import java.time.LocalDate
 
 /*
  * Implementasi repositori di atas Room. Setiap fungsi yang menulis lebih dari satu baris
  * dibungkus satu transaksi database: gagal di tengah membatalkan semuanya.
+ *
+ * Sinkron entitas penuh (Tahap 1 sync-desain.md): setiap jalur tulis memanggil [SyncRecorder] di
+ * transaksi yang sama, jadi data dan penanda kotor/tombstone-nya tersimpan atau batal bersama. Di
+ * konteks `applying` (hasil pull sedang diterapkan) recorder tidak mencatat apa pun.
  */
 
-class LocalWorkspaceRepository(private val db: RizqflowDatabase) : WorkspaceRepository {
+/** Kunci `app_setting` mode alokasi; bagian dari rekaman ALLOCATION_CONFIG, bukan pengaturan perangkat. */
+internal const val ALLOCATION_MODE_KEY = "allocation_mode"
+
+class LocalWorkspaceRepository(private val db: RizqflowDatabase, private val recorder: SyncRecorder) : WorkspaceRepository {
     override suspend fun isEmpty(): Boolean = db.rooms().count() == 0 && db.accounts().count() == 0
 
     override suspend fun initialize(snapshot: WorkspaceSnapshot) {
@@ -44,18 +55,27 @@ class LocalWorkspaceRepository(private val db: RizqflowDatabase) : WorkspaceRepo
             db.rooms().upsertCategories(snapshot.categories.map(Category::toEntity))
             db.rooms().upsertRules(snapshot.rules.map(AllocationRule::toEntity))
             db.accounts().upsertAll(snapshot.accounts.map(Account::toEntity))
+            recorder.changed(SyncRecordType.ROOM, snapshot.rooms.map { it.id.value })
+            recorder.changed(SyncRecordType.CATEGORY, snapshot.categories.map { it.id.value })
+            recorder.changed(SyncRecordType.ACCOUNT, snapshot.accounts.map { it.id.value })
+            if (snapshot.rules.isNotEmpty()) recorder.changed(SyncRecordType.ALLOCATION_CONFIG, SyncRecordIds.ALLOCATION_CONFIG)
         }
     }
 }
 
-class LocalAccountRepository(private val db: RizqflowDatabase) : AccountRepository {
+class LocalAccountRepository(private val db: RizqflowDatabase, private val recorder: SyncRecorder) : AccountRepository {
     override suspend fun find(id: AccountId): Account? = db.accounts().find(id.value)?.toDomain()
 
     override suspend fun activeAccounts(): List<Account> = db.accounts().active().map { it.toDomain() }
 
     override suspend fun allAccounts(): List<Account> = db.accounts().all().map { it.toDomain() }
 
-    override suspend fun save(account: Account) = db.accounts().upsert(account.toEntity())
+    override suspend fun save(account: Account) {
+        db.withTransaction {
+            db.accounts().upsert(account.toEntity())
+            recorder.changed(SyncRecordType.ACCOUNT, account.id.value)
+        }
+    }
 
     override suspend fun balance(id: AccountId): Money {
         val account = requireNotNull(find(id)) { "Akun tidak ada: ${id.value}" }
@@ -63,17 +83,31 @@ class LocalAccountRepository(private val db: RizqflowDatabase) : AccountReposito
     }
 }
 
-class LocalFavoriteRepository(private val db: RizqflowDatabase) : FavoriteRepository {
+class LocalFavoriteRepository(private val db: RizqflowDatabase, private val recorder: SyncRecorder) : FavoriteRepository {
     override suspend fun all(): List<QuickFavorite> = db.favorites().all().map { it.toDomain() }
 
     override suspend fun find(id: String): QuickFavorite? = db.favorites().find(id)?.toDomain()
 
-    override suspend fun save(favorite: QuickFavorite) = db.favorites().upsert(favorite.toEntity())
+    override suspend fun save(favorite: QuickFavorite) {
+        db.withTransaction {
+            val entity = favorite.toEntity()
+            val old = db.favorites().find(favorite.id)
+            db.favorites().upsert(entity)
+            // use_count dan last_used_at tidak ikut sinkron: perubahan pemakaian saja tidak menandai kotor.
+            if (old == null || old.copy(useCount = entity.useCount, lastUsedAt = entity.lastUsedAt) != entity) {
+                recorder.changed(SyncRecordType.QUICK_FAVORITE, favorite.id)
+            }
+        }
+    }
 
-    override suspend fun delete(id: String) = db.favorites().delete(id)
+    override suspend fun delete(id: String) {
+        db.withTransaction {
+            if (db.favorites().delete(id) > 0) recorder.deleted(SyncRecordType.QUICK_FAVORITE, id)
+        }
+    }
 }
 
-class LocalRoomRepository(private val db: RizqflowDatabase) : RoomRepository {
+class LocalRoomRepository(private val db: RizqflowDatabase, private val recorder: SyncRecorder) : RoomRepository {
     override suspend fun activeRooms(): List<Room> = db.rooms().active().map { it.toDomain() }
 
     override suspend fun allRooms(): List<Room> = db.rooms().all().map { it.toDomain() }
@@ -88,12 +122,19 @@ class LocalRoomRepository(private val db: RizqflowDatabase) : RoomRepository {
 
     override suspend fun findCategory(id: CategoryId): Category? = db.rooms().findCategory(id.value)?.toDomain()
 
-    override suspend fun saveCategory(category: Category) = db.rooms().upsertCategory(category.toEntity())
+    override suspend fun saveCategory(category: Category) {
+        db.withTransaction {
+            db.rooms().upsertCategory(category.toEntity())
+            recorder.changed(SyncRecordType.CATEGORY, category.id.value)
+        }
+    }
 
     override suspend fun addRoom(room: Room, categories: List<Category>) {
         db.withTransaction {
             db.rooms().upsert(room.toEntity())
             db.rooms().upsertCategories(categories.map(Category::toEntity))
+            recorder.changed(SyncRecordType.ROOM, room.id.value)
+            recorder.changed(SyncRecordType.CATEGORY, categories.map { it.id.value })
         }
     }
 
@@ -103,16 +144,20 @@ class LocalRoomRepository(private val db: RizqflowDatabase) : RoomRepository {
             val capsByRoom = db.rooms().rules().associate { it.roomId to it.capAmount }
             db.rooms().clearActiveRules()
             db.rooms().upsertRules(rules.map { AllocationRuleEntity(roomId = it.roomId.value, shareBp = it.share.value, capAmount = capsByRoom[it.roomId.value]) })
+            recorder.changed(SyncRecordType.ALLOCATION_CONFIG, SyncRecordIds.ALLOCATION_CONFIG)
         }
     }
 
     override suspend fun allocationMode(): AllocationMode {
-        val raw = db.settings().get(KEY_ALLOCATION_MODE)
+        val raw = db.settings().get(ALLOCATION_MODE_KEY)
         return AllocationMode.entries.firstOrNull { it.name == raw } ?: AllocationMode.PERCENTAGE
     }
 
     override suspend fun setAllocationMode(mode: AllocationMode) {
-        db.settings().put(AppSettingEntity(KEY_ALLOCATION_MODE, mode.name))
+        db.withTransaction {
+            db.settings().put(AppSettingEntity(ALLOCATION_MODE_KEY, mode.name))
+            recorder.changed(SyncRecordType.ALLOCATION_CONFIG, SyncRecordIds.ALLOCATION_CONFIG)
+        }
     }
 
     override suspend fun caps(): List<AllocationCap> {
@@ -128,6 +173,7 @@ class LocalRoomRepository(private val db: RizqflowDatabase) : RoomRepository {
             db.rooms().upsertRules(
                 caps.map { AllocationRuleEntity(roomId = it.roomId.value, shareBp = sharesByRoom[it.roomId.value] ?: 0, capAmount = it.capAmount?.minor) },
             )
+            recorder.changed(SyncRecordType.ALLOCATION_CONFIG, SyncRecordIds.ALLOCATION_CONFIG)
         }
     }
 
@@ -136,28 +182,29 @@ class LocalRoomRepository(private val db: RizqflowDatabase) : RoomRepository {
             db.rooms().upsertAll(rooms.map { it.toEntity() })
             db.rooms().upsertCategories(categories.map(Category::toEntity))
             db.rooms().upsertRules(rules.map(AllocationRule::toEntity))
+            recorder.changed(SyncRecordType.ROOM, rooms.map { it.id.value })
+            recorder.changed(SyncRecordType.CATEGORY, categories.map { it.id.value })
+            if (rules.isNotEmpty()) recorder.changed(SyncRecordType.ALLOCATION_CONFIG, SyncRecordIds.ALLOCATION_CONFIG)
         }
     }
 
     override suspend fun saveRooms(rooms: List<Room>, rules: List<AllocationRule>?) {
         db.withTransaction {
             db.rooms().upsertAll(rooms.map { it.toEntity() })
+            recorder.changed(SyncRecordType.ROOM, rooms.map { it.id.value })
             if (rules != null) {
                 // Ruang yang baru dipulihkan sudah aktif di sini, jadi aturan lamanya ikut terhapus dan diganti.
                 // Cap_amount ruang lain dibawa serta supaya tidak ikut terhapus (lihat replaceRules).
                 val capsByRoom = db.rooms().rules().associate { it.roomId to it.capAmount }
                 db.rooms().clearActiveRules()
                 db.rooms().upsertRules(rules.map { AllocationRuleEntity(roomId = it.roomId.value, shareBp = it.share.value, capAmount = capsByRoom[it.roomId.value]) })
+                recorder.changed(SyncRecordType.ALLOCATION_CONFIG, SyncRecordIds.ALLOCATION_CONFIG)
             }
         }
     }
-
-    private companion object {
-        const val KEY_ALLOCATION_MODE = "allocation_mode"
-    }
 }
 
-class LocalTransactionRepository(private val db: RizqflowDatabase) : TransactionRepository {
+class LocalTransactionRepository(private val db: RizqflowDatabase, private val recorder: SyncRecorder) : TransactionRepository {
     override suspend fun find(id: TransactionId): MoneyTransaction? = db.transactions().find(id.value)?.toDomain()
 
     override suspend fun entriesOf(incomeId: TransactionId): List<AllocationEntry> {
@@ -165,26 +212,56 @@ class LocalTransactionRepository(private val db: RizqflowDatabase) : Transaction
         return db.transactions().entriesOf(incomeId.value).map { it.toDomain(currency) }
     }
 
+    // Baris origin SHARED (pengeluaran anggota lain di ruang bersama, Tahap 2) bukan milik cakupan pribadi.
+    private suspend fun recordChanged(transaction: MoneyTransaction) {
+        if (transaction.origin != TransactionOrigin.SHARED) recorder.changed(SyncRecordType.TRANSACTION, transaction.id.value)
+    }
+
     override suspend fun saveIncome(transaction: MoneyTransaction, entries: List<AllocationEntry>) {
         db.withTransaction {
             db.transactions().insert(transaction.toEntity())
             db.transactions().insertEntries(entries.map(AllocationEntry::toEntity))
+            recordChanged(transaction)
         }
     }
 
-    override suspend fun save(transaction: MoneyTransaction) = db.transactions().insert(transaction.toEntity())
+    override suspend fun save(transaction: MoneyTransaction) {
+        db.withTransaction {
+            db.transactions().insert(transaction.toEntity())
+            recordChanged(transaction)
+        }
+    }
 
-    override suspend fun update(transaction: MoneyTransaction) = db.transactions().update(transaction.toEntity())
+    override suspend fun update(transaction: MoneyTransaction) {
+        db.withTransaction {
+            if (db.transactions().update(transaction.toEntity()) > 0) recordChanged(transaction)
+        }
+    }
 
     override suspend fun replaceIncome(transaction: MoneyTransaction, entries: List<AllocationEntry>) {
         db.withTransaction {
-            db.transactions().update(transaction.toEntity())
+            val updated = db.transactions().update(transaction.toEntity())
             db.transactions().deleteEntries(transaction.id.value)
             db.transactions().insertEntries(entries.map(AllocationEntry::toEntity))
+            if (updated > 0) recordChanged(transaction)
         }
     }
 
-    override suspend fun delete(id: TransactionId) = db.transactions().delete(id.value)
+    override suspend fun delete(id: TransactionId) {
+        db.withTransaction {
+            val existing = db.transactions().find(id.value)
+            // Kunci asing SET NULL mengubah utang/pelunasan yang merujuk transaksi ini tanpa lewat repositori
+            // mereka; catat sebelum dihapus supaya perubahan itu ikut terkirim.
+            val debtIds = db.debts().idsByInitialTransaction(id.value)
+            val paymentIds = db.debts().paymentIdsByTransaction(id.value)
+            val removed = db.transactions().delete(id.value)
+            if (removed > 0 && existing?.origin != TransactionOrigin.SHARED) {
+                recorder.deleted(SyncRecordType.TRANSACTION, id.value)
+                recorder.changed(SyncRecordType.DEBT, debtIds)
+                recorder.changed(SyncRecordType.DEBT_PAYMENT, paymentIds)
+            }
+        }
+    }
 
     override suspend fun between(from: LocalDate, to: LocalDate): List<MoneyTransaction> =
         db.transactions().between(from.toEpochDay(), to.toEpochDay()).map { it.toDomain() }
@@ -209,6 +286,8 @@ class LocalTransactionRepository(private val db: RizqflowDatabase) : Transaction
         db.transactions().markSynced(ids.map { it.value }, atMillis)
     }
 
+    // Hasil pull SyncEngine lama dari anggota lain: data dari luar, bukan edit lokal, jadi sengaja tidak
+    // dicatat recorder (sama seperti konteks `applying`). Tahap 2 menggantikan jalur ini.
     override suspend fun applyFromSync(id: TransactionId, transaction: MoneyTransaction?, changedAtMillis: Long, deleted: Boolean) {
         if (deleted) {
             db.transactions().delete(id.value)
