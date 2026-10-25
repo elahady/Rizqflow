@@ -104,7 +104,7 @@
                     <div class="rf-field" style="flex: 0 0 140px">
                         <label for="catat-nominal">Nominal</label>
                         <input class="rf-input" type="text" inputmode="numeric" id="catat-nominal" placeholder="Rp 0" autocomplete="off"
-                               wire:model="quickAmount" style="font-weight: 700; text-align: right">
+                               wire:model.live.debounce.400ms="quickAmount" style="font-weight: 700; text-align: right">
                     </div>
                     <button class="rf-btn primary" type="submit">Simpan<span class="rf-kbd" style="background: transparent; color: var(--rf-on-primary); border-color: currentColor">Enter</span></button>
                 </div>
@@ -134,6 +134,11 @@
                     <x-rf.banner tone="info" style="margin-top: 12px">
                         Catatan ini terbaca sebagai transfer antar akun. Transfer belum didukung di web; catat lewat aplikasi Android.
                     </x-rf.banner>
+                @endif
+
+                {{-- Lembut (info saja): hanya untuk ruang Trader yang melewati batas risiko per trade; simpan tetap jalan. --}}
+                @if ($riskWarning)
+                    <x-rf.banner tone="info" style="margin-top: 12px">Melewati batas risiko {{ Rupiah::format($riskWarning['max']) }} per trade (kamu mencatat {{ Rupiah::format($riskWarning['amount']) }}). Tetap bisa disimpan.</x-rf.banner>
                 @endif
 
                 @if ($quickError)

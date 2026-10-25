@@ -10,8 +10,8 @@ use Illuminate\Support\Carbon;
 /**
  * Sistem per peran (Pro, S32): lihat Role.kt di :domain untuk acuan lengkap. Investor: "Catat
  * sekarang" di App\Livewire\Ruang membuat pengeluaran biasa, menggerakkan saldo akun — sama
- * seperti Bill::pay(). Trader: peringatan risiko per trade saat Catat belum bisa diterapkan di web
- * karena belum ada proses pencatatan pengeluaran yang sungguhan berjalan (lihat roadmap.md).
+ * seperti Bill::pay(). Trader: banner lembut batas risiko per trade di baris cepat Transaksi
+ * (App\Livewire\Transaksi::riskWarning), tidak pernah memblokir simpan.
  */
 class RoomRole extends Model
 {
