@@ -44,6 +44,7 @@
         $navGroups = [
             ['id' => null, 'label' => null, 'items' => [
                 ['label' => 'Denah', 'route' => 'denah', 'icon' => 'home', 'on' => $is('denah') || request()->is('/')],
+                ['label' => 'Ringkasan', 'route' => 'ringkasan', 'icon' => 'calendar', 'on' => $is('ringkasan')],
             ]],
             ['id' => 'rf-nav-uang', 'label' => 'Uang', 'items' => [
                 ['label' => 'Transaksi', 'route' => 'transaksi', 'icon' => 'list', 'on' => $is('transaksi', 'transaksi.detail', 'transaksi.rezeki')],
