@@ -142,12 +142,32 @@
             tersimpan di sini. Data di aplikasi Android-mu tidak ikut terhapus: ponsel tetap sumber
             kebenaran. Tindakan ini tidak bisa diurungkan.
         </p>
-        <div class="rf-actions" style="margin-top:16px">
-            <button type="button" wire:click="deleteAccount"
-                wire:confirm="Hapus akun ini dari server? Semua data di sini (ruang, transaksi, dan lainnya) akan terhapus permanen. Data di aplikasi Android tidak ikut terhapus."
-                class="rf-btn danger">
-                <x-rf.icon name="trash" />Hapus akun
-            </button>
-        </div>
+        <form wire:submit="deleteAccount">
+            <div class="rf-form-grid">
+                @if ($user->hasPassword())
+                    <div class="rf-field">
+                        <label for="del-password">Kata sandi untuk konfirmasi</label>
+                        <input type="password" id="del-password" class="rf-input" wire:model="deletePassword" autocomplete="current-password" required>
+                        @error('deletePassword')
+                            <p class="rf-error" role="alert"><x-rf.icon name="warn" />{{ $message }}</p>
+                        @enderror
+                    </div>
+                @else
+                    <div class="rf-field">
+                        <label for="del-word">Ketik HAPUS untuk konfirmasi</label>
+                        <input type="text" id="del-word" class="rf-input" wire:model.live="deleteWord" autocomplete="off" autocapitalize="characters" spellcheck="false" required>
+                        <p class="rf-hint">Akunmu masuk lewat Google dan belum punya kata sandi, jadi konfirmasinya dengan teks ini. Tulis persis HAPUS dengan huruf kapital semua.</p>
+                        @error('deleteWord')
+                            <p class="rf-error" role="alert"><x-rf.icon name="warn" />{{ $message }}</p>
+                        @enderror
+                    </div>
+                @endif
+            </div>
+            <div class="rf-actions" style="margin-top:16px">
+                <button type="submit" class="rf-btn danger" @disabled(! $user->hasPassword() && $deleteWord !== \App\Livewire\Profil::DELETE_WORD)>
+                    <x-rf.icon name="trash" />Hapus akun
+                </button>
+            </div>
+        </form>
     </section>
 </div>
