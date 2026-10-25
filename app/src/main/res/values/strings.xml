@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Rizqflow</string>
+    <string name="app_name" translatable="false">Rizqflow</string>
 
     <!-- Format tanggal dan bulan (Format.kt) -->
     <string name="date_today">Hari ini</string>

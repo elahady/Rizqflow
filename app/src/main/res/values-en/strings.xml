@@ -160,6 +160,7 @@
     <string name="onb_saving">Saving…</string>
     <string name="keypad_delete">Delete one digit</string>
     <plurals name="onb_percent_state">
+        <item quantity="one">%d percent</item>
         <item quantity="other">%d percent</item>
     </plurals>
 

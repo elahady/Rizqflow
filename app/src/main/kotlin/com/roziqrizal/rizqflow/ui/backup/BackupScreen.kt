@@ -31,6 +31,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -63,6 +64,7 @@ import kotlinx.coroutines.withContext
 fun BackupScreen(workspace: AccountWorkspace, notifier: Notifier, onClose: () -> Unit, onRestored: (ByteArray) -> Unit) {
     val spacing = MaterialTheme.spacing
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     BackHandler(onBack = onClose)
 
@@ -98,9 +100,9 @@ fun BackupScreen(workspace: AccountWorkspace, notifier: Notifier, onClose: () ->
                 val now = System.currentTimeMillis()
                 prefs.lastBackupAtMillis = now
                 lastBackupAt = now
-                notifier.show(context.getString(R.string.backup_done))
+                notifier.show(resources.getString(R.string.backup_done))
             } else {
-                notifier.show(context.getString(R.string.backup_failed))
+                notifier.show(resources.getString(R.string.backup_failed))
             }
         }
     }
@@ -252,7 +254,7 @@ fun BackupScreen(workspace: AccountWorkspace, notifier: Notifier, onClose: () ->
                     }
                     if (bytes == null) {
                         busy = false
-                        restoreError = context.getString(R.string.backup_restore_read_error)
+                        restoreError = resources.getString(R.string.backup_restore_read_error)
                         return@launch
                     }
                     val decrypted = withContext(Dispatchers.Default) {
@@ -266,9 +268,9 @@ fun BackupScreen(workspace: AccountWorkspace, notifier: Notifier, onClose: () ->
                         },
                         onFailure = {
                             restoreError = if (it is BackupCorruptOrWrongPassword) {
-                                context.getString(R.string.backup_restore_wrong_password)
+                                resources.getString(R.string.backup_restore_wrong_password)
                             } else {
-                                context.getString(R.string.backup_restore_read_error)
+                                resources.getString(R.string.backup_restore_read_error)
                             }
                         },
                     )

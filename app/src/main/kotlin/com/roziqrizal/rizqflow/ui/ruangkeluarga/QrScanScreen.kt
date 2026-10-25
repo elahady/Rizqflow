@@ -1,6 +1,7 @@
 package com.roziqrizal.rizqflow.ui.ruangkeluarga
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.util.Base64
 import androidx.activity.compose.BackHandler
@@ -150,6 +151,9 @@ fun QrScanScreen(onClose: () -> Unit, onScanned: (RoomInvite) -> Unit) {
 }
 
 /** @param alreadyHandled dibaca ulang tiap frame (bukan ditangkap sekali) karena ini nilai state Compose. */
+// UnsafeOptInUsageError: ImageProxy.image ditandai experimental CameraX lewat anotasi androidx tanpa RequiresOptIn, jadi
+//  Kotlin tidak berlaku. Penggunaannya disengaja dan hanya di fungsi ini untuk membaca bingkai QR.
+@SuppressLint("UnsafeOptInUsageError")
 private fun scanFrame(imageProxy: ImageProxy, scanner: BarcodeScanner, alreadyHandled: Boolean, onValid: (ByteArray) -> Unit) {
     val mediaImage = imageProxy.image
     if (alreadyHandled || mediaImage == null) {

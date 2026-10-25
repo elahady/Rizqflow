@@ -45,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -103,6 +104,7 @@ fun RuangScreen(
     val scope = rememberCoroutineScope()
     val spacing = MaterialTheme.spacing
     val context = LocalContext.current
+    val resources = LocalResources.current
 
     LaunchedEffect(refreshKey, localVersion) { overview = workspace.rules.overview() }
 
@@ -159,7 +161,7 @@ fun RuangScreen(
                         scope.launch {
                             val snapshot = (workspace.rules.archiveWithUndo(entry.room.id) as? LedgerResult.Success)?.value ?: return@launch
                             changed()
-                            val undo = notifier.show(context.getString(R.string.room_archived, entry.room.name), context.getString(R.string.action_undo))
+                            val undo = notifier.show(resources.getString(R.string.room_archived, entry.room.name), resources.getString(R.string.action_undo))
                             if (undo) {
                                 workspace.rules.undoArchive(snapshot)
                                 changed()
@@ -278,7 +280,7 @@ fun RuangScreen(
                         adding = false
                         changed()
                         scope.launch {
-                            if (notifier.show(context.getString(R.string.room_added, command.name), context.getString(R.string.room_added_action))) onOpenRules()
+                            if (notifier.show(resources.getString(R.string.room_added, command.name), resources.getString(R.string.room_added_action))) onOpenRules()
                         }
                     }
                     (result as? LedgerResult.Failure)?.error

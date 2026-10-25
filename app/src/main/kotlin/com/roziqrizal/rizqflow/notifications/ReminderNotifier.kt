@@ -1,6 +1,7 @@
 package com.roziqrizal.rizqflow.notifications
 
 import android.Manifest
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -140,7 +141,7 @@ object ReminderNotifier {
             .addAction(dismissAction)
             .build()
 
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
+        postIfPermitted(context, NOTIFICATION_ID, notification)
     }
 
     /**
@@ -158,7 +159,7 @@ object ReminderNotifier {
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
+        postIfPermitted(context, NOTIFICATION_ID, notification)
     }
 
     /**
@@ -198,7 +199,7 @@ object ReminderNotifier {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
 
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_HAUL_BASE + ((roomId + profileId).hashCode() and 0xFF), notification)
+        postIfPermitted(context, NOTIFICATION_ID_HAUL_BASE + ((roomId + profileId).hashCode() and 0xFF), notification)
     }
 
     /**
@@ -219,7 +220,7 @@ object ReminderNotifier {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
 
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_DCA_BASE + (roomId.hashCode() and 0xFF), notification)
+        postIfPermitted(context, NOTIFICATION_ID_DCA_BASE + (roomId.hashCode() and 0xFF), notification)
     }
 
     /**
@@ -251,7 +252,7 @@ object ReminderNotifier {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
 
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_BILL_BASE + (bill.id.hashCode() and 0xFF), notification)
+        postIfPermitted(context, NOTIFICATION_ID_BILL_BASE + (bill.id.hashCode() and 0xFF), notification)
     }
 
     /**
@@ -285,7 +286,7 @@ object ReminderNotifier {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
 
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_DEBT_BASE + (debt.id.hashCode() and 0xFF), notification)
+        postIfPermitted(context, NOTIFICATION_ID_DEBT_BASE + (debt.id.hashCode() and 0xFF), notification)
     }
 
     /**
@@ -317,7 +318,20 @@ object ReminderNotifier {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
 
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_SYNC_BASE + (payload.roomId.value.hashCode() and 0xFF), notification)
+        postIfPermitted(context, NOTIFICATION_ID_SYNC_BASE + (payload.roomId.value.hashCode() and 0xFF), notification)
+    }
+
+    /**
+     * Satu-satunya jalan notifikasi sampai ke sistem. Izin POST_NOTIFICATIONS dicek di metode ini sendiri, bukan lewat
+     * [canNotify], karena lint `MissingPermission` tidak menelusuri pemanggil; pemanggil tetap memeriksa [canNotify] di awal
+     * supaya notifikasi tidak dibangun sia-sia.
+     */
+    private fun postIfPermitted(context: Context, id: Int, notification: Notification) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        ) {
+            NotificationManagerCompat.from(context).notify(id, notification)
+        }
     }
 
     private fun canNotify(context: Context): Boolean =

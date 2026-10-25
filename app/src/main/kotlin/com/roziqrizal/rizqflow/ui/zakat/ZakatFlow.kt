@@ -40,7 +40,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -99,7 +99,7 @@ fun ZakatFlow(
     var profileError by remember { mutableStateOf<LedgerError?>(null) }
     var archiving by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val spacing = MaterialTheme.spacing
     val hijriMonths = stringArrayResource(R.array.hijri_months).toList()
 
@@ -284,7 +284,7 @@ fun ZakatFlow(
                                 changed()
                             }
 
-                            is LedgerResult.Failure -> notifier.show(context.getString(profileErrorText(result.error)))
+                            is LedgerResult.Failure -> notifier.show(resources.getString(profileErrorText(result.error)))
                         }
                     }
                 }) { Text(stringResource(R.string.zakat_profile_archive), color = MaterialTheme.colorScheme.error) }

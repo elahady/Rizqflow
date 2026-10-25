@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.roziqrizal.rizqflow.R
@@ -65,6 +66,7 @@ import java.time.LocalDate
 fun CsvScreen(workspace: AccountWorkspace, notifier: Notifier, onClose: () -> Unit) {
     val spacing = MaterialTheme.spacing
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     BackHandler(onBack = onClose)
 
@@ -81,7 +83,7 @@ fun CsvScreen(workspace: AccountWorkspace, notifier: Notifier, onClose: () -> Un
             val csv = CsvExporter.export(transactions, repo.accounts.allAccounts(), repo.rooms.allRooms(), repo.rooms.allCategories())
             context.contentResolver.openOutputStream(uri)?.use { it.write(csv.toByteArray(Charsets.UTF_8)) }
             busy = false
-            notifier.show(context.getString(R.string.csv_export_done, transactions.size))
+            notifier.show(resources.getString(R.string.csv_export_done, transactions.size))
         }
     }
 
@@ -93,7 +95,7 @@ fun CsvScreen(workspace: AccountWorkspace, notifier: Notifier, onClose: () -> Un
             val text = runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } }.getOrNull()
             if (text.isNullOrBlank()) {
                 busy = false
-                importError = context.getString(R.string.csv_import_read_error)
+                importError = resources.getString(R.string.csv_import_read_error)
                 return@launch
             }
             val rows = TransaksiHarianCsvParser.parse(text)
@@ -115,7 +117,7 @@ fun CsvScreen(workspace: AccountWorkspace, notifier: Notifier, onClose: () -> Un
                     val result = CsvImportService(workspace.ledger).commit(activePreview)
                     busy = false
                     preview = null
-                    notifier.show(context.getString(R.string.csv_import_done, result.imported, result.skipped))
+                    notifier.show(resources.getString(R.string.csv_import_done, result.imported, result.skipped))
                 }
             },
         )

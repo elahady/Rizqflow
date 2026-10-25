@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.roziqrizal.rizqflow.R
@@ -70,6 +71,7 @@ import qrcode.QRCode
 fun RuangKeluargaScreen(workspace: AccountWorkspace, roomId: RoomId, notifier: Notifier, onClose: () -> Unit) {
     val spacing = MaterialTheme.spacing
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     BackHandler(onBack = onClose)
 
@@ -149,7 +151,7 @@ fun RuangKeluargaScreen(workspace: AccountWorkspace, roomId: RoomId, notifier: N
             )
             when (result) {
                 is SyncResult.Success -> {
-                    notifier.show(context.getString(R.string.family_sync_result, result.pushed, result.applied))
+                    notifier.show(resources.getString(R.string.family_sync_result, result.pushed, result.applied))
                     reloadKey++
                 }
 
@@ -158,7 +160,7 @@ fun RuangKeluargaScreen(workspace: AccountWorkspace, roomId: RoomId, notifier: N
                         signedIn = false
                         sessionEnded = true
                     } else {
-                        notifier.show(context.getString(R.string.family_sync_failed))
+                        notifier.show(resources.getString(R.string.family_sync_failed))
                     }
 
                 SyncResult.NotSignedIn -> signedIn = false

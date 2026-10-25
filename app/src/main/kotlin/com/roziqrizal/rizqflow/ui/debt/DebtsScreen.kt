@@ -45,7 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -648,7 +648,7 @@ private fun RepaySheet(workspace: AccountWorkspace, row: DebtRow, today: LocalDa
 @Composable
 private fun RepayForm(workspace: AccountWorkspace, row: DebtRow, context: CatatContext, today: LocalDate, onCancel: () -> Unit, onRepaid: (String, DebtPayment) -> Unit) {
     val spacing = MaterialTheme.spacing
-    val android = LocalContext.current
+    val resources = LocalResources.current
     val debt = row.debt
     var amount by rememberSaveable(debt.id) { mutableStateOf(row.outstanding.minor.toString()) }
     var move by rememberSaveable(debt.id) { mutableStateOf(debt.accountId != null) }
@@ -707,9 +707,9 @@ private fun RepayForm(workspace: AccountWorkspace, row: DebtRow, context: CatatC
                         is LedgerResult.Success -> {
                             val repayment = result.value
                             val message = if (repayment.settled) {
-                                android.getString(R.string.debts_repaid_settled, formatRupiah(paid), debt.party)
+                                resources.getString(R.string.debts_repaid_settled, formatRupiah(paid), debt.party)
                             } else {
-                                android.getString(R.string.debts_repaid, formatRupiah(paid), debt.party, formatRupiah(row.outstanding - paid))
+                                resources.getString(R.string.debts_repaid, formatRupiah(paid), debt.party, formatRupiah(row.outstanding - paid))
                             }
                             onRepaid(message, repayment.payment)
                         }

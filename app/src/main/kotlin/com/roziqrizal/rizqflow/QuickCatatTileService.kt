@@ -1,5 +1,6 @@
 package com.roziqrizal.rizqflow
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
@@ -24,6 +25,9 @@ class QuickCatatTileService : TileService() {
         }
     }
 
+    // Overload Intent ditandai usang, tetapi minSdk 26 masih membutuhkannya di API di bawah 34. Overload
+    // PendingIntent dipakai di API 34 ke atas (cabang if), jadi overload usang hanya terpanggil di cabang else.
+    @SuppressLint("StartActivityAndCollapseDeprecated")
     override fun onClick() {
         super.onClick()
         val intent = Intent(this, MainActivity::class.java)
