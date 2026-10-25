@@ -42,7 +42,7 @@ Tujuan: server tidak bisa membaca data, pasangan bisa berbagi ruang Keluarga, da
 |---|---|
 | Pustaka | Google Tink (AES-GCM dan enkripsi hibrida). Tidak menulis kripto sendiri |
 | Kunci akun | Dibuat acak di perangkat, disimpan dalam Android Keystore |
-| Pemulihan | **Kode pemulihan wajib** saat Sync diaktifkan (misalnya 24 kata, ditampilkan sekali dan wajib dicatat pengguna). Salinan kunci akun terbungkus kode itu disimpan di server, yang tidak bisa membukanya |
+| Pemulihan | **Kode pemulihan wajib** saat Sync diaktifkan (misalnya 24 kata, ditampilkan sekali dan wajib dicatat pengguna). Salinan kunci akun terbungkus kode itu disimpan di server, yang tidak bisa membukanya. **Diimplementasikan 2026-10-25 (hanya terbukti lewat tes otomatis), dengan cakupan yang lebih sempit dari rancangan:** yang dibungkus baru **kunci akun**; **kunci ruang keluarga belum ikut dibungkus** (format versi 1). Kunci akun saat ini juga belum mengenkripsi data apa pun (sync yang ada hanya transaksi pengeluaran ruang keluarga, dengan kunci ruang), jadi memulihkan kunci di perangkat baru belum mengembalikan data, dan ruang keluarga yang dibagi harus diundang ulang lewat QR. Memasukkan kunci ruang sebagai versi 2 atau menerima undang ulang adalah keputusan pemilik yang belum diambil. Lihat bagian "Salinan kunci pemulihan (Tahap 13)" di bawah |
 | Kunci ruang keluarga | Kunci acak terpisah per ruang yang dibagi, sehingga ruang pribadi tidak ikut terbuka |
 | Mengundang pasangan | Bertemu langsung dan memindai QR untuk memverifikasi kunci, tidak bergantung pada server |
 | Mengeluarkan anggota | Kunci ruang diganti untuk data berikutnya. Data lama yang sudah mereka miliki tetap bisa mereka baca dan ini dijelaskan ke pengguna |
@@ -187,6 +187,51 @@ Tujuannya memenuhi aturan infrastruktur "token kedaluwarsa dan bisa dicabut, jan
 - **Utang `MAX_TTL_DAYS` 1825:** kolom `expires_at` bertipe TIMESTAMP di MySQL berhenti di 2038-01-19, jadi sekitar 2033-01-20 batas 1825 hari usang. Perbaikan: batas dinamis atau kolom DATETIME.
 - **Daftar perangkat** yang masuk dengan tombol cabut belum ada di UI mana pun; `DELETE /api/auth/tokens` belum dipakai layar mana pun (butir Tahap 14).
 - Migrasi dan konfigurasi belum di-deploy; Hapus akun setelah sesi berakhir tidak punya tes pada tingkat layar.
+
+## Salinan kunci pemulihan (Tahap 13)
+
+**Diimplementasikan 2026-10-25** (server: `Api\RecoveryKeyController`, model `RecoveryKey`, migrasi `2026_10_28_000001_create_recovery_keys_table`, trait `DeniesWithoutSync`; Android: `RecoveryKeyService`, `RecoveryKeyRemote`/`RetrofitRecoveryKeyRemote`, `RecoverySetupScreen`, `RecoveryRestoreScreen`). **Status: hanya terbukti lewat tes otomatis** (SQLite di memori, remote dan penyimpanan palsu, Robolectric; dijalankan paksa, 0 gagal: server 1059 tes dan 22438 asersi, Android `:domain` 855, `:data` 243, `:app` 356). Tidak pernah diuji di perangkat atau emulator, di Android Keystore asli, di MySQL, atau terhadap server hidup. Langkah operasional ada di `server/DEPLOY.md` bagian "Salinan kunci pemulihan".
+
+Tujuannya memenuhi baris "Pemulihan" di tabel Model kunci: server menyimpan satu salinan kunci akun yang terbungkus kode pemulihan 24 kata, tanpa pernah bisa membukanya. Pembungkusan terjadi di klien (`AccountKeyRecoveryCrypto.wrap`: AES-256-GCM lewat `BackupCrypto`, kunci PBKDF2 300.000 iterasi dari 24 kata, format `version` 1); server hanya menyimpan dan mengembalikan byte yang sama. Kode 24 kata tidak pernah disimpan atau dikirim dari aplikasi: ia hanya ada di memori proses (`RecoveryCodeHolder`) selama layar tampil-sekali terbuka.
+
+### Endpoint
+
+Semua di dalam `auth:sanctum`, memakai limiter `recovery-key` (**20 per menit per akun, satu jatah bersama untuk ketiga rute**), dan hanya menyentuh baris milik pemilik token (tidak ada id atau `user_id` dari klien yang dipakai).
+
+| Endpoint | Butuh Sync | Fungsi |
+|---|---|---|
+| `PUT /api/account/recovery-key` | **Ya** (403 `{"message":"Butuh langganan Sync."}`) | Body `{"wrapped_key":"<base64>","version":1}`. Menyimpan atau mengganti satu-satunya salinan (atomik lewat `upsert` atas `user_id` unik). 200 `{"version","updated_at"}` (ISO-8601 UTC, tanpa mengulang blob). 422 bila body tidak sah |
+| `GET /api/account/recovery-key` | Tidak | 200 `{"wrapped_key","version","updated_at"}` dengan `Cache-Control: no-store, private`. Belum ada salinan: 404 `{"message":"Belum ada kode pemulihan","code":"no_recovery_key"}` |
+| `DELETE /api/account/recovery-key` | Tidak | Idempoten: 204 juga bila belum ada |
+
+- **Gating (usulan Claude, belum dikonfirmasi pemilik).** Hanya `PUT` yang butuh `Feature::EncryptedSync`. `GET` dan `DELETE` sengaja tidak, supaya pengguna yang langganannya berakhir tetap bisa memulihkan kunci miliknya sendiri (itu datanya, bukan fitur berbayar) dan menghapus salinannya. Penentu "boleh atau tidak" tetap satu tempat (`DeniesWithoutSync`, dipakai juga `SyncController`).
+- **404 yang bisa dibedakan.** Hanya 404 dari aplikasi ini yang memuat `code: "no_recovery_key"`; klien (`RetrofitRecoveryKeyRemote`) menganggap "belum ada salinan" hanya bila `code` itu ada. 404 tanpa `code` berarti rute belum di-deploy atau Nginx atau proxy yang menjawab, dan diperlakukan sebagai galat, bukan "belum ada". Pembedaan ini bergantung pada asumsi bahwa Nginx dan Cloudflare tidak menimpa isi 404 aplikasi, yang belum dicek di VPS.
+- **Validasi `wrapped_key`.** Wajib base64 **standar kanonik**: didekode strict lalu di-encode ulang harus sama persis dengan masukan, jadi spasi, pemisah baris, base64 URL-safe, dan padding yang hilang ditolak (klien wajib Base64 standar dengan padding dan tanpa pemisah baris). Panjang teks dibatasi 10924 karakter lebih dulu (`bail`, supaya string raksasa tidak didekode), lalu ukuran terdekode harus 1 sampai 8192 byte (`RecoveryKey::MAX_BYTES`; blob sebenarnya hanya puluhan byte). `version` wajib integer sungguhan (`integer:strict`: "1", 1.0, dan true ditolak) dan hanya nilai di `RecoveryKey::KNOWN_VERSIONS`, kini `[1]`. Penjaga ukuran ini baru bekerja setelah body diterima Laravel; `client_max_body_size` Nginx dan `post_max_size` PHP belum diperiksa.
+
+### Penyimpanan tanpa enkripsi ganda
+
+Blob disimpan sebagai **byte biner** (kolom `binary`, BLOB di SQLite dan MySQL; hasil dekode base64, bukan teks base64): lebih kecil 25%, tanpa urusan charset atau collation, dan tidak pernah dikira teks. **Tanpa cast `encrypted` dan tanpa enkripsi ganda dengan `APP_KEY`**, sengaja berbeda dari `play_purchases`. Alasannya: blob sudah terenkripsi di klien dengan kunci yang hanya diturunkan dari kode pemulihan; membungkusnya lagi dengan `APP_KEY` tidak menambah kerahasiaan terhadap server (`APP_KEY` ada di server), memberi kesan seolah server memegang kunci, dan membuat blob tak terbaca bila `APP_KEY` berganti. Sebaliknya `play_purchases` harus dibaca utuh oleh server, jadi di sana enkripsi `APP_KEY` memang berarti. Tidak ada kolom lain yang bisa membocorkan (tanpa frasa, petunjuk, atau hash kode); satu akun satu baris, hapus akun ikut menghapusnya (`cascadeOnDelete`).
+
+`wrapped_key` disembunyikan dari serialisasi model `RecoveryKey` dan relasi `User::recoveryKey` (`$hidden`), tidak pernah masuk log atau pesan galat, dan hanya `GET` milik pemilik yang membacanya secara eksplisit. `QueryException` ditangkap di `PUT` karena pesannya memuat SQL beserta nilai binding (isi blob): log hanya mencatat `user_id` dan `sql_state`, respons berupa galat umum 500.
+
+### Perilaku di Android (ringkas)
+
+- `enableRecovery`: membuat kode baru, membungkus kunci akun, lalu memeriksa bahwa bungkusan terbuka kembali dengan kode itu dan hasilnya sama dengan kunci asli (pagar keselamatan) sebelum diunggah. Setelah `PUT`, dilakukan `GET` dan byte dibandingkan; kode baru ditampilkan hanya bila sama. Unggah dan pencatatan berjalan `NonCancellable` dan satu per satu (`Mutex`).
+- Penanda lokal `RecoveryStatus` (`NotConfigured`, `PendingConfirmation`, `Configured`, membawa `updated_at` server) tidak memuat rahasia. `PendingConfirmation` dicatat **sebelum** unggah supaya unggahan yang terkomit tetapi balasannya hilang tidak meninggalkan penanda yang berbohong. Hasil ambigu (jaringan putus, 5xx, balasan rusak, atau salinan tak bisa dibaca kembali) tidak pernah menampilkan kode dan meninggalkan `PendingConfirmation`; jalan keluarnya membuat kode baru. `compareWithServer` membandingkan `updated_at` server dengan yang dicatat, untuk mendeteksi salinan yang diganti dari perangkat lain.
+- Bila perangkat belum pernah mengatur kode tetapi server sudah punya salinan (dari perangkat lain), unggah tidak menimpanya diam-diam (`ExistingCopyOnServer`; pengguna memilih pulihkan atau menimpa lewat dialog).
+- `recoverKey`: salinan diambil, dibuka dengan kode, lalu dipasang lewat `AccountKeyProvider.importAccountKeyFromRecovery`, yang **menimpa** kunci akun lokal. Impor adalah langkah terakhir dan kegagalan di tahap mana pun tidak menyentuh kunci lokal. Kebijakan menimpa aman sekarang hanya karena belum ada data lokal yang dienkripsi dengan kunci akun; begitu sinkron entitas akun ada, pulihkan wajib menjaga data lama (mis. menyimpan kunci lama di keyset yang sama seperti `rotateRoomKey`).
+- Kunci akun kini per akun (`AndroidKeystoreAccountKeyProvider(context, accountId)`): keyset, berkas, dan alias Keystore dipisah per akun Google di ponsel yang sama.
+
+### Yang belum terbukti, keputusan pemilik, dan utang
+
+- **INTI: kunci akun yang dipulihkan saat ini tidak mengenkripsi apa pun.** `getOrCreateAccountKey` tidak punya pemanggil produksi, dan `SyncEngine` memakai kunci ruang yang **tidak** ikut bungkusan versi 1. Pulihkan di perangkat baru memulihkan kunci akun saja; ruang keluarga yang dibagi harus diundang ulang lewat QR. **Keputusan pemilik:** memasukkan kunci ruang ke bungkusan sebagai format `version` 2 sebelum rilis (server sudah menolak versi selain 1 dan klien menolak versi tak dikenal), atau menerima undang ulang. Teks di aplikasi sudah dibuat jujur soal ini.
+- **Keputusan pemilik:** `FLAG_SECURE` khusus layar tampil-sekali (sekarang screenshot, thumbnail recents, dan perekam layar tidak dicegah, hanya peringatan teks; `FLAG_SECURE` app-wide dihapus 2026-10-24), batas waktu pemegang kode saat aplikasi ke latar, dan penyeragaman `KeyboardType`. Verifikasi 3 kata acak dan aturan gating di atas adalah usulan Claude yang belum dikonfirmasi.
+- **Belum diuji:** Android Keystore asli (Robolectric jatuh ke penyimpanan cleartext, jadi butir "Buktikan Android Keystore asli" di roadmap tetap terbuka); perangkat atau emulator; layar Compose, tombol Back, rotasi, dialog berlapis, dan pembaca layar hanya lolos kompilasi; MySQL (kolom `binary`, `upsert`); server hidup; waktu PBKDF2 300.000 iterasi di ponsel sungguhan tidak diukur.
+- **Hasil `Ready` yang sudah terkomit tetapi layarnya hilang karena rotasi** tidak sampai ke layar: pengguna melihat tawaran membuat kode baru.
+- **Token API yang dicuri** bisa `DELETE` (atau `PUT` bila Sync aktif) dan merusak kemampuan memulihkan; setara `DELETE /api/account` yang sudah ada.
+- Kunci Keystore akun tidak dihapus saat Hapus akun; beberapa instans `AccountWorkspace` untuk akun yang sama punya cache kunci sendiri (belum berdampak karena belum ada pemakai kunci akun).
+- Respons 5xx diperlakukan ambigu, jadi status "sudah diatur" bisa turun ke "belum selesai" setelah unggah ulang yang tak bisa dipastikan.
+- Migrasi `recovery_keys` dan rute baru belum di-deploy (perlu `route:cache` ulang); cadangan database VPS kini memuat blob ini (tetap buram, dan kode pemulihan tidak pernah ada di server).
 
 ## Belum diputuskan
 
