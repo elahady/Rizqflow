@@ -96,7 +96,7 @@ internal fun AuthTextField(
 
 /** Pesan lembut: tidak merah, tidak memblokir. Dibacakan pembaca layar saat muncul. */
 @Composable
-internal fun MessageBanner(message: AuthMessage?, modifier: Modifier = Modifier) {
+internal fun MessageBanner(message: AuthMessage?, modifier: Modifier = Modifier, detail: String? = null) {
     val spacing = MaterialTheme.spacing
     Box(modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
         if (message != null) {
@@ -109,7 +109,9 @@ internal fun MessageBanner(message: AuthMessage?, modifier: Modifier = Modifier)
                 horizontalArrangement = Arrangement.spacedBy(spacing.s3),
             ) {
                 Icon(RizqflowIcons.Peringatan, contentDescription = null, tint = MaterialTheme.rizqflow.statusWarning)
-                Text(stringResource(messageText(message)), style = MaterialTheme.typography.bodyMedium)
+                // Pesan galat dari server sudah berbahasa Indonesia dan spesifik (mis. belum diverifikasi); pesan lain dari resource.
+                val text = if (message == AuthMessage.SERVER_REJECTED && !detail.isNullOrBlank()) detail else stringResource(messageText(message))
+                Text(text, style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
@@ -129,7 +131,12 @@ internal fun messageText(message: AuthMessage): Int = when (message) {
     AuthMessage.USERNAME_TAKEN -> R.string.msg_username_taken
     AuthMessage.INVALID_INPUT -> R.string.msg_invalid_input
     AuthMessage.RECONNECT_WRONG_ACCOUNT -> R.string.msg_reconnect_wrong_account
+    AuthMessage.SERVER_REJECTED -> R.string.msg_email_rejected
+    AuthMessage.SERVER_UNREACHABLE -> R.string.msg_server_unreachable
 }
+
+/** Pesan yang lahir dari masuk email+sandi ke server; tampil di bawah formulir email, bukan formulir nama pengguna. */
+internal fun AuthMessage?.isServerNotice(): Boolean = this == AuthMessage.SERVER_REJECTED || this == AuthMessage.SERVER_UNREACHABLE
 
 /** Pesan di bawah kolom untuk satu masalah isian. */
 internal fun issueText(issue: CredentialIssue): Int = when (issue) {

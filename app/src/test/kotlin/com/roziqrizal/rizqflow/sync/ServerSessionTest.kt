@@ -1,6 +1,7 @@
 package com.roziqrizal.rizqflow.sync
 
 import com.roziqrizal.rizqflow.domain.sync.AccountRemote
+import com.roziqrizal.rizqflow.domain.sync.ApiAccount
 import com.roziqrizal.rizqflow.domain.sync.PurchaseClaim
 import com.roziqrizal.rizqflow.domain.sync.RefreshedToken
 import com.roziqrizal.rizqflow.domain.sync.RemoteError
@@ -267,4 +268,21 @@ class ServerSessionTest {
         assertFalse(shouldOfferReconnect(google = false, demo = false, needsReconnect = true), "akun lokal atau uji")
         assertFalse(shouldOfferReconnect(google = true, demo = true, needsReconnect = true), "mode demo")
     }
+
+    // --- Masuk email+sandi (Tahap 14): token yang sudah diterima server disimpan ke ruang kerja akun ini ---
+
+    @Test
+    fun `adopt menyimpan token email dan menurunkan perlu sambungkan ulang`() = runBlocking {
+        val store = FakeTokenStore(token = null)
+        val session = ServerSession(store, clock = { savedAt })
+        assertTrue(session.needsReconnect.value)
+
+        session.adopt(ApiAccount(apiToken = "token-email", userId = 9, name = "Roziq", email = "roziq@example.com", expiresAt = expiry))
+
+        assertEquals("token-email", store.token)
+        assertEquals(expiry, store.expiry)
+        assertFalse(session.needsReconnect.value)
+    }
+
+    private val savedAt = Instant.parse("2026-10-25T08:00:00Z")
 }

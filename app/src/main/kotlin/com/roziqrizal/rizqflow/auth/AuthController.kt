@@ -10,6 +10,9 @@ import com.roziqrizal.rizqflow.domain.auth.SessionStore
 import com.roziqrizal.rizqflow.domain.auth.SignInResult
 import com.roziqrizal.rizqflow.domain.auth.StartDestination
 import com.roziqrizal.rizqflow.domain.auth.StartRouter
+import com.roziqrizal.rizqflow.domain.sync.ApiAccount
+import com.roziqrizal.rizqflow.domain.sync.RemoteError
+import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,7 +30,7 @@ interface AuthProvider {
 }
 
 /** Pekerjaan yang sedang berjalan; tombol dinonaktifkan selama itu. */
-enum class AuthBusy { GOOGLE, GMAIL, PASSWORD }
+enum class AuthBusy { GOOGLE, GMAIL, PASSWORD, EMAIL }
 
 /** Pesan lembut untuk pengguna; tidak pernah menghalangi memakai aplikasi. */
 enum class AuthMessage {
@@ -45,27 +48,50 @@ enum class AuthMessage {
 
     /** Sambungkan ulang ke server dengan akun Google yang BERBEDA dari yang sedang masuk; ditolak. */
     RECONNECT_WRONG_ACCOUNT,
+
+    /**
+     * Server menolak masuk email+sandi dengan pesan sendiri (sandi salah, belum diverifikasi, terlalu banyak percobaan).
+     * Pesannya dibawa di [AuthUiState.SignedOut.detail] dan ditampilkan apa adanya.
+     */
+    SERVER_REJECTED,
+
+    /** Masuk email+sandi tidak bisa mencapai server (offline, server mati). Akun lokal tetap bisa dipakai. */
+    SERVER_UNREACHABLE,
 }
 
 sealed interface AuthUiState {
     /** Membaca riwayat masuk; splash masih tampil. */
     data object Loading : AuthUiState
 
-    data class SignedOut(val busy: AuthBusy? = null, val message: AuthMessage? = null) : AuthUiState
+    /** [detail] hanya terisi bila [message] = [AuthMessage.SERVER_REJECTED]: pesan Bahasa Indonesia dari server. */
+    data class SignedOut(
+        val busy: AuthBusy? = null,
+        val message: AuthMessage? = null,
+        val detail: String? = null,
+    ) : AuthUiState
 
     /**
      * [notice] ditampilkan sekali di menu utama, misalnya izin Gmail ditolak saat masuk.
      * [pendingGoogleIdToken] cuma terisi sesaat sehabis masuk Google baru (bukan riwayat lama yang
      * dimuat ulang): diambil-dan-dihapus sekali oleh pemanggil (lihat [consumeGoogleIdToken]) untuk
      * diteruskan ke `AccountRemote.loginWithGoogle` (Tahap 9) begitu ruang kerja akunnya terbuka.
+     * [pendingServerAccount] sama, untuk masuk email+sandi: token server sudah diterima server di
+     * [AuthController.signInWithEmail] dan tinggal disimpan ke ruang kerja (lihat [consumePendingServerAccount]).
      */
     data class SignedIn(
         val session: AuthSession,
         val notice: AuthMessage? = null,
         val busy: AuthBusy? = null,
         val pendingGoogleIdToken: String? = null,
+        val pendingServerAccount: ApiAccount? = null,
     ) : AuthUiState
 }
+
+/**
+ * Masuk email+sandi ke server (Tahap 14): `AccountRemote.loginWithEmail` dengan perangkat ini. Bentuk fungsi, bukan
+ * kelas, supaya [AuthController] tetap tidak tahu soal Retrofit; aplikasi memberikannya dari `MainActivity`.
+ */
+typealias EmailSignIn = suspend (email: String, password: String) -> RemoteResult<ApiAccount>
 
 /**
  * Alur splash, masuk, dan menu utama. Tidak memakai kelas Android sehingga bisa dites di JVM.
@@ -79,6 +105,8 @@ class AuthController(
     private val accounts: LocalAccountService,
     private val scope: CoroutineScope,
     private val cpuDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    /** Masuk email+sandi ke server (Tahap 14). Bawaannya selalu gagal terhubung, jadi tanpa pengaturan tidak ada jaringan. */
+    private val emailSignIn: EmailSignIn = { _, _ -> RemoteResult.Failure(RemoteError.Unreachable) },
 ) {
     private val _state = MutableStateFlow<AuthUiState>(AuthUiState.Loading)
     val state: StateFlow<AuthUiState> = _state.asStateFlow()
@@ -140,6 +168,57 @@ class AuthController(
                     _state.value = AuthUiState.SignedOut(message = AuthMessage.WRONG_CREDENTIALS)
             }
         }
+    }
+
+    /**
+     * Masuk dengan email+sandi akun server (Tahap 14). Server menjawab dulu; sesi lokal dibuat HANYA bila berhasil,
+     * jadi sandi salah atau akun belum diverifikasi tidak meninggalkan riwayat masuk. Akun server dikenali dari
+     * email (sama seperti web), jadi [AuthSession.accountId] = email: akun Google dengan email yang sama memakai
+     * ruang kerja yang sama. Token server dititipkan lewat [AuthUiState.SignedIn.pendingServerAccount] ke ruang kerja.
+     */
+    fun signInWithEmail(email: String, password: String) {
+        if (!isIdle()) return
+        val trimmed = email.trim()
+        if (trimmed.isBlank() || password.isEmpty()) {
+            _state.value = AuthUiState.SignedOut(message = AuthMessage.WRONG_CREDENTIALS)
+            return
+        }
+        _state.value = AuthUiState.SignedOut(busy = AuthBusy.EMAIL)
+        scope.launch {
+            when (val result = emailSignIn(trimmed, password)) {
+                is RemoteResult.Success -> {
+                    val account = result.value
+                    val session = AuthSession(
+                        accountId = account.email,
+                        email = account.email,
+                        displayName = account.name,
+                        provider = AuthProviderType.EMAIL,
+                    )
+                    store.save(session)
+                    _state.value = AuthUiState.SignedIn(session, pendingServerAccount = account)
+                }
+
+                is RemoteResult.Failure -> _state.value = AuthUiState.SignedOut(
+                    message = when (result.error) {
+                        is RemoteError.Rejected -> AuthMessage.SERVER_REJECTED
+                        RemoteError.Unreachable -> AuthMessage.SERVER_UNREACHABLE
+                        else -> AuthMessage.FAILED
+                    },
+                    detail = (result.error as? RemoteError.Rejected)?.message,
+                )
+            }
+        }
+    }
+
+    /**
+     * Ambil-dan-hapus [AuthUiState.SignedIn.pendingServerAccount] sekali, begitu ruang kerja akun email ini terbuka.
+     * Di ruang kerja demo token dibuang (bukan disimpan), sama seperti [consumeGoogleIdToken].
+     */
+    fun consumePendingServerAccount(forDemoWorkspace: Boolean = false): ApiAccount? {
+        val current = _state.value as? AuthUiState.SignedIn ?: return null
+        val account = current.pendingServerAccount ?: return null
+        _state.value = current.copy(pendingServerAccount = null)
+        return if (forDemoWorkspace) null else account
     }
 
     /** Membuat akun lokal lalu langsung masuk. Isian sudah dicek layar; di sini dicek ulang. */

@@ -113,6 +113,21 @@ class ServerSession(
             }
         }
 
+    /**
+     * Menyimpan token dari masuk email+sandi (Tahap 14). Masuknya sudah dijawab server di `AuthController` sebelum ruang
+     * kerja akun ini terbuka (sandi salah atau belum diverifikasi berhenti di layar masuk, tidak sampai sini), jadi di
+     * sini hanya penyimpanannya. Penulisan di [ioDispatcher] dan tidak dibatalkan di tengah jalan, sama seperti [connect];
+     * tidak ada pemeriksaan epoch karena token ini baru saja diterima dan belum bisa ditutup oleh keluar akun.
+     */
+    suspend fun adopt(account: ApiAccount) {
+        withContext(NonCancellable + ioDispatcher) {
+            synchronized(lock) {
+                store.save(account.apiToken, account.expiresAt, clock())
+                _needsReconnect.value = false
+            }
+        }
+    }
+
     /** True bila token disimpan; false bila sesi sudah ditutup sejak [expectedEpoch] dicatat (token dibuang). */
     private fun onLoggedIn(account: ApiAccount, at: Instant, expectedEpoch: Long): Boolean = synchronized(lock) {
         if (epoch != expectedEpoch) return false

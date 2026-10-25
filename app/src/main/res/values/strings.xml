@@ -66,8 +66,12 @@
     <string name="login_register_action">Daftar</string>
     <string name="login_fill_username">Isi nama pengguna</string>
     <string name="login_fill_password">Isi sandi</string>
+    <string name="login_email_label">Akun Rizqflow: email dan sandi yang sama dengan di web</string>
+    <string name="login_email_submit">Masuk dengan email</string>
+    <string name="login_fill_email">Isi email</string>
     <string name="field_username">Nama pengguna</string>
     <string name="field_password">Sandi</string>
+    <string name="field_email">Email</string>
     <string name="password_show">Tampilkan</string>
     <string name="password_hide">Sembunyikan</string>
 
@@ -99,6 +103,8 @@
     <string name="msg_gmail_unavailable">Gmail belum bisa dihubungkan sekarang. Coba lagi nanti di menu Lainnya.</string>
 
     <string name="msg_wrong_credentials">Nama pengguna atau sandi salah.</string>
+    <string name="msg_email_rejected">Email atau sandi belum bisa dipakai masuk.</string>
+    <string name="msg_server_unreachable">Tidak bisa terhubung ke server. Coba lagi saat ada koneksi internet.</string>
     <string name="msg_username_taken">Nama pengguna itu sudah dipakai di ponsel ini. Pilih yang lain.</string>
     <string name="msg_invalid_input">Periksa kembali isian pendaftaran.</string>
 
@@ -117,6 +123,7 @@
     <string name="account_delete_pin_prompt">Masukkan PIN kunci aplikasi untuk melanjutkan.</string>
     <string name="account_delete_pin_verified">PIN benar. Tombol hapus sekarang aktif.</string>
     <string name="account_delete_word_prompt">Kunci aplikasi belum aktif. Ketik HAPUS (huruf besar semua) untuk melanjutkan.</string>
+    <string name="account_delete_email_session_expired">Sesi server sudah berakhir. Keluar lalu masuk lagi dengan email dan sandi, baru hapus akun.</string>
     <string name="menu_reconnect">Sambungkan ulang ke server</string>
     <string name="menu_reconnect_sub">Sesi server berakhir. Data dan paketmu di ponsel aman; masuk dengan Google lagi supaya sync dan fitur server berjalan.</string>
     <string name="menu_reconnect_busy">Menyambungkan…</string>

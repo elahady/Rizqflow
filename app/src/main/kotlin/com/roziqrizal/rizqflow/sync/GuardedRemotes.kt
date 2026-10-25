@@ -32,6 +32,10 @@ internal class GuardedAccountRemote(
     override suspend fun loginWithGoogle(idToken: String, deviceId: String): RemoteResult<ApiAccount> =
         inner.loginWithGoogle(idToken, deviceId)
 
+    // Sama seperti Google: masuk email+sandi belum punya sesi (401 berarti sandi salah, bukan sesi berakhir).
+    override suspend fun loginWithEmail(email: String, password: String, deviceId: String): RemoteResult<ApiAccount> =
+        inner.loginWithEmail(email, password, deviceId)
+
     override suspend fun refresh(apiToken: String): RemoteResult<RefreshedToken> =
         session.observe(apiToken, inner.refresh(apiToken))
 

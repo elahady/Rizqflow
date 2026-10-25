@@ -238,6 +238,8 @@ data class AccountUi(
     val local: Boolean,
     /** Masuk dengan Google: satu-satunya jenis akun yang punya akun server (dan bisa "Sambungkan ulang ke server"). */
     val google: Boolean = false,
+    /** Masuk dengan email+sandi (Tahap 14): akun server juga, tetapi tanpa jalur sambung ulang Google. */
+    val emailAccount: Boolean = false,
     val displayName: String?,
     val gmailConnected: Boolean,
     val busy: AuthBusy? = null,

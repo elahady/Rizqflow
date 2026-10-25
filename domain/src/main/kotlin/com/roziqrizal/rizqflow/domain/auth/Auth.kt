@@ -2,15 +2,16 @@ package com.roziqrizal.rizqflow.domain.auth
 
 /**
  * Cara pengguna masuk. [PASSWORD] adalah akun lokal (nama pengguna dan sandi) yang hanya ada di ponsel ini.
- * [DEBUG] hanya ada di build debug untuk menguji alur tanpa akun Google.
+ * [EMAIL] adalah akun server (email dan sandi, Tahap 14) yang sama dengan masuk web: token server-nya didapat
+ * lewat `AccountRemote.loginWithEmail`. [DEBUG] hanya ada di build debug untuk menguji alur tanpa akun Google.
  */
-enum class AuthProviderType { GOOGLE, PASSWORD, DEBUG }
+enum class AuthProviderType { GOOGLE, PASSWORD, EMAIL, DEBUG }
 
 /**
  * Riwayat masuk yang disimpan di ponsel. Tidak menyimpan token atau sandi: sesi hanya penanda
  * bahwa pengguna sudah pernah masuk, supaya berikutnya langsung ke menu utama.
  * [gmailConnected] menandai izin baca Gmail sudah diberikan; aplikasi belum membaca email apa pun.
- * Akun Google punya [email]; akun lokal ([AuthProviderType.PASSWORD]) punya [username] dan tanpa email.
+ * Akun Google dan akun email+sandi punya [email]; akun lokal ([AuthProviderType.PASSWORD]) punya [username] dan tanpa email.
  */
 data class AuthSession(
     val accountId: String,
@@ -23,7 +24,7 @@ data class AuthSession(
     init {
         require(accountId.isNotBlank()) { "Pengenal akun tidak boleh kosong" }
         when (provider) {
-            AuthProviderType.GOOGLE -> require(!email.isNullOrBlank()) { "Email tidak boleh kosong" }
+            AuthProviderType.GOOGLE, AuthProviderType.EMAIL -> require(!email.isNullOrBlank()) { "Email tidak boleh kosong" }
             AuthProviderType.PASSWORD -> require(!username.isNullOrBlank()) { "Nama pengguna tidak boleh kosong" }
             AuthProviderType.DEBUG -> Unit
         }

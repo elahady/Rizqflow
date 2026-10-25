@@ -437,7 +437,9 @@ fun MainHost(
     // ini memang tidak pernah punya akun server. Akun Google yang token servernya hilang karena sesi berakhir
     // (401) tidak boleh keluar diam-diam, karena akun server dan langganannya masih ada: diminta sambungkan ulang dulu.
     fun deleteAccount() {
-        when (val plan = planDeleteAccount(account.google, workspace.serverSession.token(), workspace.serverSession.hasEverHeldToken())) {
+        // Akun email+sandi (Tahap 14) juga punya akun server: diperlakukan seperti Google di sini, supaya token yang hilang
+        // tidak membuatnya keluar diam-diam. Jalur sambung ulang Google belum ada untuk akun email (lihat roadmap Tahap 14).
+        when (val plan = planDeleteAccount(account.google || account.emailAccount, workspace.serverSession.token(), workspace.serverSession.hasEverHeldToken())) {
             DeleteAccountPlan.SignOutOnly -> {
                 deleteAccountSheet = false
                 onSignOut()
@@ -445,7 +447,8 @@ fun MainHost(
 
             DeleteAccountPlan.ReconnectFirst -> {
                 deleteAccountSheet = false
-                scope.launch { notifier.show(resources.getString(R.string.account_delete_session_expired)) }
+                val message = if (account.emailAccount) R.string.account_delete_email_session_expired else R.string.account_delete_session_expired
+                scope.launch { notifier.show(resources.getString(message)) }
             }
 
             is DeleteAccountPlan.DeleteOnServer -> {

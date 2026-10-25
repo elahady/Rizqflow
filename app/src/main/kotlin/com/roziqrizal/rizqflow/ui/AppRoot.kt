@@ -94,10 +94,12 @@ fun AppRoot(
                 LoginScreen(
                     busy = s.busy,
                     message = s.message,
+                    serverDetail = s.detail,
                     showDebugLogin = showDebugLogin,
                     onGoogle = { controller.signInWithGoogle(alsoConnectGmail = false) },
                     onGoogleWithGmail = { controller.signInWithGoogle(alsoConnectGmail = true) },
                     onPasswordSignIn = controller::signInWithPassword,
+                    onEmailSignIn = controller::signInWithEmail,
                     onOpenRegister = { openRegister(true) },
                     onDebug = controller::signInDebug,
                 )
@@ -176,6 +178,17 @@ fun AppRoot(
                                 }
                             }
                         }
+                        // Masuk email+sandi (Tahap 14): server sudah menjawab (token ada di tangan, lihat
+                        // AuthController.signInWithEmail), jadi di sini hanya disimpan ke ruang kerja akun ini, di IO.
+                        LaunchedEffect(workspace, s.pendingServerAccount) {
+                            val demoNow = demo
+                            val account = controller.consumePendingServerAccount(forDemoWorkspace = demoNow) ?: return@LaunchedEffect
+                            connectScope.launch {
+                                workspace.serverSession.adopt(account)
+                                // Sama seperti masuk Google: MainHost melaporkan pembelian lama ke server begitu token ada.
+                                serverLoginSignal++
+                            }
+                        }
                         // Berganti antara data asli dan demo (atau setelah pulihkan cadangan) memulai
                         // menu utama dari awal (tab, layar terbuka): ruang kerjanya objek yang berbeda.
                         key(workspace) {
@@ -188,6 +201,7 @@ fun AppRoot(
                                     identifier = s.session.identifier,
                                     local = s.session.provider == AuthProviderType.PASSWORD,
                                     google = s.session.provider == AuthProviderType.GOOGLE,
+                                    emailAccount = s.session.provider == AuthProviderType.EMAIL,
                                     displayName = s.session.displayName,
                                     gmailConnected = s.session.gmailConnected,
                                     busy = s.busy,

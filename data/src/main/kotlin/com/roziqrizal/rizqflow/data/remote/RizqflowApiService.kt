@@ -27,6 +27,11 @@ interface RizqflowApiService {
     @POST("auth/google")
     suspend fun loginWithGoogle(@Body body: RequestBody): Response<ResponseBody>
 
+    /** Masuk dengan email dan sandi (Tahap 14, `Api\AccountController::loginWithPassword`). Jawabannya sama dengan [loginWithGoogle]. */
+    @Headers("Content-Type: application/json")
+    @POST("auth/login")
+    suspend fun loginWithEmail(@Body body: RequestBody): Response<ResponseBody>
+
     /** Memutar token (`POST /api/auth/refresh`, Tahap 12): token ini dicabut dan token baru dikembalikan. Tanpa badan. */
     @POST("auth/refresh")
     suspend fun refreshToken(@Header("Authorization") bearerToken: String): Response<ResponseBody>
@@ -93,6 +98,19 @@ data class LoginRequestDto(
     val credential: String,
     @SerialName("device_id") val deviceId: String,
 )
+
+/**
+ * Badan `POST /auth/login`: `{"email":"...","password":"...","device_id":"..."}`. `toString` sengaja menyembunyikan
+ * [password] (sama seperti [RecoveryKeyPutDto]): sandi tidak boleh masuk log, laporan crash, atau pesan galat.
+ */
+@Serializable
+data class EmailLoginRequestDto(
+    val email: String,
+    val password: String,
+    @SerialName("device_id") val deviceId: String,
+) {
+    override fun toString(): String = "EmailLoginRequestDto(email=$email, password=disembunyikan, deviceId=$deviceId)"
+}
 
 /**
  * Jawaban `POST /auth/google`. [expiresAt] (ISO-8601 UTC) field aditif sejak Tahap 12: server lama

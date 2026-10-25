@@ -15,6 +15,13 @@ interface AccountRemote {
     suspend fun loginWithGoogle(idToken: String, deviceId: String): RemoteResult<ApiAccount>
 
     /**
+     * Masuk dengan email dan sandi akun server (Tahap 14, `POST /api/auth/login`): akun yang SAMA dengan masuk web.
+     * Galat aturan (sandi salah, belum diverifikasi, terlalu banyak percobaan) datang sebagai [RemoteError.Rejected]
+     * dengan pesan Bahasa Indonesia dari server. [password] tidak pernah disimpan atau dicetak di sisi klien.
+     */
+    suspend fun loginWithEmail(email: String, password: String, deviceId: String): RemoteResult<ApiAccount>
+
+    /**
      * Memutar token (`POST /api/auth/refresh`): token [apiToken] dicabut server dan diganti token baru
      * dengan masa berlaku penuh. [RemoteError.Unauthorized] berarti token tidak sah atau sudah
      * kedaluwarsa, jadi harus masuk ulang dengan Google. Dua pemutaran bersamaan dengan token yang sama:
@@ -38,7 +45,10 @@ data class ApiAccount(
     val name: String?,
     val email: String,
     val expiresAt: Instant? = null,
-)
+) {
+    /** [apiToken] disembunyikan: objek ini ikut tersimpan di state layar masuk sebelum ruang kerja terbuka. */
+    override fun toString(): String = "ApiAccount(userId=$userId, email=$email, expiresAt=$expiresAt, apiToken=disembunyikan)"
+}
 
 /** Token pengganti hasil [AccountRemote.refresh]. [expiresAt] null bila server tidak mengirim masa berlaku. */
 data class RefreshedToken(

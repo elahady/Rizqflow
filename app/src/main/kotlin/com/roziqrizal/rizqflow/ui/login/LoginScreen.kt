@@ -70,6 +70,10 @@ fun LoginScreen(
     onPasswordSignIn: (username: String, password: String) -> Unit,
     onOpenRegister: () -> Unit,
     onDebug: () -> Unit,
+    /** Masuk email+sandi ke akun server (Tahap 14); sandi tidak disimpan di state instance, sama seperti akun lokal. */
+    onEmailSignIn: (email: String, password: String) -> Unit = { _, _ -> },
+    /** Pesan dari server untuk [AuthMessage.SERVER_REJECTED], siap tampil apa adanya. */
+    serverDetail: String? = null,
 ) {
     val spacing = MaterialTheme.spacing
     val idle = busy == null
@@ -77,10 +81,18 @@ fun LoginScreen(
     // Sandi sengaja tidak masuk penyimpanan state instance (rememberSaveable), supaya tidak ikut tersimpan.
     var password by remember { mutableStateOf("") }
     var attempted by rememberSaveable { mutableStateOf(false) }
+    var email by rememberSaveable { mutableStateOf("") }
+    var emailPassword by remember { mutableStateOf("") }
+    var emailAttempted by rememberSaveable { mutableStateOf(false) }
 
     fun submit() {
         attempted = true
         if (username.isNotBlank() && password.isNotEmpty()) onPasswordSignIn(username, password)
+    }
+
+    fun submitEmail() {
+        emailAttempted = true
+        if (email.isNotBlank() && emailPassword.isNotEmpty()) onEmailSignIn(email.trim(), emailPassword)
     }
     Column(
         modifier = Modifier
@@ -137,17 +149,48 @@ fun LoginScreen(
         ) {
             if (busy == AuthBusy.PASSWORD) Progress() else Text(stringResource(R.string.login_submit))
         }
-        MessageBanner(message)
+        MessageBanner(if (message.isServerNotice()) null else message)
 
-        Row(
-            modifier = Modifier.padding(vertical = spacing.s4).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+        OrDivider()
+
+        // Akun server (Tahap 14): email dan sandi yang sama dengan masuk di web. Pesan dari server tampil di sini.
+        Text(
+            text = stringResource(R.string.login_email_label),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(bottom = spacing.s2),
+        )
+        AuthTextField(
+            value = email,
+            onValueChange = { email = it },
+            label = stringResource(R.string.field_email),
+            enabled = idle,
+            error = if (emailAttempted && email.isBlank()) stringResource(R.string.login_fill_email) else null,
+            contentType = ContentType.EmailAddress,
+        )
+        Spacer(Modifier.height(spacing.s2))
+        AuthTextField(
+            value = emailPassword,
+            onValueChange = { emailPassword = it },
+            label = stringResource(R.string.field_password),
+            enabled = idle,
+            isPassword = true,
+            error = if (emailAttempted && emailPassword.isEmpty()) stringResource(R.string.login_fill_password) else null,
+            contentType = ContentType.Password,
+            imeAction = ImeAction.Done,
+            onImeAction = ::submitEmail,
+        )
+        Button(
+            onClick = ::submitEmail,
+            enabled = idle,
+            modifier = Modifier.padding(top = spacing.s3).fillMaxWidth().height(52.dp),
         ) {
-            HorizontalDivider(modifier = Modifier.weight(1f))
-            Text(stringResource(R.string.login_or), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            HorizontalDivider(modifier = Modifier.weight(1f))
+            if (busy == AuthBusy.EMAIL) Progress() else Text(stringResource(R.string.login_email_submit))
         }
+        MessageBanner(if (message.isServerNotice()) message else null, detail = serverDetail)
+
+        OrDivider()
 
         // Cukup simbol G (varian ikon resmi Google); namanya dibacakan pembaca layar.
         GoogleIconButton(onClick = onGoogle, enabled = idle, busy = busy == AuthBusy.GOOGLE)
@@ -191,6 +234,21 @@ fun LoginScreen(
                 Text(stringResource(R.string.login_debug))
             }
         }
+    }
+}
+
+/** Pemisah "atau" antarbagian masuk (nama pengguna, email, Google). */
+@Composable
+private fun OrDivider() {
+    val spacing = MaterialTheme.spacing
+    Row(
+        modifier = Modifier.padding(vertical = spacing.s4).fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        HorizontalDivider(modifier = Modifier.weight(1f))
+        Text(stringResource(R.string.login_or), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        HorizontalDivider(modifier = Modifier.weight(1f))
     }
 }
 
