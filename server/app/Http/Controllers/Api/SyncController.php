@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\DeniesWithoutSync;
 use App\Http\Controllers\Controller;
 use App\Models\RoomMember;
 use App\Models\SyncLogEntry;
-use App\Support\Feature;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -22,6 +22,8 @@ use Illuminate\Http\Request;
  */
 class SyncController extends Controller
 {
+    use DeniesWithoutSync;
+
     private const MAX_BATCH = 500;
 
     private const MAX_PAYLOAD_LENGTH = 262144; // ~256 KB per baris (base64), cukup longgar untuk satu rekaman
@@ -107,15 +109,5 @@ class SyncController extends Controller
             'next_after' => $entries->last()?->id ?? $after,
             'has_more' => $entries->count() === $limit,
         ]);
-    }
-
-    /** Satu-satunya tempat yang menjawab "boleh atau tidak" untuk sync — lihat Support\Entitlements. */
-    private function denyWithoutSync(Request $request): ?JsonResponse
-    {
-        if ($request->user()->entitlements()->isEnabled(Feature::EncryptedSync)) {
-            return null;
-        }
-
-        return response()->json(['message' => 'Butuh langganan Sync.'], 403);
     }
 }

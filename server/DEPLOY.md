@@ -318,3 +318,24 @@ gagal diverifikasi, mis. Play tak terjangkau). Tanpa penjadwal dan tanpa notifik
 terhubung, langganan yang kedaluwarsa tetap menyimpan paket Sync sampai salah satunya berjalan (atau
 sampai aplikasi mengklaim ulang tokennya dan Play menjawab: server tidak mencabut paket hanya karena
 `expires_at` tersimpan sudah lewat, tanpa jawaban Play untuk baris itu).
+
+## Salinan kunci pemulihan (`/api/account/recovery-key`, Tahap 13)
+
+Server menyimpan satu blob buram per akun (kunci akun yang dibungkus kode pemulihan 24 kata di
+klien); server tidak bisa membukanya dan tidak pernah melihat kode atau kunci terbaca. Tidak ada
+variabel `.env` baru. Yang ikut saat deploy:
+
+- Migrasi `2026_10_28_000001_create_recovery_keys_table` (jalan lewat langkah migrasi biasa). Blob
+  disimpan sebagai byte di kolom `binary` (BLOB; MySQL muat 64 KB, batas aplikasi 8192 byte), tanpa
+  enkripsi tambahan dengan `APP_KEY`: ia sudah terenkripsi di klien. **Belum pernah dijalankan di
+  MySQL**, hanya di SQLite memori lewat tes.
+- Limiter `recovery-key` (20 per menit per akun, bersama untuk PUT/GET/DELETE) di dalam
+  `auth:sanctum`. Setelah `git pull` yang mengubah rute, jalankan `route:cache` ulang.
+- Hanya `PUT` yang butuh langganan Sync; `GET` dan `DELETE` tidak, supaya pengguna yang langganannya
+  berakhir tetap bisa memulihkan atau menghapus salinannya.
+- `GET` menjawab 404 `{"message":"Belum ada kode pemulihan","code":"no_recovery_key"}` bila akun belum
+  punya salinan; hanya 404 dari aplikasi ini yang memuat `code` itu, jadi 404 tanpa `code` berarti
+  rute belum dideploy atau Nginx/proxy yang menjawab, bukan "belum ada kode pemulihan".
+- Cadangan database VPS kini memuat blob ini (tetap buram). Kehilangan cadangan tidak membocorkan
+  kunci, tetapi blob + kode pemulihan yang bocor bersamaan akan membuka kunci akun; kode pemulihan
+  tidak pernah ada di server.

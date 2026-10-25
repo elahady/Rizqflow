@@ -76,6 +76,13 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api-login', fn (Request $request) => Limit::perMinute(30)
             ->by('api-login:'.$request->ip()));
 
+        // Salinan kunci pemulihan (PUT/GET/DELETE /account/recovery-key): satu jatah bersama 20 per menit
+        // per akun. Klien sah memanggilnya sekali-sekali (buat, pulihkan), jadi sangat longgar; menahan
+        // klien yang salah tingkah dan percobaan menguras server dengan blob besar. Rutenya di dalam
+        // auth:sanctum, jadi permintaan 401 tidak menghabiskan jatah; kunci `?? ip` hanya cadangan.
+        RateLimiter::for('recovery-key', fn (Request $request) => Limit::perMinute(20)
+            ->by('recovery-key:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+
         // Endpoint RTDN tanpa Sanctum: batas per IP melindungi pemeriksaan JWT dari banjir token palsu.
         // Batas longgar; Pub/Sub mengulang pesan yang ditolak 429.
         RateLimiter::for('play-notifications', fn (Request $request) => Limit::perMinute(120)

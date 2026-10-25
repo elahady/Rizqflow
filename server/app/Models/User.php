@@ -8,6 +8,7 @@ use App\Support\Plan;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
@@ -41,6 +42,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        // Relasi salinan kunci pemulihan tidak pernah ikut serialisasi User walau sudah dimuat.
+        'recoveryKey',
     ];
 
     /**
@@ -90,6 +93,12 @@ class User extends Authenticatable
                 ->when($exceptSessionId, fn ($q) => $q->where('id', '!=', $exceptSessionId))
                 ->delete();
         }
+    }
+
+    /** Salinan kunci akun terbungkus kode pemulihan (blob buram, Tahap 13); lihat RecoveryKey. */
+    public function recoveryKey(): HasOne
+    {
+        return $this->hasOne(RecoveryKey::class);
     }
 
     public function emailCodes(): HasMany

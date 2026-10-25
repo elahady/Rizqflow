@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\PlayNotificationController;
 use App\Http\Controllers\Api\PurchaseController;
+use App\Http\Controllers\Api\RecoveryKeyController;
 use App\Http\Controllers\Api\RoomMembershipController;
 use App\Http\Controllers\Api\SyncController;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +38,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // Butuh langganan Sync (Feature::EncryptedSync); lihat SyncController::denyWithoutSync.
     Route::post('/sync/push', [SyncController::class, 'push']);
     Route::get('/sync/pull', [SyncController::class, 'pull']);
+
+    // Salinan kunci akun terbungkus kode pemulihan (Tahap 13), blob buram. Satu limiter `recovery-key`
+    // untuk ketiga rute (per akun). Hanya PUT yang butuh Sync; GET dan DELETE tidak, supaya pengguna
+    // yang langganannya berakhir tetap bisa memulihkan atau menghapus miliknya. Lihat RecoveryKeyController.
+    Route::middleware('throttle:recovery-key')->group(function () {
+        Route::put('/account/recovery-key', [RecoveryKeyController::class, 'update']);
+        Route::get('/account/recovery-key', [RecoveryKeyController::class, 'show']);
+        Route::delete('/account/recovery-key', [RecoveryKeyController::class, 'destroy']);
+    });
 
     // Keanggotaan ruang yang dibagi (ruang keluarga) — lihat RoomMembershipController.
     Route::post('/rooms/{roomId}/join', [RoomMembershipController::class, 'join']);
