@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Room;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Support\Feature;
 use App\Support\Ledger;
 use App\Support\LedgerException;
 use App\Support\Period;
@@ -429,6 +430,7 @@ class Transaksi extends Component
             'selectedOut' => $selectedOut,
             'selectedIn' => $selectedIn,
             'parsedView' => $this->parsedView($categories, $rooms, $accounts),
+            'riskWarning' => $this->riskWarning($user),
             'hasFilter' => $searching || $this->ruang !== '' || $this->pos !== '' || $this->akun !== '' || $this->jenis !== '',
         ])->layout('components.layout', ['title' => 'Transaksi — Rizqflow', 'period' => $month]);
     }
@@ -510,6 +512,39 @@ class Transaksi extends Component
     {
         $this->notice = $message;
         $this->noticeTone = $tone;
+    }
+
+    /**
+     * Banner lembut batas risiko Trader (Pro) untuk nominal baris cepat: pengeluaran di ruang Trader
+     * yang melewati batas rupiah per trade. Porting RoleService.riskWarning di :domain (lewat batas
+     * dianggap melewati; tepat di batas tidak). Tidak pernah memblokir simpan, dan mati bila paket
+     * tidak membukanya (turun paket hanya membuat modul diam, sama seperti Android).
+     *
+     * @return array{max: int, amount: int}|null
+     */
+    private function riskWarning(User $user): ?array
+    {
+        if (! $this->quickCategoryId || ! $user->entitlements()->isEnabled(Feature::RoleSystems)) {
+            return null;
+        }
+
+        $amount = $this->digits($this->quickAmount);
+        if ($amount <= 0) {
+            return null;
+        }
+
+        $category = Category::with('room.role')->whereIn('room_id', $user->rooms()->pluck('id'))->find($this->quickCategoryId);
+        $role = $category?->room?->role;
+        if ($role === null || $role->kind !== 'trader') {
+            return null;
+        }
+
+        $max = $role->maxRiskPerTradeMinor();
+        if ($amount <= $max) {
+            return null;
+        }
+
+        return ['max' => $max, 'amount' => $amount];
     }
 
     private function digits(string $text): int

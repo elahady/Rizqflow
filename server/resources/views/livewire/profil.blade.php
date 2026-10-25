@@ -37,6 +37,7 @@
     .pf-plan { align-items: flex-start; }
     .pf-plan p { margin-top: 2px; font-size: 13px; color: var(--rf-on-surface-variant); }
     .pf-danger { border-color: var(--rf-outline); }
+    .pf-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 999px; margin-right: 6px; vertical-align: -1px; }
 </style>
 @endpush
 
@@ -125,6 +126,42 @@
         <x-rf.banner tone="info" style="margin-top:16px">
             Kelola langganan lewat Google Play di perangkat Android-mu, termasuk memperbarui atau membatalkannya. Web belum menyediakan pembayaran, jadi langganan tidak bisa dibeli dari sini.
         </x-rf.banner>
+    </section>
+
+    @php
+        $storedPalette = $user->themePalette();
+        $activePalette = $user->effectiveThemePalette();
+        $canUsePalette = $user->entitlements()->isEnabled(App\Support\Feature::Themes);
+    @endphp
+    <section class="rf-card" id="tampilan" aria-label="Warna aksen">
+        <div class="rf-card-head">
+            <h2 class="rf-h2">Warna aksen</h2>
+        </div>
+        <p class="rf-lead" style="margin:0 0 16px">
+            Warna tombol dan penanda. Pilihan disimpan di akunmu, jadi ikut ke perangkat lain. Sage gratis;
+            Laut, Pasir, dan Anggur adalah fitur Pro.
+        </p>
+
+        @if ($storedPalette !== $activePalette)
+            <x-rf.banner tone="info" style="margin-bottom:16px">
+                Pilihan {{ $storedPalette->label() }} tersimpan dan kembali berlaku begitu Pro aktif. Sementara itu
+                tampilan memakai Sage.
+            </x-rf.banner>
+        @endif
+
+        <div class="rf-seg" role="group" aria-label="Palet warna" style="flex-wrap:wrap">
+            @foreach (App\Support\ThemePalette::cases() as $option)
+                <button type="button" wire:click="choosePalette('{{ $option->value }}')"
+                    @class(['rf-seg-btn', 'on' => $storedPalette === $option])
+                    aria-pressed="{{ $storedPalette === $option ? 'true' : 'false' }}">
+                    <span class="pf-swatch" style="background: {{ $option->swatch() }}" aria-hidden="true"></span>{{ $option->label().($option->isPro() && ! $canUsePalette ? ' (Pro)' : '') }}
+                </button>
+            @endforeach
+        </div>
+
+        @if ($paletteError)
+            <p class="rf-error" role="alert" style="margin-top:12px"><x-rf.icon name="warn" />{{ $paletteError }}</p>
+        @endif
     </section>
 
     <section class="rf-card" id="kata-sandi" aria-label="Kata sandi">

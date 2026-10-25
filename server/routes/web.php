@@ -24,6 +24,7 @@ use App\Livewire\LaporanTahunan;
 use App\Livewire\Profil;
 use App\Livewire\ProyeksiCashflow;
 use App\Livewire\Ruang;
+use App\Livewire\Ringkasan;
 use App\Livewire\RuangDaftar;
 use App\Livewire\Tagihan;
 use App\Livewire\Transaksi;
@@ -60,6 +61,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/', Denah::class);
     Route::get('/denah', Denah::class)->name('denah');
+    Route::get('/ringkasan', Ringkasan::class)->name('ringkasan');
     Route::get('/transaksi', Transaksi::class)->name('transaksi');
     Route::get('/transaksi/ekspor', [TransactionExportController::class, 'csv'])->name('transaksi.ekspor');
     Route::get('/transaksi/berulang', TransaksiBerulang::class)->name('transaksi.berulang');

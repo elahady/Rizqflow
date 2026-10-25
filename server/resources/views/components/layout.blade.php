@@ -13,9 +13,12 @@
 @use('App\Support\Feature')
 @use('App\Support\Period')
 @use('App\Support\Plan')
+@use('App\Support\ThemePalette')
 @use('Carbon\CarbonImmutable')
 @php
     $user = auth()->user();
+    // Palet aksen dirender dari server (bukan JS) supaya halaman langsung berwarna benar tanpa berkedip.
+    $palette = $user ? $user->effectiveThemePalette() : ThemePalette::Sage;
 
     $period = isset($period) && $period instanceof \DateTimeInterface ? CarbonImmutable::instance($period)->startOfMonth() : null;
     $periodNav = null;
@@ -41,6 +44,7 @@
         $navGroups = [
             ['id' => null, 'label' => null, 'items' => [
                 ['label' => 'Denah', 'route' => 'denah', 'icon' => 'home', 'on' => $is('denah') || request()->is('/')],
+                ['label' => 'Ringkasan', 'route' => 'ringkasan', 'icon' => 'calendar', 'on' => $is('ringkasan')],
             ]],
             ['id' => 'rf-nav-uang', 'label' => 'Uang', 'items' => [
                 ['label' => 'Transaksi', 'route' => 'transaksi', 'icon' => 'list', 'on' => $is('transaksi', 'transaksi.detail', 'transaksi.rezeki')],
@@ -77,7 +81,7 @@
     $statusTone = in_array(session('status_tone'), ['good', 'info', 'warn'], true) ? session('status_tone') : 'good';
 @endphp
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-palette="{{ $palette->value }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">

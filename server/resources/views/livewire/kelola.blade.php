@@ -129,6 +129,18 @@
                         <label for="category-name">Nama pos</label>
                         <input type="text" id="category-name" class="rf-input" wire:model="categoryName" maxlength="40" autofocus>
                     </div>
+                    @if ($suggestions !== [])
+                        <div style="margin-top:12px">
+                            <span class="rf-help">Usulan pos lokal</span>
+                            <div class="rf-row" style="gap:8px; flex-wrap:wrap; margin-top:6px" role="group" aria-label="Usulan pos lokal">
+                                @foreach ($suggestions as $suggestion)
+                                    <button type="button" wire:click="useSuggestion('{{ $suggestion }}')"
+                                        @class(['rf-chip', 'on' => $categoryName === $suggestion])
+                                        aria-pressed="{{ $categoryName === $suggestion ? 'true' : 'false' }}">{{ $suggestion }}</button>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                     @if ($categoryError)
                         <div class="rf-error" role="alert" style="margin-top:12px"><x-rf.icon name="warn" />{{ $categoryError }}</div>
                     @endif
