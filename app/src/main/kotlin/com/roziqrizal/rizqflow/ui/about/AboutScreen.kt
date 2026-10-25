@@ -98,15 +98,19 @@ fun AboutScreen(notifier: Notifier, onClose: () -> Unit) {
             HorizontalDivider(modifier = Modifier.padding(top = spacing.s5, bottom = spacing.s2))
             AboutRow(stringResource(R.string.about_privacy_policy)) { privacyOpen = true }
             AboutRow(stringResource(R.string.about_licenses)) { licensesOpen = true }
+            // Teks diambil di sini (konteks komposisi) supaya ikut konfigurasi bahasa terbaru, bukan dari LocalContext di dalam klik.
+            val feedbackEmail = stringResource(R.string.about_feedback_email)
+            val feedbackSubject = stringResource(R.string.about_feedback_subject, BuildConfig.VERSION_NAME)
+            val feedbackError = stringResource(R.string.about_feedback_error)
             AboutRow(stringResource(R.string.about_feedback)) {
                 val intent = Intent(Intent.ACTION_SENDTO).apply {
-                    data = Uri.parse("mailto:${context.getString(R.string.about_feedback_email)}")
-                    putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.about_feedback_subject, BuildConfig.VERSION_NAME))
+                    data = Uri.parse("mailto:$feedbackEmail")
+                    putExtra(Intent.EXTRA_SUBJECT, feedbackSubject)
                 }
                 try {
                     context.startActivity(intent)
                 } catch (_: ActivityNotFoundException) {
-                    scope.launch { notifier.show(context.getString(R.string.about_feedback_error)) }
+                    scope.launch { notifier.show(feedbackError) }
                 }
             }
         }

@@ -44,7 +44,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -109,7 +109,7 @@ fun RoleFlow(
     var confirmingRemove by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val spacing = MaterialTheme.spacing
 
     LaunchedEffect(roomId, version) { overview = workspace.roles.overview(roomId, today) }
@@ -174,12 +174,12 @@ fun RoleFlow(
                                         // Muat ulang dulu: notifier.show menunggu snackbar hilang.
                                         onDataChanged()
                                         changed()
-                                        notifier.show(context.getString(R.string.role_dca_recorded, formatRupiah(dca.plan.amount)))
+                                        notifier.show(resources.getString(R.string.role_dca_recorded, formatRupiah(dca.plan.amount)))
                                     }
 
                                     is LedgerResult.Failure -> {
                                         busy = false
-                                        notifier.show(context.getString(roleErrorText(result.error)))
+                                        notifier.show(resources.getString(roleErrorText(result.error)))
                                     }
                                 }
                                 busy = false
@@ -226,7 +226,7 @@ fun RoleFlow(
                     scope.launch {
                         workspace.roles.remove(roomId)
                         changed()
-                        notifier.show(context.getString(R.string.role_removed))
+                        notifier.show(resources.getString(R.string.role_removed))
                     }
                 }) { Text(stringResource(R.string.role_remove), color = MaterialTheme.colorScheme.error) }
             },

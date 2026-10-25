@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.fragment.app.FragmentActivity
 import com.roziqrizal.rizqflow.R
@@ -40,6 +41,8 @@ fun AppLockScreen(service: AppLockService, onUnlocked: () -> Unit) {
     val spacing = MaterialTheme.spacing
     val context = LocalContext.current
     val activity = context as? FragmentActivity
+    // Teks lewat resources yang ikut konfigurasi (LocalResources), bukan context.getString, supaya tidak basi saat konfigurasi berubah.
+    val resources = LocalResources.current
 
     var digits by rememberSaveable { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
@@ -53,9 +56,9 @@ fun AppLockScreen(service: AppLockService, onUnlocked: () -> Unit) {
         if (activity != null && biometricEnabled && BiometricUnlock.isAvailable(activity)) {
             BiometricUnlock.prompt(
                 activity,
-                title = context.getString(R.string.lock_biometric_title),
-                subtitle = context.getString(R.string.lock_biometric_subtitle),
-                negativeText = context.getString(R.string.lock_biometric_use_pin),
+                title = resources.getString(R.string.lock_biometric_title),
+                subtitle = resources.getString(R.string.lock_biometric_subtitle),
+                negativeText = resources.getString(R.string.lock_biometric_use_pin),
                 onSuccess = onUnlocked,
             )
         }
@@ -69,7 +72,7 @@ fun AppLockScreen(service: AppLockService, onUnlocked: () -> Unit) {
                 UnlockResult.Success -> onUnlocked()
 
                 is UnlockResult.WrongPin -> {
-                    error = context.getString(R.string.lock_wrong_pin, result.attemptsLeft)
+                    error = resources.getString(R.string.lock_wrong_pin, result.attemptsLeft)
                     digits = ""
                 }
 

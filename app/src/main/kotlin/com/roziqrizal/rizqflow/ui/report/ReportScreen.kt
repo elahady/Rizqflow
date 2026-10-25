@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -94,6 +95,7 @@ fun ReportScreen(
 ) {
     val spacing = MaterialTheme.spacing
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val currentMonth = remember { YearMonth.now() }
     val currentYear = currentMonth.year
@@ -128,7 +130,6 @@ fun ReportScreen(
         pendingExport = null
         if (uri == null || kind == null) return@rememberLauncherForActivityResult
         scope.launch {
-            val resources = context.resources
             val saved = runCatching {
                 withContext(Dispatchers.IO) {
                     val blocks = when (kind) {
@@ -142,7 +143,7 @@ fun ReportScreen(
                     }
                 }
             }.isSuccess
-            notifier.show(context.getString(if (saved) R.string.report_pdf_saved else R.string.report_pdf_failed))
+            notifier.show(resources.getString(if (saved) R.string.report_pdf_saved else R.string.report_pdf_failed))
         }
     }
 
@@ -271,6 +272,7 @@ private fun MonthlyContent(data: MonthlyReport, pro: Boolean, onExport: () -> Un
 private fun YearlyContent(data: YearlyReport, insights: List<Insight>, onExport: () -> Unit) {
     val spacing = MaterialTheme.spacing
     val context = LocalContext.current
+    val resources = LocalResources.current
     if (!data.hasData) {
         Text(stringResource(R.string.report_empty_year), style = MaterialTheme.typography.titleSmall)
         Text(
@@ -298,7 +300,7 @@ private fun YearlyContent(data: YearlyReport, insights: List<Insight>, onExport:
         ) {
             Text(monthNames[month.month.monthValue - 1], style = MaterialTheme.typography.titleSmall, modifier = Modifier.width(48.dp))
             Text(
-                context.getString(R.string.report_month_in_out, formatRupiah(month.income), formatRupiah(month.expense)),
+                resources.getString(R.string.report_month_in_out, formatRupiah(month.income), formatRupiah(month.expense)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),

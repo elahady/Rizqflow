@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
@@ -55,6 +56,7 @@ private data class PinWizard(val purpose: Purpose, val stage: Stage, val newPin:
 fun SecuritySettingsScreen(service: AppLockService, onClose: () -> Unit) {
     val spacing = MaterialTheme.spacing
     val context = LocalContext.current
+    val resources = LocalResources.current
     val activity = context as? FragmentActivity
     val scope = rememberCoroutineScope()
     BackHandler(onBack = onClose)
@@ -95,12 +97,12 @@ fun SecuritySettingsScreen(service: AppLockService, onClose: () -> Unit) {
 
                     is UnlockResult.WrongPin -> {
                         digits = ""
-                        wizard = w.copy(error = context.getString(R.string.lock_wrong_pin, result.attemptsLeft))
+                        wizard = w.copy(error = resources.getString(R.string.lock_wrong_pin, result.attemptsLeft))
                     }
 
                     is UnlockResult.LockedOut -> {
                         digits = ""
-                        wizard = w.copy(error = context.getString(R.string.security_locked_out))
+                        wizard = w.copy(error = resources.getString(R.string.security_locked_out))
                     }
                 }
 
@@ -116,7 +118,7 @@ fun SecuritySettingsScreen(service: AppLockService, onClose: () -> Unit) {
                         reload()
                         wizard = null
                     } else {
-                        wizard = w.copy(stage = Stage.NEW, newPin = null, error = context.getString(R.string.security_pin_mismatch))
+                        wizard = w.copy(stage = Stage.NEW, newPin = null, error = resources.getString(R.string.security_pin_mismatch))
                     }
                 }
             }

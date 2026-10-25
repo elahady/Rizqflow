@@ -29,7 +29,7 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -64,7 +64,7 @@ private fun digitsOnly(text: String): String = text.filter(Char::isDigit).take(1
 fun WealthScreen(workspace: AccountWorkspace, overview: GivingOverview, profileId: String?, onSaved: () -> Unit, onCancel: () -> Unit) {
     val spacing = MaterialTheme.spacing
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val today = remember { LocalDate.now() }
 
     fun of(kind: WealthKind) = overview.items.firstOrNull { it.kind == kind }
@@ -156,11 +156,11 @@ fun WealthScreen(workspace: AccountWorkspace, overview: GivingOverview, profileI
                 busy = true
                 scope.launch {
                     val items = buildList {
-                        add(NewWealthItem(of(WealthKind.GOLD)?.id, WealthKind.GOLD, context.getString(R.string.wealth_kind_gold), Money.zero(), goldGrams.toLongOrNull()?.times(1000)))
-                        add(NewWealthItem(of(WealthKind.CASH_SAVINGS)?.id, WealthKind.CASH_SAVINGS, context.getString(R.string.wealth_kind_cash), Money.rupiah(cash.toLongOrNull() ?: 0)))
-                        add(NewWealthItem(of(WealthKind.INVESTMENT)?.id, WealthKind.INVESTMENT, context.getString(R.string.wealth_kind_investment), Money.rupiah(investment.toLongOrNull() ?: 0)))
-                        add(NewWealthItem(of(WealthKind.RECEIVABLE)?.id, WealthKind.RECEIVABLE, context.getString(R.string.wealth_kind_receivable), Money.rupiah(receivable.toLongOrNull() ?: 0)))
-                        add(NewWealthItem(of(WealthKind.DEDUCTION)?.id, WealthKind.DEDUCTION, context.getString(R.string.wealth_kind_deduction), Money.rupiah(debt.toLongOrNull() ?: 0)))
+                        add(NewWealthItem(of(WealthKind.GOLD)?.id, WealthKind.GOLD, resources.getString(R.string.wealth_kind_gold), Money.zero(), goldGrams.toLongOrNull()?.times(1000)))
+                        add(NewWealthItem(of(WealthKind.CASH_SAVINGS)?.id, WealthKind.CASH_SAVINGS, resources.getString(R.string.wealth_kind_cash), Money.rupiah(cash.toLongOrNull() ?: 0)))
+                        add(NewWealthItem(of(WealthKind.INVESTMENT)?.id, WealthKind.INVESTMENT, resources.getString(R.string.wealth_kind_investment), Money.rupiah(investment.toLongOrNull() ?: 0)))
+                        add(NewWealthItem(of(WealthKind.RECEIVABLE)?.id, WealthKind.RECEIVABLE, resources.getString(R.string.wealth_kind_receivable), Money.rupiah(receivable.toLongOrNull() ?: 0)))
+                        add(NewWealthItem(of(WealthKind.DEDUCTION)?.id, WealthKind.DEDUCTION, resources.getString(R.string.wealth_kind_deduction), Money.rupiah(debt.toLongOrNull() ?: 0)))
                         customs.filter { it.label.isNotBlank() }.forEach { add(NewWealthItem(null, WealthKind.OTHER, it.label, Money.rupiah(it.value.toLongOrNull() ?: 0))) }
                     }
                     val result = workspace.zakat.saveWealth(items, Money.rupiah(goldPrice.toLongOrNull() ?: 0), today, profileId)

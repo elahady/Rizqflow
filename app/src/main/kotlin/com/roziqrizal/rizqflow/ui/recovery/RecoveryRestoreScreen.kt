@@ -29,7 +29,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -69,7 +69,7 @@ fun RecoveryRestoreScreen(
 ) {
     val spacing = MaterialTheme.spacing
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val resources = LocalResources.current
 
     var text by remember { mutableStateOf("") }
     // Perubahan terakhir berupa tempel (lebih dari satu karakter sekaligus): kata terakhirnya sudah utuh, bukan sedang diketik.
@@ -95,7 +95,7 @@ fun RecoveryRestoreScreen(
             busy = false
             if (result == RecoverKeyResult.Recovered) {
                 text = ""
-                notifier.show(context.getString(R.string.restore_success))
+                notifier.show(resources.getString(R.string.restore_success))
                 onRecovered()
             } else {
                 val ended = (result as? RecoverKeyResult.Failed)?.let { workspace.serverSession.sessionEndedBy(it.error) } ?: false

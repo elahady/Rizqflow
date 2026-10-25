@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.dp
 import com.roziqrizal.rizqflow.BuildConfig
 import com.roziqrizal.rizqflow.RizqflowApplication
@@ -152,6 +153,7 @@ fun MainHost(
     serverConnectFailedSignal: Int = 0,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     var catat by rememberSaveable { mutableStateOf(false) }
     var editId by rememberSaveable { mutableStateOf<String?>(null) }
     var aturan by rememberSaveable { mutableStateOf(false) }
@@ -240,7 +242,7 @@ fun MainHost(
     // dipotong kabar ini; kabarnya muncul sekali per token per proses (diatur PurchaseClaimCoordinator).
     suspend fun reportPurchases() {
         if (purchaseClaims.claim().showClaimedByOtherNotice) {
-            snackbar.showSnackbar(context.getString(R.string.purchase_claimed_by_other), duration = SnackbarDuration.Long)
+            snackbar.showSnackbar(resources.getString(R.string.purchase_claimed_by_other), duration = SnackbarDuration.Long)
         }
     }
     fun reportPurchasesInBackground() {
@@ -291,7 +293,7 @@ fun MainHost(
     LaunchedEffect(workspace, version, ownedPlans, demo) {
         if (!demo) SafeToSpendWidget.updateAll(context, workspace)
     }
-    val undoLabel = context.getString(R.string.action_undo)
+    val undoLabel = resources.getString(R.string.action_undo)
 
     // Pengingat malam (S26): jadwalkan ulang setiap ruang kerja dibuka (juga menutupi kasus
     // reboot bila WorkManager sendiri belum sempat menjadwalkan lagi), tapi tidak untuk mode demo.
@@ -356,7 +358,7 @@ fun MainHost(
     fun announceRules(previous: List<AllocationRule>) {
         version++
         scope.launch {
-            if (notifier.show(context.getString(R.string.rules_saved), undoLabel)) {
+            if (notifier.show(resources.getString(R.string.rules_saved), undoLabel)) {
                 workspace.rules.restoreRules(previous)
                 version++
             }
@@ -367,7 +369,7 @@ fun MainHost(
     fun announceRoomArchived(undo: ArchiveUndo) {
         version++
         scope.launch {
-            if (notifier.show(context.getString(R.string.room_archived, undo.room.name), undoLabel)) {
+            if (notifier.show(resources.getString(R.string.room_archived, undo.room.name), undoLabel)) {
                 workspace.rules.undoArchive(undo)
                 version++
             }
@@ -377,13 +379,13 @@ fun MainHost(
     fun announceReconciled(transactionId: TransactionId?, diff: com.roziqrizal.rizqflow.domain.money.Money) {
         version++
         if (transactionId == null) {
-            scope.launch { notifier.show(context.getString(R.string.reconcile_saved_match)) }
+            scope.launch { notifier.show(resources.getString(R.string.reconcile_saved_match)) }
             return
         }
         val message = if (diff.isNegative) {
-            context.getString(R.string.reconcile_saved_expense, formatRupiah(diff.abs()))
+            resources.getString(R.string.reconcile_saved_expense, formatRupiah(diff.abs()))
         } else {
-            context.getString(R.string.reconcile_saved_income, formatRupiah(diff))
+            resources.getString(R.string.reconcile_saved_income, formatRupiah(diff))
         }
         scope.launch {
             if (notifier.show(message, undoLabel)) {
@@ -398,16 +400,16 @@ fun MainHost(
         version++
         val name = payment.updated.name
         val message = if (payment.updated.isFinished) {
-            context.getString(R.string.bills_paid_done, name)
+            resources.getString(R.string.bills_paid_done, name)
         } else {
             val next = formatDateWith(
                 payment.updated.nextDue,
                 LocalDate.now(),
-                context.getString(R.string.date_today),
-                context.getString(R.string.date_yesterday),
+                resources.getString(R.string.date_today),
+                resources.getString(R.string.date_yesterday),
                 context.resources.getStringArray(R.array.month_abbrev).toList(),
             )
-            context.getString(R.string.bills_paid_next, name, next)
+            resources.getString(R.string.bills_paid_next, name, next)
         }
         scope.launch {
             if (notifier.show(message, undoLabel)) {
@@ -441,7 +443,7 @@ fun MainHost(
 
             DeleteAccountPlan.ReconnectFirst -> {
                 deleteAccountSheet = false
-                scope.launch { notifier.show(context.getString(R.string.account_delete_session_expired)) }
+                scope.launch { notifier.show(resources.getString(R.string.account_delete_session_expired)) }
             }
 
             is DeleteAccountPlan.DeleteOnServer -> {
@@ -461,7 +463,7 @@ fun MainHost(
                         is RemoteResult.Failure -> {
                             deletingAccount = false
                             val message = if (result.error == RemoteError.Unauthorized) R.string.account_delete_session_expired else R.string.account_delete_failed
-                            notifier.show(context.getString(message))
+                            notifier.show(resources.getString(message))
                         }
                     }
                 }
@@ -472,7 +474,7 @@ fun MainHost(
     fun announceFavorite(use: FavoriteUse) {
         version++
         scope.launch {
-            if (notifier.show(context.getString(R.string.quick_used, use.previous.name, formatRupiah(use.transaction.amount)), undoLabel)) {
+            if (notifier.show(resources.getString(R.string.quick_used, use.previous.name, formatRupiah(use.transaction.amount)), undoLabel)) {
                 workspace.favorites.undoUse(use)
                 version++
             }
@@ -483,7 +485,7 @@ fun MainHost(
         version++
         scope.launch {
             snackbar.currentSnackbarData?.dismiss()
-            val result = snackbar.showSnackbar(context.getString(R.string.saved_edit), actionLabel = undoLabel, duration = SnackbarDuration.Long)
+            val result = snackbar.showSnackbar(resources.getString(R.string.saved_edit), actionLabel = undoLabel, duration = SnackbarDuration.Long)
             if (result == SnackbarResult.ActionPerformed) {
                 workspace.ledger.restore(previous)
                 version++
@@ -495,7 +497,7 @@ fun MainHost(
         version++
         scope.launch {
             snackbar.currentSnackbarData?.dismiss()
-            val result = snackbar.showSnackbar(context.getString(R.string.deleted), actionLabel = undoLabel, duration = SnackbarDuration.Long)
+            val result = snackbar.showSnackbar(resources.getString(R.string.deleted), actionLabel = undoLabel, duration = SnackbarDuration.Long)
             if (result == SnackbarResult.ActionPerformed) {
                 workspace.ledger.restore(snapshot)
                 version++
@@ -509,19 +511,19 @@ fun MainHost(
         val amount = formatRupiah(saved.amount)
         val message = when (saved.kind) {
             TransactionKind.INCOME ->
-                if (saved.roomCount > 0) context.getString(R.string.saved_income, amount, saved.roomCount) else context.getString(R.string.saved_income_none, amount)
+                if (saved.roomCount > 0) resources.getString(R.string.saved_income, amount, saved.roomCount) else resources.getString(R.string.saved_income_none, amount)
 
             TransactionKind.EXPENSE -> {
                 val extra = when {
-                    saved.favoriteSaved -> " " + context.getString(R.string.saved_favorite)
-                    saved.favoriteError != null -> " " + context.getString(R.string.saved_favorite_failed, manageErrorText(context, saved.favoriteError))
+                    saved.favoriteSaved -> " " + resources.getString(R.string.saved_favorite)
+                    saved.favoriteError != null -> " " + resources.getString(R.string.saved_favorite_failed, manageErrorText(context, saved.favoriteError))
                     else -> ""
                 }
-                context.getString(R.string.saved_expense, amount) + extra
+                resources.getString(R.string.saved_expense, amount) + extra
             }
-            TransactionKind.TRANSFER -> context.getString(R.string.saved_transfer, amount)
+            TransactionKind.TRANSFER -> resources.getString(R.string.saved_transfer, amount)
             // Transaksi pinjaman dicatat dari layar Utang-piutang, yang mengumumkannya sendiri.
-            TransactionKind.LOAN_OUT, TransactionKind.LOAN_IN -> context.getString(R.string.saved_transfer, amount)
+            TransactionKind.LOAN_OUT, TransactionKind.LOAN_IN -> resources.getString(R.string.saved_transfer, amount)
         }
         scope.launch {
             snackbar.currentSnackbarData?.dismiss()
@@ -601,7 +603,7 @@ fun MainHost(
     )
     // Sambung ulang yang diminta pengguna tidak menjangkau server (offline, 503): satu kabar lembut, barisnya tetap ada.
     LaunchedEffect(serverConnectFailedSignal) {
-        if (serverConnectFailedSignal > 0) notifier.show(context.getString(R.string.reconnect_failed))
+        if (serverConnectFailedSignal > 0) notifier.show(resources.getString(R.string.reconnect_failed))
     }
     if (tampilanOpen) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -652,8 +654,8 @@ fun MainHost(
                                     familyRoom = result.roomId.value
                                 }
 
-                                FamilyJoinResult.NotSignedIn -> notifier.show(context.getString(R.string.family_join_not_signed_in))
-                                is FamilyJoinResult.Failed -> notifier.show(context.getString(R.string.family_join_failed))
+                                FamilyJoinResult.NotSignedIn -> notifier.show(resources.getString(R.string.family_join_not_signed_in))
+                                is FamilyJoinResult.Failed -> notifier.show(resources.getString(R.string.family_join_failed))
                             }
                         }
                     },
@@ -764,7 +766,7 @@ fun MainHost(
                 if (outcome.opensPlan()) reportPurchasesInBackground()
                 // Sheet menutup hanya bila ada kabar akhir; dibatalkan tetap terbuka supaya bisa dicoba lagi.
                 if (outcome != BuyOutcome.CANCELED) paywallOpen = false
-                if (outcome != BuyOutcome.CANCELED) notifier.show(context.getString(buyMessage(outcome, plan)))
+                if (outcome != BuyOutcome.CANCELED) notifier.show(resources.getString(buyMessage(outcome, plan)))
             }
         }
 
@@ -775,7 +777,7 @@ fun MainHost(
                 purchaseBusy = false
                 if (report.opensPlan()) reportPurchasesInBackground()
                 paywallOpen = false
-                notifier.show(context.getString(restoreMessage(report, plan)))
+                notifier.show(resources.getString(restoreMessage(report, plan)))
             }
         }
 
