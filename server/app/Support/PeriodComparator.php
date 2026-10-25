@@ -49,8 +49,15 @@ class PeriodComparator
             ->map(fn ($rows, $roomId) => ['room_id' => (int) $roomId, 'name' => $rows->first()->room?->name ?? '—', 'amount_minor' => (int) $rows->sum('amount_minor')])
             ->values();
 
+        // room_id dan room_name ikut untuk laporan tahunan (kategori butuh ruangnya); combineCategories tidak memakainya.
         $categories = $expenseRows->whereNotNull('category_id')->groupBy('category_id')
-            ->map(fn ($rows, $categoryId) => ['category_id' => (int) $categoryId, 'name' => $rows->first()->category ?? '—', 'amount_minor' => (int) $rows->sum('amount_minor')])
+            ->map(fn ($rows, $categoryId) => [
+                'category_id' => (int) $categoryId,
+                'name' => $rows->first()->category ?? '—',
+                'amount_minor' => (int) $rows->sum('amount_minor'),
+                'room_id' => (int) $rows->first()->room_id,
+                'room_name' => $rows->first()->room?->name ?? '—',
+            ])
             ->values();
 
         return ['income' => $income, 'expense' => $expense, 'remainder' => $income - $expense, 'rooms' => $rooms, 'categories' => $categories];

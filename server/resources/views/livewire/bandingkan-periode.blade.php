@@ -6,6 +6,9 @@
         <x-slot:actions>
             <x-rf.pill tone="info" icon="">Fitur Pro</x-rf.pill>
             @if ($canUseReports)
+                @if ($granularity === 'bulan')
+                    <a href="{{ route('laporan.bulanan.pdf', ['bulan' => $periodA]) }}" class="rf-btn ghost sm"><x-rf.icon name="download" />PDF laporan bulanan</a>
+                @endif
                 <a href="{{ route('laporan.bandingkan.pdf', ['granularity' => $granularity, 'periodA' => $periodA, 'periodB' => $periodB]) }}" class="rf-btn ghost sm"><x-rf.icon name="download" />Unduh PDF</a>
             @endif
         </x-slot:actions>
@@ -146,6 +149,22 @@
             </section>
         </div>
 
+        @if ($insightSentences !== [])
+            <section class="rf-card">
+                <div class="rf-card-head">
+                    <div>
+                        <h2 class="rf-h2">Insight {{ $periodLabelA }}</h2>
+                        <p class="rf-sub" style="margin-top: 4px;">Hanya dari angka tahun ini. Bila datanya belum cukup, insight tidak ditampilkan.</p>
+                    </div>
+                </div>
+                <ul class="an-insights">
+                    @foreach ($insightSentences as $sentence)
+                        <li>{{ $sentence }}</li>
+                    @endforeach
+                </ul>
+            </section>
+        @endif
+
         <p class="rf-hint"><x-rf.icon name="info" />Transfer dan transaksi pinjaman (utang-piutang) tidak ikut terhitung: keduanya tidak pernah tercatat di tabel transaksi biasa.</p>
     @endif
 </div>
@@ -157,5 +176,6 @@
         .an-bar { flex: 1 1 0; min-width: 0; height: 8px; border-radius: 999px; overflow: hidden; background: var(--rf-surface-container-high); }
         .an-bar > i { display: block; height: 100%; border-radius: 999px; background: var(--c); }
         .an-bar-val { flex: none; width: 110px; text-align: right; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+        .an-insights { margin: 0; padding-left: 20px; display: grid; gap: 8px; font-size: 13.5px; line-height: 1.5; }
     </style>
 @endpush
