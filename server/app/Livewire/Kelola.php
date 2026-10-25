@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\Account;
 use App\Models\Category;
 use App\Models\QuickEntry;
+use App\Support\LocalCategoryTemplates;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -178,6 +179,20 @@ class Kelola extends Component
         $this->reset(['categoryName', 'showAddCategory']);
     }
 
+    /**
+     * Chip usulan pos lokal (Android: FilterChip di CategoryForm): hanya mengisi kolom nama, pengguna
+     * tetap menekan Simpan. Nama di luar daftar usulan diabaikan.
+     */
+    public function useSuggestion(string $name): void
+    {
+        if (! in_array($name, LocalCategoryTemplates::NAMES, true)) {
+            return;
+        }
+
+        $this->categoryName = $name;
+        $this->categoryError = null;
+    }
+
     public function startEditCategory(int $categoryId): void
     {
         $category = $this->ownedCategory($categoryId);
@@ -344,6 +359,10 @@ class Kelola extends Component
             'rooms' => $rooms,
             'selectedRoom' => $selectedRoom,
             'categories' => $selectedRoom?->categories()->where('archived', false)->orderBy('sort_order')->get() ?? collect(),
+            // Usulan pos lokal hanya saat form Pos baru terbuka, dan tidak menawarkan nama yang sudah aktif.
+            'suggestions' => $this->showAddCategory && $selectedRoom
+                ? LocalCategoryTemplates::suggestionsFor($selectedRoom->categories()->where('archived', false)->pluck('name')->all())
+                : [],
             'archivedCategories' => $selectedRoom?->categories()->where('archived', true)->get() ?? collect(),
             'favoriteCategoryOptions' => Category::whereHas('room', fn ($q) => $q->where('user_id', $user->id)->active())
                 ->where('archived', false)->where('is_system', false)->with('room')->get(),
