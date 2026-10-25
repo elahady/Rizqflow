@@ -4,6 +4,8 @@ namespace App\Livewire;
 
 use App\Auth\AccountService;
 use App\Rules\StrongPassword;
+use App\Support\Feature;
+use App\Support\ThemePalette;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -29,6 +31,36 @@ class Profil extends Component
 
     /** Pesan hasil terakhir pada bagian kata sandi: 'set' (sandi pertama) atau 'changed'. */
     public ?string $passwordSaved = null;
+
+    /** Pesan penolakan bila palet Pro dipilih tanpa paket yang membukanya (lihat [choosePalette]). */
+    public ?string $paletteError = null;
+
+    /**
+     * Simpan palet warna aksen ke akun (per akun, bukan localStorage, supaya ikut ke perangkat lain).
+     * Palet Pro ditolak tanpa paket; pilihan Sage selalu boleh. Yang disimpan cuma pilihan, bukan
+     * palet efektif, jadi turun paket tidak menghapusnya (lihat ThemePalette::effective).
+     */
+    public function choosePalette(string $palette): void
+    {
+        $this->paletteError = null;
+
+        $choice = ThemePalette::tryFrom($palette);
+        if ($choice === null) {
+            return;
+        }
+
+        $user = auth()->user();
+        if ($choice->isPro() && ! $user->entitlements()->isEnabled(Feature::Themes)) {
+            $this->paletteError = 'Palet '.$choice->label().' adalah fitur Pro.';
+
+            return;
+        }
+
+        $user->update(['theme_palette' => $choice->value]);
+
+        // Halaman ini sudah berjalan; atribut <html> tidak ikut ter-morph Livewire, jadi diganti langsung.
+        $this->js("document.documentElement.setAttribute('data-palette', '".$user->effectiveThemePalette()->value."')");
+    }
 
     public function savePassword(AccountService $accounts): void
     {

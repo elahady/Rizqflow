@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Support\Entitlements;
 use App\Support\Plan;
+use App\Support\ThemePalette;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -32,6 +33,7 @@ class User extends Authenticatable
         'password',
         'plans',
         'allocation_mode',
+        'theme_palette',
     ];
 
     /**
@@ -66,6 +68,18 @@ class User extends Authenticatable
         $plans = array_map(fn (string $value) => Plan::from($value), $this->plans ?? []);
 
         return new Entitlements($plans);
+    }
+
+    /** Palet yang dipilih akun (bisa palet Pro yang sudah tidak berlaku; lihat [effectiveThemePalette]). */
+    public function themePalette(): ThemePalette
+    {
+        return ThemePalette::tryFrom((string) $this->theme_palette) ?? ThemePalette::Sage;
+    }
+
+    /** Palet yang tampil sekarang: pilihan tersimpan, kembali ke Sage bila paket tidak membukanya. */
+    public function effectiveThemePalette(): ThemePalette
+    {
+        return $this->themePalette()->effective($this->entitlements());
     }
 
     /** Akun yang dibuat lewat Google belum punya kata sandi sampai menetapkannya di Profil. */

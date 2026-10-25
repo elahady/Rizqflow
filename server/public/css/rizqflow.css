@@ -220,6 +220,91 @@
   --rf-income: #8fd4a8;
 }
 
+/* ===== Palet aksen Pro (porting ThemePalette di Android; Sage = token dasar di atas) =====
+   Atribut data-palette di <html> diisi layout dari palet EFEKTIF (App\Support\ThemePalette::effective),
+   jadi palet Pro yang sudah tidak berlaku tampil sebagai sage tanpa menghapus pilihan tersimpan.
+   Hanya keluarga warna utama yang berganti; latar, teks, status, dan warna ruang tetap sama. Nilai
+   diambil dari ui/theme/Color.kt (withAccent). Kontras dijaga ThemePaletteContrastTest; ubah di
+   Color.kt dulu, lalu samakan di sini. Selektor gelap lebih spesifik (0,3,0) supaya menang atas blok
+   gelap dasar di atas, baik karena preferensi sistem maupun pilihan pengguna. */
+:root[data-palette="laut"] {
+  --rf-primary: #2c5d7c;
+  --rf-on-primary: #ffffff;
+  --rf-primary-container: #8db1c7;
+  --rf-on-primary-container: #14303f;
+  --rf-inverse-primary: #a9cbe0;
+  --rf-primary-fixed: #cde5f2;
+  --rf-room-neutral: var(--rf-primary);
+}
+:root[data-palette="pasir"] {
+  --rf-primary: #7a5a2a;
+  --rf-on-primary: #ffffff;
+  --rf-primary-container: #cdae82;
+  --rf-on-primary-container: #3a2a0e;
+  --rf-inverse-primary: #e3c99b;
+  --rf-primary-fixed: #f1e3cb;
+  --rf-room-neutral: var(--rf-primary);
+}
+:root[data-palette="anggur"] {
+  --rf-primary: #664466;
+  --rf-on-primary: #ffffff;
+  --rf-primary-container: #b093b0;
+  --rf-on-primary-container: #2e1b2e;
+  --rf-inverse-primary: #d9bdd9;
+  --rf-primary-fixed: #ebd8eb;
+  --rf-room-neutral: var(--rf-primary);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-palette="laut"]:not([data-theme="light"]) {
+    --rf-primary: #a9cbe0;
+    --rf-on-primary: #12303f;
+    --rf-primary-container: #2c4a5c;
+    --rf-on-primary-container: #cde5f2;
+    --rf-inverse-primary: #2c5d7c;
+    --rf-primary-fixed: #2c4a5c;
+  }
+  :root[data-palette="pasir"]:not([data-theme="light"]) {
+    --rf-primary: #e3c99b;
+    --rf-on-primary: #3a2a0e;
+    --rf-primary-container: #5a4421;
+    --rf-on-primary-container: #f1e3cb;
+    --rf-inverse-primary: #7a5a2a;
+    --rf-primary-fixed: #5a4421;
+  }
+  :root[data-palette="anggur"]:not([data-theme="light"]) {
+    --rf-primary: #d9bdd9;
+    --rf-on-primary: #2e1b2e;
+    --rf-primary-container: #5a3b5a;
+    --rf-on-primary-container: #ebd8eb;
+    --rf-inverse-primary: #664466;
+    --rf-primary-fixed: #5a3b5a;
+  }
+}
+:root[data-palette="laut"][data-theme="dark"] {
+  --rf-primary: #a9cbe0;
+  --rf-on-primary: #12303f;
+  --rf-primary-container: #2c4a5c;
+  --rf-on-primary-container: #cde5f2;
+  --rf-inverse-primary: #2c5d7c;
+  --rf-primary-fixed: #2c4a5c;
+}
+:root[data-palette="pasir"][data-theme="dark"] {
+  --rf-primary: #e3c99b;
+  --rf-on-primary: #3a2a0e;
+  --rf-primary-container: #5a4421;
+  --rf-on-primary-container: #f1e3cb;
+  --rf-inverse-primary: #7a5a2a;
+  --rf-primary-fixed: #5a4421;
+}
+:root[data-palette="anggur"][data-theme="dark"] {
+  --rf-primary: #d9bdd9;
+  --rf-on-primary: #2e1b2e;
+  --rf-primary-container: #5a3b5a;
+  --rf-on-primary-container: #ebd8eb;
+  --rf-inverse-primary: #664466;
+  --rf-primary-fixed: #5a3b5a;
+}
+
 /* ===== Reset global (setara aturan .rf di mockup, tidak di-scope) ===== */
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
