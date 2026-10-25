@@ -78,6 +78,55 @@
         </x-rf.banner>
     </section>
 
+    @php
+        $syncLabels = [
+            'aktif' => ['label' => 'Aktif', 'tone' => 'good'],
+            'masa_tenggang' => ['label' => 'Masa tenggang', 'tone' => 'warn'],
+            'berakhir' => ['label' => 'Berakhir', 'tone' => 'neutral'],
+            'tidak_ada' => ['label' => 'Tidak berlangganan', 'tone' => 'neutral'],
+        ];
+        $syncOn = $syncLabels[$sync['state']];
+        $syncDate = $sync['expires_at']?->locale('id')->translatedFormat('j F Y');
+    @endphp
+
+    <section class="rf-card" id="langganan-sync" aria-label="Langganan Sync">
+        <div class="rf-card-head">
+            <h2 class="rf-h2">Langganan Sync</h2>
+        </div>
+
+        <div class="rf-rowline pf-plan">
+            <div class="rf-grow">
+                <b>Status</b>
+                <p>
+                    @switch($sync['state'])
+                        @case('aktif')
+                            @if ($syncDate === null)
+                                Sync aktif. Tidak ada tanggal berakhir yang tercatat di server.
+                            @elseif ($sync['renewing'])
+                                Diperpanjang otomatis oleh Google Play. Periode berjalan sampai {{ $syncDate }}.
+                            @else
+                                Berlaku sampai {{ $syncDate }}. Tidak diperpanjang otomatis.
+                            @endif
+                            @break
+                        @case('masa_tenggang')
+                            Pembayaran belum berhasil. Sync tetap bisa dipakai sampai {{ $syncDate }}; perbarui metode pembayaran di Google Play.
+                            @break
+                        @case('berakhir')
+                            Langganan berakhir{{ $syncDate ? ' pada '.$syncDate : '' }}. Fitur sync terkunci sampai berlangganan lagi.
+                            @break
+                        @default
+                            Kamu belum berlangganan Sync. Sync dipakai untuk sinkron antar-perangkat dan ruang keluarga bersama.
+                    @endswitch
+                </p>
+            </div>
+            <x-rf.pill :tone="$syncOn['tone']">{{ $syncOn['label'] }}</x-rf.pill>
+        </div>
+
+        <x-rf.banner tone="info" style="margin-top:16px">
+            Kelola langganan lewat Google Play di perangkat Android-mu, termasuk memperbarui atau membatalkannya. Web belum menyediakan pembayaran, jadi langganan tidak bisa dibeli dari sini.
+        </x-rf.banner>
+    </section>
+
     <section class="rf-card" id="kata-sandi" aria-label="Kata sandi">
         <div class="rf-card-head">
             <h2 class="rf-h2">Kata sandi</h2>
@@ -131,6 +180,59 @@
                 </button>
             </div>
         </form>
+    </section>
+
+    <section class="rf-card" id="perangkat" aria-label="Perangkat yang masuk">
+        <div class="rf-card-head">
+            <h2 class="rf-h2">Perangkat yang masuk</h2>
+        </div>
+        <p class="rf-lead" style="margin:0 0 16px">
+            Perangkat Android yang masuk ke akun ini. Mencabut satu perangkat membuatnya keluar dan harus masuk lagi;
+            data di perangkat itu tidak ikut terhapus. Sesi web di peramban ini tidak ikut dicabut.
+        </p>
+
+        @if ($deviceNotice)
+            <x-rf.banner tone="good" role="status" style="margin-bottom:16px">{{ $deviceNotice }}</x-rf.banner>
+        @endif
+
+        @forelse ($devices as $device)
+            <div class="rf-rowline pf-plan" wire:key="perangkat-{{ $device['id'] }}">
+                <div class="rf-grow">
+                    <b>{{ $device['label'] }}</b>
+                    <p>
+                        Masuk sejak {{ $device['created_at']->locale('id')->translatedFormat('j F Y') }}.
+                        @if ($device['last_used_at'])
+                            Terakhir dipakai {{ $device['last_used_at']->locale('id')->translatedFormat('j F Y') }}.
+                        @else
+                            Belum pernah dipakai.
+                        @endif
+                        @if ($device['expires_at'] && $device['expires_at']->isPast())
+                            Kedaluwarsa pada {{ $device['expires_at']->locale('id')->translatedFormat('j F Y') }}.
+                        @elseif ($device['expires_at'])
+                            Berlaku sampai {{ $device['expires_at']->locale('id')->translatedFormat('j F Y') }}.
+                        @endif
+                    </p>
+                </div>
+                <button type="button" class="rf-btn ghost sm"
+                    wire:click="revokeDevice({{ $device['id'] }})"
+                    wire:confirm="Cabut perangkat ini? Perangkat itu akan keluar dari akun dan harus masuk lagi."
+                    aria-label="Cabut perangkat {{ $device['label'] }} masuk {{ $device['created_at']->locale('id')->translatedFormat('j F Y') }}">
+                    <x-rf.icon name="x" />Cabut
+                </button>
+            </div>
+        @empty
+            <p class="rf-lead" style="margin:0">Belum ada perangkat Android yang masuk ke akun ini.</p>
+        @endforelse
+
+        @if ($devices !== [])
+            <div class="rf-actions" style="margin-top:16px">
+                <button type="button" class="rf-btn danger"
+                    wire:click="revokeAllDevices"
+                    wire:confirm="Keluarkan semua perangkat Android dari akun ini? Semuanya harus masuk lagi.">
+                    <x-rf.icon name="logout" />Keluar dari semua perangkat
+                </button>
+            </div>
+        @endif
     </section>
 
     <section class="rf-card pf-danger">
