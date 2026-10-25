@@ -22,7 +22,11 @@ import com.roziqrizal.rizqflow.auth.SharedPrefsSessionStore
 import com.roziqrizal.rizqflow.domain.auth.AppLockService
 import com.roziqrizal.rizqflow.domain.auth.LocalAccountService
 import com.roziqrizal.rizqflow.domain.auth.Pbkdf2PasswordHasher
+import com.roziqrizal.rizqflow.sync.DeviceId
 import com.roziqrizal.rizqflow.ui.AppRoot
+import com.roziqrizal.rizqflow.workspace.AccountWorkspace
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.roziqrizal.rizqflow.ui.theme.RizqflowTheme
 import com.roziqrizal.rizqflow.billing.PurchaseStore
 import com.roziqrizal.rizqflow.domain.entitlement.LivePlanEntitlements
@@ -69,6 +73,12 @@ class MainActivity : FragmentActivity() {
                 newAccountId = { UUID.randomUUID().toString() },
             ),
             scope = lifecycleScope,
+            // Masuk email+sandi ke server (Tahap 14): dijalankan di IO karena membaca berkas ID perangkat.
+            emailSignIn = { email, password ->
+                withContext(Dispatchers.IO) {
+                    AccountWorkspace.signInRemote().loginWithEmail(email, password, DeviceId.read(this@MainActivity))
+                }
+            },
         )
         // Splash sistem hanya latar kosong dan menutup begitu frame pertama tergambar; selama riwayat
         // masuk dibaca, AppRoot menampilkan wordmark penuh (splash sistem tak bisa selebar layar).

@@ -64,8 +64,12 @@
     <string name="login_register_action">Sign up</string>
     <string name="login_fill_username">Enter your username</string>
     <string name="login_fill_password">Enter your password</string>
+    <string name="login_email_label">Rizqflow account: the same email and password as on the web</string>
+    <string name="login_email_submit">Sign in with email</string>
+    <string name="login_fill_email">Enter your email</string>
     <string name="field_username">Username</string>
     <string name="field_password">Password</string>
+    <string name="field_email">Email</string>
     <string name="password_show">Show</string>
     <string name="password_hide">Hide</string>
 
@@ -97,6 +101,8 @@
     <string name="msg_gmail_unavailable">Gmail can\'t be connected right now. Try again later from the More menu.</string>
 
     <string name="msg_wrong_credentials">Wrong username or password.</string>
+    <string name="msg_email_rejected">The email or password can\'t be used to sign in.</string>
+    <string name="msg_server_unreachable">Couldn\'t reach the server. Try again when you\'re online.</string>
     <string name="msg_username_taken">That username is already used on this phone. Choose another.</string>
     <string name="msg_invalid_input">Please check your sign-up details again.</string>
 
@@ -112,6 +118,7 @@
     <string name="account_delete_done">Server account deleted.</string>
     <string name="account_delete_failed">Couldn\'t delete account. Try again.</string>
     <string name="account_delete_session_expired">Your server session has ended. Reconnect from the More menu first, then delete the account.</string>
+    <string name="account_delete_email_session_expired">Your server session has ended. Sign out, sign in again with email and password, then delete the account.</string>
     <string name="menu_reconnect">Reconnect to server</string>
     <string name="menu_reconnect_sub">Your server session ended. Your data and plans on this phone are untouched; sign in with Google again to resume sync and server features.</string>
     <string name="menu_reconnect_busy">Connecting…</string>

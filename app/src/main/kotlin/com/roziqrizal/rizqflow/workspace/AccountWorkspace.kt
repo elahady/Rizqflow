@@ -163,6 +163,12 @@ class AccountWorkspace private constructor(
         }
 
         /**
+         * Remote akun untuk masuk email+sandi (Tahap 14), dipakai SEBELUM ruang kerja akun ada: belum ada akun
+         * (dan karenanya belum ada berkas token) untuk diikat. Tanpa penjaga 401, sama seperti masuk Google.
+         */
+        fun signInRemote(): AccountRemote = RetrofitAccountRemote(RizqflowApiClient.create(resolveBaseUrl()))
+
+        /**
          * Sesi server dan remote akun [accountId] TANPA membuka database akunnya. Dipakai keluar akun saat
          * ruang kerja yang aktif ternyata ruang demo: token akun asli tetap harus dibersihkan dan dicabut.
          */

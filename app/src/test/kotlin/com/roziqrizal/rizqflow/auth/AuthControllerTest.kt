@@ -9,6 +9,9 @@ import com.roziqrizal.rizqflow.domain.auth.LocalAccountService
 import com.roziqrizal.rizqflow.domain.auth.Pbkdf2PasswordHasher
 import com.roziqrizal.rizqflow.domain.auth.SessionStore
 import com.roziqrizal.rizqflow.domain.auth.SignInResult
+import com.roziqrizal.rizqflow.domain.sync.ApiAccount
+import com.roziqrizal.rizqflow.domain.sync.RemoteError
+import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -69,8 +72,13 @@ class AuthControllerTest {
     @AfterTest
     fun tearDown() = scope.cancel()
 
-    private fun controller(store: FakeStore = FakeStore(), provider: FakeProvider = FakeProvider()) =
-        AuthController(store, provider, accounts, scope, cpuDispatcher = Dispatchers.Unconfined)
+    private fun controller(
+        store: FakeStore = FakeStore(),
+        provider: FakeProvider = FakeProvider(),
+        email: EmailSignIn = { _, _ -> RemoteResult.Failure(RemoteError.Unreachable) },
+    ) = AuthController(store, provider, accounts, scope, cpuDispatcher = Dispatchers.Unconfined, emailSignIn = email)
+
+    private val akunServer = ApiAccount(apiToken = "token-server", userId = 9, name = "Roziq", email = "roziq@example.com")
 
     @Test
     fun `sebelum dimulai status masih memuat sehingga splash tetap tampil`() {
@@ -563,5 +571,104 @@ class AuthControllerTest {
         menunggu.complete(SignInResult.Success(sesi, idToken))
 
         assertEquals(AuthUiState.SignedOut(), c.state.value)
+    }
+
+    // --- Masuk email+sandi ke server (Tahap 14) ---
+
+    @Test
+    fun `masuk email yang diterima server membuat sesi email dan menitipkan token ke ruang kerja`() {
+        val store = FakeStore()
+        val c = controller(store, email = { _, _ -> RemoteResult.Success(akunServer) })
+        c.start()
+
+        c.signInWithEmail("roziq@example.com", "kopi-susu")
+
+        val session = AuthSession("roziq@example.com", "roziq@example.com", "Roziq", AuthProviderType.EMAIL)
+        assertEquals(AuthUiState.SignedIn(session, pendingServerAccount = akunServer), c.state.value)
+        assertEquals(session, store.stored)
+    }
+
+    @Test
+    fun `token email hanya diambil sekali dan tidak dikirim ke ruang kerja demo`() {
+        val c = controller(email = { _, _ -> RemoteResult.Success(akunServer) })
+        c.start()
+        c.signInWithEmail("roziq@example.com", "kopi-susu")
+
+        assertEquals(null, c.consumePendingServerAccount(forDemoWorkspace = true), "demo: token dibuang")
+        assertEquals(null, c.consumePendingServerAccount(), "sudah dibuang di atas")
+    }
+
+    @Test
+    fun `token email diambil sekali untuk ruang kerja akun ini`() {
+        val c = controller(email = { _, _ -> RemoteResult.Success(akunServer) })
+        c.start()
+        c.signInWithEmail("roziq@example.com", "kopi-susu")
+
+        assertEquals(akunServer, c.consumePendingServerAccount())
+        assertEquals(null, c.consumePendingServerAccount())
+    }
+
+    @Test
+    fun `sandi salah ditolak server tidak membuat sesi dan menampilkan pesan server apa adanya`() {
+        val store = FakeStore()
+        val c = controller(store, email = { _, _ -> RemoteResult.Failure(RemoteError.Rejected("Email atau kata sandi salah.")) })
+        c.start()
+
+        c.signInWithEmail("roziq@example.com", "salah")
+
+        assertEquals(
+            AuthUiState.SignedOut(message = AuthMessage.SERVER_REJECTED, detail = "Email atau kata sandi salah."),
+            c.state.value,
+        )
+        assertEquals(null, store.stored)
+    }
+
+    @Test
+    fun `server tidak terjangkau memberi pesan lembut dan tidak membuat sesi`() {
+        val store = FakeStore()
+        val c = controller(store)
+        c.start()
+
+        c.signInWithEmail("roziq@example.com", "kopi-susu")
+
+        assertEquals(AuthUiState.SignedOut(message = AuthMessage.SERVER_UNREACHABLE), c.state.value)
+        assertEquals(null, store.stored)
+    }
+
+    @Test
+    fun `galat lain dari server dilaporkan sebagai gagal umum`() {
+        val c = controller(email = { _, _ -> RemoteResult.Failure(RemoteError.Unexpected(500)) })
+        c.start()
+
+        c.signInWithEmail("roziq@example.com", "kopi-susu")
+
+        assertEquals(AuthUiState.SignedOut(message = AuthMessage.FAILED), c.state.value)
+    }
+
+    @Test
+    fun `isian email atau sandi kosong tidak memanggil server`() {
+        var panggilan = 0
+        val c = controller(email = { _, _ -> panggilan++; RemoteResult.Success(akunServer) })
+        c.start()
+
+        c.signInWithEmail("  ", "kopi-susu")
+        c.signInWithEmail("roziq@example.com", "")
+
+        assertEquals(0, panggilan)
+        assertEquals(AuthUiState.SignedOut(message = AuthMessage.WRONG_CREDENTIALS), c.state.value)
+    }
+
+    @Test
+    fun `ketukan kedua masuk email saat masih sibuk diabaikan`() {
+        var panggilan = 0
+        val menunggu = CompletableDeferred<RemoteResult<ApiAccount>>()
+        val c = controller(email = { _, _ -> panggilan++; menunggu.await() })
+        c.start()
+
+        c.signInWithEmail("roziq@example.com", "kopi-susu")
+        c.signInWithEmail("roziq@example.com", "kopi-susu")
+
+        assertEquals(1, panggilan)
+        assertEquals(AuthUiState.SignedOut(busy = AuthBusy.EMAIL), c.state.value)
     }
 }

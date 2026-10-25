@@ -105,6 +105,11 @@ class FakeAccountRemote(valid: Set<String> = emptySet()) : AccountRemote {
         return loginResult
     }
 
+    override suspend fun loginWithEmail(email: String, password: String, deviceId: String): RemoteResult<ApiAccount> {
+        calls += "login-email"
+        return loginResult
+    }
+
     override suspend fun refresh(apiToken: String): RemoteResult<RefreshedToken> {
         calls += "refresh:$apiToken"
         refreshGate?.await()

@@ -34,6 +34,8 @@ class ServerSignOutTest {
 
         override suspend fun loginWithGoogle(idToken: String, deviceId: String): RemoteResult<ApiAccount> = error("tidak dipakai")
 
+        override suspend fun loginWithEmail(email: String, password: String, deviceId: String): RemoteResult<ApiAccount> = error("tidak dipakai")
+
         override suspend fun refresh(apiToken: String): RemoteResult<RefreshedToken> = error("tidak dipakai")
 
         override suspend fun logout(apiToken: String): RemoteResult<Unit> {
@@ -141,6 +143,8 @@ class ServerSignOutTest {
         val session = ServerSession(FakeTokenStore("t-1"))
         val boom = object : AccountRemote {
             override suspend fun loginWithGoogle(idToken: String, deviceId: String): RemoteResult<ApiAccount> = error("x")
+
+            override suspend fun loginWithEmail(email: String, password: String, deviceId: String): RemoteResult<ApiAccount> = error("x")
 
             override suspend fun refresh(apiToken: String): RemoteResult<RefreshedToken> = error("x")
 
