@@ -11,6 +11,7 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Headers
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -63,6 +64,20 @@ interface RizqflowApiService {
         @Header("Authorization") bearerToken: String,
         @Path("roomId") roomId: String,
     ): Response<ResponseBody>
+
+    /** Salinan kunci akun terbungkus kode pemulihan (Tahap 13): unggah/ganti, ambil, hapus. Butuh Sync hanya untuk PUT. */
+    @Headers("Content-Type: application/json")
+    @PUT("account/recovery-key")
+    suspend fun putRecoveryKey(
+        @Header("Authorization") bearerToken: String,
+        @Body body: RequestBody,
+    ): Response<ResponseBody>
+
+    @GET("account/recovery-key")
+    suspend fun getRecoveryKey(@Header("Authorization") bearerToken: String): Response<ResponseBody>
+
+    @DELETE("account/recovery-key")
+    suspend fun deleteRecoveryKey(@Header("Authorization") bearerToken: String): Response<ResponseBody>
 
     /** Lapor token pembelian Pro/Sync ke server (Tahap 9, `Api\PurchaseController@claim`). */
     @Headers("Content-Type: application/json")
@@ -180,3 +195,33 @@ data class PurchaseClaimResultDto(
     @SerialName("product_id") val productId: String,
     val status: String,
 )
+
+/**
+ * Badan `PUT /account/recovery-key`: `{"wrapped_key":"<base64 standar>","version":1}`. `toString` sengaja
+ * menyembunyikan [wrappedKey] (data class biasanya mencetaknya): bungkusan itu sudah terenkripsi kode pemulihan,
+ * tetapi tidak ada alasan membiarkannya masuk log, laporan crash, atau pesan galat.
+ */
+@Serializable
+data class RecoveryKeyPutDto(
+    @SerialName("wrapped_key") val wrappedKey: String,
+    val version: Int,
+) {
+    override fun toString(): String = "RecoveryKeyPutDto(version=$version, wrappedKey=disembunyikan)"
+}
+
+/** Jawaban 200 `PUT`: `{"version":1,"updated_at":"..."}`. */
+@Serializable
+data class RecoveryKeyReceiptDto(
+    val version: Int,
+    @SerialName("updated_at") val updatedAt: String,
+)
+
+/** Jawaban 200 `GET`: `{"wrapped_key":"<base64>","version":1,"updated_at":"..."}`. `toString` menyembunyikan [wrappedKey], seperti [RecoveryKeyPutDto]. */
+@Serializable
+data class RecoveryKeyDto(
+    @SerialName("wrapped_key") val wrappedKey: String,
+    val version: Int,
+    @SerialName("updated_at") val updatedAt: String,
+) {
+    override fun toString(): String = "RecoveryKeyDto(version=$version, updatedAt=$updatedAt, wrappedKey=disembunyikan)"
+}

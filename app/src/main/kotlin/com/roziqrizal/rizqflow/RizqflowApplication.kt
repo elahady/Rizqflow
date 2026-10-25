@@ -5,6 +5,7 @@ import com.roziqrizal.rizqflow.billing.BillingGateway
 import com.roziqrizal.rizqflow.billing.ClaimedTokenMemory
 import com.roziqrizal.rizqflow.billing.PlayBillingGateway
 import com.roziqrizal.rizqflow.notifications.ReminderNotifier
+import com.roziqrizal.rizqflow.sync.RecoveryCodeHolder
 import com.roziqrizal.rizqflow.sync.ServerSignOut
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +30,12 @@ class RizqflowApplication : Application() {
      * scope layar, karena ruang kerja dan menu utama sudah dibongkar begitu pengguna keluar.
      */
     val serverSignOut = ServerSignOut(CoroutineScope(SupervisorJob() + Dispatchers.IO))
+
+    /**
+     * Kode pemulihan 24 kata yang sedang ditampilkan, hanya di memori proses (Tahap 13), supaya memutar layar tidak
+     * membuangnya di tengah mencatat. Tidak pernah disimpan ke disk atau state tersimpan; lihat [RecoveryCodeHolder].
+     */
+    val recoveryCodeHolder = RecoveryCodeHolder()
 
     override fun onCreate() {
         super.onCreate()

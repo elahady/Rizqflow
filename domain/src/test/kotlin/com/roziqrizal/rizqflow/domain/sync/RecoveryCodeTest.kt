@@ -76,4 +76,30 @@ class RecoveryCodeTest {
         words.add(0, last) // menukar urutan tetap 24 kata valid dari wordlist, tapi checksum pasti tidak cocok
         assertFailsWith<InvalidRecoveryCode> { RecoveryCode.parse(words) }
     }
+
+    @Test
+    fun `penolakan membawa alasan yang spesifik untuk jumlah, kata tak dikenal, dan checksum`() {
+        val count = assertFailsWith<InvalidRecoveryCode> { RecoveryCode.parse(listOf("abandon")) }
+        assertEquals(InvalidRecoveryCodeKind.WRONG_COUNT, count.kind)
+
+        val unknown = ("abandon ".repeat(23) + "art").split(" ").toMutableList().also { it[3] = "abondon" }
+        assertEquals(InvalidRecoveryCodeKind.UNKNOWN_WORD, assertFailsWith<InvalidRecoveryCode> { RecoveryCode.parse(unknown) }.kind)
+
+        val swapped = ("abandon ".repeat(23) + "art").split(" ").toMutableList().also { it.add(0, it.removeAt(it.size - 1)) }
+        assertEquals(InvalidRecoveryCodeKind.BAD_CHECKSUM, assertFailsWith<InvalidRecoveryCode> { RecoveryCode.parse(swapped) }.kind)
+    }
+
+    @Test
+    fun `toString menyembunyikan kata supaya tidak bocor ke log`() {
+        val code = RecoveryCode.parse(("zoo ".repeat(23) + "vote").split(" "))
+
+        assertEquals("RecoveryCode(disembunyikan)", code.toString())
+    }
+
+    @Test
+    fun `isKnownWord dan WORD_COUNT sesuai skema 24 kata`() {
+        assertEquals(24, RecoveryCode.WORD_COUNT)
+        assertEquals(true, RecoveryCode.isKnownWord("abandon"))
+        assertEquals(false, RecoveryCode.isKnownWord("bukankata"))
+    }
 }

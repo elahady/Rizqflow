@@ -5,6 +5,9 @@ import com.roziqrizal.rizqflow.domain.sync.ApiAccount
 import com.roziqrizal.rizqflow.domain.sync.PurchaseClaim
 import com.roziqrizal.rizqflow.domain.sync.PurchaseClaimResponse
 import com.roziqrizal.rizqflow.domain.sync.PurchaseRemote
+import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyLookup
+import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyReceipt
+import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyRemote
 import com.roziqrizal.rizqflow.domain.sync.RefreshedToken
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.RoomMemberInfo
@@ -67,4 +70,18 @@ internal class GuardedPurchaseRemote(
 ) : PurchaseRemote {
     override suspend fun claim(apiToken: String, claims: List<PurchaseClaim>): RemoteResult<PurchaseClaimResponse> =
         session.observe(apiToken, inner.claim(apiToken, claims))
+}
+
+internal class GuardedRecoveryKeyRemote(
+    private val inner: RecoveryKeyRemote,
+    private val session: ServerSession,
+) : RecoveryKeyRemote {
+    override suspend fun put(apiToken: String, wrappedKey: ByteArray): RemoteResult<RecoveryKeyReceipt> =
+        session.observe(apiToken, inner.put(apiToken, wrappedKey))
+
+    override suspend fun get(apiToken: String): RemoteResult<RecoveryKeyLookup> =
+        session.observe(apiToken, inner.get(apiToken))
+
+    override suspend fun delete(apiToken: String): RemoteResult<Unit> =
+        session.observe(apiToken, inner.delete(apiToken))
 }

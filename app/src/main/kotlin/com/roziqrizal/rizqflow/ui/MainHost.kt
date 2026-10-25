@@ -106,6 +106,11 @@ import com.roziqrizal.rizqflow.domain.sync.RemoteError
 import com.roziqrizal.rizqflow.sync.DeleteAccountPlan
 import com.roziqrizal.rizqflow.sync.RefreshOutcome
 import com.roziqrizal.rizqflow.sync.planDeleteAccount
+import com.roziqrizal.rizqflow.sync.forgetStatusDurably
+import com.roziqrizal.rizqflow.sync.recoveryRow
+import com.roziqrizal.rizqflow.sync.restoreAvailable
+import com.roziqrizal.rizqflow.ui.recovery.RecoveryRestoreScreen
+import com.roziqrizal.rizqflow.ui.recovery.RecoverySetupScreen
 import com.roziqrizal.rizqflow.sync.shouldOfferReconnect
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -170,6 +175,8 @@ fun MainHost(
     var debtsOpen by rememberSaveable { mutableStateOf(false) }
     var reportOpen by rememberSaveable { mutableStateOf(false) }
     var backupOpen by rememberSaveable { mutableStateOf(false) }
+    var recoverySetupOpen by rememberSaveable { mutableStateOf(false) }
+    var recoveryRestoreOpen by rememberSaveable { mutableStateOf(false) }
     var tampilanOpen by rememberSaveable { mutableStateOf(false) }
     var paywallOpen by rememberSaveable { mutableStateOf(false) }
     var deleteAccountSheet by rememberSaveable { mutableStateOf(false) }
@@ -222,6 +229,12 @@ fun MainHost(
     val needsReconnect by workspace.serverSession.needsReconnect.collectAsState()
     val connectingToServer by workspace.serverSession.connecting.collectAsState()
     val offerReconnect = shouldOfferReconnect(google = account.google, demo = demo, needsReconnect = needsReconnect)
+    // Kode pemulihan 24 kata (Tahap 13). Penanda non-rahasia dibaca ulang tiap layar kode pemulihan ditutup.
+    // Baris "Kode pemulihan" hanya untuk akun Google dengan Sync aktif dan token server aktif; "Pulihkan" tidak
+    // menunggu Sync (membaca salinan tidak butuh langganan). Keduanya hanya ajakan lembut, tidak memblokir apa pun.
+    var recoveryStatus by remember(workspace) { mutableStateOf(workspace.recovery.status()) }
+    val hasServerToken = !needsReconnect
+    val restoreAllowed = restoreAvailable(google = account.google, demo = demo, hasToken = hasServerToken)
     // Satu-satunya kabar dari server yang ditampilkan: token pembelian ini sudah dipakai akun Rizqflow lain.
     // Antre di belakang snackbar yang sedang tampil (bukan menimpanya), supaya "Pro sudah aktif" tidak hilang
     // dipotong kabar ini; kabarnya muncul sekali per token per proses (diatur PurchaseClaimCoordinator).
@@ -313,6 +326,11 @@ fun MainHost(
             }
         }
     }
+
+    // Tawaran aktif "Pulihkan" (snackbar) di perangkat baru SENGAJA tidak dipasang (diputuskan 2026-10-25): belum ada
+    // data yang bergantung pada kunci akun, jadi menawarkannya menjanjikan lebih dari kenyataan, dan GET salinan pada
+    // tiap start dingin untuk semua akun Google tidak sepadan. Baris menu "Pulihkan" tetap ada. Pasang kembali
+    // (`shouldOfferRestoreOnNewDevice` + `RecoveryKeyService.checkRemoteCopy`) setelah sinkron data akun ada.
 
     // Transaksi berulang (Tahap 10): catat semua kemunculan yang sudah tiba, termasuk yang terlewat selama
     // aplikasi tidak dibuka. Berjalan saat ruang kerja dibuka dan tiap aplikasi kembali ke depan (harinya
@@ -433,6 +451,8 @@ fun MainHost(
                     when (val result = workspace.accountRemote.deleteAccount(plan.token)) {
                         is RemoteResult.Success -> {
                             workspace.serverSession.onAccountDeleted()
+                            // Salinan kode pemulihan di server ikut terhapus bersama akunnya: penanda lokal tidak boleh tetap "terkonfigurasi".
+                            workspace.recovery.forgetStatusDurably()
                             deletingAccount = false
                             deleteAccountSheet = false
                             onSignOut()
@@ -569,6 +589,15 @@ fun MainHost(
         syncOwned = Plan.SYNC in ownedPlans,
         onReconnect = if (offerReconnect) onReconnectServer else null,
         reconnectBusy = account.busy == AuthBusy.GOOGLE || connectingToServer,
+        recoveryRow = recoveryRow(
+            google = account.google,
+            demo = demo,
+            syncOwned = Plan.SYNC in ownedPlans,
+            hasToken = hasServerToken,
+            status = recoveryStatus,
+        ),
+        onOpenRecovery = { recoverySetupOpen = true },
+        onOpenRecoveryRestore = if (restoreAllowed) ({ recoveryRestoreOpen = true }) else null,
     )
     // Sambung ulang yang diminta pengguna tidak menjangkau server (offline, 503): satu kabar lembut, barisnya tetap ada.
     LaunchedEffect(serverConnectFailedSignal) {
@@ -668,6 +697,42 @@ fun MainHost(
             Box {
                 CsvScreen(workspace = workspace, notifier = notifier, onClose = { csvOpen = false })
                 // Layar ini menutupi Scaffold beserta snackbar-nya, jadi ia membawa SnackbarHost sendiri.
+                SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
+            }
+        }
+    }
+    if (recoverySetupOpen) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Box {
+                RecoverySetupScreen(
+                    workspace = workspace,
+                    accountId = account.identifier,
+                    onOpenRestore = {
+                        recoverySetupOpen = false
+                        recoveryStatus = workspace.recovery.status()
+                        recoveryRestoreOpen = true
+                    },
+                    onClose = {
+                        recoverySetupOpen = false
+                        recoveryStatus = workspace.recovery.status()
+                    },
+                )
+                SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
+            }
+        }
+    }
+    if (recoveryRestoreOpen) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Box {
+                RecoveryRestoreScreen(
+                    workspace = workspace,
+                    notifier = notifier,
+                    onRecovered = {
+                        recoveryRestoreOpen = false
+                        recoveryStatus = workspace.recovery.status()
+                    },
+                    onClose = { recoveryRestoreOpen = false },
+                )
                 SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
             }
         }

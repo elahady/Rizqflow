@@ -4,6 +4,7 @@ import com.roziqrizal.rizqflow.domain.sync.AccountRemote
 import com.roziqrizal.rizqflow.domain.sync.ApiAccount
 import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
 import com.roziqrizal.rizqflow.domain.sync.PurchaseRemote
+import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyRemote
 import com.roziqrizal.rizqflow.domain.sync.RefreshedToken
 import com.roziqrizal.rizqflow.domain.sync.RemoteError
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
@@ -212,6 +213,9 @@ class ServerSession(
 
     fun guard(remote: RoomMembershipRemote): RoomMembershipRemote =
         GuardedRoomMembershipRemote(remote, this)
+
+    fun guard(remote: RecoveryKeyRemote): RecoveryKeyRemote =
+        GuardedRecoveryKeyRemote(remote, this)
 
     fun guard(remote: PurchaseRemote): PurchaseRemote =
         GuardedPurchaseRemote(remote, this)

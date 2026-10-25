@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.ui.unit.dp
 import com.roziqrizal.rizqflow.auth.AuthBusy
 import com.roziqrizal.rizqflow.auth.AuthMessage
+import com.roziqrizal.rizqflow.sync.RecoveryRow
+import com.roziqrizal.rizqflow.ui.recovery.formatConfiguredAt
 import com.roziqrizal.rizqflow.ui.login.messageText
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -113,6 +115,11 @@ fun RizqflowApp(
     onReconnect: (() -> Unit)? = null,
     /** Masuk ulang ke server sedang berjalan; baris menampilkan "Menyambungkan…" dan tidak bisa ditekan lagi. */
     reconnectBusy: Boolean = false,
+    /** Baris "Kode pemulihan" (Tahap 13); [RecoveryRow.Hidden] = tidak tampil. */
+    recoveryRow: RecoveryRow = RecoveryRow.Hidden,
+    onOpenRecovery: (() -> Unit)? = null,
+    /** "Pulihkan dengan kode pemulihan"; null = baris tidak tampil. */
+    onOpenRecoveryRestore: (() -> Unit)? = null,
 ) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
@@ -168,7 +175,7 @@ fun RizqflowApp(
             TopTab.entries.forEach { tab ->
                 composable(tab.route) {
                     if (tab == TopTab.Lainnya && account != null) {
-                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport, onToggleProDebug, onDeleteAccount, onOpenFamilyScan, onOpenSyncPaywall, syncOwned, onReconnect, reconnectBusy)
+                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport, onToggleProDebug, onDeleteAccount, onOpenFamilyScan, onOpenSyncPaywall, syncOwned, onReconnect, reconnectBusy, recoveryRow, onOpenRecovery, onOpenRecoveryRestore)
                     } else if (tab == TopTab.Transaksi && transaksiContent != null) {
                         transaksiContent()
                     } else if (tab == TopTab.Ruang && ruangContent != null) {
@@ -202,9 +209,9 @@ private fun PlaceholderScreen(title: String, note: String) {
     }
 }
 
-/** Baris menu di tab Lainnya: judul, keterangan, dan panah. */
+/** Baris menu di tab Lainnya: judul, keterangan, dan panah. [statusIcon] (opsional) mendampingi teks status, bukan menggantikannya. */
 @Composable
-private fun MenuRow(title: String, subtitle: String, onClick: () -> Unit) {
+private fun MenuRow(title: String, subtitle: String, onClick: () -> Unit, statusIcon: ImageVector? = null) {
     Row(
         modifier = Modifier
             .padding(top = MaterialTheme.spacing.s3)
@@ -213,6 +220,9 @@ private fun MenuRow(title: String, subtitle: String, onClick: () -> Unit) {
             .padding(vertical = MaterialTheme.spacing.s2),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (statusIcon != null) {
+            Icon(statusIcon, contentDescription = null, modifier = Modifier.padding(end = MaterialTheme.spacing.s3).size(20.dp))
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleSmall)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -265,6 +275,9 @@ private fun LainnyaScreen(
     syncOwned: Boolean = false,
     onReconnect: (() -> Unit)? = null,
     reconnectBusy: Boolean = false,
+    recoveryRow: RecoveryRow = RecoveryRow.Hidden,
+    onOpenRecovery: (() -> Unit)? = null,
+    onOpenRecoveryRestore: (() -> Unit)? = null,
 ) {
     val spacing = MaterialTheme.spacing
     Column(
@@ -323,6 +336,31 @@ private fun LainnyaScreen(
                 stringResource(R.string.menu_sync),
                 stringResource(if (syncOwned) R.string.menu_sync_sub_owned else R.string.menu_sync_sub_free),
                 onOpenSyncPaywall,
+            )
+        }
+        // Kode pemulihan (Tahap 13): ajakan lembut, tidak pernah memblokir pemakaian lokal. Status ikon plus teks.
+        if (onOpenRecovery != null && recoveryRow != RecoveryRow.Hidden) {
+            val subtitle = when (recoveryRow) {
+                RecoveryRow.Hidden, RecoveryRow.Offer -> stringResource(R.string.menu_recovery_sub_offer)
+                RecoveryRow.Pending -> stringResource(R.string.menu_recovery_sub_pending)
+                is RecoveryRow.Configured -> stringResource(R.string.menu_recovery_sub_configured, formatConfiguredAt(recoveryRow.at))
+            }
+            MenuRow(
+                stringResource(R.string.menu_recovery),
+                subtitle,
+                onOpenRecovery,
+                statusIcon = when (recoveryRow) {
+                    is RecoveryRow.Configured -> RizqflowIcons.Centang
+                    RecoveryRow.Pending -> RizqflowIcons.Peringatan
+                    else -> RizqflowIcons.Lingkaran
+                },
+            )
+        }
+        if (onOpenRecoveryRestore != null) {
+            MenuRow(
+                stringResource(R.string.menu_recovery_restore),
+                stringResource(R.string.menu_recovery_restore_sub),
+                onOpenRecoveryRestore,
             )
         }
         if (onToggleProDebug != null) {

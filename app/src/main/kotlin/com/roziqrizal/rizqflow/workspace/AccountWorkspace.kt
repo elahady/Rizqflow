@@ -5,19 +5,26 @@ import android.util.Log
 import com.roziqrizal.rizqflow.BuildConfig
 import com.roziqrizal.rizqflow.billing.PurchaseStore
 import com.roziqrizal.rizqflow.data.LocalLedger
+import com.roziqrizal.rizqflow.data.crypto.AndroidKeystoreAccountKeyProvider
 import com.roziqrizal.rizqflow.data.crypto.AndroidKeystoreRoomKeyProvider
 import com.roziqrizal.rizqflow.data.remote.ApiBaseUrl
 import com.roziqrizal.rizqflow.data.remote.RetrofitAccountRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitPurchaseRemote
+import com.roziqrizal.rizqflow.data.remote.RetrofitRecoveryKeyRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitRoomMembershipRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitSyncRemote
 import com.roziqrizal.rizqflow.data.remote.RizqflowApiClient
 import com.roziqrizal.rizqflow.data.remote.SharedPrefsApiTokenStore
 import com.roziqrizal.rizqflow.data.sync.JsonTransactionSyncCodec
+import com.roziqrizal.rizqflow.data.sync.SharedPrefsRecoveryStatusStore
 import com.roziqrizal.rizqflow.data.sync.SharedPrefsSyncCursorStore
+import com.roziqrizal.rizqflow.domain.sync.AccountKeyProvider
 import com.roziqrizal.rizqflow.domain.sync.AccountRemote
 import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
 import com.roziqrizal.rizqflow.domain.sync.PurchaseRemote
+import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyRemote
+import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyService
+import com.roziqrizal.rizqflow.domain.sync.RecoveryStatusStore
 import com.roziqrizal.rizqflow.domain.sync.RoomKeyProvider
 import com.roziqrizal.rizqflow.domain.sync.RoomMembershipRemote
 import com.roziqrizal.rizqflow.domain.sync.SyncCursorStore
@@ -66,6 +73,12 @@ class AccountWorkspace private constructor(
     val roomMembershipRemote: RoomMembershipRemote,
     val purchaseRemote: PurchaseRemote,
     private val syncCursorStore: SyncCursorStore,
+    /** Kunci akun di Keystore (Tahap 13), satu per akun; dasar kode pemulihan. */
+    val accountKeyProvider: AccountKeyProvider,
+    /** Salinan kunci akun terbungkus kode pemulihan di server; sudah dibungkus [serverSession]. */
+    private val recoveryRemote: RecoveryKeyRemote,
+    /** Penanda NON-RAHASIA "kode pemulihan sudah diatur" per akun (tidak pernah memuat kode atau kunci). */
+    private val recoveryStatusStore: RecoveryStatusStore,
 ) : AutoCloseable {
     private val newId: () -> String = { UUID.randomUUID().toString() }
 
@@ -106,6 +119,14 @@ class AccountWorkspace private constructor(
         cursorStore = syncCursorStore,
     )
 
+    /**
+     * Kode pemulihan 24 kata (Tahap 13): bungkus kunci akun lalu simpan salinannya di server, dan pulihkan di
+     * perangkat baru. Kode tidak pernah disimpan atau dikirim; lihat [RecoveryKeyService]. Pulihkan MENIMPA
+     * kunci akun lokal, aman sekarang karena belum ada data lokal yang memakai kunci akun (sync entitas akun
+     * belum dibangun; yang ada baru kunci ruang, yang tidak disentuh).
+     */
+    val recovery = RecoveryKeyService(accountKeyProvider, recoveryRemote, apiTokenStore, recoveryStatusStore)
+
     /** Memutar token API sebelum kedaluwarsa (Tahap 12); satu per ruang kerja, jadi satu Mutex per akun. */
     val tokenRefresher = TokenRefresher(serverSession, accountRemote)
 
@@ -135,6 +156,9 @@ class AccountWorkspace private constructor(
                 roomMembershipRemote = session.guard(RetrofitRoomMembershipRemote(apiService)),
                 purchaseRemote = session.guard(RetrofitPurchaseRemote(apiService)),
                 syncCursorStore = SharedPrefsSyncCursorStore(context),
+                accountKeyProvider = AndroidKeystoreAccountKeyProvider(context, accountId),
+                recoveryRemote = session.guard(RetrofitRecoveryKeyRemote(apiService)),
+                recoveryStatusStore = SharedPrefsRecoveryStatusStore(context, accountId),
             )
         }
 

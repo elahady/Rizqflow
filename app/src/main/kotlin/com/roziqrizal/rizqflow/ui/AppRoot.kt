@@ -208,6 +208,8 @@ fun AppRoot(
                                         workspaceLink = ServerLink(workspace.serverSession, workspace.accountRemote),
                                         realAccountLink = { AccountWorkspace.serverLink(localContext, s.session.accountId) },
                                     )
+                                    // Kode pemulihan yang sedang tampil tidak boleh tertinggal di memori setelah keluar.
+                                    (localContext.applicationContext as RizqflowApplication).recoveryCodeHolder.clear()
                                     controller.signOut()
                                 },
                                 onReconnectServer = {

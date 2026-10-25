@@ -16,6 +16,10 @@ kotlin {
 }
 
 dependencies {
+    // NonCancellable dan Mutex untuk RecoveryKeyService (pencatatan hasil unggah tidak boleh ikut dibatalkan).
+    // Hanya pustaka JVM murni; tidak menyeret Android.
+    implementation(libs.kotlinx.coroutines.core)
+
     testImplementation(platform(libs.junit.bom))
     testImplementation(kotlin("test"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
