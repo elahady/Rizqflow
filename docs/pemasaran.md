@@ -105,14 +105,14 @@ Metrik setelah rilis butuh pengukuran di aplikasi atau server; apakah Firebase A
 - **Pemasaran berjalan paralel dengan pengembangan**, dilacak sebagai jalur Tahap P0–P4 di roadmap.md, strateginya di dokumen ini (2026-10-24).
 - **Akun Instagram khusus Rizqflow** dibuat, bukan memakai akun pribadi pemilik (usulan pemilik 2026-10-24).
 - **Nama akun media sosial: `rizqflowra`** (dipilih pemilik 2026-10-24, tersedia di Instagram). `@rizqflow` sudah dipakai pihak lain; usulan `rizqflowapp` tidak dipakai. Nama yang sama dipakai juga di Threads, TikTok, dan X bila tersedia.
+- **Waktu pemasaran per minggu: 2–3 jam** (2026-10-26, pemilik setuju usulan).
+- **Tampil sebagai founder: ya**, dengan nama dan wajah sendiri (2026-10-26, pemilik setuju usulan). Platform mana yang dipakai belum dirinci.
+- **Anggaran boost: uji kecil dulu**, sekitar Rp 20.000–30.000 per hari selama 5–7 hari, berhenti bila biaya per pendaftar jauh di atas Rp 8.000 (2026-10-26, pemilik setuju usulan — mengukuhkan aturan main yang sudah diusulkan di bagian "Instagram dan boost" di atas sebagai keputusan).
 
 ## Keputusan yang masih terbuka
 
 - **Positioning**: membidik ceruk keluarga muslim muda dengan zakat sebagai pintu masuk (usulan di atas), atau umum sejak awal.
-- **Waktu pemasaran per minggu** (usulan 2–3 jam).
-- **Tampil sebagai founder** dengan nama dan wajah sendiri atau tidak, dan di platform mana pemilik sudah punya audiens (LinkedIn, Instagram, Threads, TikTok).
 - **Ambang daftar tunggu** yang dianggap "minat tervalidasi" sampai rilis (mis. 100 pendaftar); dipakai untuk menutup butir "Validasi minat" di Tahap 0.
-- **Anggaran boost per bulan** yang direlakan sebagai biaya eksperimen.
 - **Siapa pemakai `@rizqflow` di Instagram**: bila produk atau bisnis keuangan yang aktif, itu risiko merek yang perlu dicatat di [konsep.md](konsep.md) ("Cek nama") dan dipertimbangkan sebelum nama dan `applicationId` terkunci di unggahan AAB pertama (Tahap 8).
 - **Pembuat desain konten**: pemilik sendiri lewat Canva, atau Claude menyusun naskah carousel dan template.
 - **Bentuk harga perdana**: harga awal yang lebih rendah untuk semua pembeli lalu naik, atau kode promo Play khusus pendaftar daftar tunggu. Bergantung pada harga final Pro ([monetisasi.md](monetisasi.md)).
