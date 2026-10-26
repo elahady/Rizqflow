@@ -23,6 +23,8 @@ class SyncLogEntry extends Model
         'payload',
         'deleted',
         'changed_at',
+        /** Tahap 2 sync-desain.md bagian G: presisi milidetik, dasar idempotensi dan LWW klien. */
+        'changed_at_ms',
     ];
 
     protected function casts(): array
@@ -30,6 +32,7 @@ class SyncLogEntry extends Model
         return [
             'deleted' => 'boolean',
             'changed_at' => 'datetime',
+            'changed_at_ms' => 'integer',
             'created_at' => 'datetime',
         ];
     }

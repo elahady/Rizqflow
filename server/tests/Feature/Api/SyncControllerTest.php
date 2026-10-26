@@ -251,4 +251,138 @@ class SyncControllerTest extends TestCase
         $response->assertOk()->assertJsonCount(1, 'entries');
         $this->assertSame('tx-1', $response->json('entries.0.record_id'));
     }
+
+    // ------------------------------------------------------------------ Tahap 2 sync-desain.md
+
+    public function test_push_is_idempotent_when_the_same_entry_is_resent_after_a_lost_ack(): void
+    {
+        $user = $this->syncUser();
+        $headers = $this->authHeader($user);
+        $entry = ['record_type' => 'transaction', 'record_id' => 'tx-1', 'device_id' => 'pixel-1', 'payload' => 'a', 'deleted' => false, 'changed_at' => '2026-10-19T10:00:00Z', 'changed_at_ms' => 1792404000000];
+
+        $first = $this->withHeaders($headers)->postJson('/api/sync/push', ['entries' => [$entry]]);
+        $second = $this->withHeaders($headers)->postJson('/api/sync/push', ['entries' => [$entry]]);
+
+        $first->assertOk();
+        $second->assertOk();
+        $this->assertSame($first->json('ids.0'), $second->json('ids.0'), 'baris yang sama, bukan duplikat baru');
+        $this->assertSame(1, SyncLogEntry::count());
+    }
+
+    public function test_push_stores_changed_at_ms_and_derives_it_when_the_client_omits_it(): void
+    {
+        $user = $this->syncUser();
+
+        $this->withHeaders($this->authHeader($user))->postJson('/api/sync/push', [
+            'entries' => [['record_type' => 'transaction', 'record_id' => 'tx-1', 'device_id' => 'pixel-1', 'payload' => 'a', 'changed_at' => '2026-10-19T10:00:00Z']],
+        ])->assertOk();
+
+        $this->assertSame(1792404000000, SyncLogEntry::sole()->changed_at_ms);
+    }
+
+    public function test_push_response_includes_server_time_ms(): void
+    {
+        $user = $this->syncUser();
+
+        $response = $this->withHeaders($this->authHeader($user))->postJson('/api/sync/push', [
+            'entries' => [['record_type' => 'transaction', 'record_id' => 'tx-1', 'device_id' => 'pixel-1', 'payload' => 'a', 'changed_at' => '2026-10-19T10:00:00Z']],
+        ]);
+
+        $response->assertOk();
+        $this->assertIsInt($response->json('server_time_ms'));
+        $this->assertGreaterThan(0, $response->json('server_time_ms'));
+    }
+
+    public function test_pull_response_includes_server_time_ms_changed_at_ms_and_an_opaque_author(): void
+    {
+        $user = $this->syncUser();
+        $this->withHeaders($this->authHeader($user))->postJson('/api/sync/push', [
+            'entries' => [['record_type' => 'transaction', 'record_id' => 'tx-1', 'device_id' => 'pixel-1', 'payload' => 'a', 'changed_at' => '2026-10-19T10:00:00Z']],
+        ])->assertOk();
+
+        $response = $this->withHeaders($this->authHeader($user))->getJson('/api/sync/pull');
+
+        $response->assertOk();
+        $this->assertIsInt($response->json('server_time_ms'));
+        $this->assertSame(1792404000000, $response->json('entries.0.changed_at_ms'));
+        $author = $response->json('entries.0.author');
+        $this->assertIsString($author);
+        $this->assertNotSame((string) $user->id, $author, 'author tidak boleh membocorkan user_id mentah');
+    }
+
+    public function test_a_member_other_than_the_original_author_cannot_overwrite_a_shared_room_row(): void
+    {
+        $owner = $this->syncUser();
+        $partner = $this->syncUser();
+
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/sync/push', [
+            'entries' => [['room_id' => 'ruang-keluarga-1', 'record_type' => 'transaction', 'record_id' => 'tx-1', 'device_id' => 'pixel-owner', 'payload' => 'dari-owner', 'changed_at' => '2026-10-19T10:00:00Z']],
+        ])->assertOk();
+
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+
+        // Partner mencoba "menang" lewat id yang sama dengan cap waktu lebih baru — server menolak
+        // baris ini walau isi payload dan device_id-nya bisa saja dipalsukan (kunci ruang sama untuk semua
+        // anggota), karena hanya PENULIS PERTAMA baris ini yang boleh mengubahnya (bagian B R3).
+        $this->app['auth']->forgetGuards();
+        $response = $this->withHeaders($this->authHeader($partner))->postJson('/api/sync/push', [
+            'entries' => [['room_id' => 'ruang-keluarga-1', 'record_type' => 'transaction', 'record_id' => 'tx-1', 'device_id' => 'pixel-partner', 'payload' => 'palsu-dari-partner', 'changed_at' => '2026-10-19T11:00:00Z']],
+        ]);
+
+        $response->assertOk();
+        $this->assertSame([], $response->json('ids'), 'baris ditolak, bukan ditulis sebagai versi baru');
+        $this->assertSame(1, SyncLogEntry::where('record_id', 'tx-1')->count());
+        $this->assertSame('dari-owner', SyncLogEntry::where('record_id', 'tx-1')->sole()->payload);
+    }
+
+    public function test_push_rejecting_every_entry_still_returns_a_sensible_cursor(): void
+    {
+        $owner = $this->syncUser();
+        $partner = $this->syncUser();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/sync/push', [
+            'entries' => [['room_id' => 'ruang-keluarga-1', 'record_type' => 'transaction', 'record_id' => 'tx-1', 'device_id' => 'pixel-owner', 'payload' => 'dari-owner', 'changed_at' => '2026-10-19T10:00:00Z']],
+        ])->assertOk();
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/sync/push', [
+            'entries' => [['room_id' => 'ruang-keluarga-1', 'record_type' => 'transaction', 'record_id' => 'tx-own', 'device_id' => 'pixel-partner', 'payload' => 'punya partner', 'changed_at' => '2026-10-19T10:00:01Z']],
+        ])->assertOk();
+
+        $this->app['auth']->forgetGuards();
+        $response = $this->withHeaders($this->authHeader($partner))->postJson('/api/sync/push', [
+            'entries' => [['room_id' => 'ruang-keluarga-1', 'record_type' => 'transaction', 'record_id' => 'tx-1', 'device_id' => 'pixel-partner', 'payload' => 'palsu', 'changed_at' => '2026-10-19T12:00:00Z']],
+        ]);
+
+        $response->assertOk();
+        $this->assertSame([], $response->json('ids'));
+        $this->assertIsInt($response->json('cursor'));
+    }
+
+    public function test_pull_with_device_id_records_its_cursor_in_sync_devices(): void
+    {
+        $user = $this->syncUser();
+        $this->withHeaders($this->authHeader($user))->postJson('/api/sync/push', [
+            'entries' => [['record_type' => 'transaction', 'record_id' => 'tx-1', 'device_id' => 'pixel-1', 'payload' => 'a', 'changed_at' => '2026-10-19T10:00:00Z']],
+        ])->assertOk();
+
+        $response = $this->withHeaders($this->authHeader($user))->getJson('/api/sync/pull?device_id=pixel-1');
+
+        $response->assertOk();
+        $this->assertDatabaseHas('sync_devices', [
+            'user_id' => $user->id,
+            'device_id' => 'pixel-1',
+            'after_id' => $response->json('next_after'),
+        ]);
+    }
+
+    public function test_pull_without_device_id_does_not_write_to_sync_devices(): void
+    {
+        $user = $this->syncUser();
+
+        $this->withHeaders($this->authHeader($user))->getJson('/api/sync/pull')->assertOk();
+
+        $this->assertDatabaseCount('sync_devices', 0);
+    }
 }
