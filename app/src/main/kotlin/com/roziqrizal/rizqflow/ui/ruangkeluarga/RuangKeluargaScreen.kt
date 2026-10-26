@@ -43,6 +43,7 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.roziqrizal.rizqflow.R
+import com.roziqrizal.rizqflow.domain.entitlement.Feature
 import com.roziqrizal.rizqflow.domain.model.RoomId
 import com.roziqrizal.rizqflow.domain.sync.RemoteError
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
@@ -54,6 +55,7 @@ import com.roziqrizal.rizqflow.sync.isUnauthorized
 import com.roziqrizal.rizqflow.sync.retryOnceIfRotated
 import com.roziqrizal.rizqflow.sync.sessionEndedBy
 import com.roziqrizal.rizqflow.ui.Notifier
+import com.roziqrizal.rizqflow.ui.paywall.opensSyncPaywall
 import com.roziqrizal.rizqflow.ui.theme.spacing
 import com.roziqrizal.rizqflow.workspace.AccountWorkspace
 import kotlinx.coroutines.launch
@@ -66,15 +68,30 @@ import qrcode.QRCode
  * membuat kunci/mendaftar diri sendiri tidak membocorkan apa pun (pemilik sudah punya semua
  * datanya). Trigger sync di putaran ini hanya manual, bukan latar belakang (konsisten "tenang,
  * bukan panik").
+ *
+ * Layar ini butuh langganan Sync (Tahap 9, "Penguncian Sync di klien"): tanpa Sync, atau bila server menjawab 403,
+ * [onOpenSyncPaywall] dibuka dan layar ditutup lewat [onClose]; tidak ada request yang dijalankan.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RuangKeluargaScreen(workspace: AccountWorkspace, roomId: RoomId, notifier: Notifier, onClose: () -> Unit) {
+fun RuangKeluargaScreen(
+    workspace: AccountWorkspace,
+    roomId: RoomId,
+    notifier: Notifier,
+    onClose: () -> Unit,
+    onOpenSyncPaywall: () -> Unit,
+) {
     val spacing = MaterialTheme.spacing
     val context = LocalContext.current
     val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     BackHandler(onBack = onClose)
+
+    // Paket Sync tidak dimiliki (atau server menolak 403): paywall Sync dibuka, layar ditutup, bukan dibiarkan gagal diam-diam.
+    fun leaveForSyncPaywall() {
+        onOpenSyncPaywall()
+        onClose()
+    }
 
     var roomName by remember { mutableStateOf<String?>(null) }
     var members by remember { mutableStateOf<List<RoomMemberInfo>?>(null) }
@@ -120,23 +137,35 @@ fun RuangKeluargaScreen(workspace: AccountWorkspace, roomId: RoomId, notifier: N
 
             // "Sesi berakhir" hanya dinyatakan bila ServerSession benar-benar menyatakannya (token sudah dibersihkan dan
             // "perlu sambungkan ulang" naik); 401 lain yang sesinya masih sah diperlakukan sebagai gagal muat biasa.
-            is RemoteResult.Failure ->
-                if (session.sessionEndedBy(result)) {
+            is RemoteResult.Failure -> when {
+                result.error.opensSyncPaywall() -> leaveForSyncPaywall()
+                session.sessionEndedBy(result) -> {
                     signedIn = false
                     sessionEnded = true
-                } else {
-                    loadFailed = true
                 }
+
+                else -> loadFailed = true
+            }
         }
     }
 
     LaunchedEffect(roomId, reloadKey) {
+        // Dicek sebelum request apa pun (join, anggota): tanpa Sync, tidak ada yang dikirim ke server.
+        if (!workspace.entitlements.isEnabled(Feature.SHARED_FAMILY_ROOM)) {
+            leaveForSyncPaywall()
+            return@LaunchedEffect
+        }
         roomName = workspace.repositories.rooms.find(roomId)?.name
         workspace.roomKeyProvider.getOrCreateRoomKey(roomId) // kunci wajib ada sebelum QR bisa dirender
         loadMembers()
     }
 
     fun syncNow() {
+        // Dicek sebelum request: paket yang sudah turun di tengah sesi tidak boleh menjalankan sinkron.
+        if (!workspace.entitlements.isEnabled(Feature.ENCRYPTED_SYNC)) {
+            leaveForSyncPaywall()
+            return
+        }
         syncing = true
         scope.launch {
             val session = workspace.serverSession
@@ -160,13 +189,15 @@ fun RuangKeluargaScreen(workspace: AccountWorkspace, roomId: RoomId, notifier: N
                     reloadKey++
                 }
 
-                is SyncResult.Failed ->
-                    if (session.sessionEndedBy(result.error)) {
+                is SyncResult.Failed -> when {
+                    session.sessionEndedBy(result.error) -> {
                         signedIn = false
                         sessionEnded = true
-                    } else {
-                        notifier.show(resources.getString(R.string.family_sync_failed))
                     }
+
+                    result.error.opensSyncPaywall() -> leaveForSyncPaywall()
+                    else -> notifier.show(resources.getString(R.string.family_sync_failed))
+                }
 
                 SyncResult.NotSignedIn -> signedIn = false
             }

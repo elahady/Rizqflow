@@ -601,7 +601,11 @@ fun MainHost(
         // Di mode demo ruang kerja aktifnya milik akun demo yang tidak punya token: menghapus "akun" dari sini hanya
         // akan keluar tanpa menghapus apa pun di server. Baris disembunyikan sampai pengguna keluar dari demo.
         onDeleteAccount = if (demo) null else ({ deleteAccountSheet = true }),
-        onOpenFamilyScan = { familyScanOpen = true },
+        // Penguncian Sync di klien (Tahap 9): tanpa langganan Sync, pemindai tidak dibuka dan paywall Sync yang tampil.
+        onOpenFamilyScan = {
+            if (workspace.entitlements.isEnabled(Feature.SHARED_FAMILY_ROOM)) familyScanOpen = true
+            else openPaywall(Feature.SHARED_FAMILY_ROOM)
+        },
         onOpenSyncPaywall = { openPaywall(Feature.ENCRYPTED_SYNC) },
         syncOwned = Plan.SYNC in ownedPlans,
         onReconnect = if (offerReconnect) onReconnectServer else null,
@@ -672,6 +676,12 @@ fun MainHost(
                                 }
 
                                 FamilyJoinResult.NotSignedIn -> notifier.show(resources.getString(R.string.family_join_not_signed_in))
+                                // Tanpa Sync (paket turun di tengah sesi, atau 403): pemindai ditutup dan paywall Sync yang tampil.
+                                FamilyJoinResult.SyncRequired -> {
+                                    familyScanOpen = false
+                                    openPaywall(Feature.SHARED_FAMILY_ROOM)
+                                }
+
                                 is FamilyJoinResult.Failed -> notifier.show(resources.getString(R.string.family_join_failed))
                             }
                         }
@@ -990,7 +1000,11 @@ fun MainHost(
                     onArchived = ::announceRoomArchived,
                     onOpenZakat = { zakatRoom = it.value },
                     onOpenRole = { roleRoom = it.value },
-                    onOpenFamily = { familyRoom = it.value },
+                    // Penguncian Sync di klien (Tahap 9): tanpa langganan Sync, Ruang Keluarga tidak dibuka.
+                    onOpenFamily = {
+                        if (workspace.entitlements.isEnabled(Feature.SHARED_FAMILY_ROOM)) familyRoom = it.value
+                        else openPaywall(Feature.SHARED_FAMILY_ROOM)
+                    },
                 )
                 SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
             }
@@ -1004,6 +1018,7 @@ fun MainHost(
                     roomId = RoomId(familyRoom.orEmpty()),
                     notifier = notifier,
                     onClose = { familyRoom = null },
+                    onOpenSyncPaywall = { openPaywall(Feature.ENCRYPTED_SYNC) },
                 )
                 SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
             }

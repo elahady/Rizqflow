@@ -1,5 +1,6 @@
 package com.roziqrizal.rizqflow.ui.ruangkeluarga
 
+import com.roziqrizal.rizqflow.domain.entitlement.Feature
 import com.roziqrizal.rizqflow.domain.ledger.Category
 import com.roziqrizal.rizqflow.domain.ledger.Room
 import com.roziqrizal.rizqflow.domain.ledger.RoomTemplates
@@ -11,6 +12,7 @@ import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.RoomInvite
 import com.roziqrizal.rizqflow.sync.isUnauthorized
 import com.roziqrizal.rizqflow.sync.retryOnceIfRotated
+import com.roziqrizal.rizqflow.ui.paywall.opensSyncPaywall
 import com.roziqrizal.rizqflow.workspace.AccountWorkspace
 import java.util.UUID
 
@@ -19,6 +21,9 @@ sealed interface FamilyJoinResult {
 
     /** Belum masuk dengan Google atau belum punya langganan Sync — join butuh token API. */
     data object NotSignedIn : FamilyJoinResult
+
+    /** Tanpa langganan Sync (dicek di klien, atau server menjawab 403): dibuka sebagai ajakan paywall, bukan pesan gagal. */
+    data object SyncRequired : FamilyJoinResult
 
     data class Failed(val error: RemoteError) : FamilyJoinResult
 }
@@ -35,6 +40,8 @@ sealed interface FamilyJoinResult {
  * keanggotaan tetap terdaftar bila pemanggilan pertama sempat gagal karena offline.
  */
 suspend fun joinSharedRoom(workspace: AccountWorkspace, invite: RoomInvite): FamilyJoinResult {
+    // Dicek sebelum apa pun di perangkat berubah (ruang dan kunci belum dibuat): tanpa Sync, paywall Sync saja.
+    if (!workspace.entitlements.isEnabled(Feature.SHARED_FAMILY_ROOM)) return FamilyJoinResult.SyncRequired
     val session = workspace.serverSession
     if (session.token() == null) return FamilyJoinResult.NotSignedIn
 
@@ -67,7 +74,8 @@ suspend fun joinSharedRoom(workspace: AccountWorkspace, invite: RoomInvite): Fam
     return when (result) {
         null -> FamilyJoinResult.NotSignedIn
         is RemoteResult.Success -> FamilyJoinResult.Success(invite.roomId)
-        is RemoteResult.Failure -> FamilyJoinResult.Failed(result.error)
+        is RemoteResult.Failure ->
+            if (result.error.opensSyncPaywall()) FamilyJoinResult.SyncRequired else FamilyJoinResult.Failed(result.error)
     }
 }
 
