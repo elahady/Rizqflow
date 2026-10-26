@@ -80,6 +80,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/akun', Kelola::class)->name('kelola');
     // Analisa › Aliran menggantikan hub kartu Laporan; nama route tetap 'laporan' supaya tautan lama berfungsi.
     Route::get('/laporan', Aliran::class)->name('laporan');
+    Route::get('/laporan/aliran/pdf', [ReportPdfController::class, 'aliran'])->name('laporan.aliran.pdf');
     Route::get('/laporan/tren', GrafikTren::class)->name('laporan.tren');
     Route::get('/laporan/kekayaan-bersih', KekayaanBersih::class)->name('laporan.kekayaan-bersih');
     Route::get('/laporan/bandingkan', BandingkanPeriode::class)->name('laporan.bandingkan');

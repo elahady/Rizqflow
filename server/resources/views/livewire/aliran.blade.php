@@ -32,11 +32,56 @@
     @if (! $canUseReports)
         <x-analisa.upsell title="Aliran rezeki adalah fitur Pro." text="Lihat ke mana setiap rupiah rezekimu mengalir: dari pemasukan ke ruang, lalu ke pos dan sisa." />
     @else
-        <div class="rf-row" style="gap: 8px" role="group" aria-label="Rentang waktu">
-            @foreach (['1' => 'Bulan ini', '3' => '3 bulan', '12' => '12 bulan'] as $value => $label)
-                <button type="button" wire:click="setRentang('{{ $value }}')" @class(['rf-chip', 'on' => (string) $count === (string) $value]) aria-pressed="{{ (string) $count === (string) $value ? 'true' : 'false' }}">{{ (string) $value === '1' && ! \App\Support\Period::isCurrent($end) ? '1 bulan' : $label }}</button>
-            @endforeach
-        </div>
+        {{-- Fokus ruang (Alpine) disimpan lewat wire:key: ganti tampilan atau rentang menyetel ulang fokus ke nilai tersimpan. --}}
+        <div wire:key="aliran-{{ $end->format('Y-m') }}-{{ $count }}-{{ $akunMode }}-{{ implode(',', $akunTerpilih) }}-{{ $sorotAktif }}" x-data="{ focus: @js($sorotAktif), simpanBuka: false }">
+            <div class="rf-row" style="gap: 8px" role="group" aria-label="Rentang waktu dan akun">
+                @foreach (['1' => 'Bulan ini', '3' => '3 bulan', '12' => '12 bulan'] as $value => $label)
+                    <button type="button" wire:click="setRentang('{{ $value }}')" @class(['rf-chip', 'on' => (string) $count === (string) $value]) aria-pressed="{{ (string) $count === (string) $value ? 'true' : 'false' }}">{{ (string) $value === '1' && ! \App\Support\Period::isCurrent($end) ? '1 bulan' : $label }}</button>
+                @endforeach
+                <button type="button" wire:click="setAkun('semua')" @class(['rf-chip', 'on' => $akunMode === 'semua']) aria-pressed="{{ $akunMode === 'semua' ? 'true' : 'false' }}">Semua akun</button>
+                <button type="button" wire:click="setAkun('kustom')" @class(['rf-chip', 'on' => $akunMode === 'kustom']) aria-pressed="{{ $akunMode === 'kustom' ? 'true' : 'false' }}">Kustom</button>
+                <span style="flex: 1 1 0"></span>
+                <button type="button" class="rf-btn ghost sm" @click="simpanBuka = !simpanBuka" :aria-expanded="simpanBuka ? 'true' : 'false'" aria-controls="al-simpan">Simpan tampilan</button>
+                <a class="rf-btn ghost sm" href="{{ $pdfUrl }}"><x-rf.icon name="download" />Unduh PDF</a>
+            </div>
+
+            @if ($akunMode === 'kustom')
+                <div class="rf-card" style="margin-top: 10px">
+                    <p class="rf-sub" style="margin-bottom: 8px">Pilih akun yang ikut dihitung di diagram ini. Minimal satu akun harus terpilih.</p>
+                    <div class="rf-row" style="gap: 16px; flex-wrap: wrap">
+                        @forelse ($akunList as $akun)
+                            <label style="display: inline-flex; align-items: center; gap: 8px">
+                                <input type="checkbox" wire:click="toggleAkun({{ $akun->id }})" @checked(in_array($akun->id, $akunTerpilih, true))>
+                                <span>{{ $akun->name }}@if ($akun->archived) <span class="rf-sub">(diarsipkan)</span>@endif</span>
+                            </label>
+                        @empty
+                            <p class="rf-sub">Belum ada akun.</p>
+                        @endforelse
+                    </div>
+                </div>
+            @endif
+
+            <div id="al-simpan" style="display: none; margin-top: 10px" x-show="simpanBuka">
+                <form class="rf-row" style="gap: 8px; flex-wrap: wrap" x-on:submit.prevent="$wire.simpanTampilan(focus)">
+                    <input type="text" class="rf-input" style="max-width: 320px" wire:model="namaTampilan" maxlength="60" placeholder="Nama tampilan, mis. Rezeki 3 bulan" aria-label="Nama tampilan" aria-describedby="al-nama-err">
+                    <button type="submit" class="rf-btn tonal sm">Simpan</button>
+                </form>
+                @error('namaTampilan')
+                    <p class="rf-sub" id="al-nama-err" role="alert" style="margin-top: 6px">{{ $message }}</p>
+                @enderror
+            </div>
+
+            @if ($tampilan->isNotEmpty())
+                <div class="rf-row" style="gap: 8px; margin-top: 10px; flex-wrap: wrap" role="group" aria-label="Tampilan tersimpan">
+                    <span class="rf-sub">Tersimpan:</span>
+                    @foreach ($tampilan as $view)
+                        <span class="rf-row" style="gap: 2px">
+                            <button type="button" class="rf-chip" wire:click="terapkanTampilan({{ $view->id }})">{{ $view->name }}</button>
+                            <button type="button" class="rf-btn ghost sm" wire:click="hapusTampilan({{ $view->id }})" wire:confirm="Hapus tampilan ini?" aria-label="Hapus tampilan {{ $view->name }}"><x-rf.icon name="x" /></button>
+                        </span>
+                    @endforeach
+                </div>
+            @endif
 
         @if ($layout['empty'])
             <section class="rf-card">
@@ -55,7 +100,7 @@
                 $height = $layout['height'] + 28;
             @endphp
 
-            <section class="rf-card" wire:key="aliran-{{ $end->format('Y-m') }}-{{ $count }}" x-data="{ focus: 'semua' }">
+            <section class="rf-card">
                 <div class="rf-card-head">
                     <div>
                         <h2 class="rf-h2">Dari mana rezeki datang, ke mana ia mengalir</h2>
@@ -211,5 +256,6 @@
                 </section>
             </div>
         @endif
+        </div>
     @endif
 </div>
