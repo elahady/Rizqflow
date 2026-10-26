@@ -30,6 +30,13 @@ data class Account(
     val sortOrder: Int = 0,
     /** Terakhir kali saldo dicocokkan lewat Koreksi saldo (S25); null bila belum pernah. */
     val lastReconciledOn: LocalDate? = null,
+    /**
+     * Terisi hanya untuk **akun anggota virtual** (Tahap 2 sync-desain.md bagian E): akun pengganti
+     * yang mewakili nama akun sumber transaksi anggota lain di ruang bersama ini, bukan akun milik
+     * pengguna sendiri. Tidak pernah punya saldo nyata dan wajib disaring dari daftar akun aktif,
+     * pemilih akun, saldo, dan ekspor pribadi — lihat [AccountRepository.activeAccounts].
+     */
+    val sharedFrom: RoomId? = null,
 ) {
     init {
         require(name.isNotBlank() && name.length <= NAME_MAX) { "Nama akun 1 sampai $NAME_MAX karakter" }

@@ -69,6 +69,7 @@ interface RizqflowApiService {
         @Header("Authorization") bearerToken: String,
         @Query("after") after: Long,
         @Query("limit") limit: Int,
+        @Query("device_id") deviceId: String,
     ): Response<ResponseBody>
 
     /** Keanggotaan ruang yang dibagi (Tahap 9, roadmap.md "Ruang keluarga bersama"). */
@@ -191,12 +192,16 @@ data class SyncEntryUploadDto(
     val payload: String,
     val deleted: Boolean,
     @SerialName("changed_at") val changedAt: String,
+    /** Tahap 2 sync-desain.md bagian G: presisi milidetik di atas [changedAt]. Null tidak dikirim. */
+    @SerialName("changed_at_ms") val changedAtMs: Long? = null,
 )
 
+/** [serverTimeMs] (Tahap 2, bagian G) aditif: server lama tidak mengirimnya, jadi bawaannya null. */
 @Serializable
 data class PushResponseDto(
     val ids: List<Long>,
     val cursor: Long,
+    @SerialName("server_time_ms") val serverTimeMs: Long? = null,
 )
 
 @Serializable
@@ -209,6 +214,9 @@ data class SyncEntryDownloadDto(
     val payload: String,
     val deleted: Boolean,
     @SerialName("changed_at") val changedAt: String,
+    @SerialName("changed_at_ms") val changedAtMs: Long? = null,
+    /** Tahap 2 bagian B R3: penulis pertama baris ini, pengenal buram ditentukan server. */
+    val author: String? = null,
 )
 
 @Serializable
@@ -216,6 +224,7 @@ data class PullResponseDto(
     val entries: List<SyncEntryDownloadDto>,
     @SerialName("next_after") val nextAfter: Long,
     @SerialName("has_more") val hasMore: Boolean,
+    @SerialName("server_time_ms") val serverTimeMs: Long? = null,
 )
 
 /** Bentuk error Laravel standar: `{"message": "..."}` (kadang disertai `errors`, sengaja diabaikan). */

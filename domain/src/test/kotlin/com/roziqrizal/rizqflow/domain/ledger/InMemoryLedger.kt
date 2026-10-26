@@ -61,12 +61,26 @@ class InMemoryLedger(private val nowMillis: () -> Long = System::currentTimeMill
     // ---- AccountRepository
     override suspend fun find(id: AccountId) = accountRows[id]
 
-    override suspend fun activeAccounts() = accountRows.values.filter { !it.archived }.sortedBy { it.sortOrder }
+    override suspend fun activeAccounts() = accountRows.values.filter { !it.archived && it.sharedFrom == null }.sortedBy { it.sortOrder }
 
     override suspend fun allAccounts() = accountRows.values.sortedBy { it.sortOrder }
 
     override suspend fun save(account: Account) {
         accountRows[account.id] = account
+    }
+
+    override suspend fun findOrCreateVirtualMember(roomId: RoomId, author: String, accountName: String): Account {
+        val id = com.roziqrizal.rizqflow.domain.sync.VirtualMemberAccount.id(roomId, author, accountName)
+        accountRows[id]?.let { return it }
+        val account = Account(
+            id = id,
+            name = com.roziqrizal.rizqflow.domain.sync.VirtualMemberAccount.displayName(accountName, author),
+            kind = com.roziqrizal.rizqflow.domain.model.AccountKind.CASH,
+            openingBalance = Money.zero(),
+            sharedFrom = roomId,
+        )
+        accountRows[id] = account
+        return account
     }
 
     override suspend fun balance(id: AccountId): Money {

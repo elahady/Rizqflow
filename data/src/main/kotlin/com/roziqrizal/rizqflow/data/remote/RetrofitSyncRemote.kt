@@ -16,15 +16,15 @@ class RetrofitSyncRemote(private val service: RizqflowApiService) : SyncRemote {
             val body = response.body()
             if (response.isSuccessful && body != null) {
                 val decoded = body.decodeJson(PushResponseDto.serializer())
-                RemoteResult.Success(SyncPushResult(ids = decoded.ids, cursor = decoded.cursor))
+                RemoteResult.Success(SyncPushResult(ids = decoded.ids, cursor = decoded.cursor, serverTimeMs = decoded.serverTimeMs))
             } else {
                 response.toFailure()
             }
         }
 
-    override suspend fun pull(apiToken: String, after: Long, limit: Int): RemoteResult<SyncPullResult> =
+    override suspend fun pull(apiToken: String, deviceId: String, after: Long, limit: Int): RemoteResult<SyncPullResult> =
         safeCall {
-            val response = service.pull(bearer(apiToken), after, limit)
+            val response = service.pull(bearer(apiToken), after, limit, deviceId)
             val body = response.body()
             if (response.isSuccessful && body != null) {
                 val decoded = body.decodeJson(PullResponseDto.serializer())
@@ -33,6 +33,7 @@ class RetrofitSyncRemote(private val service: RizqflowApiService) : SyncRemote {
                         entries = decoded.entries.map { it.toDomain() },
                         nextAfter = decoded.nextAfter,
                         hasMore = decoded.hasMore,
+                        serverTimeMs = decoded.serverTimeMs,
                     ),
                 )
             } else {
@@ -49,6 +50,7 @@ private fun SyncLogEntryUpload.toDto() = SyncEntryUploadDto(
     payload = payload,
     deleted = deleted,
     changedAt = changedAt,
+    changedAtMs = changedAtMillis,
 )
 
 private fun SyncEntryDownloadDto.toDomain() = SyncLogEntryDownload(
@@ -60,4 +62,6 @@ private fun SyncEntryDownloadDto.toDomain() = SyncLogEntryDownload(
     payload = payload,
     deleted = deleted,
     changedAt = changedAt,
+    changedAtMillis = changedAtMs,
+    author = author,
 )

@@ -42,6 +42,7 @@ internal fun AccountEntity.toDomain() = Account(
     archived = archived,
     sortOrder = sortOrder,
     lastReconciledOn = lastReconciledOn?.let(LocalDate::ofEpochDay),
+    sharedFrom = sharedFrom?.let(::RoomId),
 )
 
 internal fun Account.toEntity() = AccountEntity(
@@ -53,6 +54,7 @@ internal fun Account.toEntity() = AccountEntity(
     archived = archived,
     sortOrder = sortOrder,
     lastReconciledOn = lastReconciledOn?.toEpochDay(),
+    sharedFrom = sharedFrom?.value,
 )
 
 internal fun RoomEntity.toDomain() = Room(

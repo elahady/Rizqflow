@@ -55,8 +55,8 @@ internal class GuardedSyncRemote(
     override suspend fun push(apiToken: String, entries: List<SyncLogEntryUpload>): RemoteResult<SyncPushResult> =
         session.observe(apiToken, inner.push(apiToken, entries))
 
-    override suspend fun pull(apiToken: String, after: Long, limit: Int): RemoteResult<SyncPullResult> =
-        session.observe(apiToken, inner.pull(apiToken, after, limit))
+    override suspend fun pull(apiToken: String, deviceId: String, after: Long, limit: Int): RemoteResult<SyncPullResult> =
+        session.observe(apiToken, inner.pull(apiToken, deviceId, after, limit))
 }
 
 internal class GuardedRoomMembershipRemote(

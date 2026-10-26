@@ -34,7 +34,7 @@ private class FakeRoomKeyProvider : RoomKeyProvider {
     override fun rotateRoomKey(roomId: RoomId) = aead
 }
 
-/** Codec tiruan: baris teks dipisah "|" — cukup untuk menguji logika [SyncEngine], bukan format sungguhan. */
+/** Codec tiruan: baris teks dipisah "|" — cukup untuk menguji logika [SyncCoordinator], bukan format sungguhan. */
 private class FakeTransactionSyncCodec : TransactionSyncCodec {
     override fun encode(transaction: MoneyTransaction, accountName: String, categoryName: String?): ByteArray =
         listOf(
@@ -68,13 +68,18 @@ private class FakeSyncRemote : SyncRemote {
         failWith?.let { return RemoteResult.Failure(it) }
         val ids = entries.map { entry ->
             val id = nextId++
-            stored += SyncLogEntryDownload(id, entry.roomId, entry.recordType, entry.recordId, entry.deviceId, entry.payload, entry.deleted, entry.changedAt)
+            // Tiruan server (Tahap 2 bagian B R3): penulis = device_id yang pertama kali menulis id ini.
+            val author = stored.firstOrNull { it.recordId == entry.recordId }?.author ?: entry.deviceId
+            stored += SyncLogEntryDownload(
+                id, entry.roomId, entry.recordType, entry.recordId, entry.deviceId, entry.payload, entry.deleted,
+                entry.changedAt, entry.changedAtMillis, author,
+            )
             id
         }
         return RemoteResult.Success(SyncPushResult(ids, ids.max()))
     }
 
-    override suspend fun pull(apiToken: String, after: Long, limit: Int): RemoteResult<SyncPullResult> {
+    override suspend fun pull(apiToken: String, deviceId: String, after: Long, limit: Int): RemoteResult<SyncPullResult> {
         failWith?.let { return RemoteResult.Failure(it) }
         val page = stored.filter { it.id > after }.sortedBy { it.id }.take(limit)
         return RemoteResult.Success(SyncPullResult(page, page.lastOrNull()?.id ?: after, page.size == limit))
@@ -95,13 +100,13 @@ private class FakeSyncCursorStore : SyncCursorStore {
     override fun save(roomId: String, cursor: Long) { cursors[roomId] = cursor }
 }
 
-class SyncEngineTest {
+class SyncCoordinatorTest {
     private val roomId = RoomId("room-keluarga")
     private val accountId = AccountId("acc-1")
     private val categoryId = CategoryId("cat-1")
 
     private fun engine(ledger: InMemoryLedger, remote: FakeSyncRemote, tokenStore: ApiTokenStore = FakeApiTokenStore()) =
-        SyncEngine(ledger, ledger, ledger, FakeRoomKeyProvider(), remote, FakeTransactionSyncCodec(), tokenStore, FakeSyncCursorStore())
+        SyncCoordinator(ledger, ledger, ledger, FakeRoomKeyProvider(), remote, FakeTransactionSyncCodec(), tokenStore, FakeSyncCursorStore())
 
     private fun seedRoomAndAccount(ledger: InMemoryLedger) {
         ledger.roomRows[roomId] = Room(roomId, "Keluarga", RoomKind.MENCUKUPI, "home", 1, sortOrder = 0)
@@ -174,6 +179,52 @@ class SyncEngineTest {
         // Bukan IMPORT: baris anggota lain bukan data pribadi (dikecualikan dari pencatat dan backfill sinkron entitas penuh).
         assertEquals(TransactionOrigin.SHARED, applied?.origin)
         assertEquals(categoryId, applied?.categoryId)
+        // Akun anggota virtual (Tahap 2, keputusan pemilik #0): TIDAK PERNAH akun nyata "Dompet" milik B,
+        // walau namanya sama persis dengan akun A — itu bug SyncEngine lama yang digantikan di tahap ini.
+        assertTrue(applied?.accountId != accountId, "pengeluaran anggota lain tidak boleh atas nama akun nyata milik penerima")
+        val virtualAccount = ledgerB.accountRows[applied?.accountId]
+        assertEquals(roomId, virtualAccount?.sharedFrom)
+    }
+
+    @Test
+    fun a_shared_expense_from_a_member_never_touches_the_real_balance_of_a_same_named_local_account() = runSuspend {
+        val ledgerA = InMemoryLedger()
+        seedRoomAndAccount(ledgerA)
+        ledgerA.transactionRows[TransactionId("tx-1")] = expense("tx-1", 50_000)
+        val remote = FakeSyncRemote()
+        engine(ledgerA, remote).syncNow(roomId, deviceId = "device-a")
+
+        val ledgerB = InMemoryLedger()
+        seedRoomAndAccount(ledgerB) // akun "Dompet" nyata milik B, namanya kebetulan sama dengan akun A
+        val balanceBefore = ledgerB.balance(accountId)
+
+        engine(ledgerB, remote).syncNow(roomId, deviceId = "device-b")
+
+        assertEquals(balanceBefore, ledgerB.balance(accountId))
+        assertEquals(listOf(accountId), ledgerB.activeAccounts().map { it.id }, "akun virtual tidak boleh ikut daftar akun aktif")
+    }
+
+    @Test
+    fun creates_one_virtual_member_account_per_author_even_for_transactions_from_an_unknown_local_account_name() = runSuspend {
+        val ledgerA = InMemoryLedger()
+        seedRoomAndAccount(ledgerA)
+        ledgerA.transactionRows[TransactionId("tx-1")] = expense("tx-1", 50_000)
+        val remote = FakeSyncRemote()
+        engine(ledgerA, remote).syncNow(roomId, deviceId = "device-a")
+
+        val ledgerB = InMemoryLedger()
+        ledgerB.roomRows[roomId] = Room(roomId, "Keluarga", RoomKind.MENCUKUPI, "home", 1, sortOrder = 0)
+        ledgerB.categoryRows[categoryId] = Category(categoryId, roomId, "Belanja")
+        // Tidak ada akun "Dompet" di sisi B sama sekali — dulu ini membuat baris dilewati (skipped);
+        // sekarang akun anggota virtual selalu bisa dibuat, tidak pernah tergantung akun lokal penerima.
+        val result = engine(ledgerB, remote).syncNow(roomId, deviceId = "device-b") as SyncResult.Success
+
+        assertEquals(1, result.applied)
+        assertEquals(0, result.skipped)
+        val applied = ledgerB.transactionRows.getValue(TransactionId("tx-1"))
+        val virtualAccount = ledgerB.accountRows.getValue(applied.accountId)
+        assertEquals(roomId, virtualAccount.sharedFrom)
+        assertTrue(virtualAccount.name.contains("Dompet"), "nama akun sumber tetap terbawa di nama akun virtual")
     }
 
     @Test
@@ -186,25 +237,6 @@ class SyncEngineTest {
         val result = engine(ledger, remote).syncNow(roomId, deviceId = "device-a") as SyncResult.Success
 
         assertEquals(0, result.applied) // entry baru saja dipush oleh device-a sendiri, bukan dari anggota lain
-    }
-
-    @Test
-    fun skips_an_incoming_transaction_with_an_unknown_account_name() = runSuspend {
-        val ledgerA = InMemoryLedger()
-        seedRoomAndAccount(ledgerA)
-        ledgerA.transactionRows[TransactionId("tx-1")] = expense("tx-1", 50_000)
-        val remote = FakeSyncRemote()
-        engine(ledgerA, remote).syncNow(roomId, deviceId = "device-a")
-
-        val ledgerB = InMemoryLedger()
-        ledgerB.roomRows[roomId] = Room(roomId, "Keluarga", RoomKind.MENCUKUPI, "home", 1, sortOrder = 0)
-        ledgerB.categoryRows[categoryId] = Category(categoryId, roomId, "Belanja")
-        // Tidak ada akun "Dompet" di sisi B sama sekali.
-        val result = engine(ledgerB, remote).syncNow(roomId, deviceId = "device-b") as SyncResult.Success
-
-        assertEquals(0, result.applied)
-        assertEquals(1, result.skipped)
-        assertTrue(ledgerB.transactionRows.isEmpty())
     }
 
     @Test
@@ -385,7 +417,7 @@ class SyncEngineTest {
 
     /**
      * Temuan 2026-10-25 (diperbaiki 2026-10-27): server mengirim baris dari semua ruang yang diikuti anggota, dan
-     * [SyncEngine.pull] kini melewati baris yang `roomId`-nya tidak sama dengan ruang yang disinkron. Sebelum
+     * pull mesin sync kini melewati baris yang `roomId`-nya tidak sama dengan ruang yang disinkron. Sebelum
      * perbaikan, transaksi ruang lain ikut diterapkan ke ruang ini dengan kategorinya (tes ini gagal).
      */
     @Test

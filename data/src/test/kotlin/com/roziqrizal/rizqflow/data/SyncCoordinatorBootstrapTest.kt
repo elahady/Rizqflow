@@ -8,8 +8,8 @@ import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.RoomKeyProvider
 import com.roziqrizal.rizqflow.domain.sync.SyncAead
+import com.roziqrizal.rizqflow.domain.sync.SyncCoordinator
 import com.roziqrizal.rizqflow.domain.sync.SyncCursorStore
-import com.roziqrizal.rizqflow.domain.sync.SyncEngine
 import com.roziqrizal.rizqflow.domain.sync.SyncLogEntryDownload
 import com.roziqrizal.rizqflow.domain.sync.SyncLogEntryUpload
 import com.roziqrizal.rizqflow.domain.sync.SyncPullResult
@@ -55,7 +55,7 @@ private class MemoryRemote : SyncRemote {
         return RemoteResult.Success(SyncPushResult(ids, ids.maxOrNull() ?: 0))
     }
 
-    override suspend fun pull(apiToken: String, after: Long, limit: Int): RemoteResult<SyncPullResult> {
+    override suspend fun pull(apiToken: String, deviceId: String, after: Long, limit: Int): RemoteResult<SyncPullResult> {
         val page = stored.filter { it.id > after }.take(limit)
         return RemoteResult.Success(SyncPullResult(page, page.lastOrNull()?.id ?: after, page.size == limit))
     }
@@ -75,13 +75,13 @@ private class MemoryCursor : SyncCursorStore {
 }
 
 /**
- * SyncEngine lama terhadap Room sungguhan di dua sisi: pengeluaran pasangan yang ditarik tersimpan sebagai origin
- * SHARED, tidak dicatat recorder, dan tidak disentuh SyncBootstrap.markAllDirty (tidak diterbitkan kelak ke scope=a),
- * namun tetap muncul sebagai transaksi biasa di riwayat dan terpakai ruang seperti perilaku lama.
+ * SyncCoordinator (Tahap 2) terhadap Room sungguhan di dua sisi: pengeluaran pasangan yang ditarik tersimpan sebagai
+ * origin SHARED, tidak dicatat recorder, dan tidak disentuh SyncBootstrap.markAllDirty (tidak diterbitkan kelak ke
+ * scope=a), namun tetap muncul sebagai transaksi biasa di riwayat dan terpakai ruang seperti perilaku lama.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
-class SyncEngineBootstrapTest {
+class SyncCoordinatorBootstrapTest {
     private lateinit var a: SyncFixture
     private lateinit var b: SyncFixture
 
@@ -98,7 +98,7 @@ class SyncEngineBootstrapTest {
     }
 
     private fun engine(f: SyncFixture, remote: SyncRemote) =
-        SyncEngine(f.local.transactions, f.local.rooms, f.local.accounts, IdentityKeys(), remote, JsonTransactionSyncCodec(), MemoryToken(), MemoryCursor())
+        SyncCoordinator(f.local.transactions, f.local.rooms, f.local.accounts, IdentityKeys(), remote, JsonTransactionSyncCodec(), MemoryToken(), MemoryCursor())
 
     private suspend fun keluarga(f: SyncFixture) = f.local.rooms.activeRooms().first { it.name == "Keluarga" }
 

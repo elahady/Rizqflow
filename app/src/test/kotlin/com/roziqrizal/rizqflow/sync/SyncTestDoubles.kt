@@ -139,7 +139,7 @@ class FailingSyncRemote(private val error: RemoteError) : SyncRemote {
     override suspend fun push(apiToken: String, entries: List<SyncLogEntryUpload>): RemoteResult<SyncPushResult> =
         RemoteResult.Failure(error)
 
-    override suspend fun pull(apiToken: String, after: Long, limit: Int): RemoteResult<SyncPullResult> =
+    override suspend fun pull(apiToken: String, deviceId: String, after: Long, limit: Int): RemoteResult<SyncPullResult> =
         RemoteResult.Failure(error)
 }
 

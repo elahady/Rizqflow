@@ -252,7 +252,7 @@ class SessionKetahananTest {
                 if (token == "t-1") {
                     // Permintaan terbang dengan t-1; putar token menyimpan t-2; server menjawab 401 untuk t-1.
                     session.onRotated("t-1", RefreshedToken("t-2", null), at = now)
-                    session.guard(FailingSyncRemote(RemoteError.Unauthorized)).pull(token)
+                    session.guard(FailingSyncRemote(RemoteError.Unauthorized)).pull(token, "device-x")
                 } else {
                     RemoteResult.Failure(RemoteError.Unreachable)
                 }
@@ -275,7 +275,7 @@ class SessionKetahananTest {
             isUnauthorized = { it.isUnauthorized() },
             call = {
                 calls++
-                session.guard(FailingSyncRemote(RemoteError.Unauthorized)).pull(session.token()!!)
+                session.guard(FailingSyncRemote(RemoteError.Unauthorized)).pull(session.token()!!, "device-x")
             },
         )
 
