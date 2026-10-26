@@ -16,8 +16,12 @@ package com.roziqrizal.rizqflow.domain.sync
  * - **Risiko jam jauh ke depan**: bila jam perangkat sempat melompat jauh ke depan (salah setel), cap yang keluar ikut
  *   besar dan mengalahkan edit perangkat lain yang bercap jam benar sampai waktu sungguhan menyusul; di dalam satu
  *   instance cap itu juga "mengunci" nilai tinggi. Cap per rekaman tetap naik +1 tiap edit, jadi urutan lokal
- *   tidak rusak. Penjepitan cap masa depan saat push (menolak atau memangkas cap yang jauh melewati waktu server)
- *   belum ada dan DIKERJAKAN di Tahap 2 bersama `server_time_ms`; kelas ini sengaja tidak menjepit apa pun.
+ *   tidak rusak. **Tahap 2**: [SyncCoordinator] memanggil [stamp] tepat sebelum push (bukan di jalur tulis lokal
+ *   biasa) supaya [serverOffsetMillis] ikut mengoreksi cap yang dikirim begitu perangkat ini pernah sekali
+ *   tersambung ke server. Kelas ini sendiri TIDAK menolak atau memangkas (clamp) cap yang jauh melewati waktu
+ *   server — ia hanya menjumlahkan offset dan menjaga lantai per rekaman; sebelum koneksi pertama (offset masih
+ *   0) cap yang keluar masih bisa sebesar jam perangkat yang salah itu, karena belum ada apa pun untuk
+ *   dikoreksi terhadap (tidak terhindarkan tanpa kontak server sama sekali).
  *
  * Jam disuntikkan ([deviceNowMillis]) supaya tes tidak bergantung pada waktu sistem. Kelas ini
  * hanya menjaga status di memori; tidak ada I/O. Aman dipakai dari beberapa thread.
@@ -35,6 +39,16 @@ class SyncClock(private val deviceNowMillis: () -> Long = System::currentTimeMil
     fun setServerOffset(offsetMillis: Long) {
         this.offsetMillis = offsetMillis
     }
+
+    /**
+     * Jam perangkat MENTAH, tanpa [serverOffsetMillis] atau lantai per rekaman — dasar pemanggil
+     * ([SyncCoordinator]) menghitung ulang offset dari balasan server: `offset baru = server_time_ms
+     * - rawDeviceNowMillis()`. Sengaja BUKAN `System.currentTimeMillis()` langsung di sisi pemanggil:
+     * harus jam SUMBER YANG SAMA dengan yang dipakai [stamp] (relevan terutama saat [deviceNowMillis]
+     * disuntik beda dari jam sistem, mis. di tes), supaya offset yang dihitung benar-benar mengoreksi
+     * jam yang dipakai [stamp], bukan jam lain yang kebetulan berbeda.
+     */
+    fun rawDeviceNowMillis(): Long = deviceNowMillis()
 
     /**
      * Cap untuk perubahan lokal sekarang. [recordChangedAtMillis] adalah `changed_at` rekaman yang
