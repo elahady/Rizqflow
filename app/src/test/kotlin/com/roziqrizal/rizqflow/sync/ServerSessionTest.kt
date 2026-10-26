@@ -98,7 +98,7 @@ class ServerSessionTest {
         fun fresh() = FakeTokenStore(token = "t").let { it to ServerSession(it) }
 
         fresh().let { (store, session) ->
-            session.guard(FailingSyncRemote(RemoteError.Unauthorized)).pull("t")
+            session.guard(FailingSyncRemote(RemoteError.Unauthorized)).pull("t", "device-x")
             assertNull(store.token, "pull")
             assertTrue(session.needsReconnect.value)
         }

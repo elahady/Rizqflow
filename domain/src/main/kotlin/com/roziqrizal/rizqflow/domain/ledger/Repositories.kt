@@ -46,6 +46,17 @@ interface AccountRepository {
 
     /** Saldo menurut catatan: saldo awal + pemasukan - pengeluaran +/- transfer. */
     suspend fun balance(id: AccountId): Money
+
+    /**
+     * Mencari atau membuat akun anggota virtual (Tahap 2 sync-desain.md bagian B/E, keputusan
+     * pemilik #0): dipakai [com.roziqrizal.rizqflow.domain.sync.SyncCoordinator] saat menerapkan
+     * pengeluaran anggota lain di ruang bersama, supaya baris itu punya akun FK yang sah TANPA
+     * pernah menyentuh atau mencocokkan akun nyata milik penerima (itu bug Tahap 9 lama). Id
+     * deterministik dari (roomId, author, accountName) — panggilan ulang dengan masukan yang sama
+     * mengembalikan akun yang sama, idempoten. TIDAK pernah ditandai kotor untuk sync pribadi
+     * (bukan data milik pengguna ini) dan TIDAK pernah masuk [activeAccounts].
+     */
+    suspend fun findOrCreateVirtualMember(roomId: RoomId, author: String, accountName: String): Account
 }
 
 interface RoomRepository {

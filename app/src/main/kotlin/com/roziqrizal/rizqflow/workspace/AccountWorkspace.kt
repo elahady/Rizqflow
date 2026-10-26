@@ -32,7 +32,7 @@ import com.roziqrizal.rizqflow.domain.sync.RoomMemberKeyRedistribution
 import com.roziqrizal.rizqflow.domain.sync.RoomMembershipRemote
 import com.roziqrizal.rizqflow.domain.sync.SharedRoomStatus
 import com.roziqrizal.rizqflow.domain.sync.SyncCursorStore
-import com.roziqrizal.rizqflow.domain.sync.SyncEngine
+import com.roziqrizal.rizqflow.domain.sync.SyncCoordinator
 import com.roziqrizal.rizqflow.domain.sync.SyncRemote
 import com.roziqrizal.rizqflow.domain.bill.BillReminderService
 import com.roziqrizal.rizqflow.domain.bill.BillService
@@ -115,8 +115,8 @@ class AccountWorkspace private constructor(
     val smartInput = SmartInputService(local.transactions)
     val demo = DemoData(setup, ledger, management, favorites, local.rooms)
 
-    /** Sync push/pull ruang keluarga, hanya transaksi (Tahap 9) — lihat [SyncEngine]. */
-    val sync = SyncEngine(
+    /** Sync push/pull ruang keluarga, hanya transaksi (Tahap 9, mesin Tahap 2) — lihat [SyncCoordinator]. */
+    val sync = SyncCoordinator(
         transactions = local.transactions,
         rooms = local.rooms,
         accounts = local.accounts,
@@ -154,7 +154,7 @@ class AccountWorkspace private constructor(
     val tokenRefresher = TokenRefresher(serverSession, accountRemote)
 
     /**
-     * Sinkron otomatis (Tahap 9): dipasang ke [SyncEngine.syncNow] sekali per ruang kerja. Repositori transaksi
+     * Sinkron otomatis (Tahap 9): dipasang ke [SyncCoordinator.syncNow] sekali per ruang kerja. Repositori transaksi
      * memanggilnya setelah pengeluaran di ruang bersama tersimpan; [syncSharedRoomsOnOpen] dipanggil saat
      * ruang kerja dibuka. Galat hanya dicatat, tidak pernah sampai ke pemanggil penyimpanan.
      */

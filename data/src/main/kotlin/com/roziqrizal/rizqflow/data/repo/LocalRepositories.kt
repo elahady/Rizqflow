@@ -26,6 +26,7 @@ import com.roziqrizal.rizqflow.domain.ledger.TransactionRepository
 import com.roziqrizal.rizqflow.domain.ledger.WorkspaceRepository
 import com.roziqrizal.rizqflow.domain.ledger.WorkspaceSnapshot
 import com.roziqrizal.rizqflow.domain.model.AccountId
+import com.roziqrizal.rizqflow.domain.model.AccountKind
 import com.roziqrizal.rizqflow.domain.model.CategoryId
 import com.roziqrizal.rizqflow.domain.model.RoomId
 import com.roziqrizal.rizqflow.domain.model.TransactionId
@@ -34,6 +35,7 @@ import com.roziqrizal.rizqflow.domain.model.TransactionOrigin
 import com.roziqrizal.rizqflow.domain.money.Money
 import com.roziqrizal.rizqflow.domain.sync.SyncRecordIds
 import com.roziqrizal.rizqflow.domain.sync.SyncRecordType
+import com.roziqrizal.rizqflow.domain.sync.VirtualMemberAccount
 import java.time.LocalDate
 
 /*
@@ -83,6 +85,26 @@ class LocalAccountRepository(private val db: RizqflowDatabase, private val recor
     override suspend fun balance(id: AccountId): Money {
         val account = requireNotNull(find(id)) { "Akun tidak ada: ${id.value}" }
         return Money(db.accounts().balance(id.value), account.currency)
+    }
+
+    /**
+     * Tahap 2 sync-desain.md bagian B/E: id deterministik dari (roomId, author, nama), jadi upsert di
+     * sini idempoten tanpa pencarian terpisah. Ditulis LANGSUNG lewat DAO, BUKAN [save] — akun virtual
+     * bukan data pribadi pengguna ini dan tidak pernah boleh ditandai kotor untuk sync pribadi (`SyncRecorder`
+     * hanya untuk akun nyata). Saldo awal selalu 0 dan tidak berarti apa pun (akun ini tidak pernah dibaca saldonya).
+     */
+    override suspend fun findOrCreateVirtualMember(roomId: RoomId, author: String, accountName: String): Account {
+        val id = VirtualMemberAccount.id(roomId, author, accountName)
+        find(id)?.let { return it }
+        val account = Account(
+            id = id,
+            name = VirtualMemberAccount.displayName(accountName, author),
+            kind = AccountKind.CASH,
+            openingBalance = Money.zero(),
+            sharedFrom = roomId,
+        )
+        db.accounts().upsert(account.toEntity())
+        return account
     }
 }
 

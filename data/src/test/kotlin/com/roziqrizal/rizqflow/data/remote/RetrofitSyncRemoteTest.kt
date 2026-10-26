@@ -111,7 +111,7 @@ class RetrofitSyncRemoteTest {
                 ),
         )
 
-        val result = remote.pull(apiToken = "abc123", after = 0, limit = 200)
+        val result = remote.pull(apiToken = "abc123", deviceId = "pixel-9", after = 0, limit = 200)
 
         assertEquals(
             RemoteResult.Success(
@@ -135,6 +135,6 @@ class RetrofitSyncRemoteTest {
             result,
         )
         val sent = server.takeRequest()
-        assertEquals("/sync/pull?after=0&limit=200", sent.path)
+        assertEquals("/sync/pull?after=0&limit=200&device_id=pixel-9", sent.path)
     }
 }

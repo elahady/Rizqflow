@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
  * "Sinkronkan sekarang" tetap jadi fallback.
  *
  * Ruang "bersama" = punya baris `shared_room` berstatus ACTIVE. Sinkron yang sebenarnya dijalankan lewat [attach]
- * (di produksi: `SyncEngine.syncNow`); pemisahan ini membuat pemicu bisa diuji tanpa SyncEngine, yang `final`.
+ * (di produksi: `SyncCoordinator.syncNow`); pemisahan ini membuat pemicu bisa diuji tanpa SyncCoordinator, yang `final`.
  *
  * Gagal senyap: galat dan [SyncResult.Failed] hanya dicatat lewat `log`, tidak pernah dilempar ke penyimpanan
  * lokal. Putaran sinkron berjalan satu per satu ([Mutex]), dan permintaan untuk ruang yang sudah menunggu giliran

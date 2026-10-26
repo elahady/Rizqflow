@@ -29,7 +29,9 @@ interface AccountDao {
     @Query("SELECT COUNT(*) FROM account")
     suspend fun count(): Int
 
-    @Query("SELECT * FROM account WHERE archived = 0 ORDER BY sort_order")
+    // shared_from IS NULL (Tahap 2 sync-desain.md bagian E): akun anggota virtual tidak pernah
+    // boleh muncul di daftar aktif (pemilih akun, saldo, rekonsiliasi, kekayaan bersih, ekspor pribadi).
+    @Query("SELECT * FROM account WHERE archived = 0 AND shared_from IS NULL ORDER BY sort_order")
     suspend fun active(): List<AccountEntity>
 
     @Query("SELECT * FROM account ORDER BY sort_order")
