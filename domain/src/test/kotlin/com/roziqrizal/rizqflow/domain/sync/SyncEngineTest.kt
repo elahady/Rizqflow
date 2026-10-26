@@ -19,7 +19,6 @@ import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import org.junit.jupiter.api.Disabled
 
 /** Fondasi sync tanpa kripto/jaringan sungguhan — [FakeSyncAead] identitas, [FakeSyncRemote] di memori. */
 private class FakeSyncAead : SyncAead {
@@ -385,12 +384,10 @@ class SyncEngineTest {
     }
 
     /**
-     * TEMUAN 2026-10-25 (belum diperbaiki, di luar scope tes): server mengirim baris dari semua ruang yang diikuti
-     * anggota, tetapi [SyncEngine.pull] tidak menyaring `downloaded.roomId` terhadap ruang yang sedang disinkron.
-     * Akibatnya transaksi ruang lain ikut diterapkan ke ruang ini dengan kategorinya. Lepas [Disabled] setelah
-     * pull disaring per ruang (lihat roadmap.md, Tahap 13, butir "Tulis tes yang menegakkan aturan akun lintas ruang").
+     * Temuan 2026-10-25 (diperbaiki 2026-10-27): server mengirim baris dari semua ruang yang diikuti anggota, dan
+     * [SyncEngine.pull] kini melewati baris yang `roomId`-nya tidak sama dengan ruang yang disinkron. Sebelum
+     * perbaikan, transaksi ruang lain ikut diterapkan ke ruang ini dengan kategorinya (tes ini gagal).
      */
-    @Disabled("TEMUAN 2026-10-25: pull belum menyaring baris menurut roomId; lihat roadmap.md Tahap 13")
     @Test
     fun a_member_of_two_rooms_does_not_get_the_other_rooms_transactions_into_this_room() = runSuspend {
         // Kategori ruang B bernama "Belanja" juga, supaya nama kategori di ruang A cocok dan baris ruang B tidak

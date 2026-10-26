@@ -120,6 +120,9 @@ class SyncEngine(
             for (downloaded in page.entries) {
                 // Echo baris sendiri (sudah punya lokal) dan entitas lain (menyusul terpisah) dilewati.
                 if (downloaded.deviceId == deviceId || downloaded.recordType != RECORD_TYPE_TRANSACTION) continue
+                // Server mengirim baris dari semua ruang yang diikuti anggota ini; hanya baris ruang yang sedang
+                // disinkron yang diterapkan, supaya transaksi ruang lain tidak masuk ke ruang ini (roadmap.md, Tahap 9).
+                if (downloaded.roomId != roomId.value) continue
 
                 val changedAtMillis = Instant.parse(downloaded.changedAt).toEpochMilli()
                 val id = TransactionId(downloaded.recordId)
