@@ -49,6 +49,7 @@ import com.roziqrizal.rizqflow.domain.sync.RemoteError
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.RoomInvite
 import com.roziqrizal.rizqflow.domain.sync.RoomMemberInfo
+import com.roziqrizal.rizqflow.domain.sync.SharedRoomRole
 import com.roziqrizal.rizqflow.domain.sync.SyncResult
 import com.roziqrizal.rizqflow.sync.DeviceId
 import com.roziqrizal.rizqflow.sync.isUnauthorized
@@ -119,7 +120,11 @@ fun RuangKeluargaScreen(
                 } else {
                     // Idempoten: memastikan diri sendiri terdaftar sebelum menampilkan daftar, supaya anggota
                     // yang baru bergabung lewat QR langsung terlihat tanpa harus menekan Sinkronkan dulu.
-                    workspace.roomMembershipRemote.join(token, roomId.value)
+                    val joined = workspace.roomMembershipRemote.join(token, roomId.value)
+                    // Sisi pengirim: ruang yang dibuka pemiliknya belum punya baris shared_room. Penandaan ACTIVE di sini
+                    // menyalakan sinkron otomatis untuk ruang ini; penerima undangan sudah ditandai di joinSharedRoom
+                    // (perannya dipertahankan, lihat SharedRoomActivation).
+                    if (joined is RemoteResult.Success) workspace.sharedRoomActivation.markActive(roomId, SharedRoomRole.OWNER)
                     workspace.roomMembershipRemote.members(token, roomId.value)
                 }
             },

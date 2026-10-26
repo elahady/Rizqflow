@@ -25,6 +25,7 @@ import com.roziqrizal.rizqflow.data.sync.RoomSyncHandler
 import com.roziqrizal.rizqflow.data.sync.RoomWorkspacePurityChecker
 import com.roziqrizal.rizqflow.data.sync.SharedPrefsRecoveryStatusStore
 import com.roziqrizal.rizqflow.data.sync.SharedPrefsSyncCursorStore
+import com.roziqrizal.rizqflow.data.sync.SharedRoomActivation
 import com.roziqrizal.rizqflow.data.sync.TransactionSyncHandler
 import com.roziqrizal.rizqflow.domain.sync.AccountKeyProvider
 import com.roziqrizal.rizqflow.domain.sync.AccountRemote
@@ -217,6 +218,12 @@ class AccountWorkspace private constructor(
 
     /** Sinkron semua ruang bersama saat ruang kerja dibuka. Tidak menunggu hasilnya; tombol manual tetap fallback. */
     fun syncSharedRoomsOnOpen() = local.autoSync.onWorkspaceOpened()
+
+    /**
+     * Menandai ruang bersama ACTIVE setelah pendaftaran anggota di server berhasil (undangan QR diterima, atau
+     * pemilik membuka Ruang Keluarga). Tanpa baris ACTIVE, [syncSharedRoomsOnOpen] dan pemicu simpan tidak jalan.
+     */
+    val sharedRoomActivation = SharedRoomActivation(local.syncStore)
 
     override fun close() = local.close()
 
