@@ -100,6 +100,15 @@ class GooglePlayPurchaseVerifier implements PlayPurchaseVerifier
             default => throw new PlayUnavailable('Status langganan dari Google Play tidak dikenali.'),
         };
 
+        // Rantai token (Tahap 9, "Ikuti token langganan pengganti ke pemilik baris lama"): dilaporkan
+        // Play sendiri, bukan diklaim klien. linkedPurchaseToken didahulukan karena mencakup lebih
+        // banyak kasus (ganti base plan, re-signup yang belum lapsed, pindah prabayar<->otomatis);
+        // outOfAppPurchaseContext.expiredPurchaseToken hanya untuk re-subscribe dari Play Store setelah
+        // langganan lama sepenuhnya kedaluwarsa (linkedPurchaseToken tidak berlaku untuk kasus itu).
+        $predecessorToken = $purchase->getLinkedPurchaseToken()
+            ?: $purchase->getOutOfAppPurchaseContext()?->getExpiredPurchaseToken();
+        $predecessorToken = ($predecessorToken === null || $predecessorToken === '') ? null : $predecessorToken;
+
         $items = $purchase->getLineItems() ?? [];
         /** @var SubscriptionPurchaseLineItem|null $item */
         $item = null;
@@ -112,7 +121,7 @@ class GooglePlayPurchaseVerifier implements PlayPurchaseVerifier
 
         if ($item === null) {
             // Play melaporkan produk lain (atau tak ada item): pemanggil menolak karena tak cocok.
-            return new PlayVerification((string) (($items[0] ?? null)?->getProductId() ?? ''), $status);
+            return new PlayVerification((string) (($items[0] ?? null)?->getProductId() ?? ''), $status, predecessorToken: $predecessorToken);
         }
 
         $expiresAt = self::parseTime($item->getExpiryTime());
@@ -127,6 +136,7 @@ class GooglePlayPurchaseVerifier implements PlayPurchaseVerifier
             $expiresAt,
             $item->getAutoRenewingPlan()?->getAutoRenewEnabled(),
             self::acknowledged($purchase->getAcknowledgementState()),
+            $predecessorToken,
         );
     }
 
@@ -147,6 +157,9 @@ class GooglePlayPurchaseVerifier implements PlayPurchaseVerifier
         $reported = $item ?? ($items[0] ?? null);
         // Dikembalikan dananya: jumlah yang masih bisa direfund menjadi 0.
         $refundable = $reported?->getProductOfferDetails()?->getRefundableQuantity();
+        // Tidak ada predecessorToken di sini: `productsv2.getproductpurchasev2` tidak punya field
+        // rantai seperti linkedPurchaseToken/expiredPurchaseToken (itu hanya ada di subscriptionsv2.get
+        // di atas); produk sekali beli (INAPP) tidak mengenal konsep rantai token di Play API.
 
         $status = match ($purchase->getPurchaseStateContext()?->getPurchaseState()) {
             'PURCHASED' => $refundable === 0 ? PurchaseStatus::Refunded : PurchaseStatus::Purchased,

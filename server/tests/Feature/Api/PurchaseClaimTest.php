@@ -220,6 +220,53 @@ class PurchaseClaimTest extends TestCase
         $this->assertCount($callsAfterOwner, $this->play->calls, 'klaim ditolak sebelum menanyai Play');
     }
 
+    public function test_another_account_cannot_claim_a_token_whose_chain_belongs_to_someone_else(): void
+    {
+        // Akun lain tidak boleh mencuri rantai token: Play melaporkan 'tok-baru' sebagai penerus
+        // 'tok-lama' (linkedPurchaseToken), dan 'tok-lama' sudah diklaim pemilik. Akun lain yang
+        // mengklaim 'tok-baru' lebih dulu (sebelum RTDN/aplikasi pemilik menyusul) harus ditolak,
+        // walau belum ada baris play_purchases untuk 'tok-baru' sama sekali.
+        $owner = User::factory()->create();
+        $this->makePurchase($owner, 'tok-lama');
+        $other = User::factory()->create(['plans' => ['pro']]); // tak boleh berubah
+        $this->play->respond('tok-baru', FakePlayPurchaseVerifier::sync(predecessorToken: 'tok-lama'));
+
+        $this->claim($other, [$this->item('rizqflow_sync', 'tok-baru')])
+            ->assertOk()
+            ->assertExactJson([
+                'plans' => ['pro'],
+                'results' => [['product_id' => 'rizqflow_sync', 'status' => 'claimed_by_other']],
+            ]);
+
+        $this->assertSame(['pro'], $other->fresh()->plans);
+        $this->assertSame(0, PlayPurchase::where('token_hash', hash('sha256', 'tok-baru'))->count());
+    }
+
+    public function test_the_predecessors_own_owner_can_still_claim_the_successor_token_manually(): void
+    {
+        // Jalur biasa (app dibuka dan mengklaim ulang): pemilik pendahulu sendiri yang mengklaim
+        // token penerus tetap berhasil seperti klaim baru biasa; rantai tidak menghalangi pemiliknya.
+        $owner = User::factory()->create();
+        $this->makePurchase($owner, 'tok-lama');
+        $this->play->respond('tok-baru', FakePlayPurchaseVerifier::sync(predecessorToken: 'tok-lama'));
+
+        $this->claim($owner, [$this->item('rizqflow_sync', 'tok-baru')])
+            ->assertOk()->assertJsonPath('results.0.status', 'active')->assertJsonPath('plans', ['sync']);
+
+        $this->assertSame($owner->id, PlayPurchase::where('token_hash', hash('sha256', 'tok-baru'))->sole()->user_id);
+    }
+
+    public function test_a_token_with_a_chain_to_an_unclaimed_predecessor_can_still_be_claimed_by_anyone(): void
+    {
+        // Rantai ke pendahulu yang juga belum pernah diklaim siapa pun tidak memberi bukti pemilik
+        // apa pun: aturan lama "siapa cepat dia dapat" tetap berlaku, tidak diblokir oleh rantai.
+        $user = User::factory()->create();
+        $this->play->respond('tok-baru', FakePlayPurchaseVerifier::sync(predecessorToken: 'tok-lama-tak-pernah-diklaim'));
+
+        $this->claim($user, [$this->item('rizqflow_sync', 'tok-baru')])
+            ->assertOk()->assertJsonPath('results.0.status', 'active')->assertJsonPath('plans', ['sync']);
+    }
+
     public function test_reclaim_by_the_same_account_is_idempotent_and_refreshes_status(): void
     {
         $user = User::factory()->create();

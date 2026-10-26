@@ -135,7 +135,22 @@ class PlayNotificationTest extends TestCase
 
     public function test_notification_for_an_unclaimed_token_is_ignored(): void
     {
+        // Produknya dikenal (Sync) jadi kini ditanyakan ke Play untuk cek kemungkinan rantai (lihat
+        // tes rantai token di bawah), tetapi Play juga tidak mengenal token ini: tetap diabaikan,
+        // tidak ada baris dibuat. Regresi yang dijaga: hasilnya (204, tanpa baris) tidak berubah.
         $this->push($this->pubsub($this->subscriptionNotification('belum-pernah-diklaim')))->assertNoContent();
+
+        $this->assertCount(1, $this->play->calls);
+        $this->assertSame(0, PlayPurchase::count());
+    }
+
+    public function test_notification_for_an_unclaimed_token_of_unknown_product_is_ignored_without_asking_play(): void
+    {
+        // voidedPurchaseNotification tidak membawa ID produk: tanpa itu tak ada yang bisa ditanyakan
+        // ke Play, jadi tetap diabaikan seperti sebelum rantai token ada (tak ada panggilan Play).
+        $this->push($this->pubsub(['voidedPurchaseNotification' => [
+            'purchaseToken' => 'belum-pernah-diklaim', 'productType' => 2,
+        ]]))->assertNoContent();
 
         $this->assertCount(0, $this->play->calls);
         $this->assertSame(0, PlayPurchase::count());
@@ -384,6 +399,74 @@ class PlayNotificationTest extends TestCase
         $response = $this->push($this->pubsub($this->subscriptionNotification('tok-rahasia-abc')));
 
         $this->assertStringNotContainsString('tok-rahasia-abc', $response->getContent());
+    }
+
+    // --- rantai token langganan pengganti (Tahap 9) -------------------------------------------
+
+    public function test_a_new_token_is_claimed_automatically_to_the_predecessors_owner_via_linked_purchase_token(): void
+    {
+        // Pelanggan Sync mengganti base plan (atau berlangganan lagi) dari Play Store tanpa membuka
+        // aplikasi: Play menerbitkan token baru ('tok-baru') dan melaporkan 'tok-lama' sebagai
+        // pendahulunya. RTDN untuk token baru tiba SEBELUM aplikasi dibuka dan mengklaimnya sendiri.
+        $owner = User::factory()->create();
+        $this->makePurchase($owner, 'tok-lama');
+        $expiry = CarbonImmutable::now()->addDays(30)->startOfSecond();
+        $this->play->respond('tok-baru', FakePlayPurchaseVerifier::sync(PurchaseStatus::Active, $expiry, 'tok-lama'));
+
+        $this->push($this->pubsub($this->subscriptionNotification('tok-baru')))->assertNoContent();
+
+        $row = PlayPurchase::where('token_hash', PlayPurchase::hashToken('tok-baru'))->sole();
+        $this->assertSame($owner->id, $row->user_id);
+        $this->assertTrue($row->expires_at->equalTo($expiry));
+        $this->assertSame(['sync'], $owner->fresh()->plans);
+        // Baris lama mencatat jejak rantai (audit saja, tidak dipakai untuk memutuskan pemilik lagi).
+        $lama = PlayPurchase::where('token_hash', PlayPurchase::hashToken('tok-lama'))->sole();
+        $this->assertSame($row->token_hash, $lama->superseded_by_token_hash);
+    }
+
+    public function test_a_new_token_whose_predecessor_was_never_claimed_either_is_still_ignored(): void
+    {
+        // Play melaporkan rantai, tetapi pendahulunya juga belum pernah diklaim siapa pun: tidak ada
+        // pemilik yang bisa diikuti, jadi tetap diabaikan (204) seperti token tanpa rantai sama sekali.
+        $this->play->respond('tok-baru', FakePlayPurchaseVerifier::sync(predecessorToken: 'tok-lama-tak-pernah-diklaim'));
+
+        $this->push($this->pubsub($this->subscriptionNotification('tok-baru')))->assertNoContent();
+
+        $this->assertSame(0, PlayPurchase::count());
+    }
+
+    public function test_a_new_token_without_any_chain_reported_by_play_is_not_auto_claimed(): void
+    {
+        // Pembelian Sync baru yang sah sekalipun (Play mengenalinya, tidak final) tidak boleh
+        // otomatis dikaitkan ke siapa pun tanpa rantai: harus tetap menunggu klaim manual dari klien.
+        $this->play->respond('tok-baru', FakePlayPurchaseVerifier::sync());
+
+        $this->push($this->pubsub($this->subscriptionNotification('tok-baru')))->assertNoContent();
+
+        $this->assertSame(0, PlayPurchase::count());
+    }
+
+    public function test_chain_is_not_followed_when_play_reports_a_different_product_for_the_new_token(): void
+    {
+        $owner = User::factory()->create();
+        $this->makePurchase($owner, 'tok-lama');
+        // Notifikasi mengaku Sync (subscriptionId rizqflow_sync), tetapi Play menjawab Pro untuk token itu.
+        $this->play->respond('tok-baru', FakePlayPurchaseVerifier::pro());
+
+        $this->push($this->pubsub($this->subscriptionNotification('tok-baru')))->assertNoContent();
+
+        $this->assertSame(1, PlayPurchase::count()); // hanya baris 'tok-lama' yang sudah ada
+    }
+
+    public function test_transient_play_failure_while_checking_a_chain_is_500_and_creates_no_row(): void
+    {
+        $owner = User::factory()->create();
+        $this->makePurchase($owner, 'tok-lama');
+        $this->play->respond('tok-baru', new PlayUnavailable);
+
+        $this->push($this->pubsub($this->subscriptionNotification('tok-baru')))->assertStatus(500);
+
+        $this->assertSame(1, PlayPurchase::count());
     }
 
     public function test_endpoint_is_throttled_per_ip(): void

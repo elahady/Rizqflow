@@ -65,8 +65,9 @@ class FakePlayPurchaseVerifier implements PlayPurchaseVerifier
         return new PlayVerification(PlayProduct::Pro->value, $status, null, null, true);
     }
 
-    public static function sync(PurchaseStatus $status = PurchaseStatus::Active, ?CarbonImmutable $expiresAt = null): PlayVerification
+    /** @param ?string $predecessorToken token pendahulu yang "dilaporkan Play" (linkedPurchaseToken/expiredPurchaseToken), untuk tes rantai token. */
+    public static function sync(PurchaseStatus $status = PurchaseStatus::Active, ?CarbonImmutable $expiresAt = null, ?string $predecessorToken = null): PlayVerification
     {
-        return new PlayVerification(PlayProduct::Sync->value, $status, $expiresAt ?? CarbonImmutable::now()->addMonth(), true, true);
+        return new PlayVerification(PlayProduct::Sync->value, $status, $expiresAt ?? CarbonImmutable::now()->addMonth(), true, true, $predecessorToken);
     }
 }

@@ -116,6 +116,19 @@ class PlayPurchase extends Model
     }
 
     /**
+     * Catat bahwa token ini sudah diganti Play dengan token baru (ganti base plan, atau
+     * berlangganan lagi dari Play Store setelah sepenuhnya kedaluwarsa; Tahap 9, "Ikuti token
+     * langganan pengganti ke pemilik baris lama"). Murni jejak audit: PlayPurchaseChainResolver
+     * tidak pernah membaca kolom ini untuk memutuskan pemilik mana pun, selalu lewat token_hash
+     * baris baru yang ditemukan dari predecessorToken jawaban Play.
+     */
+    public function markSupersededBy(string $newTokenHash): void
+    {
+        self::whereKey($this->getKey())->update(['superseded_by_token_hash' => $newTokenHash]);
+        $this->refresh();
+    }
+
+    /**
      * Catat bahwa `play:reconcile` baru saja mencoba memverifikasi ulang baris ini, apa pun hasilnya.
      * Lewat query langsung, bukan save(): tidak menyentuh token terenkripsi (yang bisa tak terbaca
      * setelah APP_KEY berganti) dan tidak mengubah updated_at.

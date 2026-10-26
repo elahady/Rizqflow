@@ -14,7 +14,9 @@ use Illuminate\Database\UniqueConstraintViolationException;
  *
  * Aturan: satu token hanya bisa diklaim satu akun (yang pertama mengklaim; yang lain mendapat
  * claimed_by_other), klaim ulang oleh akun yang sama idempoten dan sekaligus menyegarkan status,
- * dan kegagalan Play tidak pernah memberi atau mencabut apa pun.
+ * dan kegagalan Play tidak pernah memberi atau mencabut apa pun. Ini juga berlaku untuk rantai
+ * token (lihat PlayPurchaseChainResolver): token penerus yang pendahulunya sudah diklaim akun lain
+ * tidak bisa diklaim manual oleh akun ini, walau belum ada baris untuk token penerus itu sendiri.
  */
 class PurchaseClaimService
 {
@@ -83,6 +85,19 @@ class PurchaseClaimService
 
         if ($verification->productId !== $product->value) {
             return ClaimStatus::Inactive; // Play melaporkan produk lain dari yang diklaim
+        }
+
+        // Rantai token (Tahap 9, "Ikuti token langganan pengganti ke pemilik baris lama"): Play
+        // sendiri bisa melaporkan token ini sebagai penerus token lain (linkedPurchaseToken/
+        // expiredPurchaseToken). Bila pendahulunya SUDAH diklaim akun lain, token ini rantainya
+        // milik akun itu juga — akun yang mengklaim lebih dulu tidak boleh mencuri rantai akun lain
+        // hanya karena RTDN belum sempat menyusul (lihat PlayPurchaseChainResolver, arah sebaliknya
+        // dari pengecekan ini: penerus otomatis dikaitkan ke pemilik pendahulu).
+        if ($existing === null && $verification->predecessorToken !== null) {
+            $predecessor = PlayPurchase::findByToken($verification->predecessorToken);
+            if ($predecessor !== null && (int) $predecessor->user_id !== (int) $user->id) {
+                return ClaimStatus::ClaimedByOther;
+            }
         }
 
         if ($existing === null) {
