@@ -58,4 +58,5 @@ Route::middleware('auth:sanctum')->group(function () {
     // Keanggotaan ruang yang dibagi (ruang keluarga) — lihat RoomMembershipController.
     Route::post('/rooms/{roomId}/join', [RoomMembershipController::class, 'join']);
     Route::get('/rooms/{roomId}/members', [RoomMembershipController::class, 'members']);
+    Route::delete('/rooms/{roomId}/members/{userId}', [RoomMembershipController::class, 'remove']);
 });
