@@ -208,7 +208,7 @@ menjadi jaring pengaman harian.
 
 **Status: hanya terbukti lewat tes otomatis dengan klien palsu.** Tidak ada kredensial Play asli di
 repo atau di mesin pengembangan; bentuk jawaban Play, tanda tangan JWT Pub/Sub sungguhan, dan
-penjadwal belum pernah dijalankan terhadap layanan sungguhan. Uji nyata ada di Tahap 8 (penguji
+penjadwal belum pernah dijalankan terhadap layanan sungguhan. Uji nyata ada di Tahap 15 (penguji
 lisensi + aplikasi dari Play). Tanpa kredensial, server aman: klaim dijawab 503 dan endpoint
 notifikasi dijawab 503 (tidak ada paket yang berubah).
 
@@ -276,14 +276,14 @@ migrasi deploy biasa.
   yang sama, yang menulis ulangnya. Karena itu `APP_KEY` tetap jangan diganti.
 - **Hapus akun** menghapus baris pembelian akun itu (cascade); tokennya lalu bebas diklaim akun lain.
 
-### Keterbatasan dan asumsi yang belum terbukti (uji nyata di Tahap 8)
+### Keterbatasan dan asumsi yang belum terbukti (uji nyata di Tahap 15)
 
 - **Pengembalian dana Pro hanya terdeteksi bila `productsv2` sendiri berubah** (`purchaseState`
   `CANCELLED`, atau `refundableQuantity` 0). Notifikasi `voidedPurchaseNotification` hanya dipakai
   sebagai penunjuk token yang dicek ulang, bukan sebagai bukti (aturan "isi notifikasi bukan
   status"), dan tidak ada jalur cadangan ke Voided Purchases API. Dokumentasi Play memisahkan
   pembatalan dari refund pembelian berstatus Purchased, dan tidak menyebut field `productsv2`
-  berubah setelah refund. **Asumsi ini belum terbukti**: buktikan di Tahap 8 dengan satu pembelian
+  berubah setelah refund. **Asumsi ini belum terbukti**: buktikan di Tahap 15 dengan satu pembelian
   uji (penguji lisensi) yang direfund dengan pencabutan lalu jalankan `play:reconcile` atau tunggu
   notifikasinya; bila Pro tidak tercabut, tambahkan pencocokan lewat
   `purchases.voidedpurchases.list`. Pemeriksaan ulang produk sekali beli tiap 30 hari memakai

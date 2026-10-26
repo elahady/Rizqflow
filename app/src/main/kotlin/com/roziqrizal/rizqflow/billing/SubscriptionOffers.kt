@@ -2,7 +2,7 @@ package com.roziqrizal.rizqflow.billing
 
 /**
  * ID base plan langganan Sync di Play Console. HARUS sama persis dengan yang dibuat di
- * Monetize with Play > Subscriptions > rizqflow_sync (lihat roadmap.md Tahap 8).
+ * Monetize with Play > Subscriptions > rizqflow_sync (lihat roadmap.md Tahap 15).
  */
 internal fun BillingPeriod.basePlanId(): String = when (this) {
     BillingPeriod.MONTHLY -> "monthly"

@@ -9,7 +9,7 @@ return new class extends Migration
     /**
      * Lapisan entitlement (lihat App\Support\Entitlements, porting dari Entitlements di :domain):
      * paket yang dimiliki pengguna, dicatat di sini sebagai array ('pro', 'sync'). Belum ada
-     * pembayaran sungguhan di web (Google Play Billing untuk Pro masih Tahap 8; checkout web
+     * pembayaran sungguhan di web (Google Play Billing untuk Pro masih Tahap 15; checkout web
      * belum diputuskan) — kolom ini baru diberi isi lewat seed atau tinker untuk sekarang.
      */
     public function up(): void

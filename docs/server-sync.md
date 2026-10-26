@@ -122,14 +122,14 @@ Variabel `.env` (nama saja; semuanya opsional dan kosong berarti fitur mati, kla
 ### Konsekuensi privasi
 
 - **Server kini menyimpan token pembelian.** Tabel `play_purchases` menyimpan, per akun: produk, paket, `token_hash` (sha256), token pembelian, status, `expires_at`, `auto_renewing`, `acknowledged`, `last_verified_at`, dan `last_checked_at`. Token disimpan **terenkripsi dengan `APP_KEY` di sisi server, bukan enkripsi ujung ke ujung**: server harus bisa membaca token utuh untuk verifikasi ulang ke Google, jadi ini sengaja berbeda dari data keuangan pengguna (transaksi, akun, saldo), yang tetap tidak terbaca server. Token disembunyikan dari serialisasi model dan tidak pernah masuk log, pesan galat, atau respons API (pengecualian Google tidak dicatat karena pesannya memuat URL yang berisi token).
-- Server jadi tahu siapa membeli Pro atau Sync, kapan, dan statusnya (aktif, ditahan, kedaluwarsa, dikembalikan dananya). Ini menambah daftar "yang tetap terlihat server" di atas dan harus disebut di kebijakan privasi dan deklarasi Data Safety (Tahap 8; kategori yang tepat di formulir belum dicek).
+- Server jadi tahu siapa membeli Pro atau Sync, kapan, dan statusnya (aktif, ditahan, kedaluwarsa, dikembalikan dananya). Ini menambah daftar "yang tetap terlihat server" di atas dan harus disebut di kebijakan privasi dan deklarasi Data Safety (Tahap 15; kategori yang tepat di formulir belum dicek).
 - Mengganti `APP_KEY` membuat token tersimpan tak terbaca: baris itu dilewati (tercatat di log dengan id baris) sampai aplikasi mengklaim ulang token yang sama, yang menulis ulangnya. Jadi `APP_KEY` jangan diganti.
 - Hanya akun yang punya akun server (masuk dengan Google) yang melaporkan token; akun lokal dan mode demo tidak pernah mengirimnya. Token API server di Android kini satu berkas per akun supaya akun Google lain di perangkat yang sama tidak melaporkan pembelian atas nama akun sebelumnya.
 - Kunci akun layanan Play API adalah rahasia baru di server: hanya di `.env.production`, dengan izin minimum (lihat saja; izin kelola sengaja tidak diberikan karena kode hanya membaca, dan kunci yang bocor dengan izin kelola bisa membatalkan atau mengembalikan dana pelanggan).
 
 ### Yang belum terbukti dan keterbatasan
 
-Semua di bawah ini baru asumsi; pembuktiannya di Tahap 8 (penguji lisensi, aplikasi dipasang dari Play) dan Tahap 12.
+Semua di bawah ini baru asumsi; pembuktiannya di Tahap 15 (penguji lisensi, aplikasi dipasang dari Play) dan Tahap 12.
 
 - **Bentuk jawaban Play sungguhan belum pernah dilihat.** Fixture tes disusun dari model `vendor/google/apiclient-services` dan dokumentasi, lalu diurai klien Google asli dengan HTTP palsu; nama field, nilai enum, dan format `expiryTime` di Play nyata belum dikonfirmasi. Jawaban Play tidak memuat `packageName`, jadi paket diperiksa lewat URL permintaan (token paket lain dijawab 400 atau 404 oleh Play, juga asumsi).
 - **Refund Pro** hanya terdeteksi bila `productsv2` sendiri berubah. Notifikasi `voidedPurchaseNotification` bukan bukti, dan tidak ada jalur cadangan ke Voided Purchases API. Bila Play tidak mengubah `purchaseState` atau `refundableQuantity` setelah refund, Pro tetap aktif; bila `refundableQuantity` bernilai 0 pada pembelian yang tidak di-refund, pembeli sah ditolak.

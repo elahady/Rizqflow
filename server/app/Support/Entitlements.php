@@ -7,7 +7,7 @@ namespace App\Support;
  * lewat satu lapisan entitlement"). Halaman dan logika tidak pernah memeriksa paket sendiri;
  * mereka bertanya ke sini lewat User::entitlements(), sehingga model harga bisa berubah tanpa
  * membongkar kode. Porting dari PlanEntitlements di :domain; belum ada sumber pembayaran
- * sungguhan di web (menyusul Tahap 8/12), jadi $plans untuk sekarang diisi lewat seed atau tinker.
+ * sungguhan di web (menyusul Tahap 15/12), jadi $plans untuk sekarang diisi lewat seed atau tinker.
  */
 class Entitlements
 {

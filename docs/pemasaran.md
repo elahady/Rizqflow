@@ -31,7 +31,7 @@ Pesan inti yang diulang di semua saluran: *"Aplikasi lain bertanya uangmu habis 
 | **Jaringan pribadi** | Pendaftar awal dan penguji beta | Status WA, grup kantor, keluarga, kajian |
 | **Instagram `@rizqflowra`** (akun khusus Rizqflow) | Saluran konten utama | Diusulkan pemilik 2026-10-24; `@rizqflow` sudah dipakai orang lain. Lihat aturan boost di bawah |
 | Threads, TikTok, X | Cadangan nama, posting silang | Amankan nama yang sama dengan Instagram sekaligus walau belum aktif dipakai |
-| **Play Store** | Penemuan setelah rilis | ASO: "catatan keuangan keluarga", "zakat mal", "budget rumah tangga", "pengelola keuangan"; masuk ke Store listing Tahap 8 |
+| **Play Store** | Penemuan setelah rilis | ASO: "catatan keuangan keluarga", "zakat mal", "budget rumah tangga", "pengelola keuangan"; masuk ke Store listing Tahap 15 |
 | Email daftar tunggu | Pengumuman rilis dan harga perdana | Pendaftar sudah opt-in eksplisit lewat form, jadi berbeda dari email akun aplikasi (consent email promo akun masih terbuka, lihat konsep.md). Pengiriman bisa memakai Brevo yang sudah dipilih untuk web |
 | Ustadz, perencana keuangan syariah, komunitas masjid/kajian | Kampanye musim zakat | Setelah rilis, menjelang Ramadan |
 
@@ -87,7 +87,7 @@ Hitungan membaik begitu langganan Sync ikut dijual (rilis 1): satu pelanggan tah
 | Waktu (perkiraan) | Fase | Fokus |
 |---|---|---|
 | Sekarang–rilis (Nov–Des 2026) | P0, P1 | Fondasi, daftar tunggu, build in public, uji boost kecil |
-| Bersamaan uji tertutup Tahap 8 | P2 | Pendaftar daftar tunggu jadi penguji beta; masukan dan testimoni |
+| Bersamaan uji tertutup Tahap 15 | P2 | Pendaftar daftar tunggu jadi penguji beta; masukan dan testimoni |
 | Rilis | P3 | Email ke daftar tunggu, harga perdana, ASO, ulasan pertama dari penguji |
 | Jan–Feb 2027 | P4 | Kampanye musim zakat menjelang **Ramadan 1448 H (perkiraan mulai sekitar 8 Februari 2027**, pastikan dengan kalender Hijriyah Al-Kaukaba) |
 
@@ -115,4 +115,4 @@ Metrik setelah rilis butuh pengukuran di aplikasi atau server; apakah Firebase A
 
 ## Keputusan yang masih terbuka
 
-- **Siapa pemakai `@rizqflow` di Instagram**: bila produk atau bisnis keuangan yang aktif, itu risiko merek yang perlu dicatat di [konsep.md](konsep.md) ("Cek nama") dan dipertimbangkan sebelum nama dan `applicationId` terkunci di unggahan AAB pertama (Tahap 8).
+- **Siapa pemakai `@rizqflow` di Instagram**: bila produk atau bisnis keuangan yang aktif, itu risiko merek yang perlu dicatat di [konsep.md](konsep.md) ("Cek nama") dan dipertimbangkan sebelum nama dan `applicationId` terkunci di unggahan AAB pertama (Tahap 15).
