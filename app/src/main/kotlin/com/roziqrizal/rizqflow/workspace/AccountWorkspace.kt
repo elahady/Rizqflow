@@ -30,6 +30,7 @@ import com.roziqrizal.rizqflow.domain.sync.RecoveryStatusStore
 import com.roziqrizal.rizqflow.domain.sync.RoomKeyProvider
 import com.roziqrizal.rizqflow.domain.sync.RoomMemberKeyRedistribution
 import com.roziqrizal.rizqflow.domain.sync.RoomMembershipRemote
+import com.roziqrizal.rizqflow.domain.sync.SharedRoomStatus
 import com.roziqrizal.rizqflow.domain.sync.SyncCursorStore
 import com.roziqrizal.rizqflow.domain.sync.SyncEngine
 import com.roziqrizal.rizqflow.domain.sync.SyncRemote
@@ -127,12 +128,21 @@ class AccountWorkspace private constructor(
     )
 
     /**
-     * Kode pemulihan 24 kata (Tahap 13): bungkus kunci akun lalu simpan salinannya di server, dan pulihkan di
-     * perangkat baru. Kode tidak pernah disimpan atau dikirim; lihat [RecoveryKeyService]. Pulihkan MENIMPA
-     * kunci akun lokal, aman sekarang karena belum ada data lokal yang memakai kunci akun (sync entitas akun
-     * belum dibangun; yang ada baru kunci ruang, yang tidak disentuh).
+     * Kode pemulihan 24 kata (Tahap 13): bungkus kunci akun PLUS kunci semua ruang keluarga aktif yang
+     * diikuti perangkat ini (format `version` 2 sejak 2026-10-27, [RecoveryBundle]), simpan salinannya di
+     * server, dan pulihkan keduanya di perangkat baru. Kode tidak pernah disimpan atau dikirim; lihat
+     * [RecoveryKeyService]. Pulihkan MENIMPA kunci akun lokal dan kunci ruang yang ikut terbungkus — aman
+     * sekarang karena belum ada data lokal yang memakai kunci akun (sync entitas akun belum dibangun), dan
+     * kunci ruang yang ditimpa hanya kunci acak baru yang belum pernah dipakai mengenkripsi apa pun.
      */
-    val recovery = RecoveryKeyService(accountKeyProvider, recoveryRemote, apiTokenStore, recoveryStatusStore)
+    val recovery = RecoveryKeyService(
+        accountKeyProvider,
+        recoveryRemote,
+        apiTokenStore,
+        recoveryStatusStore,
+        roomKeys = roomKeyProvider,
+        activeSharedRoomIds = { local.syncStore.sharedRooms().filter { it.status == SharedRoomStatus.ACTIVE }.map { it.roomId } },
+    )
 
     /**
      * Keluarkan anggota (Tahap 9): rotasi kunci ruang lalu siapkan undangan (QR) baru untuk anggota

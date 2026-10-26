@@ -1131,7 +1131,7 @@
     <string name="recovery_offer_action">Pulihkan</string>
 
     <string name="recovery_title">Kode pemulihan</string>
-    <string name="recovery_intro">Kode pemulihan terdiri dari 24 kata dan menyimpan kunci akunmu di server dalam bentuk terbungkus kode, sebagai fondasi memulihkan data di perangkat baru. Data akun baru bisa dipulihkan setelah sinkron data akun tersedia, dan kunci ruang keluarga belum ikut tersimpan: ruang bersama perlu diundang ulang lewat QR. Rizqflow dan server tidak menyimpan kodenya dan tidak bisa membantu bila hilang.</string>
+    <string name="recovery_intro">Kode pemulihan terdiri dari 24 kata dan menyimpan kunci akunmu, beserta kunci semua ruang keluarga yang sedang kamu ikuti, di server dalam bentuk terbungkus kode — sebagai fondasi memulihkan di perangkat baru. Data akun baru bisa dipulihkan setelah sinkron data akun tersedia. Ruang yang kamu ikuti SETELAH kode ini dibuat tidak otomatis ikut: undang ulang lewat QR, atau buat kode baru supaya ikut tercakup. Rizqflow dan server tidak menyimpan kodenya dan tidak bisa membantu bila hilang.</string>
     <string name="recovery_status_none">Status: belum diatur</string>
     <string name="recovery_status_pending">Status: belum selesai. Kode terakhir belum kamu konfirmasi atau hasilnya belum pasti, dan tidak bisa ditampilkan lagi. Buat kode baru.</string>
     <string name="recovery_status_configured">Status: sudah diatur pada %1$s</string>
@@ -1167,7 +1167,7 @@
     <string name="recovery_verify_wrong">Ada kata yang tidak cocok. Periksa kertasmu. Nomor yang diminta sudah diganti.</string>
     <string name="recovery_verify_back">Lihat kode lagi</string>
     <string name="recovery_done_title">Kode pemulihan sudah diatur</string>
-    <string name="recovery_done_body">Simpan kertasnya di tempat aman. Kode ini memulihkan kunci akunmu; data ikut pulih setelah sinkron data akun tersedia. Kamu bisa membuat kode baru kapan saja dari menu Lainnya.</string>
+    <string name="recovery_done_body">Simpan kertasnya di tempat aman. Kode ini memulihkan kunci akunmu dan kunci ruang keluarga yang kamu ikuti sekarang; data akun ikut pulih setelah sinkron data akun tersedia. Ruang yang kamu ikuti setelah ini butuh kode baru atau diundang ulang lewat QR. Kamu bisa membuat kode baru kapan saja dari menu Lainnya.</string>
     <string name="recovery_done_action">Tutup</string>
     <string name="recovery_exit_title">Keluar tanpa menyelesaikan?</string>
     <string name="recovery_exit_body">Kode ini tidak akan ditampilkan lagi dan belum terkonfirmasi. Kamu bisa membuat kode baru dari menu Lainnya.</string>
@@ -1194,7 +1194,7 @@
     <string name="restore_confirm_title">Ganti kunci di perangkat ini?</string>
     <string name="restore_confirm_body">Kunci akun di perangkat ini akan diganti dengan kunci dari salinan di server, dan kunci yang ada sekarang tidak bisa dipakai lagi. Data keuangan di ponselmu tidak dihapus.</string>
     <string name="restore_confirm_action">Ganti kunci</string>
-    <string name="restore_success">Kunci akun dipasang di perangkat ini. Data akan bisa dipulihkan setelah sinkron data akun tersedia; ruang keluarga perlu diundang ulang lewat QR.</string>
+    <string name="restore_success">Kunci akun dan kunci ruang keluarga yang terbungkus kode ini sudah dipasang di perangkat ini. Data akun akan bisa dipulihkan setelah sinkron data akun tersedia; ruang yang belum ikut kode ini tetap perlu diundang ulang lewat QR.</string>
     <string name="restore_err_count">Kode pemulihan harus 24 kata.</string>
     <string name="restore_err_unknown">Ada kata yang tidak ada di daftar. Periksa ejaannya.</string>
     <string name="restore_err_checksum">Semua kata dikenal, tetapi urutan atau salah satu katanya tidak cocok. Periksa kembali catatanmu.</string>

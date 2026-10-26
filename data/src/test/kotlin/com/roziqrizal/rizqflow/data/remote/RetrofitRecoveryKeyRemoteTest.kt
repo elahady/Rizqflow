@@ -1,5 +1,6 @@
 package com.roziqrizal.rizqflow.data.remote
 
+import com.roziqrizal.rizqflow.domain.sync.RECOVERY_KEY_VERSION
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyLookup
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyReceipt
 import com.roziqrizal.rizqflow.domain.sync.RemoteError
@@ -44,12 +45,12 @@ class RetrofitRecoveryKeyRemoteTest {
     private val wrapped = byteArrayOf(0xfb.toByte(), 0xff.toByte(), 0xbf.toByte(), 0x3e, 0x3f, 0x01, 0x02)
 
     @Test
-    fun `put mengirim PUT dengan badan persis kontrak (base64 standar dan version 1) dan bearer token`() = runBlocking {
-        server.enqueue(json("""{"version":1,"updated_at":"2026-10-25T10:00:00Z"}"""))
+    fun `put mengirim PUT dengan badan persis kontrak (base64 standar dan version yang ditulis klien) dan bearer token`() = runBlocking {
+        server.enqueue(json("""{"version":$RECOVERY_KEY_VERSION,"updated_at":"2026-10-25T10:00:00Z"}"""))
 
         val result = remote.put("abc123", wrapped)
 
-        assertEquals(RemoteResult.Success(RecoveryKeyReceipt(1, "2026-10-25T10:00:00Z")), result)
+        assertEquals(RemoteResult.Success(RecoveryKeyReceipt(RECOVERY_KEY_VERSION, "2026-10-25T10:00:00Z")), result)
         val sent = server.takeRequest()
         assertEquals("PUT", sent.method)
         assertEquals("/account/recovery-key", sent.path)
@@ -57,7 +58,8 @@ class RetrofitRecoveryKeyRemoteTest {
         assertTrue(sent.getHeader("Content-Type")!!.startsWith("application/json"))
         val body = Json.parseToJsonElement(sent.body.readUtf8()).jsonObject
         assertEquals(setOf("wrapped_key", "version"), body.keys)
-        assertEquals(1, body.getValue("version").jsonPrimitive.int)
+        // Klien selalu menulis RECOVERY_KEY_VERSION (2 sejak 2026-10-27, lihat RecoveryBundle); server hanya menyimpan angkanya.
+        assertEquals(RECOVERY_KEY_VERSION, body.getValue("version").jsonPrimitive.int)
         val wire = body.getValue("wrapped_key").jsonPrimitive.content
         assertEquals(Base64.getEncoder().encodeToString(wrapped), wire)
         assertTrue(wire.contains('+') && wire.contains('/') && wire.endsWith("="), "harus base64 standar dengan padding: $wire")

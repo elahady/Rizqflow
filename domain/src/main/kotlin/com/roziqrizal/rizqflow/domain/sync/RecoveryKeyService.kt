@@ -1,5 +1,6 @@
 package com.roziqrizal.rizqflow.domain.sync
 
+import com.roziqrizal.rizqflow.domain.model.RoomId
 import java.security.SecureRandom
 import java.time.Instant
 import kotlin.coroutines.cancellation.CancellationException
@@ -161,12 +162,19 @@ enum class RecoveryCopyState {
  * - Kegagalan di tahap mana pun pada [recoverKey] tidak menyentuh kunci lokal; impor adalah langkah terakhir.
  *
  * Yang DIJAMIN kode ini adalah fondasinya saja: kunci akun terbungkus kode dan tersimpan di server. Belum ada
- * data akun yang dienkripsi dengan kunci akun (sinkron data akun belum dibangun) dan kunci ruang keluarga TIDAK ikut
- * dibungkus (format versi 1 hanya membawa kunci akun). Jadi memulihkan kunci belum memulihkan data apa pun.
+ * data akun yang dienkripsi dengan kunci akun (sinkron data akun belum dibangun). Sejak 2026-10-27 (format
+ * `version` 2, [RecoveryBundle]) kunci semua ruang keluarga AKTIF yang diikuti perangkat ini saat
+ * [enableRecovery] dipanggil ikut dibungkus dan dipulihkan [recoverKey] — ruang yang diikuti SETELAH kode
+ * dibuat (atau yang keanggotaannya diputus lalu digabung lagi) tidak otomatis tercakup oleh kode LAMA, perlu
+ * [enableRecovery] baru atau tetap diundang ulang lewat QR. Versi 1 lama (sebelum 2026-10-27, belum pernah
+ * dipakai pengguna sungguhan) tidak membawa kunci ruang sama sekali; [recoverKey] tetap bisa membukanya
+ * (hanya kunci akun) supaya tidak mogok bila suatu saat ditemukan.
  *
- * Kebijakan menimpa: [recoverKey] MENIMPA kunci akun lokal. Saat ini aman karena belum ada data lokal yang
- * dienkripsi dengan kunci akun. Begitu sync entitas akun ada, pulihkan wajib menjaga data lama; itu kewajiban
- * butir sync berikutnya.
+ * Kebijakan menimpa: [recoverKey] MENIMPA kunci akun lokal DAN kunci ruang-ruang yang ikut terbungkus. Saat ini
+ * aman karena belum ada data lokal yang dienkripsi dengan kunci akun, dan kunci ruang yang ditimpa hanya berarti
+ * ciphertext ruang itu kembali terbaca seperti pemilik aslinya (tidak ada data yang hilang, karena kunci ruang
+ * sebelum dipulihkan memang baru dibuat acak sendiri oleh perangkat baru dan belum pernah dipakai mengenkripsi
+ * apa pun). Begitu sync entitas akun ada, pulihkan wajib menjaga data lama; itu kewajiban butir sync berikutnya.
  *
  * Token API dibaca dari [tokens] tiap pemanggilan; 401 ditangani `ServerSession` lewat remote yang sudah
  * dibungkus, bukan di sini. Pemanggil di UI yang memutar token dan mengulang sekali bila 401 karena token diputar.
@@ -176,6 +184,18 @@ class RecoveryKeyService(
     private val remote: RecoveryKeyRemote,
     private val tokens: ApiTokenStore,
     private val statusStore: RecoveryStatusStore,
+    /**
+     * Kunci ruang keluarga (format `version` 2). Null berarti tidak ada kunci ruang yang ikut
+     * dibungkus saat [enableRecovery] atau dipasang balik saat [recoverKey] — dipakai tes lama yang
+     * tidak peduli ruang keluarga; produksi (`AccountWorkspace`) selalu mengisi ini.
+     */
+    private val roomKeys: RoomKeyProvider? = null,
+    /**
+     * Daftar [RoomId] ruang keluarga yang sedang diikuti perangkat ini (status ACTIVE di
+     * `shared_room`), dibaca ulang setiap [enableRecovery] dipanggil supaya daftarnya selalu segar
+     * (bukan dicache). Bawaan kosong untuk tes lama yang tidak mengisi [roomKeys].
+     */
+    private val activeSharedRoomIds: suspend () -> List<RoomId> = { emptyList() },
     private val clock: () -> Instant = { Instant.now() },
     private val random: SecureRandom = SecureRandom(),
 ) {
@@ -218,10 +238,16 @@ class RecoveryKeyService(
         val wrapped = try {
             val exported = keys.exportAccountKeyForRecovery()
             try {
-                AccountKeyRecoveryCrypto.wrap(exported, code, random).also { blob ->
-                    // Pagar keselamatan: bungkusan yang akan diunggah HARUS terbuka dengan kode yang akan ditampilkan.
-                    // Bila tidak, pengguna mencatat kode yang tak pernah bisa memulihkan apa pun.
-                    check(AccountKeyRecoveryCrypto.unwrap(blob, code).contentEquals(exported)) { "Bungkusan kunci tidak terbuka dengan kodenya" }
+                val roomEntries = collectActiveRoomKeyEntries()
+                try {
+                    val payload = RecoveryBundle(exported, roomEntries).encode()
+                    AccountKeyRecoveryCrypto.wrap(payload, code, random).also { blob ->
+                        // Pagar keselamatan: bungkusan yang akan diunggah HARUS terbuka dengan kode yang akan ditampilkan.
+                        // Bila tidak, pengguna mencatat kode yang tak pernah bisa memulihkan apa pun.
+                        check(AccountKeyRecoveryCrypto.unwrap(blob, code).contentEquals(payload)) { "Bungkusan kunci tidak terbuka dengan kodenya" }
+                    }
+                } finally {
+                    roomEntries.forEach { it.exportedRoomKey.fill(0) }
                 }
             } finally {
                 exported.fill(0)
@@ -233,6 +259,16 @@ class RecoveryKeyService(
         }
 
         return withContext(NonCancellable) { uploadAndVerify(token, wrapped, code) }
+    }
+
+    /**
+     * Kunci semua ruang keluarga AKTIF yang diikuti perangkat ini SEKARANG (dibaca ulang tiap panggilan,
+     * bukan dicache) — dibungkus bersama kunci akun jadi satu [RecoveryBundle] (format `version` 2).
+     * Kosong bila [roomKeys] null (tes lama) atau perangkat tidak mengikuti ruang apa pun.
+     */
+    private suspend fun collectActiveRoomKeyEntries(): List<RecoveryBundle.RoomKeyEntry> {
+        val provider = roomKeys ?: return emptyList()
+        return activeSharedRoomIds().map { roomId -> RecoveryBundle.RoomKeyEntry(roomId, provider.exportRoomKey(roomId)) }
     }
 
     private suspend fun uploadAndVerify(token: String, wrapped: ByteArray, code: RecoveryCode): EnableRecoveryResult {
@@ -300,15 +336,32 @@ class RecoveryKeyService(
                 is RecoveryKeyLookup.Found -> value
             }
         }
-        if (found.version != RECOVERY_KEY_VERSION) return RecoverKeyResult.UnsupportedVersion
+        if (found.version != RECOVERY_KEY_VERSION_LEGACY_ACCOUNT_KEY_ONLY && found.version != RECOVERY_KEY_VERSION) {
+            return RecoverKeyResult.UnsupportedVersion
+        }
 
-        val exported = try {
+        val unwrapped = try {
             AccountKeyRecoveryCrypto.unwrap(found.wrappedKey, code)
         } catch (_: RecoveryCodeInvalid) {
             return RecoverKeyResult.WrongCode
         }
+
+        // Versi 1 lama: plaintext ADALAH bytes kunci akun mentah, tanpa struktur, tanpa kunci ruang.
+        // Versi 2 (sejak 2026-10-27): plaintext berstruktur ([RecoveryBundle]) — kunci akun plus kunci ruang.
+        val bundle = if (found.version == RECOVERY_KEY_VERSION_LEGACY_ACCOUNT_KEY_ONLY) {
+            RecoveryBundle(unwrapped, emptyList())
+        } else {
+            try {
+                RecoveryBundle.decode(unwrapped)
+            } catch (_: RecoveryBundleCorrupt) {
+                return RecoverKeyResult.BackupUnreadable
+            } finally {
+                unwrapped.fill(0)
+            }
+        }
+
         try {
-            keys.importAccountKeyFromRecovery(exported)
+            keys.importAccountKeyFromRecovery(bundle.accountKey)
         } catch (_: InvalidAccountKeyExport) {
             return RecoverKeyResult.BackupUnreadable
         } catch (e: CancellationException) {
@@ -316,8 +369,27 @@ class RecoveryKeyService(
         } catch (_: Exception) {
             return RecoverKeyResult.KeyUnavailable
         } finally {
-            exported.fill(0)
+            bundle.accountKey.fill(0)
         }
+
+        // Kunci ruang yang ikut terbungkus (version 2): dipasang MENIMPA, kebijakan sama dengan kunci akun (lihat
+        // KDoc kelas). Satu ruang gagal dipasang tidak membatalkan kunci akun yang sudah berhasil atau ruang lain
+        // — "tenang, bukan panik": lebih baik pulih sebagian daripada tidak sama sekali, dan versi 1 lama memang
+        // tidak pernah memulihkan ruang apa pun juga.
+        roomKeys?.let { provider ->
+            for (entry in bundle.roomKeys) {
+                try {
+                    provider.importRoomKey(entry.roomId, entry.exportedRoomKey)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // Diam-diam dilewati: ruang itu tetap harus diundang ulang lewat QR, sama seperti version 1.
+                } finally {
+                    entry.exportedRoomKey.fill(0)
+                }
+            }
+        }
+
         statusStore.markConfigured(clock(), found.updatedAt)
         return RecoverKeyResult.Recovered
     }

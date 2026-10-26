@@ -12,7 +12,7 @@ package com.roziqrizal.rizqflow.domain.sync
  * - 401 ditangani satu tempat (`ServerSession`), bukan di sini maupun di pemanggil.
  */
 interface RecoveryKeyRemote {
-    /** Mengunggah (atau mengganti) salinan terbungkus [wrappedKey]. Format [RECOVERY_KEY_VERSION] 1 = [AccountKeyRecoveryCrypto.wrap]. */
+    /** Mengunggah (atau mengganti) salinan terbungkus [wrappedKey], selalu format [RECOVERY_KEY_VERSION] (yang DITULIS klien ini). */
     suspend fun put(apiToken: String, wrappedKey: ByteArray): RemoteResult<RecoveryKeyReceipt>
 
     suspend fun get(apiToken: String): RemoteResult<RecoveryKeyLookup>
@@ -20,8 +20,23 @@ interface RecoveryKeyRemote {
     suspend fun delete(apiToken: String): RemoteResult<Unit>
 }
 
-/** Versi format salinan terbungkus yang dikenal klien ini: 1 = [AccountKeyRecoveryCrypto.wrap] (BackupCrypto AES-256-GCM, PBKDF2). */
-const val RECOVERY_KEY_VERSION = 1
+/**
+ * Versi format salinan terbungkus yang DITULIS klien ini sekarang (sejak 2026-10-27, roadmap.md
+ * Tahap 13 "Masukkan kunci ruang keluarga..."): isi terbuka (plaintext, sebelum dibungkus
+ * [AccountKeyRecoveryCrypto.wrap]) adalah [RecoveryBundle] — kunci akun PLUS kunci semua ruang
+ * keluarga aktif yang diikuti perangkat ini saat [RecoveryKeyService.enableRecovery] dipanggil.
+ * Kriptonya sendiri (AES-256-GCM, kunci PBKDF2 dari kode 24 kata) tidak berubah dari versi 1.
+ */
+const val RECOVERY_KEY_VERSION = 2
+
+/**
+ * Versi format LAMA (sebelum 2026-10-27): isi terbuka adalah bytes mentah
+ * [AccountKeyProvider.exportAccountKeyForRecovery] TANPA struktur apa pun — hanya kunci akun, kunci
+ * ruang keluarga tidak ikut. Klien ini TIDAK PERNAH menulis versi ini lagi (belum ada pengguna
+ * sungguhan yang pernah memakainya, lihat roadmap.md); dipertahankan hanya supaya
+ * [RecoveryKeyService.recoverKey] tidak mogok bila suatu saat menemukan salinan lama ini.
+ */
+const val RECOVERY_KEY_VERSION_LEGACY_ACCOUNT_KEY_ONLY = 1
 
 /** Tanda terima unggahan: [version] dan [updatedAt] (ISO-8601 UTC) persis dari jawaban server. */
 data class RecoveryKeyReceipt(val version: Int, val updatedAt: String)

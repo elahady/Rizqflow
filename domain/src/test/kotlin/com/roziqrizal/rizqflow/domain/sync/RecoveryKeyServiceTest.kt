@@ -1,6 +1,7 @@
 package com.roziqrizal.rizqflow.domain.sync
 
 import com.roziqrizal.rizqflow.domain.auth.runSuspend
+import com.roziqrizal.rizqflow.domain.model.RoomId
 import java.security.SecureRandom
 import java.time.Instant
 import java.util.Random
@@ -99,6 +100,29 @@ private class FakeTokens(var token: String? = "token-akun") : ApiTokenStore {
     }
 }
 
+/** Penyedia kunci ruang palsu (format `version` 2): "kunci" per ruang adalah bytes tetap di map, bisa gagal per ruang. */
+private class FakeRoomKeys : RoomKeyProvider {
+    val keysByRoom = mutableMapOf<String, ByteArray>()
+    var exportError: Exception? = null
+    val importErrorForRoom = mutableMapOf<String, Exception>()
+    val imports = mutableListOf<RoomId>()
+
+    override fun getOrCreateRoomKey(roomId: RoomId): SyncAead = error("tidak dipakai di tes ini")
+
+    override fun exportRoomKey(roomId: RoomId): ByteArray {
+        exportError?.let { throw it }
+        return keysByRoom[roomId.value]?.copyOf() ?: error("ruang tidak dikenal di tes: $roomId")
+    }
+
+    override fun importRoomKey(roomId: RoomId, exportedRoomKey: ByteArray) {
+        imports += roomId
+        importErrorForRoom[roomId.value]?.let { throw it }
+        keysByRoom[roomId.value] = exportedRoomKey.copyOf()
+    }
+
+    override fun rotateRoomKey(roomId: RoomId): SyncAead = error("tidak dipakai di tes ini")
+}
+
 private class FakeStatusStore(var status: RecoveryStatus = RecoveryStatus.NotConfigured) : RecoveryStatusStore {
     override fun read() = status
     override fun markPending(serverUpdatedAt: String?) {
@@ -160,8 +184,10 @@ class RecoveryKeyServiceTest {
         val display = enableOk()
 
         val unwrapped = AccountKeyRecoveryCrypto.unwrap(remote.putBodies.single(), RecoveryCode.parse(display.words))
+        val bundle = RecoveryBundle.decode(unwrapped)
 
-        assertContentEquals(keyA, unwrapped)
+        assertContentEquals(keyA, bundle.accountKey)
+        assertEquals(emptyList(), bundle.roomKeys, "service tanpa RoomKeyProvider tidak membungkus ruang apa pun")
     }
 
     @Test
@@ -311,7 +337,8 @@ class RecoveryKeyServiceTest {
 
         val serverCopy = remote.stored!!.wrappedKey
         assertContentEquals(remote.putBodies.single(), serverCopy)
-        assertContentEquals(keyA, AccountKeyRecoveryCrypto.unwrap(serverCopy, RecoveryCode.parse(display.words)))
+        val unwrapped = AccountKeyRecoveryCrypto.unwrap(serverCopy, RecoveryCode.parse(display.words))
+        assertContentEquals(keyA, RecoveryBundle.decode(unwrapped).accountKey)
     }
 
     // ---- pembatalan dan serialisasi ----
@@ -401,7 +428,8 @@ class RecoveryKeyServiceTest {
         val display = enableOk(serviceB(keysB), replace = true)
 
         assertEquals(2, remote.putBodies.size)
-        assertContentEquals(keyB, AccountKeyRecoveryCrypto.unwrap(remote.putBodies.last(), RecoveryCode.parse(display.words)))
+        val unwrapped = AccountKeyRecoveryCrypto.unwrap(remote.putBodies.last(), RecoveryCode.parse(display.words))
+        assertContentEquals(keyB, RecoveryBundle.decode(unwrapped).accountKey)
     }
 
     @Test
@@ -706,6 +734,135 @@ class RecoveryKeyServiceTest {
 
         assertEquals(RecoverKeyResult.NotSignedIn, result)
         assertEquals(getsBefore, remote.getCalls)
+    }
+
+    // ---- format `version` 2: kunci ruang keluarga ikut terbungkus (2026-10-27) ----
+
+    @Test
+    fun `enable membungkus kunci semua ruang aktif yang diikuti, dan pulihkan memasangnya kembali sama persis`() {
+        val roomKeysA = FakeRoomKeys().apply {
+            keysByRoom["ruang-1"] = "KUNCI-RUANG-1".toByteArray()
+            keysByRoom["ruang-2"] = "KUNCI-RUANG-2-LAIN".toByteArray()
+        }
+        val serviceWithRooms = RecoveryKeyService(
+            keysA, remote, FakeTokens(), statusA,
+            roomKeys = roomKeysA,
+            activeSharedRoomIds = { listOf(RoomId("ruang-1"), RoomId("ruang-2")) },
+            clock = { now },
+        )
+
+        val display = assertIs<EnableRecoveryResult.Ready>(runSuspend { serviceWithRooms.enableRecovery() }).display
+
+        val roomKeysB = FakeRoomKeys()
+        val serviceB2 = RecoveryKeyService(FakeAccountKeys(keyB), remote, FakeTokens(), FakeStatusStore(), roomKeys = roomKeysB, clock = { now })
+        val result = runSuspend { serviceB2.recoverKey(display.words) }
+
+        assertEquals(RecoverKeyResult.Recovered, result)
+        assertContentEquals("KUNCI-RUANG-1".toByteArray(), roomKeysB.keysByRoom["ruang-1"])
+        assertContentEquals("KUNCI-RUANG-2-LAIN".toByteArray(), roomKeysB.keysByRoom["ruang-2"])
+        assertEquals(setOf(RoomId("ruang-1"), RoomId("ruang-2")), roomKeysB.imports.toSet())
+    }
+
+    @Test
+    fun `tanpa RoomKeyProvider sama sekali, pulihkan sukses hanya kunci akun tanpa menyentuh ruang`() {
+        val display = enableOk() // serviceA tanpa roomKeys (null, bawaan)
+        val keysB = FakeAccountKeys(keyB)
+
+        val result = runSuspend { serviceB(keysB).recoverKey(display.words) }
+
+        assertEquals(RecoverKeyResult.Recovered, result)
+        assertContentEquals(keyA, keysB.key)
+    }
+
+    @Test
+    fun `daftar ruang aktif dibaca ulang tiap enableRecovery, bukan dicache`() {
+        var rooms = listOf(RoomId("ruang-1"))
+        val roomKeysA = FakeRoomKeys().apply {
+            keysByRoom["ruang-1"] = "K1".toByteArray()
+            keysByRoom["ruang-2"] = "K2".toByteArray()
+        }
+        val service = RecoveryKeyService(keysA, remote, FakeTokens(), statusA, roomKeys = roomKeysA, activeSharedRoomIds = { rooms }, clock = { now })
+
+        val display1 = assertIs<EnableRecoveryResult.Ready>(runSuspend { service.enableRecovery() }).display
+        val bundle1 = RecoveryBundle.decode(AccountKeyRecoveryCrypto.unwrap(remote.putBodies[0], RecoveryCode.parse(display1.words)))
+        assertEquals(listOf(RoomId("ruang-1")), bundle1.roomKeys.map { it.roomId })
+
+        rooms = listOf(RoomId("ruang-1"), RoomId("ruang-2"))
+        val display2 = assertIs<EnableRecoveryResult.Ready>(runSuspend { service.enableRecovery(replaceExistingCopy = true) }).display
+        val bundle2 = RecoveryBundle.decode(AccountKeyRecoveryCrypto.unwrap(remote.putBodies[1], RecoveryCode.parse(display2.words)))
+        assertEquals(listOf(RoomId("ruang-1"), RoomId("ruang-2")), bundle2.roomKeys.map { it.roomId })
+    }
+
+    @Test
+    fun `kunci ruang gagal diekspor membatalkan seluruh enable, tidak ada yang diunggah`() {
+        val roomKeysA = FakeRoomKeys().apply { exportError = IllegalStateException("Keystore ruang bermasalah") }
+        val service = RecoveryKeyService(
+            keysA, remote, FakeTokens(), statusA,
+            roomKeys = roomKeysA, activeSharedRoomIds = { listOf(RoomId("ruang-1")) }, clock = { now },
+        )
+
+        val result = runSuspend { service.enableRecovery() }
+
+        assertEquals(EnableRecoveryResult.KeyUnavailable, result)
+        assertTrue(remote.putBodies.isEmpty())
+        assertEquals(RecoveryStatus.NotConfigured, statusA.status)
+    }
+
+    @Test
+    fun `satu kunci ruang gagal dipasang saat pulihkan tidak membatalkan kunci akun atau ruang lain`() {
+        val roomKeysA = FakeRoomKeys().apply {
+            keysByRoom["ruang-1"] = "K1".toByteArray()
+            keysByRoom["ruang-2"] = "K2".toByteArray()
+        }
+        val serviceWithRooms = RecoveryKeyService(
+            keysA, remote, FakeTokens(), statusA,
+            roomKeys = roomKeysA, activeSharedRoomIds = { listOf(RoomId("ruang-1"), RoomId("ruang-2")) }, clock = { now },
+        )
+        val display = assertIs<EnableRecoveryResult.Ready>(runSuspend { serviceWithRooms.enableRecovery() }).display
+
+        val keysB = FakeAccountKeys(keyB)
+        val roomKeysB = FakeRoomKeys().apply { importErrorForRoom["ruang-1"] = IllegalStateException("tulis gagal") }
+        val serviceB2 = RecoveryKeyService(keysB, remote, FakeTokens(), FakeStatusStore(), roomKeys = roomKeysB, clock = { now })
+
+        val result = runSuspend { serviceB2.recoverKey(display.words) }
+
+        assertEquals(RecoverKeyResult.Recovered, result, "kunci akun tetap terpulihkan walau satu ruang gagal dipasang")
+        assertContentEquals(keyA, keysB.key)
+        assertFalse(roomKeysB.keysByRoom.containsKey("ruang-1"), "ruang yang gagal dipasang tidak boleh meninggalkan kunci setengah jadi")
+        assertContentEquals("K2".toByteArray(), roomKeysB.keysByRoom["ruang-2"], "ruang lain tetap terpasang walau ruang-1 gagal")
+    }
+
+    @Test
+    fun `salinan version 1 lama (sebelum kunci ruang ada) tetap bisa dipulihkan, hanya kunci akun`() {
+        val code = RecoveryCode.generate()
+        val legacyWrapped = AccountKeyRecoveryCrypto.wrap(keyA, code) // plaintext mentah, TANPA struktur RecoveryBundle
+        remote.stored = RecoveryKeyLookup.Found(legacyWrapped, RECOVERY_KEY_VERSION_LEGACY_ACCOUNT_KEY_ONLY, "2026-10-20T00:00:00Z")
+        val keysB = FakeAccountKeys(keyB)
+        val roomKeysB = FakeRoomKeys()
+        val serviceB2 = RecoveryKeyService(keysB, remote, FakeTokens(), FakeStatusStore(), roomKeys = roomKeysB, clock = { now })
+
+        val result = runSuspend { serviceB2.recoverKey(code.words) }
+
+        assertEquals(RecoverKeyResult.Recovered, result)
+        assertContentEquals(keyA, keysB.key)
+        assertTrue(roomKeysB.keysByRoom.isEmpty(), "version 1 lama tidak membawa kunci ruang apa pun")
+        assertTrue(roomKeysB.imports.isEmpty())
+    }
+
+    @Test
+    fun `isi bungkusan version 2 yang rusak strukturnya (bukan kode salah) menjadi BackupUnreadable`() {
+        val code = RecoveryCode.generate()
+        val bukanBundleYangSah = AccountKeyRecoveryCrypto.wrap(byteArrayOf(9, 9, 9), code)
+        remote.stored = RecoveryKeyLookup.Found(bukanBundleYangSah, RECOVERY_KEY_VERSION, "2026-10-20T00:00:00Z")
+        val keysB = FakeAccountKeys(keyB)
+        val statusB = FakeStatusStore()
+        val serviceB2 = RecoveryKeyService(keysB, remote, FakeTokens(), statusB, clock = { now })
+
+        val result = runSuspend { serviceB2.recoverKey(code.words) }
+
+        assertEquals(RecoverKeyResult.BackupUnreadable, result)
+        assertContentEquals(keyB, keysB.key)
+        assertEquals(RecoveryStatus.NotConfigured, statusB.status)
     }
 
     // ---- tawaran di perangkat baru dan lain-lain ----

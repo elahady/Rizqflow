@@ -1129,7 +1129,7 @@
     <string name="recovery_offer_action">Restore</string>
 
     <string name="recovery_title">Recovery code</string>
-    <string name="recovery_intro">Your recovery code is 24 words and saves your account key on the server, wrapped with the code, as the foundation for restoring data on a new device. Account data can be restored once account data sync is available, and family room keys are not saved yet: shared rooms need to be invited again by QR. Rizqflow and the server do not store the code and cannot help if it is lost.</string>
+    <string name="recovery_intro">Your recovery code is 24 words and saves your account key, plus the keys of every family room you currently follow, on the server wrapped with the code — as the foundation for restoring on a new device. Account data can be restored once account data sync is available. Rooms you join AFTER this code is created are not covered automatically: invite them again by QR, or create a new code to cover them. Rizqflow and the server do not store the code and cannot help if it is lost.</string>
     <string name="recovery_status_none">Status: not set up</string>
     <string name="recovery_status_pending">Status: unfinished. You did not confirm the last code, or its result is uncertain, and it can no longer be shown. Create a new code.</string>
     <string name="recovery_status_configured">Status: set up on %1$s</string>
@@ -1165,7 +1165,7 @@
     <string name="recovery_verify_wrong">Some words do not match. Check your paper. The requested numbers have changed.</string>
     <string name="recovery_verify_back">Show the code again</string>
     <string name="recovery_done_title">Recovery code is set up</string>
-    <string name="recovery_done_body">Keep the paper somewhere safe. This code restores your account key; data follows once account data sync is available. You can create a new code at any time from the More menu.</string>
+    <string name="recovery_done_body">Keep the paper somewhere safe. This code restores your account key and the keys of the family rooms you follow right now; account data follows once account data sync is available. Rooms you join after this need a new code or to be invited again by QR. You can create a new code at any time from the More menu.</string>
     <string name="recovery_done_action">Close</string>
     <string name="recovery_exit_title">Leave without finishing?</string>
     <string name="recovery_exit_body">This code will not be shown again and is not confirmed. You can create a new code from the More menu.</string>
@@ -1192,7 +1192,7 @@
     <string name="restore_confirm_title">Replace the key on this device?</string>
     <string name="restore_confirm_body">The account key on this device will be replaced with the key from the server copy, and the current key can no longer be used. Your financial data on this phone is not deleted.</string>
     <string name="restore_confirm_action">Replace key</string>
-    <string name="restore_success">Account key installed on this device. Data can be restored once account data sync is available; family rooms need to be invited again by QR.</string>
+    <string name="restore_success">The account key and the family room keys wrapped in this code are now installed on this device. Account data can be restored once account data sync is available; rooms not covered by this code still need to be invited again by QR.</string>
     <string name="restore_err_count">A recovery code must be 24 words.</string>
     <string name="restore_err_unknown">Some words are not in the list. Check the spelling.</string>
     <string name="restore_err_checksum">Every word is recognised, but the order or one of the words does not match. Check your notes again.</string>

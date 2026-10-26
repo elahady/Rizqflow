@@ -12,8 +12,9 @@ import kotlinx.serialization.SerializationException
 
 /**
  * Implementasi [RecoveryKeyRemote] sungguhan lewat [RizqflowApiService] (Tahap 13). Badan persis kontrak:
- * `wrapped_key` base64 STANDAR (dengan padding, bukan URL-safe) dan `version` 1. Server tidak pernah melihat
- * kode 24 kata atau kunci terbaca; yang dikirim hanya bungkusan hasil `AccountKeyRecoveryCrypto.wrap`.
+ * `wrapped_key` base64 STANDAR (dengan padding, bukan URL-safe) dan `version` [RECOVERY_KEY_VERSION] (2 sejak
+ * 2026-10-27 — server hanya menyimpan angka ini apa adanya, tidak membaca isi blob). Server tidak pernah
+ * melihat kode 24 kata atau kunci terbaca; yang dikirim hanya bungkusan hasil `AccountKeyRecoveryCrypto.wrap`.
  *
  * - 404 pada GET adalah hasil biasa ([RecoveryKeyLookup.NotFound]), bukan galat, HANYA bila badannya memuat
  *   penanda kontrak `"code":"no_recovery_key"` (kontrak disepakati dengan server: `{"message":"Belum ada kode
