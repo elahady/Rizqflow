@@ -159,6 +159,8 @@ Ukuran: S kecil, M sedang, L besar. Tiap tahap diuji dan di-commit sendiri.
 | 15 | Sync otomatis hanya saat aplikasi di depan; saklar "hanya Wi-Fi" | Ya |
 | 16 | Label penulis di baris bersama | Nama panggilan pilihan anggota, bukan email, dengan `author` dari server sebagai penentu identitas |
 
+**Sudah diputuskan pemilik** (sesuai rekomendasi Claude di atas): **#0** (2026-10-26, ya), **#1** (2026-10-27, ya untuk v1 — pembuat ruang jadi pemilik default dengan hak keluarkan anggota, dicatat juga di roadmap.md Tahap 9 butir "Keluarkan anggota"), **#2** (2026-10-26, ya untuk "terpakai" ruang, tidak untuk saldo). **Masih menunggu pemilik**: #3–#16 (dibahas bersama di sesi berikutnya, bukan diputuskan sepihak dari rekomendasi di tabel).
+
 ### Risiko
 
 Korupsi data (penerapan idempoten LWW, satu transaksi Room per halaman termasuk kursor, tes properti konvergensi, kegagalan dekripsi dicatat bukan diterapkan separuh); kehilangan data saat migrasi (migrasi aditif, tes hitungan baris, `.premigrate`, `synced_at` tidak dihapus); duplikasi (deteksi ruang kerja murni, nama ganda ditoleransi, push idempoten); loop sync (`applying`, tes pull-lalu-push 0 unggahan, single-flight); jam salah (`SyncClock`); edit lokal kalah diam-diam (`sync_issue(OVERWRITTEN)`); server memalsukan urutan atau tombstone (AAD); anggota palsu menulis atas nama lain (penulis tunggal via `author` server); kunci yatim (gerbang pemulihan, gabung kunci, `room_key`); restore backup berkas DB (kursor di DB yang sama); `join` tanpa rahasia (rahasia di QR, hash di server).

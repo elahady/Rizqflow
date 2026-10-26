@@ -108,11 +108,11 @@ Metrik setelah rilis butuh pengukuran di aplikasi atau server; apakah Firebase A
 - **Waktu pemasaran per minggu: 2–3 jam** (2026-10-26, pemilik setuju usulan).
 - **Tampil sebagai founder: ya**, dengan nama dan wajah sendiri (2026-10-26, pemilik setuju usulan). Platform mana yang dipakai belum dirinci.
 - **Anggaran boost: uji kecil dulu**, sekitar Rp 20.000–30.000 per hari selama 5–7 hari, berhenti bila biaya per pendaftar jauh di atas Rp 8.000 (2026-10-26, pemilik setuju usulan — mengukuhkan aturan main yang sudah diusulkan di bagian "Instagram dan boost" di atas sebagai keputusan).
+- **Positioning: membidik ceruk keluarga muslim muda dengan zakat sebagai pintu masuk** (2026-10-27, pemilik setuju usulan, mengikuti rekomendasi riset pasar). Bisa melebar ke pasar umum setelah ada traksi awal.
+- **Ambang daftar tunggu "minat tervalidasi": 100 pendaftar** (2026-10-27, pemilik setuju usulan); dipakai untuk menutup butir "Validasi minat" di Tahap 0. Belum tercapai bukan berarti batal rilis, hanya sinyal perlu perkuat promosi.
+- **Pembuat desain konten: Claude menyusun naskah dan struktur template carousel, pemilik eksekusi visualnya di Canva** (2026-10-27, pemilik setuju usulan) — pemilik yang paling tahu identitas visual roziqrizal.com.
+- **Bentuk harga perdana: kode promo Play khusus pendaftar daftar tunggu**, bukan harga awal lebih rendah untuk semua pembeli (2026-10-27, pemilik setuju usulan) — lebih menghargai pendaftar awal dan tidak menurunkan persepsi harga produk ke publik umum. Angka harga final Pro sendiri masih menunggu uji minat ([monetisasi.md](monetisasi.md)).
 
 ## Keputusan yang masih terbuka
 
-- **Positioning**: membidik ceruk keluarga muslim muda dengan zakat sebagai pintu masuk (usulan di atas), atau umum sejak awal.
-- **Ambang daftar tunggu** yang dianggap "minat tervalidasi" sampai rilis (mis. 100 pendaftar); dipakai untuk menutup butir "Validasi minat" di Tahap 0.
 - **Siapa pemakai `@rizqflow` di Instagram**: bila produk atau bisnis keuangan yang aktif, itu risiko merek yang perlu dicatat di [konsep.md](konsep.md) ("Cek nama") dan dipertimbangkan sebelum nama dan `applicationId` terkunci di unggahan AAB pertama (Tahap 8).
-- **Pembuat desain konten**: pemilik sendiri lewat Canva, atau Claude menyusun naskah carousel dan template.
-- **Bentuk harga perdana**: harga awal yang lebih rendah untuk semua pembeli lalu naik, atau kode promo Play khusus pendaftar daftar tunggu. Bergantung pada harga final Pro ([monetisasi.md](monetisasi.md)).
