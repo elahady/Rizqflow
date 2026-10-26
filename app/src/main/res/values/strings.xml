@@ -524,7 +524,7 @@
     <string name="pro_restore_not_active">Pembelian Pro belum aktif di akun Google Play ini.</string>
     <string name="sync_restore_not_active">Langganan Sync belum aktif di akun Google Play ini.</string>
     <!-- Laporan pembelian ke server (Tahap 9): satu-satunya kabar dari server yang ditampilkan. Nadanya tenang, tidak menyalahkan; akses di perangkat tidak berubah. -->
-    <string name="purchase_claimed_by_other">Pembelian ini sudah dipakai akun Rizqflow lain, jadi web dan Sync tidak mengenalinya. Akses di perangkat ini tidak berubah.</string>
+    <string name="purchase_claimed_by_other">Pembelian ini sudah dipakai akun Rizqflow lain, jadi web dan Sync tidak mengenalinya. Akses di perangkat ini tidak berubah. Kalau pembelian ini milikmu, coba masuk dengan akun Google yang dulu dipakai saat membeli, atau, bila akun lama itu sudah tidak dipakai, hapus akun Rizqflow di akun tersebut untuk membebaskan pembelian ini (yang terhapus hanya catatan pembelian di server).</string>
 
     <!-- Kunci aplikasi S19 (Tahap 6) -->
     <string name="lock_title">Terkunci</string>
