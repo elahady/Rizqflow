@@ -1,15 +1,19 @@
 package com.roziqrizal.rizqflow.domain.sync
 
 import com.roziqrizal.rizqflow.domain.ledger.AccountRepository
+import com.roziqrizal.rizqflow.domain.ledger.Category
 import com.roziqrizal.rizqflow.domain.ledger.MoneyTransaction
 import com.roziqrizal.rizqflow.domain.ledger.RoomRepository
+import com.roziqrizal.rizqflow.domain.ledger.RoomTemplates
 import com.roziqrizal.rizqflow.domain.ledger.TransactionRepository
+import com.roziqrizal.rizqflow.domain.model.CategoryId
 import com.roziqrizal.rizqflow.domain.model.RoomId
 import com.roziqrizal.rizqflow.domain.model.TransactionId
 import com.roziqrizal.rizqflow.domain.model.TransactionKind
 import com.roziqrizal.rizqflow.domain.model.TransactionOrigin
 import java.time.Instant
 import java.util.Base64
+import java.util.UUID
 
 private const val RECORD_TYPE_TRANSACTION = "transaction"
 private const val FALLBACK_CATEGORY_NAME = "Lain-lain"
@@ -33,6 +37,15 @@ private const val FALLBACK_CATEGORY_NAME = "Lain-lain"
  *   virtual, tidak memutuskan siapa menang.
  * - **`server_time_ms`**: dipakai menjepit [clock] lewat [SyncClock.setServerOffset] setiap putaran
  *   berhasil, supaya jam perangkat yang salah tidak membuat cap waktu lokal makin jauh melenceng.
+ * - **Penjepitan jam jauh ke depan saat push** (bagian D "Jam salah"): cap yang DIKIRIM ke server
+ *   (`changedAtMillis` di [SyncLogEntryUpload]) selalu lewat [SyncClock.stamp], bukan cap lokal mentah
+ *   (`entry.changedAtMillis`/`tombstone.deletedAtMillis`, yang bisa jauh ke depan bila jam perangkat
+ *   salah setel). `stamp()` mengoreksinya dengan [SyncClock.serverOffsetMillis] begitu perangkat ini
+ *   pernah sekali tersambung ke server (offset diisi dari `server_time_ms` di atas); sebelum koneksi
+ *   pertama itu belum ada apa pun untuk dikoreksi terhadap (lihat KDoc [SyncClock], butir "Risiko jam
+ *   jauh ke depan"). Dilakukan HANYA di titik ini (sebelum push), tidak menyentuh jalur tulis
+ *   transaksi lokal biasa (`updatedAtMillis` lokal tetap apa adanya) — supaya LWW lokal (membandingkan
+ *   edit lokal yang belum terkirim dengan versi masuk) tidak ikut berubah oleh penjepitan ini.
  *
  * "Tenang, bukan panik": kegagalan jaringan/server selalu [SyncResult.Failed], tidak pernah melempar.
  */
@@ -76,6 +89,13 @@ class SyncCoordinator(
 
         val liveUploads = pending.map { entry ->
             val transaction = entry.transaction
+            // Penjepitan jam (Tahap 2, sync-desain.md bagian D "Jam salah"): cap yang DIKIRIM dipakai
+            // lewat SyncClock.stamp(), bukan cap lokal mentah (entry.changedAtMillis bisa jauh ke depan
+            // bila jam perangkat salah). stamp() = max(jam perangkat + offset server, cap lokal + 1) —
+            // offset dikoreksi dari server_time_ms setiap putaran berhasil (lihat bawah), jadi perangkat
+            // yang jamnya salah mengirim cap yang sudah terkoreksi begitu pernah sekali tersambung ke
+            // server; sebelum itu (belum pernah tersambung) belum bisa dikoreksi — lihat KDoc [SyncClock].
+            val changedAtMillis = clock.stamp(entry.changedAtMillis)
             val plaintext = codec.encode(
                 transaction = transaction,
                 accountName = accountNames[transaction.accountId] ?: "",
@@ -89,8 +109,8 @@ class SyncCoordinator(
                 deviceId = deviceId,
                 payload = Base64.getEncoder().encodeToString(ciphertext),
                 deleted = false,
-                changedAt = Instant.ofEpochMilli(entry.changedAtMillis).toString(),
-                changedAtMillis = entry.changedAtMillis,
+                changedAt = Instant.ofEpochMilli(changedAtMillis).toString(),
+                changedAtMillis = changedAtMillis,
             )
         }
 
@@ -98,7 +118,9 @@ class SyncCoordinator(
         // asli sudah hilang secara lokal, jadi tidak ada isi untuk dienkripsi — payload tetap ciphertext
         // buram (bukan sentinel teks biasa) lewat AEAD ruang yang sama, supaya bentuknya seragam dengan
         // baris hidup di mata server. `deleted` sendiri sudah terbuka di luar enkripsi (kolom log lama).
+        // Cap tombstone ikut dijepit lewat SyncClock.stamp() sama seperti baris hidup di atas.
         val tombstoneUploads = pendingDeletes.map { tombstone ->
+            val changedAtMillis = clock.stamp(tombstone.deletedAtMillis)
             val ciphertext = aead.encrypt(ByteArray(0), associatedData = tombstone.transactionId.value.toByteArray())
             SyncLogEntryUpload(
                 roomId = roomId.value,
@@ -107,8 +129,8 @@ class SyncCoordinator(
                 deviceId = deviceId,
                 payload = Base64.getEncoder().encodeToString(ciphertext),
                 deleted = true,
-                changedAt = Instant.ofEpochMilli(tombstone.deletedAtMillis).toString(),
-                changedAtMillis = tombstone.deletedAtMillis,
+                changedAt = Instant.ofEpochMilli(changedAtMillis).toString(),
+                changedAtMillis = changedAtMillis,
             )
         }
 
@@ -117,7 +139,7 @@ class SyncCoordinator(
         return when (val result = syncRemote.push(apiToken, uploads)) {
             is RemoteResult.Failure -> result
             is RemoteResult.Success -> {
-                result.value.serverTimeMs?.let { clock.setServerOffset(it - System.currentTimeMillis()) }
+                result.value.serverTimeMs?.let { clock.setServerOffset(it - clock.rawDeviceNowMillis()) }
                 transactions.markSynced(pending.map { it.transaction.id }, System.currentTimeMillis())
                 transactions.clearPendingTombstones(pendingDeletes.map { it.transactionId })
                 RemoteResult.Success(uploads.size)
@@ -135,7 +157,7 @@ class SyncCoordinator(
                 is RemoteResult.Failure -> return result
                 is RemoteResult.Success -> result.value
             }
-            page.serverTimeMs?.let { clock.setServerOffset(it - System.currentTimeMillis()) }
+            page.serverTimeMs?.let { clock.setServerOffset(it - clock.rawDeviceNowMillis()) }
 
             for (downloaded in page.entries) {
                 // Echo baris sendiri (sudah punya lokal) dan entitas lain (menyusul terpisah) dilewati.
@@ -168,7 +190,11 @@ class SyncCoordinator(
         return RemoteResult.Success(PullOutcome(applied, skipped))
     }
 
-    /** @return true bila diterapkan, false bila payload rusak (akun tak dikenal tidak lagi mungkin: akun virtual selalu dibuat). */
+    /**
+     * @return true bila diterapkan, false bila payload rusak atau (sangat jarang) ruang ini bahkan
+     *   tidak punya kategori "Lain-lain" sama sekali. Akun tak dikenal tidak lagi mungkin (akun virtual
+     *   selalu dibuat); kategori tak dikenal pun tidak lagi jatuh ke "Lain-lain" — lihat [findOrCreateSharedCategory].
+     */
     private suspend fun applyIncoming(
         id: TransactionId,
         roomId: RoomId,
@@ -188,9 +214,7 @@ class SyncCoordinator(
         val account = accounts.findOrCreateVirtualMember(roomId, author, decoded.accountName)
 
         val categoriesInRoom = rooms.allCategories().filter { it.roomId == roomId }
-        val categoryId = decoded.categoryName
-            ?.let { name -> categoriesInRoom.firstOrNull { it.name.equals(name, ignoreCase = true) } }
-            ?: categoriesInRoom.firstOrNull { it.name.equals(FALLBACK_CATEGORY_NAME, ignoreCase = true) }
+        val categoryId = findOrCreateSharedCategory(roomId, categoriesInRoom, decoded.categoryName)
         if (categoryId == null) return false
 
         val transaction = MoneyTransaction(
@@ -211,6 +235,45 @@ class SyncCoordinator(
         )
         transactions.applyFromSync(id, transaction, changedAtMillis, deleted = false)
         return true
+    }
+
+    /**
+     * Kategori ruang bersama dikenali lewat nama ternormalisasi (bagian B R2, keputusan pemilik):
+     * dicari dulu di [categoriesInRoom]; kalau tidak ketemu, DIBUAT baru di [roomId] (bukan jatuh ke
+     * "Lain-lain" — itu perilaku lama Tahap 2 yang sengaja ditutup di sini). Normalisasi NFKC + trim +
+     * rapatkan spasi + huruf kecil (bagian B R2, [SharedRoomNameNormalization]) menyamakan variasi
+     * kapital/spasi, jadi kategori sistem `Zakat mal`/`Tak terlacak` yang sudah ada di ruang ini
+     * dicocokkan lewat nama seperti kategori lain dan TIDAK PERNAH dibuat dobel.
+     *
+     * [rawName] kosong atau cuma spasi (null maupun string) adalah kasus BERBEDA dari "tidak
+     * ditemukan": selalu jatuh ke "Lain-lain", tidak pernah membuat kategori baru bernama kosong.
+     *
+     * @return null hanya bila ruang ini bahkan tidak punya kategori "Lain-lain" (seharusnya mustahil:
+     *   setiap ruang dibuat dengan kategori itu, lihat `RoomTemplates`/`WorkspaceSetup`).
+     */
+    private suspend fun findOrCreateSharedCategory(roomId: RoomId, categoriesInRoom: List<Category>, rawName: String?): Category? {
+        val trimmed = rawName?.trim()
+        if (trimmed.isNullOrEmpty()) {
+            val fallbackNormalized = SharedRoomNameNormalization.normalize(FALLBACK_CATEGORY_NAME)
+            return categoriesInRoom.firstOrNull { SharedRoomNameNormalization.normalize(it.name) == fallbackNormalized }
+        }
+
+        val normalized = SharedRoomNameNormalization.normalize(trimmed)
+        categoriesInRoom.firstOrNull { SharedRoomNameNormalization.normalize(it.name) == normalized }?.let { return it }
+
+        // Tidak ketemu: buat baru. Nama tampilan tetap nama asli dari pengirim (hanya dipotong bila
+        // melebihi batas panjang kategori), normalisasi di atas hanya dipakai untuk PENCARIAN.
+        val isSystem = normalized == SharedRoomNameNormalization.normalize(RoomTemplates.ZAKAT) ||
+            normalized == SharedRoomNameNormalization.normalize(RoomTemplates.UNTRACKED)
+        val created = Category(
+            id = CategoryId(UUID.randomUUID().toString()),
+            roomId = roomId,
+            name = trimmed.take(Category.NAME_MAX),
+            isSystem = isSystem,
+            sortOrder = (categoriesInRoom.maxOfOrNull { it.sortOrder } ?: -1) + 1,
+        )
+        rooms.saveCategory(created)
+        return created
     }
 
     private data class PullOutcome(val applied: Int, val skipped: Int)
