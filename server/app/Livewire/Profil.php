@@ -201,8 +201,8 @@ class Profil extends Component
      * Perangkat yang masuk ke akun ini, satu baris per token API (Android: `android:<device_id>`).
      *
      * Isi token TIDAK pernah dibaca: kolom `token` (hash) tidak diambil, dan `device_id` tidak ditampilkan
-     * (acak, tak ramah dibaca). Label hanya "Android" untuk token berprefiks `android:`; nama perangkat
-     * yang bisa dikenali belum dikirim klien.
+     * (acak, tak ramah dibaca). Label memakai nama perangkat dari klien (`device_name`) bila ada; bila tidak,
+     * "Android" untuk token berprefiks `android:` dan "Perangkat lain" untuk sisanya.
      *
      * @return list<array{id: int, label: string, created_at: ?\Carbon\CarbonInterface, last_used_at: ?\Carbon\CarbonInterface, expires_at: ?\Carbon\CarbonInterface}>
      */
@@ -211,10 +211,10 @@ class Profil extends Component
         return $user->tokens()
             ->orderByRaw('COALESCE(last_used_at, created_at) desc')
             ->orderByDesc('id')
-            ->get(['id', 'name', 'created_at', 'last_used_at', 'expires_at'])
+            ->get(['id', 'name', 'device_name', 'created_at', 'last_used_at', 'expires_at'])
             ->map(fn (PersonalAccessToken $token) => [
                 'id' => $token->id,
-                'label' => str_starts_with($token->name, 'android:') ? 'Android' : 'Perangkat lain',
+                'label' => $token->device_name ?: (str_starts_with($token->name, 'android:') ? 'Android' : 'Perangkat lain'),
                 'created_at' => $token->created_at,
                 'last_used_at' => $token->last_used_at,
                 'expires_at' => $token->expires_at,

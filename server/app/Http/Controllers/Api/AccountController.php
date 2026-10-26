@@ -12,6 +12,7 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -39,6 +40,7 @@ class AccountController extends Controller
         $request->validate([
             'credential' => ['required', 'string'],
             'device_id' => ['sometimes', 'nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'device_name' => ['sometimes', 'nullable', 'string', 'max:100'],
         ]);
 
         $claims = $verifier->verify($request->string('credential'));
@@ -65,6 +67,7 @@ class AccountController extends Controller
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
             'device_id' => ['sometimes', 'nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'device_name' => ['sometimes', 'nullable', 'string', 'max:100'],
         ]);
 
         [$status, $detail] = $accounts->checkLogin((string) $request->input('email'), (string) $request->input('password'), (string) $request->ip());
@@ -106,7 +109,7 @@ class AccountController extends Controller
      */
     private static function accountResponse(Request $request, User $user, ApiTokenService $tokens): JsonResponse
     {
-        $token = $tokens->issueForDevice($user, self::tokenName($request));
+        $token = $tokens->issueForDevice($user, self::tokenName($request), self::deviceName($request));
 
         return response()->json([
             ...ApiTokenService::payload($token),
@@ -122,16 +125,50 @@ class AccountController extends Controller
      */
     public function refresh(Request $request, ApiTokenService $tokens): JsonResponse
     {
+        $request->validate([
+            'device_name' => ['sometimes', 'nullable', 'string', 'max:100'],
+        ]);
+
         $user = $request->user();
         $current = $user->currentAccessToken();
 
         // Hanya token API sungguhan yang bisa diputar; bukan otentikasi sesi (TransientToken).
-        $new = $current instanceof PersonalAccessToken ? $tokens->rotate($user, $current) : null;
+        $new = $current instanceof PersonalAccessToken ? $tokens->rotate($user, $current, self::deviceName($request)) : null;
         if ($new === null) {
             throw new AuthenticationException;
         }
 
         return response()->json(ApiTokenService::payload($new));
+    }
+
+    /**
+     * Daftar token API aktif akun ini (Tahap 14, "Daftar perangkat"): satu item per perangkat yang masuk. Isi token
+     * TIDAK pernah dijawab (hanya metadata); `current` menandai token yang dipakai permintaan ini. Token yang sudah
+     * kedaluwarsa tetap ikut terdaftar dengan `expires_at` di masa lalu, sama seperti daftar di Profil web.
+     */
+    public function devices(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $current = $user->currentAccessToken();
+        $currentId = $current instanceof PersonalAccessToken ? $current->getKey() : null;
+
+        $devices = $user->tokens()
+            ->orderByRaw('COALESCE(last_used_at, created_at) desc')
+            ->orderByDesc('id')
+            ->get(['id', 'name', 'device_name', 'created_at', 'last_used_at', 'expires_at'])
+            ->map(fn (PersonalAccessToken $token) => [
+                'id' => $token->id,
+                'label' => str_starts_with($token->name, 'android:') ? 'Android' : 'Perangkat lain',
+                'device_name' => $token->device_name,
+                'created_at' => self::iso($token->created_at),
+                'last_used_at' => self::iso($token->last_used_at),
+                'expires_at' => self::iso($token->expires_at),
+                'current' => $token->getKey() === $currentId,
+            ])
+            ->values()
+            ->all();
+
+        return response()->json(['devices' => $devices]);
     }
 
     /** Keluar di perangkat ini: HANYA token yang dipakai permintaan ini dicabut; token perangkat lain tetap. */
@@ -165,6 +202,20 @@ class AccountController extends Controller
         $user->delete();
 
         return response()->json(status: 204);
+    }
+
+    /** Nama perangkat dari klien (opsional, dipangkas); kosong atau tidak dikirim berarti null. */
+    private static function deviceName(Request $request): ?string
+    {
+        $name = trim((string) $request->input('device_name', ''));
+
+        return $name === '' ? null : $name;
+    }
+
+    /** Waktu ke ISO-8601 UTC detik penuh, bentuk yang sama dengan `expires_at` di jawaban token. */
+    private static function iso(?\DateTimeInterface $at): ?string
+    {
+        return $at === null ? null : Carbon::instance($at)->utc()->format('Y-m-d\TH:i:s\Z');
     }
 
     private static function tokenName(Request $request): string

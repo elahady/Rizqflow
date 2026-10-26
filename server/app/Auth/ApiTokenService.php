@@ -93,6 +93,21 @@ class ApiTokenService
     }
 
     /**
+     * [issue] ditambah nama perangkat dari klien (opsional, hanya untuk tampilan daftar perangkat; tidak ikut ke
+     * pengenal token [name]). Lewat [issue] supaya penerbitan tetap satu jalur (dan tes yang menimpanya tetap kena).
+     */
+    private function issueNamed(User $user, string $name, array $abilities, ?string $deviceName): NewAccessToken
+    {
+        $token = $this->issue($user, $name, $abilities);
+
+        if ($deviceName !== null) {
+            $token->accessToken->forceFill(['device_name' => $deviceName])->save();
+        }
+
+        return $token;
+    }
+
+    /**
      * Terbitkan token untuk satu perangkat: token lama dengan nama yang sama dicabut dulu, supaya masuk
      * ulang di perangkat yang sama tidak menumpuk token. Jumlah token per akun dibatasi
      * [MAX_TOKENS_PER_ACCOUNT]: bila penuh, token yang paling lama tak dipakai dibuang (lihat
@@ -106,15 +121,15 @@ class ApiTokenService
      * tidak ada gap lock, `FOR UPDATE` diabaikan); tes hanya membuktikan bahwa kegagalan serupa
      * deadlock diulang, bukan bahwa MySQL tak lagi menemui deadlock. Belum diuji di MySQL sungguhan.
      */
-    public function issueForDevice(User $user, string $name): NewAccessToken
+    public function issueForDevice(User $user, string $name, ?string $deviceName = null): NewAccessToken
     {
-        return DB::transaction(function () use ($user, $name) {
+        return DB::transaction(function () use ($user, $name, $deviceName) {
             User::query()->whereKey($user->getKey())->lockForUpdate()->first();
 
             $user->tokens()->where('name', $name)->delete();
             $this->evictOldest($user, self::MAX_TOKENS_PER_ACCOUNT - 1);
 
-            return $this->issue($user, $name);
+            return $this->issueNamed($user, $name, ['*'], $deviceName);
         }, self::TRANSACTION_ATTEMPTS);
     }
 
@@ -147,14 +162,15 @@ class ApiTokenService
      * (0 baris, token sudah dicabut pemenang) tidak menerbitkan apa pun dan mendapat null. Penerbitan
      * satu transaksi dengan DELETE, jadi kalau penerbitan gagal, token lama tetap utuh.
      */
-    public function rotate(User $user, PersonalAccessToken $current): ?NewAccessToken
+    public function rotate(User $user, PersonalAccessToken $current, ?string $deviceName = null): ?NewAccessToken
     {
-        return DB::transaction(function () use ($user, $current) {
+        return DB::transaction(function () use ($user, $current, $deviceName) {
             if ($user->tokens()->whereKey($current->getKey())->delete() === 0) {
                 return null;
             }
 
-            return $this->issue($user, $current->name, $current->abilities ?? ['*']);
+            // Nama perangkat dari klien (bila dikirim) menggantikan yang lama; bila tidak, nama lama ikut dibawa.
+            return $this->issueNamed($user, $current->name, $current->abilities ?? ['*'], $deviceName ?? $current->device_name);
         });
     }
 

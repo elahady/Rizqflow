@@ -33,6 +33,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/refresh', [AccountController::class, 'refresh'])
         ->middleware('throttle:api-token-refresh');
     Route::post('/auth/logout', [AccountController::class, 'logout']);
+    // Daftar perangkat (Tahap 14): metadata token akun ini, tanpa isi token. DELETE mencabut semuanya ("Keluar dari semua perangkat").
+    Route::get('/auth/tokens', [AccountController::class, 'devices']);
     Route::delete('/auth/tokens', [AccountController::class, 'revokeAll']);
 
     // Klaim pembelian Pro/Sync: token dikirim aplikasi, diverifikasi server ke Google Play lalu
