@@ -1,5 +1,6 @@
 package com.roziqrizal.rizqflow.ui.recovery
 
+import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -46,6 +48,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.roziqrizal.rizqflow.R
 import com.roziqrizal.rizqflow.RizqflowApplication
+import com.roziqrizal.rizqflow.billing.findActivity
 import com.roziqrizal.rizqflow.domain.sync.EnableRecoveryResult
 import com.roziqrizal.rizqflow.domain.sync.RecoveryChallenge
 import com.roziqrizal.rizqflow.domain.sync.RecoveryCodeDisplay
@@ -75,9 +78,9 @@ private enum class SetupPhase { Intro, Working, Showing, Verify, Done }
  * (memori proses, supaya memutar layar tidak membuang kode di tengah mencatat), TIDAK lewat `rememberSaveable`, tidak
  * di SharedPreferences, tidak di log. Ketikan verifikasi juga hanya `remember`.
  *
- * FLAG_SECURE sengaja TIDAK dipasang: dihapus dari seluruh aplikasi atas keputusan pemilik 2026-10-24 (lihat catatan
- * Tahap 6 di docs/roadmap.md). Karena itu layar ini memperingatkan pengguna dengan kalimat terang agar tidak screenshot.
- * Bila keputusan itu ditinjau ulang, layar ini kandidat pertama untuk mengaktifkannya kembali.
+ * FLAG_SECURE dipasang KHUSUS selama layar ini tampil (keputusan pemilik 2026-10-27, pengecualian dari keputusan
+ * 2026-10-24 yang menghapusnya dari seluruh aplikasi): screenshot, thumbnail recents, dan perekam layar dicegah,
+ * karena 24 kata ini setara kunci utama akun. Flag dibersihkan di [DisposableEffect] saat layar hilang.
  */
 @Composable
 fun RecoverySetupScreen(
@@ -91,6 +94,14 @@ fun RecoverySetupScreen(
     val scope = rememberCoroutineScope()
     val holder = (context.applicationContext as RizqflowApplication).recoveryCodeHolder
     val service = workspace.recovery
+
+    // FLAG_SECURE hanya untuk layar tampil-sekali kode pemulihan (keputusan pemilik 2026-10-27). Dipasang saat layar
+    // muncul dan WAJIB dibersihkan saat layar hilang, supaya layar lain di aplikasi tidak ikut terkena.
+    DisposableEffect(Unit) {
+        val window = context.findActivity()?.window
+        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
+    }
 
     // Dilanjutkan bila kode masih ditahan (layar diputar); selain itu mulai dari Intro.
     var display by remember { mutableStateOf(holder.peek(accountId)) }
@@ -396,7 +407,7 @@ private fun IntroContent(
 private fun ShowingContent(display: RecoveryCodeDisplay?, onDone: () -> Unit) {
     val spacing = MaterialTheme.spacing
     Text(stringResource(R.string.recovery_show_title), style = MaterialTheme.typography.headlineMedium)
-    // Peringatan jelas, bukan hanya warna: ikon peringatan plus kalimat terang. Tanpa FLAG_SECURE (keputusan pemilik 2026-10-24).
+    // Peringatan jelas, bukan hanya warna: ikon peringatan plus kalimat terang. FLAG_SECURE dipasang di RecoverySetupScreen (2026-10-27).
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(16.dp),
