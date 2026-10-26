@@ -17,6 +17,10 @@ interface SyncDao {
     @Query("SELECT * FROM sync_record WHERE scope = :scope AND dirty = 1 ORDER BY changed_at, record_type, record_id LIMIT :limit")
     suspend fun dirty(scope: String, limit: Int): List<SyncRecordEntity>
 
+    /** Sama seperti [dirty], disaring satu [type] saja (Tahap 3: setiap handler hanya butuh tipenya sendiri). */
+    @Query("SELECT * FROM sync_record WHERE scope = :scope AND record_type = :type AND dirty = 1 ORDER BY changed_at, record_id LIMIT :limit")
+    suspend fun dirtyOfType(scope: String, type: String, limit: Int): List<SyncRecordEntity>
+
     @Query("SELECT COUNT(*) FROM sync_record WHERE scope = :scope AND dirty = 1")
     suspend fun dirtyCount(scope: String): Int
 
@@ -48,6 +52,12 @@ interface SyncDao {
     @Insert
     suspend fun insertIssue(issue: SyncIssueEntity): Long
 
+    @Query("DELETE FROM sync_issue WHERE id = :id")
+    suspend fun deleteIssue(id: Long)
+
+    @Query("UPDATE sync_issue SET attempts = attempts + 1 WHERE id = :id")
+    suspend fun incrementAttempts(id: Long)
+
     @Query("SELECT * FROM sync_issue ORDER BY id")
     suspend fun allIssues(): List<SyncIssueEntity>
 
@@ -69,6 +79,15 @@ interface SyncDao {
 
     @Upsert
     suspend fun upsertSharedRoom(room: SharedRoomEntity)
+
+    /**
+     * Membuang jejak `sync_record` hasil onboarding bawaan (`room`/`account`/`category`/`allocation_config`
+     * cakupan pribadi) saat ruang kerja terbukti murni dan diganti data server (Tahap 3 sync-desain.md
+     * bagian B "Perangkat baru", lihat `PureWorkspaceReplacer`). Baris server yang ditarik ulang nanti
+     * masuk sebagai versi baru, tidak dibandingkan terhadap jejak onboarding yang sudah tidak ada gunanya.
+     */
+    @Query("DELETE FROM sync_record WHERE scope = 'a' AND record_type IN ('room', 'account', 'category', 'allocation_config')")
+    suspend fun deletePureOnboardingRecords()
 
     /*
      * Backfill SyncBootstrap.markAllDirty: satu pernyataan berbasis himpunan per tabel, INSERT OR IGNORE

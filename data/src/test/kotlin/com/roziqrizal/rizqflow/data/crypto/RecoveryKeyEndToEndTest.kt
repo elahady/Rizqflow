@@ -22,7 +22,6 @@ import java.time.Instant
 import java.util.Random
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 
 private class InMemoryRecoveryRemote : RecoveryKeyRemote {
@@ -87,9 +86,9 @@ class RecoveryKeyEndToEndTest {
         assertContentEquals("dompet A".toByteArray(), keysB.getOrCreateAccountKey().decrypt(cipherA, "akun".toByteArray()))
         val cipherB = keysB.getOrCreateAccountKey().encrypt("balasan B".toByteArray())
         assertContentEquals("balasan B".toByteArray(), keysA.getOrCreateAccountKey().decrypt(cipherB))
-        assertFailsWith<Exception>("kunci lama B tidak lagi aktif setelah kebijakan menimpa") {
-            keysB.getOrCreateAccountKey().decrypt(cipherBOld)
-        }
+        // Kebijakan gabung (merge, Tahap 3 sync-desain.md bagian F): kunci lama B TETAP ada di keyset yang
+        // sama setelah pulihkan, jadi data lama B tetap terbaca walau kunci pulihan (A) kini jadi primary.
+        assertContentEquals("kunci lama B".toByteArray(), keysB.getOrCreateAccountKey().decrypt(cipherBOld))
     }
 
     @Test

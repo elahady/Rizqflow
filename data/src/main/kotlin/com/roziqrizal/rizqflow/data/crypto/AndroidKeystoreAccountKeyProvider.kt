@@ -33,10 +33,9 @@ import java.security.ProviderException
  * pemulihan sebelum dikirim ke server (lihat [com.roziqrizal.rizqflow.domain.sync.AccountKeyRecoveryCrypto]).
  *
  * [accountId] (opsional) memisahkan keyset, berkas, dan alias Keystore per akun, seperti database dan token
- * server: akun Google lain di ponsel yang sama tidak pernah berbagi atau menimpa kunci akun ini (penting
- * untuk [importAccountKeyFromRecovery], yang MENIMPA). Null = nama lama satu-untuk-semua-akun (dipertahankan
- * agar tes lama dan pemanggil tanpa akun tetap jalan); belum ada data nyata yang dienkripsi dengan kunci akun,
- * jadi tidak ada yang perlu dimigrasi.
+ * server: akun Google lain di ponsel yang sama tidak pernah berbagi atau mencampur kunci akun ini (penting
+ * untuk [importAccountKeyFromRecovery], yang menggabungkan/merge ke keyset akun INI saja). Null = nama lama
+ * satu-untuk-semua-akun (dipertahankan agar tes lama dan pemanggil tanpa akun tetap jalan).
  *
  * Seluruh akses keyset dikunci pada instans ini ([synchronized]); [SyncAead] yang dikembalikan [getOrCreateAccountKey]
  * SATU instans tetap yang menunjuk ke kunci sekarang, jadi referensi yang sudah dipegang pemanggil ikut memakai
@@ -80,27 +79,40 @@ class AndroidKeystoreAccountKeyProvider(
         }
 
     /**
-     * Memasang kunci akun pulihan, polanya sama dengan `AndroidKeystoreRoomKeyProvider.importRoomKey`:
-     * 1. [exportedAccountKey] di-parse DULU. Rusak atau bukan keyset AEAD yang bisa dipakai: [InvalidAccountKeyExport],
+     * Memasang kunci akun pulihan sebagai GABUNGAN (merge), bukan timpa (Tahap 3 sync-desain.md bagian F
+     * "Pulihkan menjaga data lama"; pola sama dengan `AndroidKeystoreRoomKeyProvider.rotateRoomKey`):
+     * 1. [exportedAccountKey] di-parse DULU dan divalidasi bisa dipakai sebagai AEAD. Rusak: [InvalidAccountKeyExport],
      *    belum ada yang ditulis, kunci lokal dan cache tidak berubah.
-     * 2. Keyset ditulis ulang lewat [SharedPrefKeysetWriter] (jalur tulis publik Tink, format sama dengan yang
+     * 2. Bila perangkat ini SUDAH punya kunci akun (cache terisi atau berkas keyset sudah ada di prefs —
+     *    diperiksa TANPA membuatnya bila belum ada), keyset gabungan dibangun lewat [mergeKeysets]: semua
+     *    kunci lokal dipertahankan apa adanya (id dan status tetap, tidak ada yang primary lagi), semua kunci
+     *    hasil pulihan ditambahkan dengan id baru (acak, dijamin tidak bentrok oleh `KeysetHandle.Builder`
+     *    Tink sendiri) dan kunci yang primary di sana dijadikan primary gabungan. Bila perangkat ini BELUM
+     *    pernah punya kunci akun sama sekali, tidak ada yang digabung — keyset hasil pulihan dipasang
+     *    langsung, sama seperti `importRoomKey` untuk ruang yang belum pernah dipakai (tidak ada data lama
+     *    untuk dijaga, dan tidak perlu membuat kunci lokal acak hanya untuk langsung digabung).
+     * 3. Keyset akhir ditulis lewat [SharedPrefKeysetWriter] (jalur tulis publik Tink, format sama dengan yang
      *    dibaca [AndroidKeysetManager]), dibungkus master key Keystore akun ini bila tersedia. Bila Keystore tidak
      *    bisa dipakai (perangkat dengan Keystore rusak, atau shadow Robolectric di tes) jatuh ke penulisan
      *    CLEARTEXT (dicatat lewat Log.w, nama kelas galat saja), persis sikap [AndroidKeysetManager] sendiri saat Keystore gagal. INI BERARTI: di perangkat
      *    seperti itu kunci akun tersimpan tanpa pembungkus Keystore, sama seperti kunci yang dibuat Tink sendiri
      *    di sana; kode produksi tetap memanggil Keystore asli lebih dulu. Pembungkusan Keystore sungguhan belum
      *    terbukti di sini (Robolectric tidak punya Keystore asli), hanya jalur fallback-nya yang diuji.
-     * 3. Cache (handle dan [SyncAead]) diganti SETELAH penulisan sukses; tulis gagal melempar tanpa mengubah cache.
+     * 4. Cache (handle dan [SyncAead]) diganti SETELAH penulisan sukses; tulis gagal melempar tanpa mengubah cache.
      *    Penulisan prefs memakai satu `commit()`, jadi berkas lama tidak pernah setengah tertimpa.
+     *
+     * Tidak idempoten terhadap pemanggilan berulang: memanggil ini dua kali menambah kunci hasil pulihan dua
+     * kali (dengan id berbeda tiap kali) ke keyset, bukan menggantikan penambahan sebelumnya — tidak salah
+     * (dekripsi tetap benar, kunci terakhir tetap jadi primary), hanya keyset tumbuh tanpa perlu. Pembersihan
+     * kunci akun yang sudah tidak terpakai bukan cakupan v1.
      */
     override fun importAccountKeyFromRecovery(exportedAccountKey: ByteArray) {
         synchronized(this) {
             AeadConfig.register()
             val importedHandle: KeysetHandle
-            val importedAead: Aead
             try {
                 importedHandle = TinkProtoKeysetFormat.parseKeyset(exportedAccountKey, InsecureSecretKeyAccess.get(), RegistryConfiguration.get())
-                importedAead = importedHandle.getPrimitive(RegistryConfiguration.get(), Aead::class.java)
+                importedHandle.getPrimitive(RegistryConfiguration.get(), Aead::class.java)
             } catch (e: GeneralSecurityException) {
                 throw InvalidAccountKeyExport(e)
             } catch (e: IOException) {
@@ -108,12 +120,56 @@ class AndroidKeystoreAccountKeyProvider(
             } catch (e: IllegalArgumentException) {
                 throw InvalidAccountKeyExport(e)
             }
+
+            val finalHandle = if (hasExistingLocalKeyset()) {
+                try {
+                    mergeKeysets(keysetHandle(), importedHandle)
+                } catch (e: GeneralSecurityException) {
+                    throw InvalidAccountKeyExport(e)
+                }
+            } else {
+                importedHandle
+            }
+            val finalAead = finalHandle.getPrimitive(RegistryConfiguration.get(), Aead::class.java)
+
             val writer = SharedPrefKeysetWriter(context, keysetName, prefFileName)
-            writeKeyset(importedHandle, writer)
-            cachedHandle = importedHandle
-            sharedAead.swap(importedAead)
+            writeKeyset(finalHandle, writer)
+            cachedHandle = finalHandle
+            sharedAead.swap(finalAead)
             aeadLoaded = true
         }
+    }
+
+    /** True bila perangkat ini sudah punya kunci akun (dari cache memori ATAU berkas prefs tersimpan), TANPA membuat yang baru bila belum ada. */
+    private fun hasExistingLocalKeyset(): Boolean =
+        cachedHandle != null || aeadLoaded || context.getSharedPreferences(prefFileName, Context.MODE_PRIVATE).contains(keysetName)
+
+    /**
+     * Menggabungkan [imported] ke [local]: kunci [local] dipertahankan apa adanya (id dan status tetap,
+     * tidak ada yang ditandai primary di keyset hasil) supaya ciphertext yang sudah ada tetap terbaca;
+     * kunci [imported] ditambahkan dengan ID ASLINYA (Tink mengikat "ID requirement" ke `Key` yang
+     * diambil dari keyset yang sudah ada — `withRandomId()` ditolak untuknya dengan
+     * `GeneralSecurityException "Wrong ID set for key with ID requirement"`, dibuktikan lewat tes), dan
+     * kunci yang primary di [imported] dijadikan primary keyset gabungan.
+     *
+     * Dua keyset independen bisa (secara statistik nyaris mustahil: ruang id 32-bit) sudah memakai id
+     * yang sama persis untuk kunci berbeda; [KeysetHandle.Builder.build] menolaknya (dua entri id sama)
+     * dan pemanggil memetakannya jadi [InvalidAccountKeyExport] tanpa menulis apa pun — bukan pembuatan id
+     * baru paksa di sini, karena id kunci yang sudah ada tidak bisa diganti tanpa membongkar kunci itu.
+     */
+    private fun mergeKeysets(local: KeysetHandle, imported: KeysetHandle): KeysetHandle {
+        val builder = KeysetHandle.newBuilder()
+        for (i in 0 until local.size()) {
+            val entry = local.getAt(i)
+            builder.addEntry(KeysetHandle.importKey(entry.key).withFixedId(entry.id).setStatus(entry.status))
+        }
+        for (i in 0 until imported.size()) {
+            val entry = imported.getAt(i)
+            val builderEntry = KeysetHandle.importKey(entry.key).withFixedId(entry.id).setStatus(entry.status)
+            if (entry.isPrimary) builderEntry.makePrimary()
+            builder.addEntry(builderEntry)
+        }
+        return builder.build()
     }
 
     /**

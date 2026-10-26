@@ -4,6 +4,9 @@ import android.content.Context
 import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import com.google.crypto.tink.Aead
+import com.google.crypto.tink.InsecureSecretKeyAccess
+import com.google.crypto.tink.RegistryConfiguration
+import com.google.crypto.tink.TinkProtoKeysetFormat
 import com.roziqrizal.rizqflow.domain.sync.AccountKeyRecoveryCrypto
 import com.roziqrizal.rizqflow.domain.sync.InvalidAccountKeyExport
 import com.roziqrizal.rizqflow.domain.sync.RecoveryCode
@@ -23,10 +26,12 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Impor kunci akun hasil pemulihan (Tahap 13). Dua provider dengan `accountId` berbeda memakai berkas pref
- * dan alias Keystore terpisah, jadi meniru dua perangkat. PENTING: di Robolectric Keystore asli tidak ada
- * dan Tink jatuh ke penyimpanan keyset cleartext, jadi tes ini membuktikan logika impor, cache, dan
- * persistensi, BUKAN pembungkusan Android Keystore sungguhan.
+ * Impor kunci akun hasil pemulihan: GABUNG (merge), bukan timpa, sejak Tahap 3 sync-desain.md (begitu sinkron
+ * entitas akun ada, kunci lokal yang mungkin sudah mengenkripsi data cakupan pribadi di perangkat ini wajib
+ * tetap terbaca). Dua provider dengan `accountId` berbeda memakai berkas pref dan alias Keystore terpisah,
+ * jadi meniru dua perangkat. PENTING: di Robolectric Keystore asli tidak ada dan Tink jatuh ke penyimpanan
+ * keyset cleartext, jadi tes ini membuktikan logika impor, cache, dan persistensi, BUKAN pembungkusan Android
+ * Keystore sungguhan.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -59,7 +64,7 @@ class AndroidKeystoreAccountKeyImportTest {
     }
 
     @Test
-    fun `aead yang sudah dipegang pemanggil sebelum impor ikut memakai kunci pulihan`() {
+    fun `aead yang sudah dipegang pemanggil sebelum impor ikut memakai kunci pulihan, kunci lama tetap bisa dekripsi data lama`() {
         val a = deviceA()
         val fromA = a.getOrCreateAccountKey().encrypt("dari kunci pulihan".toByteArray())
         val b = deviceB()
@@ -69,8 +74,10 @@ class AndroidKeystoreAccountKeyImportTest {
         b.importAccountKeyFromRecovery(a.exportAccountKeyForRecovery())
 
         assertSame(heldBeforeImport, b.getOrCreateAccountKey(), "instans di-cache harus tetap satu")
+        // Kunci baru (pulihan) jadi primary: dipakai untuk enkripsi berikutnya dan bisa membaca data dari A.
         assertContentEquals("dari kunci pulihan".toByteArray(), heldBeforeImport.decrypt(fromA))
-        assertFailsWith<Exception>("kunci lama tidak boleh tersisa sebagai kunci aktif") { heldBeforeImport.decrypt(encryptedWithOldKey) }
+        // Gabung (merge), bukan timpa: kunci lama B tetap ada di keyset yang sama, data lama B tetap terbaca.
+        assertContentEquals("kunci lama".toByteArray(), heldBeforeImport.decrypt(encryptedWithOldKey))
     }
 
     @Test
@@ -147,6 +154,41 @@ class AndroidKeystoreAccountKeyImportTest {
 
         assertFailsWith<Exception> { deviceA().getOrCreateAccountKey().decrypt(legacyCipher) }
         assertContentEquals("lama".toByteArray(), AndroidKeystoreAccountKeyProvider(context).getOrCreateAccountKey().decrypt(legacyCipher))
+    }
+
+    @Test
+    fun `gabung kunci baru jadi primary untuk enkripsi baru, ciphertext baru tidak terbaca kunci lama saja`() {
+        val a = deviceA()
+        val b = deviceB()
+        val oldAead = b.getOrCreateAccountKey() // B sudah pernah punya kunci sebelum pulihkan.
+        val oldOnlyHandle = TinkProtoKeysetFormat.parseKeyset(b.exportAccountKeyForRecovery(), InsecureSecretKeyAccess.get(), RegistryConfiguration.get())
+        val oldOnlyAead = oldOnlyHandle.getPrimitive(RegistryConfiguration.get(), Aead::class.java)
+
+        b.importAccountKeyFromRecovery(a.exportAccountKeyForRecovery())
+
+        val newCiphertext = b.getOrCreateAccountKey().encrypt("catatan baru setelah pulihkan".toByteArray())
+        // Kunci baru (primary gabungan) bisa dibaca kunci A (yang jadi primary) maupun B sendiri setelah gabung.
+        assertContentEquals("catatan baru setelah pulihkan".toByteArray(), a.getOrCreateAccountKey().decrypt(newCiphertext))
+        // Kunci lama B SAJA (sebelum gabung, disalin di atas) tidak bisa membaca ciphertext baru: primary sudah pindah ke A.
+        assertFailsWith<Exception>("kunci lama sendirian bukan lagi primary") { oldOnlyAead.decrypt(newCiphertext, ByteArray(0)) }
+    }
+
+    @Test
+    fun `gabung dua kali berturut-turut tetap menjaga seluruh generasi kunci tetap terbaca`() {
+        val a = deviceA()
+        val other = AndroidKeystoreAccountKeyProvider(context, accountId = "perangkat-lain")
+        val b = deviceB()
+        val fromBAwal = b.getOrCreateAccountKey().encrypt("generasi awal B".toByteArray())
+        val fromA = a.getOrCreateAccountKey().encrypt("generasi A".toByteArray())
+        val fromOther = other.getOrCreateAccountKey().encrypt("generasi lain".toByteArray())
+
+        b.importAccountKeyFromRecovery(a.exportAccountKeyForRecovery())
+        b.importAccountKeyFromRecovery(other.exportAccountKeyForRecovery())
+
+        val current = b.getOrCreateAccountKey()
+        assertContentEquals("generasi awal B".toByteArray(), current.decrypt(fromBAwal), "generasi B paling awal tetap terbaca")
+        assertContentEquals("generasi A".toByteArray(), current.decrypt(fromA), "generasi A (gabungan pertama) tetap terbaca")
+        assertContentEquals("generasi lain".toByteArray(), current.decrypt(fromOther), "generasi terakhir (primary sekarang) terbaca")
     }
 
     @Test

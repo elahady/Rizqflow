@@ -198,6 +198,15 @@ interface SyncStore {
     /** Rekaman kotor satu cakupan, tertua dulu. */
     suspend fun dirtyRecords(scope: SyncScope, limit: Int = 200): List<SyncRecordMeta>
 
+    /**
+     * Rekaman kotor satu cakupan DAN satu tipe saja, tertua dulu (Tahap 3 sync-desain.md: setiap
+     * [SyncRecordHandler.collectDirty] hanya butuh tipenya sendiri). Bawaan menyaring dari
+     * [dirtyRecords] tanpa tipe; implementasi Room ([RoomSyncStore]) menimpa ini dengan query SQL
+     * langsung supaya tidak terpotong duluan oleh [limit] tipe lain yang lebih tua.
+     */
+    suspend fun dirtyRecords(scope: SyncScope, type: SyncRecordType, limit: Int = 200): List<SyncRecordMeta> =
+        dirtyRecords(scope, Int.MAX_VALUE).asSequence().filter { it.type == type }.take(limit).toList()
+
     suspend fun dirtyCount(scope: SyncScope): Int
 
     /**
@@ -235,6 +244,12 @@ interface SyncStore {
     suspend fun setCursor(scope: SyncScope, afterId: Long)
 
     suspend fun recordIssue(issue: SyncIssue): Long
+
+    /** Membuang satu masalah yang sudah berhasil diterapkan ulang (Tahap 3: percobaan ulang `DEFERRED_*` di akhir sync). */
+    suspend fun resolveIssue(id: Long)
+
+    /** Menambah hitungan percobaan ulang satu masalah yang masih gagal (dasar "riwayat sinkron gagal permanen" setelah 20 percobaan atau 30 hari). */
+    suspend fun incrementIssueAttempts(id: Long)
 
     suspend fun issues(scope: SyncScope? = null): List<SyncIssue>
 

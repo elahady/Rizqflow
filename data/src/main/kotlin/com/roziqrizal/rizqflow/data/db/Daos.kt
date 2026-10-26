@@ -37,6 +37,14 @@ interface AccountDao {
     @Query("SELECT * FROM account ORDER BY sort_order")
     suspend fun all(): List<AccountEntity>
 
+    /**
+     * Membuang SEMUA akun (Tahap 3 sync-desain.md bagian B "Perangkat baru", hasil onboarding bawaan
+     * di perangkat baru yang masih MURNI — lihat `WorkspacePurityChecker`). Aman hanya bila dipanggil
+     * saat ruang kerja murni (tidak ada transaksi yang merujuk akun manapun, FK `RESTRICT` kalau tidak).
+     */
+    @Query("DELETE FROM account")
+    suspend fun deleteAll()
+
     /** Saldo menurut catatan: saldo awal + pemasukan - pengeluaran +/- transfer. */
     @Query(
         """
@@ -72,6 +80,14 @@ interface RoomDao {
 
     @Query("SELECT * FROM room ORDER BY sort_order")
     suspend fun all(): List<RoomEntity>
+
+    /**
+     * Membuang SEMUA ruang (Tahap 3 sync-desain.md bagian B "Perangkat baru", hasil onboarding bawaan
+     * di perangkat baru yang masih MURNI — lihat `WorkspacePurityChecker`). Kategori dan aturan alokasi
+     * ikut terhapus lewat `ON DELETE CASCADE` (lihat [CategoryEntity], [AllocationRuleEntity]).
+     */
+    @Query("DELETE FROM room")
+    suspend fun deleteAll()
 
     @Query("SELECT * FROM category ORDER BY room_id, sort_order")
     suspend fun allCategories(): List<CategoryEntity>
@@ -112,6 +128,10 @@ interface TransactionDao {
 
     @Query("SELECT * FROM money_transaction WHERE id = :id")
     suspend fun find(id: String): TransactionEntity?
+
+    /** Dasar deteksi "ruang kerja masih murni" (Tahap 3 sync-desain.md bagian B "Perangkat baru"). */
+    @Query("SELECT COUNT(*) FROM money_transaction")
+    suspend fun count(): Int
 
     /** Alokasi ikut terhapus lewat ON DELETE CASCADE. */
     @Query("DELETE FROM money_transaction WHERE id = :id")
@@ -286,6 +306,9 @@ interface SettingsDao {
 
     @Query("SELECT value FROM app_setting WHERE key = :key")
     suspend fun get(key: String): String?
+
+    @Query("DELETE FROM app_setting WHERE key = :key")
+    suspend fun delete(key: String)
 
     @Upsert
     suspend fun markDayChecked(check: DayCheckEntity)

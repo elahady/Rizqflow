@@ -48,6 +48,9 @@ class RoomSyncStore(
     override suspend fun dirtyRecords(scope: SyncScope, limit: Int): List<SyncRecordMeta> =
         dao.dirty(scope.wire, limit).mapNotNull { it.toMeta() }
 
+    override suspend fun dirtyRecords(scope: SyncScope, type: SyncRecordType, limit: Int): List<SyncRecordMeta> =
+        dao.dirtyOfType(scope.wire, type.wire, limit).mapNotNull { it.toMeta() }
+
     override suspend fun dirtyCount(scope: SyncScope): Int = dao.dirtyCount(scope.wire)
 
     override suspend fun markPushed(scope: SyncScope, sent: List<SentVersion>): Int = db.withTransaction {
@@ -154,6 +157,10 @@ class RoomSyncStore(
             createdAt = issue.createdAtMillis,
         ),
     )
+
+    override suspend fun resolveIssue(id: Long) = dao.deleteIssue(id)
+
+    override suspend fun incrementIssueAttempts(id: Long) = dao.incrementAttempts(id)
 
     override suspend fun issues(scope: SyncScope?): List<SyncIssue> =
         (if (scope == null) dao.allIssues() else dao.issuesOf(scope.wire)).mapNotNull { it.toIssue() }

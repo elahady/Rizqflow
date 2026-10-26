@@ -28,6 +28,17 @@ interface SyncRecordHandler {
     suspend fun collectDirty(scope: SyncScope): List<OutgoingRecord>
 
     /**
+     * Rujukan (FK) yang disebut [decoded] tetapi belum ada secara lokal di [scope] — daftar kosong
+     * berarti aman diterapkan (Tahap 3 sync-desain.md bagian B "Referensi belum tiba"). Mesin sinkron
+     * memanggil ini SEBELUM [apply], DI LUAR transaksi [apply]: bila tidak kosong, [apply] TIDAK
+     * dipanggil sama sekali untuk versi ini (meta rekaman tidak ikut maju — tetap seperti semula) dan
+     * mesin mencatat `sync_issue(DEFERRED_MISSING_REF)` lalu mencoba lagi di akhir sync dan sync
+     * berikutnya. Implementasi yang tidak punya rujukan ke tipe lain (mis. [SyncRecordType.ROOM])
+     * selalu mengembalikan daftar kosong.
+     */
+    suspend fun missingReferences(scope: SyncScope, decoded: DecodedRecord): List<String>
+
+    /**
      * Menerapkan satu rekaman yang sudah lolos dekripsi; dipanggil di konteks [SyncApplying] dari dalam
      * [SyncStore.applyIncoming] (satu transaksi dengan pembaruan meta).
      *

@@ -170,11 +170,14 @@ enum class RecoveryCopyState {
  * dipakai pengguna sungguhan) tidak membawa kunci ruang sama sekali; [recoverKey] tetap bisa membukanya
  * (hanya kunci akun) supaya tidak mogok bila suatu saat ditemukan.
  *
- * Kebijakan menimpa: [recoverKey] MENIMPA kunci akun lokal DAN kunci ruang-ruang yang ikut terbungkus. Saat ini
- * aman karena belum ada data lokal yang dienkripsi dengan kunci akun, dan kunci ruang yang ditimpa hanya berarti
- * ciphertext ruang itu kembali terbaca seperti pemilik aslinya (tidak ada data yang hilang, karena kunci ruang
+ * Kebijakan menimpa (diperbarui Tahap 3 sync-desain.md, sejak sinkron entitas akun cakupan pribadi ada):
+ * [recoverKey] MENGGABUNGKAN (merge) kunci akun — lihat kontrak [AccountKeyProvider.importAccountKeyFromRecovery]
+ * — kunci lokal yang mungkin sudah mengenkripsi data cakupan pribadi di perangkat ini TETAP ADA di keyset,
+ * kunci pulihan jadi primary untuk enkripsi berikutnya; tidak ada data yang hilang. Kunci ruang-ruang yang ikut
+ * terbungkus tetap DITIMPA ([RoomKeyProvider.importRoomKey], belum diubah di Tahap 3 ini): aman karena kunci ruang
  * sebelum dipulihkan memang baru dibuat acak sendiri oleh perangkat baru dan belum pernah dipakai mengenkripsi
- * apa pun). Begitu sync entitas akun ada, pulihkan wajib menjaga data lama; itu kewajiban butir sync berikutnya.
+ * apa pun (ruang keluarga masih memakai alur undang-ulang QR untuk kasus lain; distribusi keyset rotasi menyusul
+ * Tahap 5 sync-desain.md).
  *
  * Token API dibaca dari [tokens] tiap pemanggilan; 401 ditangani `ServerSession` lewat remote yang sudah
  * dibungkus, bukan di sini. Pemanggil di UI yang memutar token dan mengulang sekali bila 401 karena token diputar.
@@ -198,6 +201,18 @@ class RecoveryKeyService(
     private val activeSharedRoomIds: suspend () -> List<RoomId> = { emptyList() },
     private val clock: () -> Instant = { Instant.now() },
     private val random: SecureRandom = SecureRandom(),
+    /**
+     * Dipanggil TEPAT SEKALI, setelah [enableRecovery] SUKSES ([EnableRecoveryResult.Ready]) untuk PERTAMA
+     * kalinya bagi akun ini (penanda [RecoveryStatus.NotConfigured] saat [enableRecovery] mulai dipanggil;
+     * mengatur ulang kode nanti tidak memanggilnya lagi). Tahap 3 sync-desain.md: begitu kode pemulihan
+     * terkonfigurasi untuk pertama kali, seluruh data lokal yang sudah ada wajib ditandai kotor supaya ikut
+     * terkirim begitu gerbang push cakupan pribadi terbuka ([RecoveryStatus.Configured], lihat KDoc kelas
+     * bagian "Kebijakan menimpa" dan gerbang di mesin sinkron pribadi). Bawaan tidak melakukan apa-apa untuk
+     * tes lama yang tidak peduli bootstrap; produksi (`AccountWorkspace`) mengisi ini dengan
+     * `SyncBootstrap.markAllDirty()`. Dipanggil di luar [enableLock] (setelah penanda ditulis) supaya gagal
+     * di sini tidak membuat [enableRecovery] tampak gagal padahal kode sudah tersimpan di server.
+     */
+    private val onFirstTimeConfigured: suspend () -> Unit = {},
 ) {
     /** Satu unggahan pada satu waktu per akun: dua klik cepat atau layar yang dibuat ulang tidak boleh saling menimpa. */
     private val enableLock = Mutex()
@@ -220,9 +235,19 @@ class RecoveryKeyService(
      * keluar) di tengah jalan tidak boleh membuang hasil yang sudah terkomit di server tanpa tercatat.
      *
      * Berat (turunan kunci PBKDF2, dua kali): jalankan di luar thread utama.
+     *
+     * [onFirstTimeConfigured] dipanggil SETELAH [enableLock] dilepas (bukan di dalamnya) bila ini sukses
+     * PERTAMA kalinya untuk akun ini (lihat KDoc parameter di konstruktor kelas) — galat atau lambat di sana
+     * tidak memblokir pemanggilan [enableRecovery] berikutnya.
      */
-    suspend fun enableRecovery(replaceExistingCopy: Boolean = false): EnableRecoveryResult =
-        enableLock.withLock { enableLocked(replaceExistingCopy) }
+    suspend fun enableRecovery(replaceExistingCopy: Boolean = false): EnableRecoveryResult {
+        val wasNeverConfigured = statusStore.read() == RecoveryStatus.NotConfigured
+        val result = enableLock.withLock { enableLocked(replaceExistingCopy) }
+        if (wasNeverConfigured && result is EnableRecoveryResult.Ready) {
+            withContext(NonCancellable) { onFirstTimeConfigured() }
+        }
+        return result
+    }
 
     private suspend fun enableLocked(replaceExistingCopy: Boolean): EnableRecoveryResult {
         val token = tokens.read() ?: return EnableRecoveryResult.NotSignedIn
@@ -396,8 +421,8 @@ class RecoveryKeyService(
 
     /**
      * Apakah server sudah punya salinan untuk akun ini. Tidak pernah memblokir; setiap kegagalan (termasuk belum
-     * masuk) hanyalah [RemoteCopyCheck.UNKNOWN]. Saat ini TIDAK dipanggil produksi (tawaran aktif "Pulihkan" di
-     * perangkat baru disembunyikan sampai ada data yang bergantung pada kunci akun).
+     * masuk) hanyalah [RemoteCopyCheck.UNKNOWN]. Sejak Tahap 3 sync-desain.md (sinkron entitas akun cakupan
+     * pribadi ada) dipakai [NewDeviceRecoveryAdvisor] untuk alur pulihkan perangkat baru.
      */
     suspend fun checkRemoteCopy(): RemoteCopyCheck {
         val token = tokens.read() ?: return RemoteCopyCheck.UNKNOWN
