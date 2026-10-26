@@ -6,6 +6,7 @@ import com.roziqrizal.rizqflow.domain.ledger.Category
 import com.roziqrizal.rizqflow.domain.ledger.InMemoryLedger
 import com.roziqrizal.rizqflow.domain.ledger.MoneyTransaction
 import com.roziqrizal.rizqflow.domain.ledger.Room
+import com.roziqrizal.rizqflow.domain.ledger.RoomTemplates
 import com.roziqrizal.rizqflow.domain.model.AccountId
 import com.roziqrizal.rizqflow.domain.model.AccountKind
 import com.roziqrizal.rizqflow.domain.model.CategoryId
@@ -15,9 +16,12 @@ import com.roziqrizal.rizqflow.domain.model.TransactionId
 import com.roziqrizal.rizqflow.domain.model.TransactionKind
 import com.roziqrizal.rizqflow.domain.model.TransactionOrigin
 import com.roziqrizal.rizqflow.domain.money.Money
+import java.time.Instant
 import java.time.LocalDate
+import java.util.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /** Fondasi sync tanpa kripto/jaringan sungguhan — [FakeSyncAead] identitas, [FakeSyncRemote] di memori. */
@@ -63,10 +67,28 @@ private class FakeSyncRemote : SyncRemote {
     val stored = mutableListOf<SyncLogEntryDownload>()
     var nextId = 1L
     var failWith: RemoteError? = null
+    var serverTimeMs: Long? = null
+
+    /**
+     * Simulasi "ack hilang" (sync-desain.md bagian G, Tahap 2): server menyimpan baris seperti biasa
+     * (idempoten di bawah), tetapi JAWABANnya hilang di jaringan — klien melihat ini sebagai gagal dan
+     * akan retry. Berlaku hanya untuk SATU panggilan [push] berikutnya, lalu otomatis kembali normal.
+     */
+    var dropAckOnNextPush = false
 
     override suspend fun push(apiToken: String, entries: List<SyncLogEntryUpload>): RemoteResult<SyncPushResult> {
         failWith?.let { return RemoteResult.Failure(it) }
+        val dropAck = dropAckOnNextPush
+        dropAckOnNextPush = false
         val ids = entries.map { entry ->
+            // Idempoten, sama seperti SyncController::push sungguhan: kunci (device_id, record_id,
+            // changed_at_ms, deleted) — baris yang sama dikirim ulang menemukan baris yang sama, tidak menggandakan.
+            val existing = stored.firstOrNull {
+                it.deviceId == entry.deviceId && it.recordId == entry.recordId &&
+                    it.changedAtMillis == entry.changedAtMillis && it.deleted == entry.deleted
+            }
+            if (existing != null) return@map existing.id
+
             val id = nextId++
             // Tiruan server (Tahap 2 bagian B R3): penulis = device_id yang pertama kali menulis id ini.
             val author = stored.firstOrNull { it.recordId == entry.recordId }?.author ?: entry.deviceId
@@ -76,13 +98,14 @@ private class FakeSyncRemote : SyncRemote {
             )
             id
         }
-        return RemoteResult.Success(SyncPushResult(ids, ids.max()))
+        if (dropAck) return RemoteResult.Failure(RemoteError.Unreachable)
+        return RemoteResult.Success(SyncPushResult(ids, ids.max(), serverTimeMs))
     }
 
     override suspend fun pull(apiToken: String, deviceId: String, after: Long, limit: Int): RemoteResult<SyncPullResult> {
         failWith?.let { return RemoteResult.Failure(it) }
         val page = stored.filter { it.id > after }.sortedBy { it.id }.take(limit)
-        return RemoteResult.Success(SyncPullResult(page, page.lastOrNull()?.id ?: after, page.size == limit))
+        return RemoteResult.Success(SyncPullResult(page, page.lastOrNull()?.id ?: after, page.size == limit, serverTimeMs))
     }
 }
 
@@ -100,13 +123,52 @@ private class FakeSyncCursorStore : SyncCursorStore {
     override fun save(roomId: String, cursor: Long) { cursors[roomId] = cursor }
 }
 
+/**
+ * Menyisipkan satu baris langsung ke "server" tiruan tanpa lewat [SyncCoordinator.push] — dipakai
+ * menguji baris dari sumber yang TIDAK pernah lewat jalur normal satu perangkat (cakupan pribadi
+ * `room_id` null yang kebetulan ikut di aliran pull, atau versi basi "perangkat lain"). [FakeSyncAead]
+ * identitas, jadi payload == ciphertext; tetap di-base64 seperti [SyncCoordinator] sungguhan.
+ */
+private fun FakeSyncRemote.seedRawEntry(
+    transaction: MoneyTransaction,
+    accountName: String,
+    categoryName: String?,
+    deviceId: String,
+    changedAtMillis: Long,
+    roomId: String?,
+    deleted: Boolean = false,
+) {
+    val payload = if (deleted) ByteArray(0) else FakeTransactionSyncCodec().encode(transaction, accountName, categoryName)
+    stored += SyncLogEntryDownload(
+        id = nextId++,
+        roomId = roomId,
+        recordType = "transaction",
+        recordId = transaction.id.value,
+        deviceId = deviceId,
+        payload = Base64.getEncoder().encodeToString(payload),
+        deleted = deleted,
+        changedAt = Instant.ofEpochMilli(changedAtMillis).toString(),
+        changedAtMillis = changedAtMillis,
+        author = deviceId,
+    )
+}
+
 class SyncCoordinatorTest {
     private val roomId = RoomId("room-keluarga")
     private val accountId = AccountId("acc-1")
     private val categoryId = CategoryId("cat-1")
 
-    private fun engine(ledger: InMemoryLedger, remote: FakeSyncRemote, tokenStore: ApiTokenStore = FakeApiTokenStore()) =
-        SyncCoordinator(ledger, ledger, ledger, FakeRoomKeyProvider(), remote, FakeTransactionSyncCodec(), tokenStore, FakeSyncCursorStore())
+    // Jam perangkat bawaan 0 (bukan jam sistem nyata): SyncCoordinator.push() sejak Tahap 2 memanggil
+    // clock.stamp(entry.changedAtMillis) = max(jam perangkat + offset, cap lokal + 1). Dengan jam
+    // perangkat 0 dan offset 0 (belum pernah diisi server_time_ms), hasilnya selalu "cap lokal + 1" —
+    // jadi urutan LWW di tes-tes lain (yang bergantung pada nilai updatedAt kecil seperti 500/2000/5000)
+    // tetap deterministik, tidak kebetulan dikalahkan oleh epoch millis sungguhan.
+    private fun engine(
+        ledger: InMemoryLedger,
+        remote: FakeSyncRemote,
+        tokenStore: ApiTokenStore = FakeApiTokenStore(),
+        clock: SyncClock = SyncClock(deviceNowMillis = { 0L }),
+    ) = SyncCoordinator(ledger, ledger, ledger, FakeRoomKeyProvider(), remote, FakeTransactionSyncCodec(), tokenStore, FakeSyncCursorStore(), clock)
 
     private fun seedRoomAndAccount(ledger: InMemoryLedger) {
         ledger.roomRows[roomId] = Room(roomId, "Keluarga", RoomKind.MENCUKUPI, "home", 1, sortOrder = 0)
@@ -239,11 +301,13 @@ class SyncCoordinatorTest {
         assertEquals(0, result.applied) // entry baru saja dipush oleh device-a sendiri, bukan dari anggota lain
     }
 
+    // ------------------------------------------------------------------ kategori ruang bersama (Tahap 2 bagian B R2)
+
     @Test
-    fun falls_back_to_lain_lain_category_when_the_named_category_is_missing() = runSuspend {
+    fun creates_a_new_category_in_the_room_instead_of_falling_back_to_lain_lain_when_it_does_not_exist_yet() = runSuspend {
         val ledgerA = InMemoryLedger()
         seedRoomAndAccount(ledgerA)
-        ledgerA.transactionRows[TransactionId("tx-1")] = expense("tx-1", 50_000)
+        ledgerA.transactionRows[TransactionId("tx-1")] = expense("tx-1", 50_000) // kategori "Belanja" (categoryId)
         val remote = FakeSyncRemote()
         engine(ledgerA, remote).syncNow(roomId, deviceId = "device-a")
 
@@ -252,12 +316,90 @@ class SyncCoordinatorTest {
         ledgerB.accountRows[accountId] = Account(accountId, "Dompet", AccountKind.CASH, Money.zero())
         val fallbackCategoryId = CategoryId("cat-lain-lain")
         ledgerB.categoryRows[fallbackCategoryId] = Category(fallbackCategoryId, roomId, "Lain-lain")
-        // Tidak ada kategori "Belanja" di sisi B — hanya "Lain-lain" yang selalu ada per ruang.
+        // Tidak ada kategori "Belanja" di sisi B sama sekali — bagian B R2: penerima MEMBUAT kategori
+        // yang belum ada (bukan jatuh ke "Lain-lain", itu perilaku lama yang sengaja ditutup Tahap 2).
+
+        val result = engine(ledgerB, remote).syncNow(roomId, deviceId = "device-b") as SyncResult.Success
+
+        assertEquals(1, result.applied)
+        val appliedCategoryId = ledgerB.transactionRows[TransactionId("tx-1")]?.categoryId
+        assertNotEquals(fallbackCategoryId, appliedCategoryId, "kategori baru dibuat, bukan jatuh ke Lain-lain")
+        val createdCategory = ledgerB.categoryRows[appliedCategoryId]
+        assertEquals("Belanja", createdCategory?.name)
+        assertEquals(roomId, createdCategory?.roomId)
+        assertEquals(false, createdCategory?.isSystem)
+    }
+
+    @Test
+    fun matches_an_existing_category_despite_different_casing_and_spacing_instead_of_creating_a_duplicate() = runSuspend {
+        val remote = FakeSyncRemote()
+        // Payload sungguhan dikirim dengan variasi kapital dan spasi di nama kategori — disisipkan
+        // langsung ke "server" tiruan (bukan lewat engine().syncNow(), yang memakai nama persis "Belanja").
+        remote.seedRawEntry(
+            transaction = expense("tx-1", 30_000),
+            accountName = "Dompet",
+            categoryName = "  BELANJA  ", // normalisasi: NFKC + trim + rapatkan spasi + huruf kecil
+            deviceId = "device-a",
+            changedAtMillis = 1_000L,
+            roomId = roomId.value,
+        )
+
+        val ledgerB = InMemoryLedger()
+        seedRoomAndAccount(ledgerB) // juga punya "Belanja" (nama persis, beda kapital/spasi dari payload)
+
+        val result = engine(ledgerB, remote).syncNow(roomId, deviceId = "device-b") as SyncResult.Success
+
+        assertEquals(1, result.applied)
+        assertEquals(categoryId, ledgerB.transactionRows[TransactionId("tx-1")]?.categoryId, "cocok ke kategori yang sudah ada, bukan duplikat baru")
+        assertEquals(1, ledgerB.categoryRows.size, "tidak ada kategori baru yang dibuat")
+    }
+
+    @Test
+    fun matches_an_existing_system_category_by_name_instead_of_creating_a_duplicate() = runSuspend {
+        val remote = FakeSyncRemote()
+        remote.seedRawEntry(
+            transaction = expense("tx-1", 20_000),
+            accountName = "Dompet",
+            categoryName = "zakat MAL", // variasi kapital dari nama sistem "Zakat mal"
+            deviceId = "device-a",
+            changedAtMillis = 1_000L,
+            roomId = roomId.value,
+        )
+
+        val ledgerB = InMemoryLedger()
+        seedRoomAndAccount(ledgerB)
+        val zakatCategoryId = CategoryId("cat-zakat")
+        ledgerB.categoryRows[zakatCategoryId] = Category(zakatCategoryId, roomId, RoomTemplates.ZAKAT, isSystem = true)
+
+        val result = engine(ledgerB, remote).syncNow(roomId, deviceId = "device-b") as SyncResult.Success
+
+        assertEquals(1, result.applied)
+        assertEquals(zakatCategoryId, ledgerB.transactionRows[TransactionId("tx-1")]?.categoryId)
+        assertEquals(2, ledgerB.categoryRows.size, "tidak ada kategori Zakat mal dobel (hanya Belanja bawaan + ini)")
+    }
+
+    @Test
+    fun falls_back_to_lain_lain_only_when_the_category_name_itself_is_blank_not_merely_unknown() = runSuspend {
+        val remote = FakeSyncRemote()
+        remote.seedRawEntry(
+            transaction = expense("tx-1", 15_000),
+            accountName = "Dompet",
+            categoryName = "   ", // cuma spasi: bukan "tidak ditemukan", tapi kasus nama kosong
+            deviceId = "device-a",
+            changedAtMillis = 1_000L,
+            roomId = roomId.value,
+        )
+
+        val ledgerB = InMemoryLedger()
+        seedRoomAndAccount(ledgerB)
+        val fallbackCategoryId = CategoryId("cat-lain-lain")
+        ledgerB.categoryRows[fallbackCategoryId] = Category(fallbackCategoryId, roomId, "Lain-lain")
 
         val result = engine(ledgerB, remote).syncNow(roomId, deviceId = "device-b") as SyncResult.Success
 
         assertEquals(1, result.applied)
         assertEquals(fallbackCategoryId, ledgerB.transactionRows[TransactionId("tx-1")]?.categoryId)
+        assertEquals(2, ledgerB.categoryRows.size, "tidak ada kategori baru dibuat untuk nama kosong")
     }
 
     @Test
@@ -449,5 +591,136 @@ class SyncCoordinatorTest {
         val result = engine(ledger, remote).syncNow(roomId, "device-a")
 
         assertEquals(SyncResult.Failed(RemoteError.Unreachable), result)
+    }
+
+    // ------------------------------------------------------------------ penjepitan jam jauh ke depan (Tahap 2 bagian D)
+
+    @Test
+    fun a_device_clock_set_far_in_the_future_is_corrected_before_any_pending_push_is_stamped() = runSuspend {
+        val ledger = InMemoryLedger()
+        seedRoomAndAccount(ledger)
+        val badFutureNow = 999_999_999_999_999L // jam perangkat rusak: ratusan ribu tahun ke depan
+        val clock = SyncClock(deviceNowMillis = { badFutureNow })
+        val remote = FakeSyncRemote().apply { serverTimeMs = 1_792_000_000_000L } // waktu server sungguhan
+        val device = engine(ledger, remote, clock = clock)
+
+        // Putaran pertama tanpa transaksi pending (cuma pull kosong): sekadar menyentuh server dulu
+        // supaya server_time_ms masuk SEBELUM stamp() pernah dipanggil, jadi belum ada cap tinggi yang
+        // "mengunci" nilai tinggi di clock (lihat KDoc SyncClock, butir "Risiko jam jauh ke depan": begitu
+        // stamp() sempat mengeluarkan cap seburuk itu, instance ini TIDAK bisa turun lagi sendiri).
+        device.syncNow(roomId, deviceId = "device-a")
+        assertTrue(clock.serverOffsetMillis < 0, "offset turun untuk mengoreksi jam yang terlalu maju")
+        assertTrue(remote.stored.isEmpty(), "belum ada yang dipush, cuma pull kosong")
+
+        // Transaksi baru SESUDAH offset terpasang: cap yang dikirim ke server sudah terkoreksi, bukan
+        // sebesar jam rusak itu lagi.
+        ledger.transactionRows[TransactionId("tx-1")] = expense("tx-1", 10_000, updatedAt = 1_000L)
+        device.syncNow(roomId, deviceId = "device-a")
+
+        val sentChangedAt = remote.stored.single().changedAtMillis!!
+        assertTrue(sentChangedAt < badFutureNow / 2, "cap sudah dikoreksi offset server, tidak lagi sebesar jam rusak")
+        assertTrue(sentChangedAt > 0, "cap tetap bilangan waktu yang wajar (positif), bukan nol atau negatif")
+    }
+
+    @Test
+    fun a_bad_clock_that_already_stamped_once_stays_locked_high_for_the_rest_of_the_process_even_after_the_offset_is_known() = runSuspend {
+        // Kebalikan tes di atas: kejujuran batas fitur ini (didokumentasikan di KDoc SyncClock) — begitu
+        // stamp() sempat dipanggil SEBELUM offset diketahui (mis. transaksi sudah ada sebelum sync pertama),
+        // cap tinggi itu "mengunci" instance ini; offset yang terlambat datang tidak bisa menurunkannya lagi
+        // di proses yang sama. Ini bukan bug dari Tahap 2, melainkan properti [SyncClock] yang sudah ada
+        // sejak Tahap 1 — diuji di sini supaya tidak diklaim seolah selalu terkoreksi.
+        val ledger = InMemoryLedger()
+        seedRoomAndAccount(ledger)
+        ledger.transactionRows[TransactionId("tx-1")] = expense("tx-1", 10_000, updatedAt = 1_000L)
+        val badFutureNow = 999_999_999_999_999L
+        val clock = SyncClock(deviceNowMillis = { badFutureNow })
+        val remote = FakeSyncRemote()
+        val device = engine(ledger, remote, clock = clock)
+
+        device.syncNow(roomId, deviceId = "device-a") // stamp() terpanggil duluan, offset masih 0
+        assertEquals(badFutureNow, remote.stored.single().changedAtMillis)
+
+        remote.serverTimeMs = 1_792_000_000_000L
+        ledger.transactionRows[TransactionId("tx-2")] = expense("tx-2", 5_000, updatedAt = 2_000L)
+        device.syncNow(roomId, deviceId = "device-a")
+
+        assertTrue(clock.serverOffsetMillis < 0, "offset sendiri tetap terkoreksi")
+        assertEquals(badFutureNow, remote.stored.last().changedAtMillis, "tapi cap tx-2 tetap terkunci tinggi di instance ini")
+    }
+
+    // ------------------------------------------------------------------ urutan total dan kebocoran lintas-scope (Tahap 2 bagian D/G)
+
+    @Test
+    fun pulling_a_version_that_is_not_newer_than_the_local_one_does_nothing() = runSuspend {
+        val ledgerB = InMemoryLedger()
+        seedRoomAndAccount(ledgerB)
+        // B punya edit lokal sendiri yang belum terkirim, bercap lebih baru dari versi basi yang akan masuk.
+        ledgerB.transactionRows[TransactionId("tx-1")] = expense("tx-1", 99_000, note = "milik saya", updatedAt = 5_000L)
+        val remote = FakeSyncRemote()
+        // Versi masuk BASI (cap 100, jauh lebih lama) dari "perangkat lain" untuk id yang sama — bagian D:
+        // meta.order (5000, device-b) >= incoming.order (100, device-a) berarti TIDAK melakukan apa pun.
+        remote.seedRawEntry(
+            transaction = expense("tx-1", 1_000, note = "basi", updatedAt = 100L),
+            accountName = "Dompet",
+            categoryName = "Belanja",
+            deviceId = "device-a",
+            changedAtMillis = 100L,
+            roomId = roomId.value,
+        )
+
+        engine(ledgerB, remote).syncNow(roomId, deviceId = "device-b")
+
+        val stillThere = ledgerB.transactionRows[TransactionId("tx-1")]
+        assertEquals(Money(99_000), stillThere?.amount, "versi basi tidak menimpa edit lokal yang lebih baru")
+        assertEquals("milik saya", stillThere?.note)
+    }
+
+    @Test
+    fun pulling_never_applies_an_entry_whose_room_id_is_null_even_if_it_appears_in_the_feed() = runSuspend {
+        // Server sungguhan mengembalikan gabungan baris MILIK SENDIRI (termasuk cakupan pribadi, room_id
+        // null) ditambah baris ruang bersama yang diikuti (lihat SyncController::pull) — filter cakupan
+        // `scope=r:<roomId>` belum ada di server (Tahap 3+), jadi klien WAJIB menyaring sendiri (bagian G
+        // "Filter per jenis: tidak ada, klien menyaring"). Tes ini membuktikan baris cakupan pribadi
+        // (room_id null) tidak pernah diterapkan sebagai transaksi ruang bersama walau muncul di aliran pull.
+        val ledgerB = InMemoryLedger()
+        seedRoomAndAccount(ledgerB)
+        val remote = FakeSyncRemote()
+        remote.seedRawEntry(
+            transaction = expense("tx-private", 7_000, note = "akun pribadi"),
+            accountName = "Dompet",
+            categoryName = "Belanja",
+            deviceId = "device-a",
+            changedAtMillis = 1_000L,
+            roomId = null, // cakupan pribadi `a`, bukan ruang bersama manapun
+        )
+
+        val result = engine(ledgerB, remote).syncNow(roomId, deviceId = "device-b") as SyncResult.Success
+
+        assertEquals(0, result.applied)
+        assertEquals(0, result.skipped)
+        assertEquals(null, ledgerB.transactionRows[TransactionId("tx-private")], "baris cakupan pribadi tidak pernah masuk ke ruang bersama")
+    }
+
+    // ------------------------------------------------------------------ ack hilang (Tahap 2 bagian G)
+
+    @Test
+    fun retrying_a_push_after_a_lost_ack_does_not_duplicate_the_row_on_the_server() = runSuspend {
+        val ledger = InMemoryLedger()
+        seedRoomAndAccount(ledger)
+        ledger.transactionRows[TransactionId("tx-1")] = expense("tx-1", 25_000)
+        val remote = FakeSyncRemote().apply { dropAckOnNextPush = true }
+        val device = engine(ledger, remote) // satu instance dipakai ulang: jam yang sama dipakai saat retry
+
+        val firstAttempt = device.syncNow(roomId, deviceId = "device-a")
+
+        assertTrue(firstAttempt is SyncResult.Failed, "ack hilang terlihat sebagai gagal oleh klien")
+        assertEquals(1, remote.stored.size, "server sudah menyimpan baris itu walau ack-nya hilang di jaringan")
+        assertTrue(ledger.syncedAtRows.isEmpty(), "klien belum tahu baris sudah tersimpan, tx-1 tetap pending")
+
+        val retry = device.syncNow(roomId, deviceId = "device-a") as SyncResult.Success
+
+        assertEquals(1, retry.pushed)
+        assertEquals(1, remote.stored.size, "retry tidak menggandakan baris di server (idempoten by record_id+changed_at_ms)")
+        assertTrue(ledger.syncedAtRows.containsKey(TransactionId("tx-1")), "retry berhasil, klien sekarang tahu baris sudah tersinkron")
     }
 }
