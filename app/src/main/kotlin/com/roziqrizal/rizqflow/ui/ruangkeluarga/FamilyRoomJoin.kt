@@ -10,6 +10,7 @@ import com.roziqrizal.rizqflow.domain.model.RoomKind
 import com.roziqrizal.rizqflow.domain.sync.RemoteError
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.RoomInvite
+import com.roziqrizal.rizqflow.domain.sync.SharedRoomRole
 import com.roziqrizal.rizqflow.sync.isUnauthorized
 import com.roziqrizal.rizqflow.sync.retryOnceIfRotated
 import com.roziqrizal.rizqflow.ui.paywall.opensSyncPaywall
@@ -73,7 +74,11 @@ suspend fun joinSharedRoom(workspace: AccountWorkspace, invite: RoomInvite): Fam
     )
     return when (result) {
         null -> FamilyJoinResult.NotSignedIn
-        is RemoteResult.Success -> FamilyJoinResult.Success(invite.roomId)
+        is RemoteResult.Success -> {
+            // Ruang kini bersama: sinkron otomatis (buka aplikasi dan simpan pengeluaran) mulai berlaku untuk ruang ini.
+            workspace.sharedRoomActivation.markActive(invite.roomId, SharedRoomRole.MEMBER)
+            FamilyJoinResult.Success(invite.roomId)
+        }
         is RemoteResult.Failure ->
             if (result.error.opensSyncPaywall()) FamilyJoinResult.SyncRequired else FamilyJoinResult.Failed(result.error)
     }
