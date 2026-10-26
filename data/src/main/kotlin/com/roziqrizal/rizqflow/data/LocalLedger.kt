@@ -9,7 +9,9 @@ import com.roziqrizal.rizqflow.data.db.MIGRATION_4_5
 import com.roziqrizal.rizqflow.data.db.MIGRATION_5_6
 import com.roziqrizal.rizqflow.data.db.MIGRATION_6_7
 import com.roziqrizal.rizqflow.data.db.MIGRATION_7_8
+import com.roziqrizal.rizqflow.data.db.MIGRATION_8_9
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
+import com.roziqrizal.rizqflow.data.sync.SharedRoomAutoSync
 import com.roziqrizal.rizqflow.data.repo.LocalAccountRepository
 import com.roziqrizal.rizqflow.data.repo.LocalBillRepository
 import com.roziqrizal.rizqflow.data.repo.LocalDebtRepository
@@ -26,6 +28,10 @@ import com.roziqrizal.rizqflow.data.sync.SyncBootstrap
 import com.roziqrizal.rizqflow.data.sync.SyncRecorder
 import com.roziqrizal.rizqflow.domain.auth.AccountStorage
 import com.roziqrizal.rizqflow.domain.sync.SyncClock
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import java.io.File
 
 /**
@@ -33,7 +39,12 @@ import java.io.File
  * Berganti akun berarti menutup ini dan membuka yang lain; akun yang sama selalu kembali ke
  * berkas yang sama, dan Keluar tidak menghapus berkas.
  */
-class LocalLedger(val db: RizqflowDatabase, val syncClock: SyncClock = SyncClock()) : AutoCloseable {
+class LocalLedger(
+    val db: RizqflowDatabase,
+    val syncClock: SyncClock = SyncClock(),
+    /** Lingkup untuk sinkron otomatis ruang bersama; dibatalkan saat ruang kerja ditutup. Tes memberi lingkup sinkron. */
+    private val autoSyncScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+) : AutoCloseable {
     /** Pencatat perubahan lokal untuk sinkron; dipakai bersama oleh semua repositori tulis (Tahap 1 sync-desain.md). */
     val syncRecorder = SyncRecorder(db, syncClock)
 
@@ -43,10 +54,13 @@ class LocalLedger(val db: RizqflowDatabase, val syncClock: SyncClock = SyncClock
     /** Backfill sekali saat sync pertama diaktifkan. */
     val syncBootstrap = SyncBootstrap(db)
 
+    /** Sinkron otomatis ruang bersama (Tahap 9); sinkron sungguhan dipasang lewat `attach` oleh ruang kerja. */
+    val autoSync = SharedRoomAutoSync(syncStore, autoSyncScope)
+
     val workspace = LocalWorkspaceRepository(db, syncRecorder)
     val accounts = LocalAccountRepository(db, syncRecorder)
     val rooms = LocalRoomRepository(db, syncRecorder)
-    val transactions = LocalTransactionRepository(db, syncRecorder)
+    val transactions = LocalTransactionRepository(db, syncRecorder, autoSync)
     val favorites = LocalFavoriteRepository(db, syncRecorder)
     val zakat = LocalZakatRepository(db, syncRecorder)
     val roles = LocalRoleRepository(db, syncRecorder)
@@ -66,7 +80,11 @@ class LocalLedger(val db: RizqflowDatabase, val syncClock: SyncClock = SyncClock
         db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").use { it.moveToFirst() }
     }
 
-    override fun close() = db.close()
+    override fun close() {
+        // Sinkron yang masih berjalan dibatalkan dulu, supaya tidak menyentuh database yang sudah ditutup.
+        autoSyncScope.cancel()
+        db.close()
+    }
 
     companion object {
         /**
@@ -82,7 +100,7 @@ class LocalLedger(val db: RizqflowDatabase, val syncClock: SyncClock = SyncClock
                 context.applicationContext,
                 RizqflowDatabase::class.java,
                 databaseName,
-            ).openHelperFactory(guard.openHelperFactory()).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).addCallback(guard.callback()).build()
+            ).openHelperFactory(guard.openHelperFactory()).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9).addCallback(guard.callback()).build()
             return LocalLedger(db)
         }
     }

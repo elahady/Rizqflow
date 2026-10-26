@@ -107,6 +107,18 @@ data class PendingSyncTransaction(
     val changedAtMillis: Long,
 )
 
+/**
+ * Satu transaksi yang dihapus di ruang bersama, menunggu tombstone terkirim ke sync (Tahap 9,
+ * roadmap.md "Sinkron penghapusan transaksi di ruang yang dibagi") — lihat
+ * [TransactionRepository.pendingTombstones]. Dicatat terpisah dari tabel transaksi karena baris
+ * aslinya sudah dihapus fisik secara lokal (append-only hanya berlaku di server, bukan di
+ * perangkat); tombstone inilah satu-satunya jejak yang tersisa untuk diteruskan.
+ */
+data class PendingTombstone(
+    val transactionId: TransactionId,
+    val deletedAtMillis: Long,
+)
+
 interface TransactionRepository {
     suspend fun find(id: TransactionId): MoneyTransaction?
 
@@ -125,7 +137,12 @@ interface TransactionRepository {
     /** Mengganti pemasukan dan seluruh potret alokasinya (atomik). */
     suspend fun replaceIncome(transaction: MoneyTransaction, entries: List<AllocationEntry>)
 
-    /** Hapus fisik; potret alokasi ikut terhapus. */
+    /**
+     * Hapus fisik; potret alokasi ikut terhapus. Bila transaksinya EXPENSE dan punya [RoomId]
+     * (ruang mana pun — SyncEngine yang memutuskan ruang mana yang benar-benar disinkron), lokal
+     * ikut mencatat satu baris di [pendingTombstones] sebelum hapus, supaya anggota ruang bersama
+     * lain ikut menghapusnya saat sync berikutnya (Tahap 9).
+     */
     suspend fun delete(id: TransactionId)
 
     /** Transaksi antara dua hari (inklusif), terbaru dulu. */
@@ -140,25 +157,30 @@ interface TransactionRepository {
     /** Jatah (alokasi dari pemasukan) dan terpakai (pengeluaran) per ruang antara dua hari (inklusif). */
     suspend fun roomTotals(from: LocalDate, to: LocalDate): RoomTotals
 
-    /**
-     * Pengeluaran di [roomId] yang belum terkirim ke sync (Tahap 9, kolom `synced_at` null).
-     * Penghapusan transaksi di ruang yang dibagi **belum** ikut tersinkron di putaran ini — hapus
-     * tetap hard-delete seperti sekarang, anggota lain tidak akan melihatnya hilang (keterbatasan
-     * yang disengaja, dicatat di roadmap.md, menyusul terpisah).
-     */
+    /** Pengeluaran di [roomId] yang belum terkirim ke sync (Tahap 9, kolom `synced_at` null). */
     suspend fun pendingSync(roomId: RoomId): List<PendingSyncTransaction>
 
     /** Tandai transaksi-transaksi ini sudah terkirim ke sync. */
     suspend fun markSynced(ids: List<TransactionId>, atMillis: Long)
 
     /**
+     * Transaksi di [roomId] yang dihapus lokal tapi tombstone-nya belum terkirim ke sync (Tahap 9,
+     * roadmap.md "Sinkron penghapusan transaksi di ruang yang dibagi"). [delete] mencatat baris ini
+     * tepat sebelum hapus fisik; [clearPendingTombstones] membersihkannya setelah terkirim.
+     */
+    suspend fun pendingTombstones(roomId: RoomId): List<PendingTombstone>
+
+    /** Tandai tombstone-tombstone ini sudah terkirim ke sync (dibuang, tidak perlu disimpan lagi). */
+    suspend fun clearPendingTombstones(ids: List<TransactionId>)
+
+    /**
      * Terapkan satu baris hasil pull dari anggota lain. [transaction] data lengkap untuk baris
      * baru/diubah — insert, atau timpa yang sudah ada bila [changedAtMillis] lebih baru dari
-     * [MoneyTransaction.updatedAtMillis] lokal (last-write-wins). Null bila [deleted] true: baris
-     * lokal (bila ada) dihapus seperti [delete] biasa — tombstone dari anggota lain diterapkan
-     * sebagai hapus wajar, bukan ciri khusus ruang yang dibagi (lihat catatan [pendingSync] soal
-     * hapus lokal yang belum ikut mengirim tombstone). Hasil terapan ini tidak pernah ditandai
-     * pending push lagi (datang dari luar, bukan ubahan lokal).
+     * [MoneyTransaction.updatedAtMillis] lokal (last-write-wins, server-sync.md "Model konflik
+     * sinkronisasi"). Null bila [deleted] true: tombstone dari anggota lain, diterapkan dengan
+     * aturan LWW yang sama (tombstone basi tidak boleh menghapus edit lokal yang lebih baru) —
+     * baris lokal (bila ada dan tidak lebih baru) dihapus seperti [delete] biasa. Hasil terapan ini
+     * tidak pernah ditandai pending push lagi (datang dari luar, bukan ubahan lokal).
      */
     suspend fun applyFromSync(id: TransactionId, transaction: MoneyTransaction?, changedAtMillis: Long, deleted: Boolean)
 }

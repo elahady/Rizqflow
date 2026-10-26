@@ -176,6 +176,16 @@ interface TransactionDao {
     /** Insert atau timpa hasil pull dari anggota lain, dengan `synced_at` sudah terisi (tidak pending push lagi). */
     @Upsert
     suspend fun upsertFromSync(transaction: TransactionEntity)
+
+    /** Tombstone menunggu kirim (Tahap 9) — lihat `PendingRoomTombstoneEntity`. */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPendingTombstone(tombstone: PendingRoomTombstoneEntity)
+
+    @Query("SELECT * FROM pending_room_tombstone WHERE room_id = :roomId")
+    suspend fun pendingTombstones(roomId: String): List<PendingRoomTombstoneEntity>
+
+    @Query("DELETE FROM pending_room_tombstone WHERE transaction_id IN (:ids)")
+    suspend fun clearPendingTombstones(ids: List<String>)
 }
 
 @Dao

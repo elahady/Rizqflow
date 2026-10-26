@@ -202,7 +202,7 @@ class PreMigrateGuard(
 
     companion object {
         /** Versi skema `RizqflowDatabase` saat ini; dijaga sama oleh tes `PreMigrateGuardTest`. */
-        const val DEFAULT_TARGET_VERSION = 8
+        const val DEFAULT_TARGET_VERSION = 9
         const val DEFAULT_KEEP_FOR_OPENS = 3
 
         /** Umur minimal salinan sebelum boleh dihapus: 7 hari. */

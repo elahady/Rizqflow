@@ -21,7 +21,9 @@ import kotlin.test.assertTrue
 
 /**
  * Pagar migrasi (Tahap 1 sync-desain.md): salinan `.premigrate` sebelum membuka database dengan user_version di
- * bawah 8, dihapus setelah 3 pembukaan sukses DAN umur 7 hari, dan kegagalan menyalin tidak pernah menggagalkan pembukaan.
+ * bawah [PreMigrateGuard.DEFAULT_TARGET_VERSION] (versi skema `RizqflowDatabase` saat ini, 9 sejak Tahap 9 roadmap.md
+ * "Sinkron penghapusan transaksi di ruang yang dibagi"), dihapus setelah 3 pembukaan sukses DAN umur 7 hari, dan
+ * kegagalan menyalin tidak pernah menggagalkan pembukaan.
  * Catatan: nama tes sengaja pendek; dir sementara Robolectric memuat nama tes dan path Windows dibatasi 260 karakter.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -94,7 +96,7 @@ class PreMigrateGuardTest {
         assertContentEquals(original, premigrate().readBytes(), "salinan identik dengan berkas sebelum migrasi")
         val copy = android.database.sqlite.SQLiteDatabase.openDatabase(premigrate().path, null, android.database.sqlite.SQLiteDatabase.OPEN_READONLY)
         copy.use { assertEquals(7, it.version) }
-        assertEquals(8, opened.single().db.openHelper.readableDatabase.version)
+        assertEquals(9, opened.single().db.openHelper.readableDatabase.version)
     }
 
     @Test
@@ -122,13 +124,13 @@ class PreMigrateGuardTest {
     }
 
     @Test
-    fun `database baru atau sudah v8 tidak disalin`() {
-        openLedger() // berkas belum ada: dibuat langsung v8
+    fun `database baru atau sudah versi sasaran tidak disalin`() {
+        openLedger() // berkas belum ada: dibuat langsung di versi skema saat ini (9), bukan dimigrasi
         closeLedgers()
         assertFalse(premigrate().exists())
         openLedger()
         closeLedgers()
-        assertFalse(premigrate().exists(), "v8 tidak butuh salinan")
+        assertFalse(premigrate().exists(), "sudah di versi sasaran, tidak butuh salinan")
     }
 
     @Test
@@ -140,7 +142,7 @@ class PreMigrateGuardTest {
 
         // Pembukaan sungguhan tetap berhasil dan memigrasi (jalur LocalLedger.open memakai pagar bawaan).
         val ledger = openLedger()
-        assertEquals(8, ledger.db.openHelper.readableDatabase.version)
+        assertEquals(9, ledger.db.openHelper.readableDatabase.version)
         ledger.db.openHelper.readableDatabase.query("SELECT name FROM room WHERE id = 'r1'").use {
             assertTrue(it.moveToFirst())
             assertEquals("Keluarga", it.getString(0))

@@ -9,6 +9,7 @@ import com.roziqrizal.rizqflow.data.crypto.AndroidKeystoreAccountKeyProvider
 import com.roziqrizal.rizqflow.data.crypto.AndroidKeystoreRoomKeyProvider
 import com.roziqrizal.rizqflow.data.remote.ApiBaseUrl
 import com.roziqrizal.rizqflow.data.remote.RetrofitAccountRemote
+import com.roziqrizal.rizqflow.data.remote.RetrofitDeviceRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitPurchaseRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitRecoveryKeyRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitRoomMembershipRemote
@@ -21,11 +22,13 @@ import com.roziqrizal.rizqflow.data.sync.SharedPrefsSyncCursorStore
 import com.roziqrizal.rizqflow.domain.sync.AccountKeyProvider
 import com.roziqrizal.rizqflow.domain.sync.AccountRemote
 import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
+import com.roziqrizal.rizqflow.domain.sync.DeviceRemote
 import com.roziqrizal.rizqflow.domain.sync.PurchaseRemote
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyRemote
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyService
 import com.roziqrizal.rizqflow.domain.sync.RecoveryStatusStore
 import com.roziqrizal.rizqflow.domain.sync.RoomKeyProvider
+import com.roziqrizal.rizqflow.domain.sync.RoomMemberKeyRedistribution
 import com.roziqrizal.rizqflow.domain.sync.RoomMembershipRemote
 import com.roziqrizal.rizqflow.domain.sync.SyncCursorStore
 import com.roziqrizal.rizqflow.domain.sync.SyncEngine
@@ -50,6 +53,8 @@ import com.roziqrizal.rizqflow.domain.role.RoleService
 import com.roziqrizal.rizqflow.domain.smartinput.SmartInputService
 import com.roziqrizal.rizqflow.domain.zakat.HaulReminderService
 import com.roziqrizal.rizqflow.domain.zakat.ZakatService
+import com.roziqrizal.rizqflow.sync.DeviceId
+import com.roziqrizal.rizqflow.sync.DeviceName
 import com.roziqrizal.rizqflow.sync.ServerLink
 import com.roziqrizal.rizqflow.sync.ServerSession
 import com.roziqrizal.rizqflow.sync.TokenRefresher
@@ -72,6 +77,8 @@ class AccountWorkspace private constructor(
     private val syncRemote: SyncRemote,
     val roomMembershipRemote: RoomMembershipRemote,
     val purchaseRemote: PurchaseRemote,
+    /** Daftar perangkat dan "Keluar dari semua perangkat" (Tahap 14); sudah dibungkus [serverSession]. */
+    val deviceRemote: DeviceRemote,
     private val syncCursorStore: SyncCursorStore,
     /** Kunci akun di Keystore (Tahap 13), satu per akun; dasar kode pemulihan. */
     val accountKeyProvider: AccountKeyProvider,
@@ -127,8 +134,29 @@ class AccountWorkspace private constructor(
      */
     val recovery = RecoveryKeyService(accountKeyProvider, recoveryRemote, apiTokenStore, recoveryStatusStore)
 
+    /**
+     * Keluarkan anggota (Tahap 9): rotasi kunci ruang lalu siapkan undangan (QR) baru untuk anggota
+     * yang tetap — lihat [RoomMemberKeyRedistribution]. Tidak mengubah keanggotaan di server.
+     */
+    val memberRemoval = RoomMemberKeyRedistribution(roomKeyProvider)
+
     /** Memutar token API sebelum kedaluwarsa (Tahap 12); satu per ruang kerja, jadi satu Mutex per akun. */
     val tokenRefresher = TokenRefresher(serverSession, accountRemote)
+
+    /**
+     * Sinkron otomatis (Tahap 9): dipasang ke [SyncEngine.syncNow] sekali per ruang kerja. Repositori transaksi
+     * memanggilnya setelah pengeluaran di ruang bersama tersimpan; [syncSharedRoomsOnOpen] dipanggil saat
+     * ruang kerja dibuka. Galat hanya dicatat, tidak pernah sampai ke pemanggil penyimpanan.
+     */
+    private fun connectAutoSync(deviceId: String) {
+        local.autoSync.attach(
+            sync = { roomId -> sync.syncNow(roomId, deviceId) },
+            log = { message -> Log.w(TAG, "Sync otomatis: $message") },
+        )
+    }
+
+    /** Sinkron semua ruang bersama saat ruang kerja dibuka. Tidak menunggu hasilnya; tombol manual tetap fallback. */
+    fun syncSharedRoomsOnOpen() = local.autoSync.onWorkspaceOpened()
 
     override fun close() = local.close()
 
@@ -145,28 +173,31 @@ class AccountWorkspace private constructor(
             val tokenStore = SharedPrefsApiTokenStore(context, accountId)
             // Satu-satunya tempat jawaban 401 ditangani: setiap remote terlindungi WAJIB lewat session.guard.
             val session = ServerSession(tokenStore)
-            return AccountWorkspace(
+            val workspace = AccountWorkspace(
                 local = LocalLedger.open(context, accountId),
                 purchases = PurchaseStore.shared(context),
-                accountRemote = session.guard(RetrofitAccountRemote(apiService)),
+                accountRemote = session.guard(RetrofitAccountRemote(apiService, DeviceName.read())),
                 apiTokenStore = tokenStore,
                 serverSession = session,
                 roomKeyProvider = AndroidKeystoreRoomKeyProvider(context),
                 syncRemote = session.guard(RetrofitSyncRemote(apiService)),
                 roomMembershipRemote = session.guard(RetrofitRoomMembershipRemote(apiService)),
                 purchaseRemote = session.guard(RetrofitPurchaseRemote(apiService)),
+                deviceRemote = session.guard(RetrofitDeviceRemote(apiService)),
                 syncCursorStore = SharedPrefsSyncCursorStore(context),
                 accountKeyProvider = AndroidKeystoreAccountKeyProvider(context, accountId),
                 recoveryRemote = session.guard(RetrofitRecoveryKeyRemote(apiService)),
                 recoveryStatusStore = SharedPrefsRecoveryStatusStore(context, accountId),
             )
+            workspace.connectAutoSync(DeviceId.read(context))
+            return workspace
         }
 
         /**
          * Remote akun untuk masuk email+sandi (Tahap 14), dipakai SEBELUM ruang kerja akun ada: belum ada akun
          * (dan karenanya belum ada berkas token) untuk diikat. Tanpa penjaga 401, sama seperti masuk Google.
          */
-        fun signInRemote(): AccountRemote = RetrofitAccountRemote(RizqflowApiClient.create(resolveBaseUrl()))
+        fun signInRemote(): AccountRemote = RetrofitAccountRemote(RizqflowApiClient.create(resolveBaseUrl()), DeviceName.read())
 
         /**
          * Sesi server dan remote akun [accountId] TANPA membuka database akunnya. Dipakai keluar akun saat

@@ -29,6 +29,8 @@ cameraX = "1.6.2"
 mlkitBarcodeScanning = "17.3.0"
 qrcodeKotlin = "4.5.0"
 playBilling = "9.1.0"
+mlkitTextRecognition = "16.0.1"
+pdfboxAndroid = "2.0.27.0"
 
 [libraries]
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
@@ -70,6 +72,8 @@ androidx-camera-view = { group = "androidx.camera", name = "camera-view", versio
 mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkitBarcodeScanning" }
 qrcode-kotlin = { group = "io.github.g0dkar", name = "qrcode-kotlin", version.ref = "qrcodeKotlin" }
 play-billing = { group = "com.android.billingclient", name = "billing", version.ref = "playBilling" }
+mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
+pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
 
 [plugins]
 androidx-room = { id = "androidx.room", version.ref = "room" }

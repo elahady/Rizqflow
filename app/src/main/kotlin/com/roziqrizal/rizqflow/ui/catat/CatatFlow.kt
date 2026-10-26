@@ -66,6 +66,8 @@ import com.roziqrizal.rizqflow.domain.allocation.AllocationRule
 import com.roziqrizal.rizqflow.domain.entitlement.Feature
 import com.roziqrizal.rizqflow.domain.ledger.AllocationEntry
 import com.roziqrizal.rizqflow.domain.ledger.BudgetWarning
+import com.roziqrizal.rizqflow.domain.ledger.DuplicateTransactionDetector
+import com.roziqrizal.rizqflow.domain.ledger.toDuplicateProbe
 import com.roziqrizal.rizqflow.domain.ledger.CatatContext
 import com.roziqrizal.rizqflow.domain.ledger.CatatContextLoader
 import com.roziqrizal.rizqflow.domain.ledger.CatatDraft
@@ -171,6 +173,9 @@ fun CatatFlow(
     var pickingDate by remember { mutableStateOf(false) }
     var asFavorite by rememberSaveable { mutableStateOf(false) }
     var smartInputOpen by remember { mutableStateOf(false) }
+    // Deteksi transaksi ganda hanya untuk simpan baru (bukan Detail); simpan yang ditahan menunggu pilihan pengguna.
+    val duplicates = remember(workspace) { DuplicateTransactionDetector(workspace.repositories.transactions, System::currentTimeMillis) }
+    var duplicateHold by remember { mutableStateOf<DuplicateHold?>(null) }
     val scope = rememberCoroutineScope()
 
     // Banner lembut jatah terlampaui: dihitung ulang setiap nominal, ruang, atau tanggal berubah.
@@ -209,11 +214,19 @@ fun CatatFlow(
         error = null
     }
 
-    fun saveDirect(keepOpen: Boolean) {
+    fun saveDirect(keepOpen: Boolean, checked: Boolean = false) {
         if (busy || draft.issue(context) != null) return
         busy = true
         error = null
         scope.launch {
+            if (editing == null && !checked) {
+                val match = duplicates.findDuplicate(draft.toDuplicateProbe())
+                if (match != null) {
+                    busy = false
+                    duplicateHold = DuplicateHold(match) { saveDirect(keepOpen, checked = true) }
+                    return@launch
+                }
+            }
             val result = if (draft.mode == CatatMode.EXPENSE) {
                 workspace.ledger.recordExpense(draft.toExpense())
             } else {
@@ -250,12 +263,20 @@ fun CatatFlow(
         scope.launch { review = Review(workspace.ledger.previewIncome(draft.amount, split?.toRules()), split) }
     }
 
-    fun confirmIncome() {
+    fun confirmIncome(checked: Boolean = false) {
         val current = review ?: return
         if (busy) return
         busy = true
         error = null
         scope.launch {
+            if (!checked) {
+                val match = duplicates.findDuplicate(draft.toDuplicateProbe())
+                if (match != null) {
+                    busy = false
+                    duplicateHold = DuplicateHold(match) { confirmIncome(checked = true) }
+                    return@launch
+                }
+            }
             val result = workspace.ledger.recordIncome(draft.toIncome(current.split?.toRules()))
             busy = false
             when (result) {
@@ -302,6 +323,22 @@ fun CatatFlow(
         }
     }
 
+    duplicateHold?.let { hold ->
+        DuplicateWarningDialog(
+            match = hold.match,
+            onKeep = {
+                duplicateHold = null
+                hold.proceed()
+            },
+            // Batalkan berarti catatan baru ini tidak disimpan dan layar ditutup; data yang sudah ada tidak disentuh.
+            onCancel = {
+                duplicateHold = null
+                onClose()
+            },
+            onDismiss = { duplicateHold = null },
+        )
+    }
+
     val shown = review
     if (shown != null) {
         ReviewScreen(
@@ -315,7 +352,7 @@ fun CatatFlow(
             onToggleEdit = { on -> updateSplit(if (on) OneTimeSplit.from(context.rules) else null) },
             onPercent = { index, value -> shown.split?.let { updateSplit(it.set(index, value)) } },
             onStep = { index, delta -> shown.split?.let { updateSplit(it.step(index, delta)) } },
-            onConfirm = ::confirmIncome,
+            onConfirm = { confirmIncome() },
         )
         return
     }

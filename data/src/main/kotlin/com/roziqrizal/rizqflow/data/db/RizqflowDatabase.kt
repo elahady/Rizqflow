@@ -28,6 +28,11 @@ import androidx.room.RoomDatabase
  * Versi 8 (2026-10-25, Tahap 1 sync-desain.md, USULAN Claude): menambah `sync_record`, `sync_cursor`,
  * `sync_issue`, `shared_room`, dan `account.shared_from` untuk sinkron entitas penuh; lihat
  * [MIGRATION_7_8]. Aditif saja; `money_transaction.synced_at` (v7, dipakai SyncEngine lama) dibiarkan.
+ *
+ * Versi 9 (2026-10-26, Tahap 9, roadmap.md "Sinkron penghapusan transaksi di ruang yang dibagi"):
+ * menambah `pending_room_tombstone` untuk tombstone transaksi EXPENSE yang dihapus di ruang bersama,
+ * dikirim lewat `SyncEngine` lama (bukan mesin generik Tahap 2 sync-desain.md yang belum
+ * dikonfirmasi pemilik); lihat [MIGRATION_8_9]. Aditif saja.
  */
 @Database(
     entities = [
@@ -55,8 +60,9 @@ import androidx.room.RoomDatabase
         SyncCursorEntity::class,
         SyncIssueEntity::class,
         SharedRoomEntity::class,
+        PendingRoomTombstoneEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class RizqflowDatabase : RoomDatabase() {

@@ -163,6 +163,12 @@ dependencies {
     implementation(libs.mlkit.barcode.scanning)
     implementation(libs.qrcode.kotlin)
 
+    // Input cerdas on-device (Tahap 11, OCR screenshot mutasi dan e-statement PDF): ML Kit Text Recognition
+    // (model bawaan, jalan di perangkat tanpa jaringan) untuk gambar, dan PdfBox-Android untuk membaca teks
+    // dari PDF e-statement. Keduanya hanya dipakai di ocr/ (adaptor Android); parsernya ada di :domain.
+    implementation(libs.mlkit.text.recognition)
+    implementation(libs.pdfbox.android)
+
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.kotlin.test.junit5) // menghubungkan kotlin.test ke JUnit 5 di modul Android
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")

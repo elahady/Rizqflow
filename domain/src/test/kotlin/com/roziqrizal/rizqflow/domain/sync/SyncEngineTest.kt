@@ -249,6 +249,83 @@ class SyncEngineTest {
         assertEquals("baru", merged?.note)
     }
 
+    // ------------------------------------------------------------------ tombstone penghapusan (Tahap 9)
+
+    @Test
+    fun deleting_a_transaction_in_a_shared_room_creates_a_tombstone_that_removes_it_for_other_members() = runSuspend {
+        val ledgerA = InMemoryLedger()
+        seedRoomAndAccount(ledgerA)
+        ledgerA.transactionRows[TransactionId("tx-1")] = expense("tx-1", 40_000, note = "Belanja")
+        val remote = FakeSyncRemote()
+        // Mesin (dan kursornya) dipakai ulang per "perangkat" lewat putaran sync berikutnya — sama seperti
+        // does_not_push_the_same_transaction_twice — bukan dibuat baru tiap panggilan, supaya kursor baca
+        // tiap perangkat benar-benar maju antar putaran.
+        val deviceA = engine(ledgerA, remote)
+        deviceA.syncNow(roomId, deviceId = "device-a") // A: push tx-1
+
+        val ledgerB = InMemoryLedger()
+        seedRoomAndAccount(ledgerB)
+        val deviceB = engine(ledgerB, remote)
+        deviceB.syncNow(roomId, deviceId = "device-b") // B: pull tx-1
+        assertTrue(TransactionId("tx-1") in ledgerB.transactionRows) // sanity: B benar-benar sudah punya salinannya
+
+        // A menghapus transaksi itu secara lokal: hilang seketika (hard-delete), tombstone menunggu kirim.
+        ledgerA.delete(TransactionId("tx-1"))
+        assertTrue(TransactionId("tx-1") !in ledgerA.transactionRows)
+        assertEquals(1, ledgerA.pendingTombstoneRows.size)
+
+        val pushResult = deviceA.syncNow(roomId, deviceId = "device-a") as SyncResult.Success
+        assertEquals(1, pushResult.pushed) // tombstone-nya yang terkirim
+        assertTrue(ledgerA.pendingTombstoneRows.isEmpty(), "tombstone dibuang lokal setelah terkirim, server sudah menyimpannya permanen")
+
+        val pullResult = deviceB.syncNow(roomId, deviceId = "device-b") as SyncResult.Success
+        assertEquals(1, pullResult.applied)
+        assertTrue(TransactionId("tx-1") !in ledgerB.transactionRows, "B ikut menghapus transaksi yang dihapus A")
+    }
+
+    @Test
+    fun does_not_push_a_tombstone_for_a_transaction_in_a_room_that_was_never_synced() = runSuspend {
+        val ledger = InMemoryLedger()
+        seedRoomAndAccount(ledger)
+        ledger.transactionRows[TransactionId("tx-1")] = expense("tx-1", 10_000)
+        val remote = FakeSyncRemote()
+
+        // Dihapus sebelum sync pertama kali pernah terjadi: tetap mencatat tombstone (sederhana, tidak perlu
+        // tahu riwayat sync), tapi mengirimkannya aman karena pull sisi lain cuma menghapus baris yang tidak
+        // pernah ada di sana (no-op).
+        ledger.delete(TransactionId("tx-1"))
+        val result = engine(ledger, remote).syncNow(roomId, deviceId = "device-a") as SyncResult.Success
+
+        assertEquals(1, result.pushed)
+        assertEquals(true, remote.stored.single().deleted)
+    }
+
+    @Test
+    fun last_write_wins_keeps_a_newer_local_edit_over_a_stale_tombstone() = runSuspend {
+        val ledgerB = InMemoryLedger()
+        seedRoomAndAccount(ledgerB)
+        // B punya edit lokal baru atas transaksi ini (belum sync) dengan cap waktu lebih baru dari tombstone yang masuk.
+        ledgerB.transactionRows[TransactionId("tx-1")] = expense("tx-1", 99_000, note = "edit lokal baru", updatedAt = 5_000L)
+
+        val remote = FakeSyncRemote()
+        val ledgerA = InMemoryLedger(nowMillis = { 2_000L }) // tombstone A bercap 2000, lebih lama dari edit B (5000)
+        seedRoomAndAccount(ledgerA)
+        ledgerA.transactionRows[TransactionId("tx-1")] = expense("tx-1", 10_000, updatedAt = 1_000L)
+        ledgerA.delete(TransactionId("tx-1"))
+        engine(ledgerA, remote).syncNow(roomId, deviceId = "device-a")
+
+        // "applied" di SyncResult berarti "baris diproses tanpa galat", bukan "data lokal berubah" (sama
+        // seperti jalur baris hidup: lihat last_write_wins_keeps_the_newer_change_on_conflict yang juga
+        // tidak menguji lewat hitungan ini) — yang membuktikan LWW adalah isi [stillThere] di bawah, bukan count.
+        engine(ledgerB, remote).syncNow(roomId, deviceId = "device-b")
+
+        // Tombstone basi (server-sync.md "Model konflik sinkronisasi": last-write-wins) tidak boleh menghapus
+        // edit lokal yang lebih baru itu.
+        val stillThere = ledgerB.transactionRows[TransactionId("tx-1")]
+        assertEquals(Money(99_000), stillThere?.amount)
+        assertEquals("edit lokal baru", stillThere?.note)
+    }
+
     @Test
     fun reports_not_signed_in_without_throwing_when_there_is_no_api_token() = runSuspend {
         val ledger = InMemoryLedger()

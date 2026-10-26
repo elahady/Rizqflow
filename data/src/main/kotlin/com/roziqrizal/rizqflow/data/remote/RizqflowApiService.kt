@@ -32,13 +32,27 @@ interface RizqflowApiService {
     @POST("auth/login")
     suspend fun loginWithEmail(@Body body: RequestBody): Response<ResponseBody>
 
-    /** Memutar token (`POST /api/auth/refresh`, Tahap 12): token ini dicabut dan token baru dikembalikan. Tanpa badan. */
+    /**
+     * Memutar token (`POST /api/auth/refresh`, Tahap 12): token ini dicabut dan token baru dikembalikan. Badan
+     * berisi `device_name` opsional (Tahap 14); tanpa nama badannya KOSONG, seperti sebelum Tahap 14.
+     */
     @POST("auth/refresh")
-    suspend fun refreshToken(@Header("Authorization") bearerToken: String): Response<ResponseBody>
+    suspend fun refreshToken(
+        @Header("Authorization") bearerToken: String,
+        @Body body: RequestBody,
+    ): Response<ResponseBody>
 
     /** Mencabut hanya token yang dipakai permintaan ini (`POST /api/auth/logout`, 204). Tanpa badan. */
     @POST("auth/logout")
     suspend fun logout(@Header("Authorization") bearerToken: String): Response<ResponseBody>
+
+    /** Daftar perangkat yang masuk ke akun ini (Tahap 14, `Api\AccountController::devices`). Tanpa badan. */
+    @GET("auth/tokens")
+    suspend fun listTokens(@Header("Authorization") bearerToken: String): Response<ResponseBody>
+
+    /** "Keluar dari semua perangkat" (Tahap 14, `DELETE /api/auth/tokens`, 204): mencabut semua token akun ini. */
+    @DELETE("auth/tokens")
+    suspend fun revokeAllTokens(@Header("Authorization") bearerToken: String): Response<ResponseBody>
 
     @DELETE("account")
     suspend fun deleteAccount(@Header("Authorization") bearerToken: String): Response<ResponseBody>
@@ -93,10 +107,15 @@ interface RizqflowApiService {
     ): Response<ResponseBody>
 }
 
+/**
+ * Badan `POST /auth/google`. [deviceName] (Tahap 14) opsional: nama yang bisa dikenali di daftar perangkat;
+ * null tidak dikirim (encodeDefaults mati), jadi klien lama dan server lama tetap cocok.
+ */
 @Serializable
 data class LoginRequestDto(
     val credential: String,
     @SerialName("device_id") val deviceId: String,
+    @SerialName("device_name") val deviceName: String? = null,
 )
 
 /**
@@ -108,6 +127,7 @@ data class EmailLoginRequestDto(
     val email: String,
     val password: String,
     @SerialName("device_id") val deviceId: String,
+    @SerialName("device_name") val deviceName: String? = null,
 ) {
     override fun toString(): String = "EmailLoginRequestDto(email=$email, password=disembunyikan, deviceId=$deviceId)"
 }
@@ -128,6 +148,28 @@ data class LoginResponseDto(
 data class RefreshResponseDto(
     val token: String,
     @SerialName("expires_at") val expiresAt: String? = null,
+)
+
+/** Badan `POST /auth/refresh` (Tahap 14): hanya `device_name` opsional; null berarti badan `{}`. */
+@Serializable
+data class RefreshRequestDto(
+    @SerialName("device_name") val deviceName: String? = null,
+)
+
+/** Jawaban `GET /auth/tokens`: `{"devices":[...]}`. Isi token tidak pernah ada di jawaban ini. */
+@Serializable
+data class DeviceListResponseDto(val devices: List<DeviceDto> = emptyList())
+
+/** Satu perangkat di daftar: waktu dalam ISO-8601 UTC, null bila server tidak mengirim. */
+@Serializable
+data class DeviceDto(
+    val id: Long,
+    val label: String? = null,
+    @SerialName("device_name") val deviceName: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("last_used_at") val lastUsedAt: String? = null,
+    @SerialName("expires_at") val expiresAt: String? = null,
+    val current: Boolean = false,
 )
 
 @Serializable

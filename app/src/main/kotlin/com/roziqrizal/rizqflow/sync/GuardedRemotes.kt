@@ -2,6 +2,7 @@ package com.roziqrizal.rizqflow.sync
 
 import com.roziqrizal.rizqflow.domain.sync.AccountRemote
 import com.roziqrizal.rizqflow.domain.sync.ApiAccount
+import com.roziqrizal.rizqflow.domain.sync.DeviceRemote
 import com.roziqrizal.rizqflow.domain.sync.PurchaseClaim
 import com.roziqrizal.rizqflow.domain.sync.PurchaseClaimResponse
 import com.roziqrizal.rizqflow.domain.sync.PurchaseRemote
@@ -12,6 +13,7 @@ import com.roziqrizal.rizqflow.domain.sync.RefreshedToken
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.RoomMemberInfo
 import com.roziqrizal.rizqflow.domain.sync.RoomMembershipRemote
+import com.roziqrizal.rizqflow.domain.sync.ServerDevice
 import com.roziqrizal.rizqflow.domain.sync.SyncLogEntryUpload
 import com.roziqrizal.rizqflow.domain.sync.SyncPullResult
 import com.roziqrizal.rizqflow.domain.sync.SyncPushResult
@@ -74,6 +76,17 @@ internal class GuardedPurchaseRemote(
 ) : PurchaseRemote {
     override suspend fun claim(apiToken: String, claims: List<PurchaseClaim>): RemoteResult<PurchaseClaimResponse> =
         session.observe(apiToken, inner.claim(apiToken, claims))
+}
+
+internal class GuardedDeviceRemote(
+    private val inner: DeviceRemote,
+    private val session: ServerSession,
+) : DeviceRemote {
+    override suspend fun listDevices(apiToken: String): RemoteResult<List<ServerDevice>> =
+        session.observe(apiToken, inner.listDevices(apiToken))
+
+    override suspend fun revokeAllDevices(apiToken: String): RemoteResult<Unit> =
+        session.observe(apiToken, inner.revokeAllDevices(apiToken))
 }
 
 internal class GuardedRecoveryKeyRemote(

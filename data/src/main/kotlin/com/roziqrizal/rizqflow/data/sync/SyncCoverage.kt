@@ -49,6 +49,9 @@ object SyncCoverage {
         "sync_cursor" to Entry.Excluded("keadaan sinkron lokal, bukan data keuangan"),
         "sync_issue" to Entry.Excluded("keadaan sinkron lokal, bukan data keuangan"),
         "shared_room" to Entry.Excluded("keanggotaan ruang bersama di perangkat ini; tanpa rahasia, per perangkat"),
+        "pending_room_tombstone" to Entry.Excluded(
+            "keadaan sinkron lokal untuk SyncEngine lama (Tahap 9, bukan mesin generik Tahap 2), bukan data keuangan",
+        ),
     )
 
     /** Tabel sistem SQLite/Room yang bukan tabel data. */

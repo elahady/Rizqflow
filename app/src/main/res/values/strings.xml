@@ -204,6 +204,10 @@
     <string name="catat_save_more">Simpan + tambah</string>
     <string name="catat_no_rooms">Belum ada ruang untuk pengeluaran. Pakai pola Tiga hak, atau tambah ruang di tab Ruang.</string>
     <string name="catat_over_budget">Jatah %1$s bulan ini terlampaui: %2$s dari %3$s. Tetap bisa disimpan.</string>
+    <string name="catat_duplicate_title">Mungkin sudah dicatat?</string>
+    <string name="catat_duplicate_body">Ada transaksi dengan nominal %1$s yang baru saja dicatat di akun yang sama. Apakah ini transaksi yang sama?</string>
+    <string name="catat_duplicate_keep">Simpan tetap</string>
+    <string name="catat_duplicate_cancel">Batalkan karena sudah tercatat</string>
     <string name="catat_issue_amount">Isi nominal dulu.</string>
     <string name="catat_issue_account">Pilih akun.</string>
     <string name="catat_issue_category">Pilih kategori.</string>
@@ -767,6 +771,12 @@
     <string name="family_scan_permission_action">Izinkan kamera</string>
     <string name="family_join_not_signed_in">Masuk dengan Google dan langganan Sync diperlukan untuk bergabung.</string>
     <string name="family_join_failed">Gagal bergabung. Periksa koneksi lalu coba lagi.</string>
+    <string name="family_rotate_key_action">Keluarkan anggota &amp; buat kunci baru</string>
+    <string name="family_rotate_key_confirm_title">Buat kunci ruang baru?</string>
+    <string name="family_rotate_key_confirm_body">Pakai ini kalau ada anggota yang harus dikeluarkan dari ruang ini. Kunci ruang diganti untuk transaksi berikutnya. Transaksi lama yang sudah ditarik anggota itu tetap bisa ia baca — kunci baru tidak menghapus apa pun di perangkatnya. Semua anggota yang TETAP harus memindai QR baru (langkah berikutnya) untuk terus ikut sinkron; anggota yang ingin dikeluarkan jangan diajak memindainya. Keanggotaannya di server belum dicabut otomatis oleh langkah ini.</string>
+    <string name="family_rotate_key_confirm_action">Buat kunci baru</string>
+    <string name="family_rotate_key_done">Kunci ruang baru dibuat. Minta anggota yang tetap memindai QR ini.</string>
+    <string name="family_rotate_key_sheet_hint">QR ini sudah pakai kunci baru. Tunjukkan hanya ke anggota yang TETAP, saat bertemu langsung — jangan ke anggota yang dikeluarkan.</string>
 
     <string name="role_title">Peran ruang</string>
     <string name="role_intro">Beri ruang ini sistem sendiri. Semua uang tetap dicatat sebagai pengeluaran biasa; peran hanya membantu menjaga disiplin.</string>
@@ -1091,6 +1101,32 @@
     <string name="menu_recovery_sub_configured">Sudah diatur pada %1$s. Kamu bisa membuat kode baru kapan saja.</string>
     <string name="menu_recovery_restore">Pulihkan dengan kode pemulihan</string>
     <string name="menu_recovery_restore_sub">Pasang kunci akun dari salinan di server memakai 24 kata.</string>
+    <string name="menu_devices">Perangkat yang masuk</string>
+    <string name="menu_devices_sub">Lihat perangkat yang masuk ke akunmu dan keluarkan semuanya bila perlu.</string>
+    <string name="devices_title">Perangkat yang masuk</string>
+    <string name="devices_intro">Daftar perangkat yang sedang masuk ke akun server Rizqflow-mu. Data di ponsel ini tidak ikut terhapus.</string>
+    <string name="devices_loading">Memuat daftar perangkat…</string>
+    <string name="devices_empty">Belum ada perangkat yang tercatat.</string>
+    <string name="devices_failure_session">Sesi server berakhir. Masuk ulang ke akunmu untuk melihat daftar perangkat.</string>
+    <string name="devices_failure_offline">Tidak bisa terhubung ke server. Periksa koneksi lalu coba lagi.</string>
+    <string name="devices_failure_other">Daftar perangkat belum bisa dimuat. Coba lagi nanti.</string>
+    <string name="devices_retry">Coba lagi</string>
+    <string name="devices_this_device">Perangkat ini</string>
+    <string name="devices_last_used">Terakhir dipakai %1$s</string>
+    <string name="devices_never_used">Belum pernah dipakai</string>
+    <string name="devices_signed_in_at">Masuk sejak %1$s</string>
+    <string name="devices_expires_at">Berlaku sampai %1$s</string>
+    <string name="devices_expired_at">Kedaluwarsa pada %1$s</string>
+    <string name="devices_sign_out_all">Keluar dari semua perangkat</string>
+    <string name="devices_sign_out_all_sub">Semua perangkat di atas, termasuk ponsel ini, akan diminta masuk ulang. Ponsel ini juga keluar dari akun server.</string>
+    <string name="devices_revoking">Mengeluarkan perangkat…</string>
+    <string name="devices_sign_out_confirm_title">Keluar dari semua perangkat?</string>
+    <string name="devices_sign_out_confirm_body">Semua perangkat yang masuk ke akun ini akan dikeluarkan. Data di ponsel ini tidak ikut terhapus.</string>
+    <string name="devices_sign_out_confirm_action">Keluar dari semua</string>
+    <string name="devices_sign_out_cancel">Batal</string>
+    <string name="devices_revoke_failed_session">Sesi server sudah berakhir. Masuk ulang ke akunmu untuk mengeluarkan perangkat.</string>
+    <string name="devices_revoke_failed_offline">Belum bisa mengeluarkan perangkat karena tidak tersambung ke server. Tidak ada yang berubah; coba lagi nanti.</string>
+    <string name="devices_revoke_failed_other">Gagal mengeluarkan perangkat. Tidak ada yang berubah; coba lagi.</string>
     <string name="recovery_offer_snackbar">Server menyimpan salinan kunci akun untuk akunmu. Kamu bisa memasangnya dengan kode pemulihan.</string>
     <string name="recovery_offer_action">Pulihkan</string>
 

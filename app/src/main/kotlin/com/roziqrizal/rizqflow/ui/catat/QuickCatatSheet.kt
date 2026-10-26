@@ -36,6 +36,8 @@ import com.roziqrizal.rizqflow.domain.ledger.CatatContextLoader
 import com.roziqrizal.rizqflow.domain.ledger.CatatDraft
 import com.roziqrizal.rizqflow.domain.ledger.CatatMode
 import com.roziqrizal.rizqflow.domain.ledger.DenahLoader
+import com.roziqrizal.rizqflow.domain.ledger.DuplicateTransactionDetector
+import com.roziqrizal.rizqflow.domain.ledger.toDuplicateProbe
 import com.roziqrizal.rizqflow.domain.ledger.FavoriteRow
 import com.roziqrizal.rizqflow.domain.ledger.FavoriteUse
 import com.roziqrizal.rizqflow.domain.ledger.LedgerError
@@ -77,6 +79,9 @@ fun QuickCatatSheet(
     var accountId by rememberSaveable { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<LedgerError?>(null) }
     var busy by remember { mutableStateOf(false) }
+    // Deteksi transaksi ganda untuk tombol Simpan (bukan ketukan favorit yang langsung menyimpan).
+    val duplicates = remember(workspace) { DuplicateTransactionDetector(workspace.repositories.transactions, System::currentTimeMillis) }
+    var duplicateHold by remember { mutableStateOf<DuplicateHold?>(null) }
     val scope = rememberCoroutineScope()
     val spacing = MaterialTheme.spacing
     val android = LocalContext.current
@@ -93,6 +98,33 @@ fun QuickCatatSheet(
     val draft = accountId?.let { base.withAccount(AccountId(it), ctx) } ?: base
     val room = ctx.rooms.firstOrNull { it.id == draft.roomId }
     val category = draft.roomId?.let { ctx.categoriesOf(it) }?.firstOrNull { it.id == draft.categoryId }
+
+    fun saveExpense(checked: Boolean) {
+        if (busy || draft.issue(ctx) != null) return
+        busy = true
+        scope.launch {
+            if (!checked) {
+                val match = duplicates.findDuplicate(draft.toDuplicateProbe())
+                if (match != null) {
+                    busy = false
+                    duplicateHold = DuplicateHold(match) { saveExpense(checked = true) }
+                    return@launch
+                }
+            }
+            when (val result = workspace.ledger.recordExpense(draft.toExpense())) {
+                is LedgerResult.Success -> {
+                    val tx = result.value
+                    onSaved(SavedInfo(tx.id, TransactionKind.EXPENSE, tx.amount, 0))
+                    onClose()
+                }
+
+                is LedgerResult.Failure -> {
+                    error = result.error
+                    busy = false
+                }
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -183,26 +215,24 @@ fun QuickCatatSheet(
         )
 
         Button(
-            onClick = {
-                if (busy || draft.issue(ctx) != null) return@Button
-                busy = true
-                scope.launch {
-                    when (val result = workspace.ledger.recordExpense(draft.toExpense())) {
-                        is LedgerResult.Success -> {
-                            val tx = result.value
-                            onSaved(SavedInfo(tx.id, TransactionKind.EXPENSE, tx.amount, 0))
-                            onClose()
-                        }
-
-                        is LedgerResult.Failure -> {
-                            error = result.error
-                            busy = false
-                        }
-                    }
-                }
-            },
+            onClick = { saveExpense(checked = false) },
             enabled = draft.issue(ctx) == null && !busy,
             modifier = Modifier.padding(top = spacing.s3).fillMaxWidth().height(52.dp),
         ) { Text(stringResource(R.string.catat_save)) }
+    }
+
+    duplicateHold?.let { hold ->
+        DuplicateWarningDialog(
+            match = hold.match,
+            onKeep = {
+                duplicateHold = null
+                hold.proceed()
+            },
+            onCancel = {
+                duplicateHold = null
+                onClose()
+            },
+            onDismiss = { duplicateHold = null },
+        )
     }
 }

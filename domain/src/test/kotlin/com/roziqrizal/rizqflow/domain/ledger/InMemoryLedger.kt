@@ -8,6 +8,7 @@ import com.roziqrizal.rizqflow.domain.model.CategoryId
 import com.roziqrizal.rizqflow.domain.model.RoomId
 import com.roziqrizal.rizqflow.domain.model.TransactionId
 import com.roziqrizal.rizqflow.domain.model.TransactionKind
+import com.roziqrizal.rizqflow.domain.model.TransactionOrigin
 import com.roziqrizal.rizqflow.domain.money.Money
 import java.time.LocalDate
 
@@ -16,8 +17,12 @@ import java.time.LocalDate
  * yang dijanjikan antarmuka: urutan menurut prioritas ruang, saldo dihitung dari transaksi,
  * dan hapus transaksi ikut menghapus potret alokasinya. Perilaku Room yang sebenarnya diuji
  * terpisah di :data.
+ *
+ * [nowMillis] dipakai hanya untuk mencap waktu tombstone di [delete] (Tahap 9) — bawaan jam
+ * sistem, tes bisa menyuntik lambda deterministik.
  */
-class InMemoryLedger : WorkspaceRepository, AccountRepository, RoomRepository, TransactionRepository, FavoriteRepository {
+class InMemoryLedger(private val nowMillis: () -> Long = System::currentTimeMillis) :
+    WorkspaceRepository, AccountRepository, RoomRepository, TransactionRepository, FavoriteRepository {
     val accountRows = linkedMapOf<AccountId, Account>()
     val roomRows = linkedMapOf<RoomId, Room>()
     val categoryRows = linkedMapOf<CategoryId, Category>()
@@ -28,6 +33,9 @@ class InMemoryLedger : WorkspaceRepository, AccountRepository, RoomRepository, T
     val entryRows = linkedMapOf<String, AllocationEntry>()
     val favoriteRows = linkedMapOf<String, QuickFavorite>()
     val syncedAtRows = mutableMapOf<TransactionId, Long>()
+
+    /** Tombstone menunggu kirim (Tahap 9): id transaksi -> (ruang asal, cap waktu hapus). */
+    val pendingTombstoneRows = linkedMapOf<TransactionId, Pair<RoomId, Long>>()
 
     /** Bila diisi, penyimpanan berikutnya melempar galat ini: untuk menguji atomisitas di pemanggil. */
     var failNextWrite: Throwable? = null
@@ -197,9 +205,14 @@ class InMemoryLedger : WorkspaceRepository, AccountRepository, RoomRepository, T
     }
 
     override suspend fun delete(id: TransactionId) {
-        transactionRows.remove(id)
+        val existing = transactionRows.remove(id)
         entryRows.values.removeAll { it.incomeId == id }
         syncedAtRows.remove(id)
+        // Tahap 9: hapus pengeluaran yang punya ruang mencatat tombstone untuk sync — lihat TransactionRepository.delete.
+        // Baris SHARED (pengeluaran anggota lain) tidak ikut: itu bukan milik lokal, sudah dihapus lewat tombstone masuk.
+        if (existing != null && existing.kind == TransactionKind.EXPENSE && existing.origin != TransactionOrigin.SHARED) {
+            existing.roomId?.let { roomId -> pendingTombstoneRows[id] = roomId to nowMillis() }
+        }
     }
 
     override suspend fun between(from: LocalDate, to: LocalDate) = transactionRows.values
@@ -233,13 +246,27 @@ class InMemoryLedger : WorkspaceRepository, AccountRepository, RoomRepository, T
         ids.forEach { syncedAtRows[it] = atMillis }
     }
 
+    override suspend fun pendingTombstones(roomId: RoomId): List<PendingTombstone> =
+        pendingTombstoneRows.filterValues { it.first == roomId }.map { (id, value) -> PendingTombstone(id, value.second) }
+
+    override suspend fun clearPendingTombstones(ids: List<TransactionId>) {
+        ids.forEach { pendingTombstoneRows.remove(it) }
+    }
+
     override suspend fun applyFromSync(id: TransactionId, transaction: MoneyTransaction?, changedAtMillis: Long, deleted: Boolean) {
+        val existing = transactionRows[id]
         if (deleted) {
-            delete(id)
+            // LWW (server-sync.md "Model konflik sinkronisasi"): tombstone basi, lebih lama dari edit lokal
+            // yang belum terkirim, tidak boleh menghapus edit yang lebih baru itu.
+            if (existing == null || changedAtMillis >= existing.updatedAtMillis) {
+                transactionRows.remove(id)
+                entryRows.values.removeAll { it.incomeId == id }
+                syncedAtRows.remove(id)
+                pendingTombstoneRows.remove(id) // hasil pull, bukan hapus lokal baru: tidak perlu mengirim tombstone balik
+            }
             return
         }
         requireNotNull(transaction) { "transaction wajib diisi bila deleted = false" }
-        val existing = transactionRows[id]
         if (existing == null || changedAtMillis >= existing.updatedAtMillis) {
             transactionRows[id] = transaction
             syncedAtRows[id] = changedAtMillis // hasil terapan tidak pending push lagi

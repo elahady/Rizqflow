@@ -3,7 +3,9 @@ package com.roziqrizal.rizqflow.data.repo
 import androidx.room.withTransaction
 import com.roziqrizal.rizqflow.data.db.AppSettingEntity
 import com.roziqrizal.rizqflow.data.db.AllocationRuleEntity
+import com.roziqrizal.rizqflow.data.db.PendingRoomTombstoneEntity
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
+import com.roziqrizal.rizqflow.data.sync.SharedRoomAutoSync
 import com.roziqrizal.rizqflow.data.sync.SyncRecorder
 import com.roziqrizal.rizqflow.domain.allocation.AllocationCap
 import com.roziqrizal.rizqflow.domain.allocation.AllocationMode
@@ -16,6 +18,7 @@ import com.roziqrizal.rizqflow.domain.ledger.FavoriteRepository
 import com.roziqrizal.rizqflow.domain.ledger.QuickFavorite
 import com.roziqrizal.rizqflow.domain.ledger.MoneyTransaction
 import com.roziqrizal.rizqflow.domain.ledger.PendingSyncTransaction
+import com.roziqrizal.rizqflow.domain.ledger.PendingTombstone
 import com.roziqrizal.rizqflow.domain.ledger.Room
 import com.roziqrizal.rizqflow.domain.ledger.RoomRepository
 import com.roziqrizal.rizqflow.domain.ledger.RoomTotals
@@ -204,7 +207,11 @@ class LocalRoomRepository(private val db: RizqflowDatabase, private val recorder
     }
 }
 
-class LocalTransactionRepository(private val db: RizqflowDatabase, private val recorder: SyncRecorder) : TransactionRepository {
+class LocalTransactionRepository(
+    private val db: RizqflowDatabase,
+    private val recorder: SyncRecorder,
+    private val autoSync: SharedRoomAutoSync,
+) : TransactionRepository {
     override suspend fun find(id: TransactionId): MoneyTransaction? = db.transactions().find(id.value)?.toDomain()
 
     override suspend fun entriesOf(incomeId: TransactionId): List<AllocationEntry> {
@@ -230,6 +237,9 @@ class LocalTransactionRepository(private val db: RizqflowDatabase, private val r
             db.transactions().insert(transaction.toEntity())
             recordChanged(transaction)
         }
+        // Di luar transaksi (sudah komit): sinkron tidak boleh membaca baris yang belum tersimpan. Sinkron hanya
+        // untuk pengeluaran di ruang bersama; pemicunya sendiri yang memutuskan ruang itu bersama atau tidak.
+        if (transaction.kind == TransactionKind.EXPENSE) transaction.roomId?.let { autoSync.onExpenseSaved(it) }
     }
 
     override suspend fun update(transaction: MoneyTransaction) {
@@ -259,6 +269,15 @@ class LocalTransactionRepository(private val db: RizqflowDatabase, private val r
                 recorder.deleted(SyncRecordType.TRANSACTION, id.value)
                 recorder.changed(SyncRecordType.DEBT, debtIds)
                 recorder.changed(SyncRecordType.DEBT_PAYMENT, paymentIds)
+                // Tahap 9, roadmap.md "Sinkron penghapusan transaksi di ruang yang dibagi": baris asli
+                // hilang fisik di sini, jadi catat tombstone-nya SEKARANG (bersama transaksi database
+                // yang sama) supaya SyncEngine lama bisa mengirimkannya nanti — lihat TransactionRepository.pendingTombstones.
+                val roomId = existing?.roomId
+                if (existing != null && existing.kind == TransactionKind.EXPENSE && roomId != null) {
+                    db.transactions().insertPendingTombstone(
+                        PendingRoomTombstoneEntity(transactionId = id.value, roomId = roomId, deletedAt = System.currentTimeMillis()),
+                    )
+                }
             }
         }
     }
@@ -286,15 +305,27 @@ class LocalTransactionRepository(private val db: RizqflowDatabase, private val r
         db.transactions().markSynced(ids.map { it.value }, atMillis)
     }
 
+    override suspend fun pendingTombstones(roomId: RoomId): List<PendingTombstone> =
+        db.transactions().pendingTombstones(roomId.value).map { PendingTombstone(TransactionId(it.transactionId), it.deletedAt) }
+
+    override suspend fun clearPendingTombstones(ids: List<TransactionId>) {
+        if (ids.isEmpty()) return
+        db.transactions().clearPendingTombstones(ids.map { it.value })
+    }
+
     // Hasil pull SyncEngine lama dari anggota lain: data dari luar, bukan edit lokal, jadi sengaja tidak
-    // dicatat recorder (sama seperti konteks `applying`). Tahap 2 menggantikan jalur ini.
+    // dicatat recorder maupun pending_room_tombstone (sama seperti konteks `applying`). Tahap 2 menggantikan jalur ini.
     override suspend fun applyFromSync(id: TransactionId, transaction: MoneyTransaction?, changedAtMillis: Long, deleted: Boolean) {
+        val existing = db.transactions().find(id.value)
         if (deleted) {
-            db.transactions().delete(id.value)
+            // LWW (server-sync.md "Model konflik sinkronisasi"): tombstone basi, lebih lama dari edit lokal
+            // yang belum terkirim, tidak boleh menghapus edit yang lebih baru itu.
+            if (existing == null || changedAtMillis >= existing.updatedAt) {
+                db.transactions().delete(id.value)
+            }
             return
         }
         requireNotNull(transaction) { "transaction wajib diisi bila deleted = false" }
-        val existing = db.transactions().find(id.value)
         if (existing == null || changedAtMillis >= existing.updatedAt) {
             db.transactions().upsertFromSync(transaction.toEntity().copy(syncedAt = changedAtMillis))
         }

@@ -10,6 +10,7 @@ import com.roziqrizal.rizqflow.data.db.MIGRATION_4_5
 import com.roziqrizal.rizqflow.data.db.MIGRATION_5_6
 import com.roziqrizal.rizqflow.data.db.MIGRATION_6_7
 import com.roziqrizal.rizqflow.data.db.MIGRATION_7_8
+import com.roziqrizal.rizqflow.data.db.MIGRATION_8_9
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
 import org.json.JSONObject
 import org.junit.Test
@@ -44,7 +45,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
         try {
             db.openHelper.writableDatabase.query("SELECT share_bp, cap_amount FROM allocation_rule WHERE room_id = 'r1'").use { cursor ->
@@ -52,7 +53,7 @@ class MigrationTest {
                 assertEquals(10_000, cursor.getInt(0))
                 assertTrue(cursor.isNull(1))
             }
-            assertEquals(8, db.openHelper.readableDatabase.version)
+            assertEquals(9, db.openHelper.readableDatabase.version)
         } finally {
             db.close()
         }
@@ -67,7 +68,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
         try {
             val sqlite = db.openHelper.writableDatabase
@@ -93,7 +94,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
         try {
             db.openHelper.writableDatabase.query("SELECT COUNT(*) FROM recurring_rule").use { assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0)) }
@@ -121,7 +122,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
         try {
             db.openHelper.writableDatabase.query("SELECT COUNT(*) FROM bill").use { assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0)) }
@@ -150,7 +151,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
         try {
             val sqlite = db.openHelper.writableDatabase
@@ -179,7 +180,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
         try {
             kotlinx.coroutines.runBlocking {
@@ -198,6 +199,43 @@ class MigrationTest {
                 db.transactions().markSynced(listOf("t1"), 30_000)
                 assertEquals(30_000L, db.transactions().find("t1")!!.syncedAt)
                 assertEquals(0, db.transactions().pendingSync("r1").size)
+            }
+        } finally {
+            db.close()
+        }
+    }
+
+    @Test
+    fun `versi 8 sampai 9 menambah pending_room_tombstone kosong dan bisa dipakai`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val dbFile = context.getDatabasePath(TEST_DB)
+        dbFile.delete()
+
+        val raw = SchemaTestSupport.buildFromSchema(context, 8, dbFile.path)
+        raw.execSQL("INSERT INTO room (id, name, kind, icon_key, color_slot, sort_order, archived, giving_mode) VALUES ('r1', 'Keluarga', 'MENCUKUPI', 'home', 1, 0, 0, NULL)")
+        raw.close()
+
+        val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+            .build()
+        try {
+            val sqlite = db.openHelper.writableDatabase
+            assertEquals(9, sqlite.version)
+            sqlite.query("SELECT COUNT(*) FROM pending_room_tombstone").use { assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0)) }
+            sqlite.query("PRAGMA foreign_key_check").use { assertEquals(0, it.count, "foreign_key_check harus kosong") }
+
+            // Ruang lama (dari v8) tetap ada dan tabel baru benar-benar bisa dipakai lewat DAO.
+            kotlinx.coroutines.runBlocking {
+                assertEquals("Keluarga", db.rooms().find("r1")!!.name)
+                db.transactions().insertPendingTombstone(
+                    com.roziqrizal.rizqflow.data.db.PendingRoomTombstoneEntity("tx-dihapus", "r1", 50_000),
+                )
+                val pending = db.transactions().pendingTombstones("r1")
+                assertEquals(1, pending.size)
+                assertEquals(50_000L, pending.single().deletedAt)
+
+                db.transactions().clearPendingTombstones(listOf("tx-dihapus"))
+                assertEquals(0, db.transactions().pendingTombstones("r1").size)
             }
         } finally {
             db.close()

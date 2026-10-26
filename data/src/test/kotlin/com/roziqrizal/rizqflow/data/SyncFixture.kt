@@ -16,6 +16,9 @@ import com.roziqrizal.rizqflow.domain.money.Money
 import com.roziqrizal.rizqflow.domain.sync.SyncClock
 import com.roziqrizal.rizqflow.domain.sync.SyncRecordType
 import com.roziqrizal.rizqflow.domain.sync.SyncScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import java.time.LocalDate
 
@@ -36,14 +39,18 @@ internal data class SyncRow(
  * Database Room di memori + [LocalLedger] dengan jam sinkron yang bisa diatur, sudah di-onboarding (Tiga hak + satu
  * akun). Tes recorder dan store memakainya supaya jalur tulis yang diuji adalah jalur produksi yang sama.
  */
-internal class SyncFixture(var nowMillis: Long = 1_000_000L) {
+internal class SyncFixture(
+    var nowMillis: Long = 1_000_000L,
+    /** Lingkup sinkron otomatis; tes yang menguji pemicu memberi lingkup yang deterministik (mis. Unconfined). */
+    autoSyncScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+) {
     val db: RizqflowDatabase = AndroidRoom.inMemoryDatabaseBuilder(
         ApplicationProvider.getApplicationContext<Context>(),
         RizqflowDatabase::class.java,
     ).allowMainThreadQueries().build()
 
     val clock = SyncClock { nowMillis }
-    val local = LocalLedger(db, clock)
+    val local = LocalLedger(db, clock, autoSyncScope)
     private var counter = 0
     val newId: () -> String = { "id-${++counter}" }
     val ledger = LedgerService(local.accounts, local.rooms, local.transactions, newId) { nowMillis }

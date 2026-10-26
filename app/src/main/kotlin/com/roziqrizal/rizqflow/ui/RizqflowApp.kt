@@ -120,6 +120,8 @@ fun RizqflowApp(
     onOpenRecovery: (() -> Unit)? = null,
     /** "Pulihkan dengan kode pemulihan"; null = baris tidak tampil. */
     onOpenRecoveryRestore: (() -> Unit)? = null,
+    /** "Perangkat yang masuk" (Tahap 14); null = baris tidak tampil (akun lokal, demo, atau tanpa akun server). */
+    onOpenDevices: (() -> Unit)? = null,
 ) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
@@ -175,7 +177,7 @@ fun RizqflowApp(
             TopTab.entries.forEach { tab ->
                 composable(tab.route) {
                     if (tab == TopTab.Lainnya && account != null) {
-                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport, onToggleProDebug, onDeleteAccount, onOpenFamilyScan, onOpenSyncPaywall, syncOwned, onReconnect, reconnectBusy, recoveryRow, onOpenRecovery, onOpenRecoveryRestore)
+                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport, onToggleProDebug, onDeleteAccount, onOpenFamilyScan, onOpenSyncPaywall, syncOwned, onReconnect, reconnectBusy, recoveryRow, onOpenRecovery, onOpenRecoveryRestore, onOpenDevices)
                     } else if (tab == TopTab.Transaksi && transaksiContent != null) {
                         transaksiContent()
                     } else if (tab == TopTab.Ruang && ruangContent != null) {
@@ -280,6 +282,7 @@ private fun LainnyaScreen(
     recoveryRow: RecoveryRow = RecoveryRow.Hidden,
     onOpenRecovery: (() -> Unit)? = null,
     onOpenRecoveryRestore: (() -> Unit)? = null,
+    onOpenDevices: (() -> Unit)? = null,
 ) {
     val spacing = MaterialTheme.spacing
     Column(
@@ -363,6 +366,13 @@ private fun LainnyaScreen(
                 stringResource(R.string.menu_recovery_restore),
                 stringResource(R.string.menu_recovery_restore_sub),
                 onOpenRecoveryRestore,
+            )
+        }
+        if (onOpenDevices != null) {
+            MenuRow(
+                stringResource(R.string.menu_devices),
+                stringResource(R.string.menu_devices_sub),
+                onOpenDevices,
             )
         }
         if (onToggleProDebug != null) {

@@ -52,12 +52,13 @@ class SyncEngine(
 
     private suspend fun push(roomId: RoomId, deviceId: String, apiToken: String, aead: SyncAead): RemoteResult<Int> {
         val pending = transactions.pendingSync(roomId)
-        if (pending.isEmpty()) return RemoteResult.Success(0)
+        val pendingDeletes = transactions.pendingTombstones(roomId)
+        if (pending.isEmpty() && pendingDeletes.isEmpty()) return RemoteResult.Success(0)
 
         val accountNames = accounts.allAccounts().associate { it.id to it.name }
         val categoryNames = rooms.allCategories().filter { it.roomId == roomId }.associate { it.id to it.name }
 
-        val uploads = pending.map { entry ->
+        val liveUploads = pending.map { entry ->
             val transaction = entry.transaction
             val plaintext = codec.encode(
                 transaction = transaction,
@@ -71,15 +72,35 @@ class SyncEngine(
                 recordId = transaction.id.value,
                 deviceId = deviceId,
                 payload = Base64.getEncoder().encodeToString(ciphertext),
-                deleted = false, // penghapusan belum ikut tersinkron di putaran ini, lihat pendingSync
+                deleted = false,
                 changedAt = Instant.ofEpochMilli(entry.changedAtMillis).toString(),
             )
         }
+
+        // Tombstone (Tahap 9, roadmap.md "Sinkron penghapusan transaksi di ruang yang dibagi"): baris
+        // asli sudah hilang secara lokal, jadi tidak ada isi untuk dienkripsi — payload tetap ciphertext
+        // buram (bukan sentinel teks biasa) lewat AEAD ruang yang sama, supaya bentuknya seragam dengan
+        // baris hidup di mata server. `deleted` sendiri sudah terbuka di luar enkripsi (kolom log lama).
+        val tombstoneUploads = pendingDeletes.map { tombstone ->
+            val ciphertext = aead.encrypt(ByteArray(0), associatedData = tombstone.transactionId.value.toByteArray())
+            SyncLogEntryUpload(
+                roomId = roomId.value,
+                recordType = RECORD_TYPE_TRANSACTION,
+                recordId = tombstone.transactionId.value,
+                deviceId = deviceId,
+                payload = Base64.getEncoder().encodeToString(ciphertext),
+                deleted = true,
+                changedAt = Instant.ofEpochMilli(tombstone.deletedAtMillis).toString(),
+            )
+        }
+
+        val uploads = liveUploads + tombstoneUploads
 
         return when (val result = syncRemote.push(apiToken, uploads)) {
             is RemoteResult.Failure -> result
             is RemoteResult.Success -> {
                 transactions.markSynced(pending.map { it.transaction.id }, System.currentTimeMillis())
+                transactions.clearPendingTombstones(pendingDeletes.map { it.transactionId })
                 RemoteResult.Success(uploads.size)
             }
         }

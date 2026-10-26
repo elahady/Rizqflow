@@ -430,3 +430,25 @@ data class SharedRoomEntity(
     val status: String,
     @ColumnInfo(name = "joined_at") val joinedAt: Long,
 )
+
+/**
+ * Versi 9 (Tahap 9, roadmap.md "Sinkron penghapusan transaksi di ruang yang dibagi"): satu baris per
+ * transaksi EXPENSE yang dihapus lokal di [roomId] tapi tombstone-nya belum terkirim ke
+ * `SyncEngine` lama — baris `money_transaction` aslinya sudah hilang fisik, jadi [roomId] dan
+ * [deletedAt] disalin ke sini sebelum hapus (lihat `TransactionDao.delete`/`LocalTransactionRepository.delete`).
+ * Dibuang (`DELETE`, bukan ditandai) begitu tombstone-nya terkirim — tidak perlu disimpan lagi
+ * secara lokal karena server sudah menyimpannya permanen append-only (server-sync.md). Independen
+ * dari `sync_record` (Tahap 1 sync-desain.md): tabel itu baru cakupan pribadi, ruang bersama
+ * menyusul Tahap 2 yang belum dikonfirmasi pemilik — tabel ini sengaja terpisah dan sempit, hanya
+ * untuk SyncEngine lama yang sudah ada.
+ */
+@Entity(
+    tableName = "pending_room_tombstone",
+    foreignKeys = [ForeignKey(RoomEntity::class, ["id"], ["room_id"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("room_id")],
+)
+data class PendingRoomTombstoneEntity(
+    @PrimaryKey @ColumnInfo(name = "transaction_id") val transactionId: String,
+    @ColumnInfo(name = "room_id") val roomId: String,
+    @ColumnInfo(name = "deleted_at") val deletedAt: Long,
+)

@@ -9,14 +9,25 @@ import java.time.DateTimeException
 import java.time.Instant
 import java.time.OffsetDateTime
 import kotlinx.serialization.SerializationException
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody
 import retrofit2.Response
 
-/** Implementasi [AccountRemote] sungguhan lewat [RizqflowApiService] (Tahap 9, token berumur Tahap 12). */
-class RetrofitAccountRemote(private val service: RizqflowApiService) : AccountRemote {
+/**
+ * Implementasi [AccountRemote] sungguhan lewat [RizqflowApiService] (Tahap 9, token berumur Tahap 12).
+ * [deviceName] (Tahap 14) dikirim ke server saat masuk dan memutar token, supaya daftar perangkat bisa menampilkan
+ * nama yang dikenali; null berarti tidak dikirim.
+ */
+class RetrofitAccountRemote(
+    private val service: RizqflowApiService,
+    private val deviceName: String? = null,
+) : AccountRemote {
     override suspend fun loginWithGoogle(idToken: String, deviceId: String): RemoteResult<ApiAccount> =
         safeCall {
-            val request = jsonBody(LoginRequestDto.serializer(), LoginRequestDto(credential = idToken, deviceId = deviceId))
+            val request = jsonBody(
+                LoginRequestDto.serializer(),
+                LoginRequestDto(credential = idToken, deviceId = deviceId, deviceName = deviceName),
+            )
             parseLoginResponse(service.loginWithGoogle(request))
         }
 
@@ -24,7 +35,7 @@ class RetrofitAccountRemote(private val service: RizqflowApiService) : AccountRe
         safeCall {
             val request = jsonBody(
                 EmailLoginRequestDto.serializer(),
-                EmailLoginRequestDto(email = email, password = password, deviceId = deviceId),
+                EmailLoginRequestDto(email = email, password = password, deviceId = deviceId, deviceName = deviceName),
             )
             parseLoginResponse(service.loginWithEmail(request))
         }
@@ -55,7 +66,10 @@ class RetrofitAccountRemote(private val service: RizqflowApiService) : AccountRe
 
     override suspend fun refresh(apiToken: String): RemoteResult<RefreshedToken> =
         safeCall {
-            val response = service.refreshToken(bearer(apiToken))
+            // Tanpa nama perangkat badannya kosong, persis seperti sebelum Tahap 14 (server lama tetap cocok).
+            val requestBody = deviceName?.let { jsonBody(RefreshRequestDto.serializer(), RefreshRequestDto(deviceName = it)) }
+                ?: ByteArray(0).toRequestBody(null)
+            val response = service.refreshToken(bearer(apiToken), requestBody)
             val body = response.body()
             if (response.isSuccessful && body != null) {
                 // Badan 200 yang bukan JSON sesuai kontrak (mis. halaman galat dari proxy) bukan alasan untuk

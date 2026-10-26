@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -83,6 +84,10 @@ fun RuangKeluargaScreen(workspace: AccountWorkspace, roomId: RoomId, notifier: N
     var inviteSheet by rememberSaveable { mutableStateOf(false) }
     var syncing by remember { mutableStateOf(false) }
     var reloadKey by remember { mutableIntStateOf(0) }
+    // Keluarkan anggota (Tahap 9): rotasi kunci lalu QR ulang ke anggota yang tetap — lihat RoomMemberKeyRedistribution.
+    var rotateConfirm by remember { mutableStateOf(false) }
+    var rotationEpoch by remember { mutableIntStateOf(0) }
+    var justRotated by remember { mutableStateOf(false) }
 
     suspend fun loadMembers() {
         val session = workspace.serverSession
@@ -226,31 +231,59 @@ fun RuangKeluargaScreen(workspace: AccountWorkspace, roomId: RoomId, notifier: N
                     enabled = !syncing,
                     modifier = Modifier.padding(top = spacing.s2).fillMaxWidth().height(52.dp),
                 ) { Text(stringResource(R.string.family_sync_action)) }
+                // Keluarkan anggota (Tahap 9, server-sync.md "Mengeluarkan anggota"): hanya menyiapkan kunci
+                // baru dan QR ulang di sini — TIDAK mencabut keanggotaan mana pun di server (belum ada model
+                // kepemilikan ruang/endpoint hapus anggota, keputusan pemilik belum diambil).
+                OutlinedButton(
+                    onClick = { rotateConfirm = true },
+                    modifier = Modifier.padding(top = spacing.s2).fillMaxWidth().height(52.dp),
+                ) { Text(stringResource(R.string.family_rotate_key_action)) }
             }
         }
     }
 
+    if (rotateConfirm) {
+        AlertDialog(
+            onDismissRequest = { rotateConfirm = false },
+            title = { Text(stringResource(R.string.family_rotate_key_confirm_title)) },
+            text = { Text(stringResource(R.string.family_rotate_key_confirm_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    rotateConfirm = false
+                    workspace.memberRemoval.rotateAndPrepareInvite(roomId, roomName.orEmpty())
+                    rotationEpoch++ // memaksa QR di bawah dibangun ulang dari kunci yang baru dirotasi
+                    justRotated = true
+                    inviteSheet = true
+                    scope.launch { notifier.show(resources.getString(R.string.family_rotate_key_done)) }
+                }) { Text(stringResource(R.string.family_rotate_key_confirm_action)) }
+            },
+            dismissButton = { TextButton(onClick = { rotateConfirm = false }) { Text(stringResource(R.string.catat_date_cancel)) } },
+        )
+    }
+
     if (inviteSheet) {
-        ModalBottomSheet(onDismissRequest = { inviteSheet = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        ModalBottomSheet(onDismissRequest = { inviteSheet = false; justRotated = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(stringResource(R.string.family_invite_sheet_title), style = MaterialTheme.typography.titleLarge)
                 Text(
-                    stringResource(R.string.family_invite_sheet_hint),
+                    stringResource(if (justRotated) R.string.family_rotate_key_sheet_hint else R.string.family_invite_sheet_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp),
                 )
-                val qrBitmap = remember(roomId, roomName) {
+                // rotationEpoch di kunci remember: QR ini membaca kunci ruang TERKINI (exportRoomKey), jadi
+                // wajib dibangun ulang setelah rotasi walau roomId/roomName tidak berubah.
+                val qrBitmap = remember(roomId, roomName, rotationEpoch) {
                     val invite = RoomInvite(roomId, roomName.orEmpty(), workspace.roomKeyProvider.exportRoomKey(roomId))
                     val payload = Base64.encodeToString(invite.encode(), Base64.NO_WRAP)
                     val pngBytes = QRCode.ofSquares().build(payload).render().getBytes()
                     BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.size).asImageBitmap()
                 }
                 Image(bitmap = qrBitmap, contentDescription = null, modifier = Modifier.padding(top = 16.dp).size(240.dp))
-                TextButton(onClick = { inviteSheet = false }, modifier = Modifier.padding(top = 16.dp)) {
+                TextButton(onClick = { inviteSheet = false; justRotated = false }, modifier = Modifier.padding(top = 16.dp)) {
                     Text(stringResource(R.string.catat_date_cancel))
                 }
             }

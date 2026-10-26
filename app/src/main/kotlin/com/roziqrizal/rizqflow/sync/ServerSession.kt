@@ -3,6 +3,7 @@ package com.roziqrizal.rizqflow.sync
 import com.roziqrizal.rizqflow.domain.sync.AccountRemote
 import com.roziqrizal.rizqflow.domain.sync.ApiAccount
 import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
+import com.roziqrizal.rizqflow.domain.sync.DeviceRemote
 import com.roziqrizal.rizqflow.domain.sync.PurchaseRemote
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyRemote
 import com.roziqrizal.rizqflow.domain.sync.RefreshedToken
@@ -234,6 +235,9 @@ class ServerSession(
 
     fun guard(remote: PurchaseRemote): PurchaseRemote =
         GuardedPurchaseRemote(remote, this)
+
+    fun guard(remote: DeviceRemote): DeviceRemote =
+        GuardedDeviceRemote(remote, this)
 }
 
 /** Nasib token hasil putar yang diterima dari server, lihat [ServerSession.onRotated]. */

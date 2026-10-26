@@ -113,6 +113,8 @@ import com.roziqrizal.rizqflow.sync.forgetStatusDurably
 import com.roziqrizal.rizqflow.sync.recoveryRow
 import com.roziqrizal.rizqflow.sync.restoreAvailable
 import com.roziqrizal.rizqflow.ui.recovery.RecoveryRestoreScreen
+import com.roziqrizal.rizqflow.ui.devices.DevicesScreen
+import com.roziqrizal.rizqflow.ui.devices.DevicesViewModel
 import com.roziqrizal.rizqflow.ui.recovery.RecoverySetupScreen
 import com.roziqrizal.rizqflow.sync.shouldOfferReconnect
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -181,6 +183,7 @@ fun MainHost(
     var backupOpen by rememberSaveable { mutableStateOf(false) }
     var recoverySetupOpen by rememberSaveable { mutableStateOf(false) }
     var recoveryRestoreOpen by rememberSaveable { mutableStateOf(false) }
+    var devicesOpen by rememberSaveable { mutableStateOf(false) }
     var tampilanOpen by rememberSaveable { mutableStateOf(false) }
     var paywallOpen by rememberSaveable { mutableStateOf(false) }
     var deleteAccountSheet by rememberSaveable { mutableStateOf(false) }
@@ -237,6 +240,10 @@ fun MainHost(
     // Baris "Kode pemulihan" hanya untuk akun Google dengan Sync aktif dan token server aktif; "Pulihkan" tidak
     // menunggu Sync (membaca salinan tidak butuh langganan). Keduanya hanya ajakan lembut, tidak memblokir apa pun.
     var recoveryStatus by remember(workspace) { mutableStateOf(workspace.recovery.status()) }
+    // Daftar perangkat (Tahap 14): ViewModel per ruang kerja, token dibaca saat dipakai supaya selalu yang terbaru.
+    val devicesViewModel = remember(workspace) {
+        DevicesViewModel(workspace.deviceRemote, tokenProvider = { workspace.serverSession.token() })
+    }
     val hasServerToken = !needsReconnect
     val restoreAllowed = restoreAvailable(google = account.google, demo = demo, hasToken = hasServerToken)
     // Satu-satunya kabar dari server yang ditampilkan: token pembelian ini sudah dipakai akun Rizqflow lain.
@@ -343,6 +350,9 @@ fun MainHost(
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(workspace, demo) {
         if (demo) return@LaunchedEffect
+        // Sinkron otomatis ruang bersama saat aplikasi dibuka (Tahap 9): sekali per ruang kerja, tanpa penjadwal
+        // latar belakang, tidak menunggu hasil, dan gagal senyap. Tombol "Sinkronkan sekarang" tetap fallback.
+        workspace.syncSharedRoomsOnOpen()
         var blockedNoticed = false
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             val run = workspace.recurring.runDue(LocalDate.now())
@@ -605,6 +615,8 @@ fun MainHost(
         ),
         onOpenRecovery = { recoverySetupOpen = true },
         onOpenRecoveryRestore = if (restoreAllowed) ({ recoveryRestoreOpen = true }) else null,
+        // Hanya akun yang punya akun server (Google atau email+sandi) dan bukan demo; sama seperti baris Hapus akun.
+        onOpenDevices = if (demo || !(account.google || account.emailAccount)) null else ({ devicesOpen = true }),
     )
     // Sambung ulang yang diminta pengguna tidak menjangkau server (offline, 503): satu kabar lembut, barisnya tetap ada.
     LaunchedEffect(serverConnectFailedSignal) {
@@ -742,6 +754,19 @@ fun MainHost(
                 )
                 SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
             }
+        }
+    }
+    if (devicesOpen) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            DevicesScreen(
+                viewModel = devicesViewModel,
+                onClose = { devicesOpen = false },
+                // Server sudah mencabut semua token: keluar lokal lewat jalur keluar yang sama dengan menu Keluar.
+                onSignedOut = {
+                    devicesOpen = false
+                    onSignOut()
+                },
+            )
         }
     }
     if (backupOpen) {

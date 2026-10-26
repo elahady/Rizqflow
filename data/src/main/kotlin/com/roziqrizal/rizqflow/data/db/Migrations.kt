@@ -169,3 +169,20 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
         db.execSQL("ALTER TABLE `account` ADD COLUMN `shared_from` TEXT DEFAULT NULL")
     }
 }
+
+/**
+ * Versi 8 ke 9 (2026-10-26, Tahap 9, roadmap.md "Sinkron penghapusan transaksi di ruang yang
+ * dibagi"): menambah tabel `pending_room_tombstone`, kosong dan non-destruktif. Pernyataannya sama
+ * dengan `createSql` di berkas skema 9.json supaya skema hasil migrasi identik dengan skema yang
+ * dibuat dari nol.
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `pending_room_tombstone` (`transaction_id` TEXT NOT NULL, " +
+                "`room_id` TEXT NOT NULL, `deleted_at` INTEGER NOT NULL, PRIMARY KEY(`transaction_id`), " +
+                "FOREIGN KEY(`room_id`) REFERENCES `room`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_pending_room_tombstone_room_id` ON `pending_room_tombstone` (`room_id`)")
+    }
+}
