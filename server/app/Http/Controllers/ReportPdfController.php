@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Support\Feature;
+use App\Support\Period;
 use App\Support\PeriodComparator;
+use App\Support\Reports\AliranReport;
 use App\Support\Reports\MonthComparison;
 use App\Support\Reports\ReportInsightSentences;
 use App\Support\Reports\ReportInsights;
@@ -92,6 +94,30 @@ class ReportPdfController extends Controller
             'insightSentences' => ReportInsightSentences::of(ReportInsights::of($report)),
             'userName' => $user->name,
         ])->download('laporan-tahunan-'.$year.'.pdf');
+    }
+
+    /**
+     * Aliran rezeki (Analisa › Aliran) dalam bentuk PDF. Angka, tabel, dan kalimat berasal dari
+     * AliranReport::build yang sama dengan layar, dengan filter rentang, bulan, dan akun dari query.
+     */
+    public function aliran(Request $request): Response|RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user->entitlements()->isEnabled(Feature::ReportsAndInsights)) {
+            return redirect()->route('laporan');
+        }
+
+        $end = Period::fromQuery((string) $request->query('bulan'));
+        $rentang = (string) $request->query('rentang');
+        $count = in_array($rentang, ['1', '3', '12'], true) ? (int) $rentang : 1;
+        $akunIds = AliranReport::accountIds($user, (string) $request->query('akun'), (string) $request->query('ids'));
+
+        return Pdf::loadView('pdf.aliran', [
+            'flow' => AliranReport::build($user, $end, $count, $akunIds),
+            'rangeLabel' => AliranReport::rangeLabel($end, $count),
+            'akunLabel' => AliranReport::accountLabel($user, $akunIds),
+            'userName' => $user->name,
+        ])->download('aliran-'.Period::query($end).'-'.$count.'-bulan.pdf');
     }
 
     /** Bulan "Y-m" yang valid dari query; tidak sah (termasuk 2026-13) jatuh ke bulan ini. */
