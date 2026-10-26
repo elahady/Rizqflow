@@ -1,0 +1,47 @@
+{
+  "_doc": "Vektor emas kode pemulihan + bungkusan kunci akun + RecoveryBundle (Tahap 13, roadmap.md 'Masukkan kunci ruang keluarga ke bungkusan kode pemulihan sebagai format version 2'). SEMUA NILAI DI BERKAS INI ADALAH VEKTOR UJI DETERMINISTIK, BUKAN RAHASIA PRODUKSI: entropi, garam, IV, kunci akun, dan kunci ruang di bawah ditetapkan tangan untuk tes ini saja, dan keluaran (words, plainHex, wrappedHex, legacyWrappedHex) dicetak sekali dari kode produksi lalu disimpan. Tes RecoveryGoldenVectorTest memverifikasi ulang bahwa kode produksi masih menghasilkan byte yang sama persis. JANGAN dipakai untuk kunci sungguhan. Lihat docs/sync-desain.md bagian K (Strategi pengujian) untuk cara klien web memakainya. Keputusan: wrap() memakai SecureRandom yang dapat disuntikkan (parameter `random`), jadi garam dan IV bisa dikunci di tes tanpa mengubah kode produksi. Urutan pemakaian random di BackupCrypto.encrypt: 16 byte garam dulu, lalu 12 byte IV (tanpa jeda). Kunci akun di sini berupa 32 byte mentah yang buram bagi wrap() (wrap tidak peduli isinya), BUKAN keyset Tink yang diekspor; itu sengaja supaya vektor ini tidak bergantung pada format Tink. Versi struktur RecoveryBundle (byte pertama plaintext) adalah 1 (konstanta VERSION di RecoveryBundle.kt), TERPISAH dari `version` 2 di server-sync.md (RECOVERY_KEY_VERSION). Vektor BIP-39 resmi (entropi nol/0x7f/0x80/0xff) sudah ada di RecoveryCodeTest dan tidak diulang di sini.",
+  "phrase": {
+    "entropyHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "wordCount": 24,
+    "words": ["abandon", "amount", "liar", "amount", "expire", "adjust", "cage", "candy", "arch", "gather", "drum", "bullet", "absurd", "math", "era", "live", "bid", "rhythm", "alien", "crouch", "range", "attend", "journey", "unaware"],
+    "phraseSpaced": "abandon amount liar amount expire adjust cage candy arch gather drum bullet absurd math era live bid rhythm alien crouch range attend journey unaware"
+  },
+  "bundleInput": {
+    "accountKeyHex": "c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf",
+    "roomKeys": [
+      {"roomId": "room-keluarga-golden-1", "exportedRoomKeyHex": "1011121314151617"},
+      {"roomId": "room-diri-golden-2", "exportedRoomKeyHex": "2021222324252627ff"}
+    ]
+  },
+  "kdf": {
+    "algorithm": "PBKDF2WithHmacSHA256 lalu AES/GCM/NoPadding (AES-256)",
+    "passwordNormalization": "NFKC atas frasa spasi tunggal (words joined dengan satu spasi)",
+    "iterations": 300000,
+    "saltBytes": 16,
+    "ivBytes": 12,
+    "keyBytes": 32,
+    "gcmTagBits": 128,
+    "magicAscii": "RZQBK1",
+    "envelopeLayout": "MAGIC(6) || salt(16) || iv(12) || ciphertext || tag(16)"
+  },
+  "injectedRandom": {
+    "wrapSaltHex": "00112233445566778899aabbccddeeff",
+    "wrapIvHex": "a0a1a2a3a4a5a6a7a8a9aaab",
+    "legacySaltHex": "ffeeddccbbaa99887766554433221100",
+    "legacyIvHex": "0b0a09080706050403020100"
+  },
+  "bundle": {
+    "structVersion": 1,
+    "layout": "version(1) | len(2) accountKey | roomCount(2) | per ruang: len(2) roomId UTF-8, len(2) exportedRoomKey | crc32(4), semua big-endian, CRC32 java.util.zip atas seluruh byte sebelumnya",
+    "plaintextHex": "010020c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedf00020016726f6f6d2d6b656c75617267612d676f6c64656e2d31000810111213141516170012726f6f6d2d646972692d676f6c64656e2d3200092021222324252627ff7500bfd3",
+    "crc32Hex": "7500bfd3"
+  },
+  "wrapped": {
+    "description": "AccountKeyRecoveryCrypto.wrap(bundle.encode(), code, random) dengan injectedRandom.wrap*, yaitu bentuk yang disimpan server untuk version 2",
+    "wrappedHex": "525a51424b3100112233445566778899aabbccddeeffa0a1a2a3a4a5a6a7a8a9aaab4015916fc0dfde1dbd072ce3fdd49c02e16bf13ba1ce516f78eca8a7c3bdb022e8110df9807542ae2509b84fdce8e4c530bd130372c95df9819b7567755fd0e6090c00edd14ef3b6e6b3c515f03917193802bd06671723fae49f4d93e75a3ba51cbb2c3f715ae17f8ef8ab56bc6656953123409849548791ca0c"
+  },
+  "legacyVersion1": {
+    "description": "Format version 1 lama: plaintext mentah hanya kunci akun, dibungkus dengan AccountKeyRecoveryCrypto.wrap(accountKey, code, random) dan injectedRandom.legacy*. Klien web TIDAK menulis format ini; hanya perlu membacanya.",
+    "legacyWrappedHex": "525a51424b31ffeeddccbbaa998877665544332211000b0a09080706050403020100cb00d5dd422e62fc67b9bf57783315d89b4781fd3fd3faff653f785c1ab6d39f3f2de39c8b0a0bbd60d477d9b8380355"
+  }
+}
