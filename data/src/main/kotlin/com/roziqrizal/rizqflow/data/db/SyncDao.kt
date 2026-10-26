@@ -80,6 +80,15 @@ interface SyncDao {
     @Upsert
     suspend fun upsertSharedRoom(room: SharedRoomEntity)
 
+    /**
+     * Membuang jejak `sync_record` hasil onboarding bawaan (`room`/`account`/`category`/`allocation_config`
+     * cakupan pribadi) saat ruang kerja terbukti murni dan diganti data server (Tahap 3 sync-desain.md
+     * bagian B "Perangkat baru", lihat `PureWorkspaceReplacer`). Baris server yang ditarik ulang nanti
+     * masuk sebagai versi baru, tidak dibandingkan terhadap jejak onboarding yang sudah tidak ada gunanya.
+     */
+    @Query("DELETE FROM sync_record WHERE scope = 'a' AND record_type IN ('room', 'account', 'category', 'allocation_config')")
+    suspend fun deletePureOnboardingRecords()
+
     /*
      * Backfill SyncBootstrap.markAllDirty: satu pernyataan berbasis himpunan per tabel, INSERT OR IGNORE
      * supaya rekaman yang sudah punya baris (diubah sejak migrasi) tidak ditimpa dan hasilnya idempoten.

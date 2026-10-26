@@ -41,18 +41,18 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /** AEAD identitas (mengabaikan AAD): cukup untuk tes logika mesin, AAD sudah dibuktikan terpisah di SyncEnvelopeTest (:domain). */
-private class PersonalIdentityAead : SyncAead {
+internal class PersonalIdentityAead : SyncAead {
     override fun encrypt(plaintext: ByteArray, associatedData: ByteArray) = plaintext
     override fun decrypt(ciphertext: ByteArray, associatedData: ByteArray) = ciphertext
 }
 
-private class FakeAccountKeys(private val aead: SyncAead = PersonalIdentityAead()) : AccountKeyProvider {
+internal class FakeAccountKeys(private val aead: SyncAead = PersonalIdentityAead()) : AccountKeyProvider {
     override fun getOrCreateAccountKey(): SyncAead = aead
     override fun exportAccountKeyForRecovery(): ByteArray = error("tidak dipakai di tes ini")
     override fun importAccountKeyFromRecovery(exportedAccountKey: ByteArray) = error("tidak dipakai di tes ini")
 }
 
-private class FakeRecoveryStatusStore(initial: RecoveryStatus = RecoveryStatus.NotConfigured) : RecoveryStatusStore {
+internal class FakeRecoveryStatusStore(initial: RecoveryStatus = RecoveryStatus.NotConfigured) : RecoveryStatusStore {
     var current: RecoveryStatus = initial
     override fun read(): RecoveryStatus = current
     override fun markPending(serverUpdatedAt: String?) { current = RecoveryStatus.PendingConfirmation(serverUpdatedAt) }
@@ -60,13 +60,13 @@ private class FakeRecoveryStatusStore(initial: RecoveryStatus = RecoveryStatus.N
     override fun clear() { current = RecoveryStatus.NotConfigured }
 }
 
-private class UnusedRecoveryKeyRemote : RecoveryKeyRemote {
+internal class UnusedRecoveryKeyRemote : RecoveryKeyRemote {
     override suspend fun put(apiToken: String, wrappedKey: ByteArray) = error("tidak dipakai di tes ini")
     override suspend fun get(apiToken: String) = error("tidak dipakai di tes ini")
     override suspend fun delete(apiToken: String) = error("tidak dipakai di tes ini")
 }
 
-private class PersonalMemoryToken : ApiTokenStore {
+internal class PersonalMemoryToken : ApiTokenStore {
     override fun read() = "token"
     override fun expiresAt(): Instant? = null
     override fun save(token: String, expiresAt: Instant?) = true
@@ -79,7 +79,7 @@ private class PersonalMemoryToken : ApiTokenStore {
  * tidak null mengacak URUTAN baris yang dikembalikan DI DALAM satu halaman (meniru urutan kedatangan
  * jaringan yang tidak bisa diandalkan) sambil tetap menjaga `next_after`/`has_more` dari urutan id asli.
  */
-private class MemoryPersonalRemote(private val pageSize: Int = 200, private val shuffleSeed: Int? = null) : SyncRemote {
+internal class MemoryPersonalRemote(private val pageSize: Int = 200, private val shuffleSeed: Int? = null) : SyncRemote {
     val stored = mutableListOf<SyncLogEntryDownload>()
     private var nextId = 1L
 
@@ -101,13 +101,13 @@ private class MemoryPersonalRemote(private val pageSize: Int = 200, private val 
 }
 
 /** Database Room di memori TANPA onboarding (perangkat baru/kosong) — lawan [SyncFixture] yang selalu onboarding. */
-private fun emptyLedger(): LocalLedger {
+internal fun emptyLedger(): LocalLedger {
     val db = AndroidRoom.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext<Context>(), RizqflowDatabase::class.java)
         .allowMainThreadQueries().build()
     return LocalLedger(db)
 }
 
-private fun engineFor(ledger: LocalLedger, remote: SyncRemote, recoveryStatus: RecoveryStatus = RecoveryStatus.NotConfigured): PersonalSyncCoordinator {
+internal fun engineFor(ledger: LocalLedger, remote: SyncRemote, recoveryStatus: RecoveryStatus = RecoveryStatus.NotConfigured): PersonalSyncCoordinator {
     val db = ledger.db
     val store = ledger.syncStore
     val recovery = RecoveryKeyService(FakeAccountKeys(), UnusedRecoveryKeyRemote(), PersonalMemoryToken(), FakeRecoveryStatusStore(recoveryStatus))

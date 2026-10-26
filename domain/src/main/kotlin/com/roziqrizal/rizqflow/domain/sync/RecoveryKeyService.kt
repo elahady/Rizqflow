@@ -421,8 +421,8 @@ class RecoveryKeyService(
 
     /**
      * Apakah server sudah punya salinan untuk akun ini. Tidak pernah memblokir; setiap kegagalan (termasuk belum
-     * masuk) hanyalah [RemoteCopyCheck.UNKNOWN]. Saat ini TIDAK dipanggil produksi (tawaran aktif "Pulihkan" di
-     * perangkat baru disembunyikan sampai ada data yang bergantung pada kunci akun).
+     * masuk) hanyalah [RemoteCopyCheck.UNKNOWN]. Sejak Tahap 3 sync-desain.md (sinkron entitas akun cakupan
+     * pribadi ada) dipakai [NewDeviceRecoveryAdvisor] untuk alur pulihkan perangkat baru.
      */
     suspend fun checkRemoteCopy(): RemoteCopyCheck {
         val token = tokens.read() ?: return RemoteCopyCheck.UNKNOWN

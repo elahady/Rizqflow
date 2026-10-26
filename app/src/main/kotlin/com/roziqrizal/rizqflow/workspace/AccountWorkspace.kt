@@ -20,7 +20,9 @@ import com.roziqrizal.rizqflow.data.sync.AccountSyncHandler
 import com.roziqrizal.rizqflow.data.sync.AllocationConfigSyncHandler
 import com.roziqrizal.rizqflow.data.sync.CategorySyncHandler
 import com.roziqrizal.rizqflow.data.sync.JsonTransactionSyncCodec
+import com.roziqrizal.rizqflow.data.sync.PureWorkspaceReplacer
 import com.roziqrizal.rizqflow.data.sync.RoomSyncHandler
+import com.roziqrizal.rizqflow.data.sync.RoomWorkspacePurityChecker
 import com.roziqrizal.rizqflow.data.sync.SharedPrefsRecoveryStatusStore
 import com.roziqrizal.rizqflow.data.sync.SharedPrefsSyncCursorStore
 import com.roziqrizal.rizqflow.data.sync.TransactionSyncHandler
@@ -28,6 +30,7 @@ import com.roziqrizal.rizqflow.domain.sync.AccountKeyProvider
 import com.roziqrizal.rizqflow.domain.sync.AccountRemote
 import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
 import com.roziqrizal.rizqflow.domain.sync.DeviceRemote
+import com.roziqrizal.rizqflow.domain.sync.NewDeviceRecoveryAdvisor
 import com.roziqrizal.rizqflow.domain.sync.PersonalSyncCoordinator
 import com.roziqrizal.rizqflow.domain.sync.PurchaseRemote
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyRemote
@@ -176,6 +179,20 @@ class AccountWorkspace private constructor(
         apiTokenStore = apiTokenStore,
         recovery = recovery,
     )
+
+    /**
+     * Alur pulihkan perangkat baru (Tahap 3 sync-desain.md bagian B "Perangkat baru", keputusan pemilik
+     * #11): [NewDeviceRecoveryAdvisor.decide] menentukan apakah ruang kerja ini masih murni (hasil
+     * onboarding bawaan saja, belum dipakai) DAN akun ini punya kode pemulihan di server — bila ya,
+     * pemanggil (UI, menyusul) boleh langsung memanggil [pureWorkspaceReplacer] lalu [personalSync] tanpa
+     * bertanya; bila tidak, UI wajib menawarkan "Gabung" (biarkan [personalSync] berjalan biasa) atau
+     * "Pulihkan" (panggil [pureWorkspaceReplacer] juga, TAPI hanya setelah salinan otomatis/backup —
+     * lihat KDoc kelasnya) ke pengguna. Layar belum dibuat (di luar cakupan Tahap 3); ini lapisan logiknya.
+     */
+    val newDeviceRecoveryAdvisor = NewDeviceRecoveryAdvisor(recovery, RoomWorkspacePurityChecker(local.db))
+
+    /** Eksekusi nyata "ganti dengan data server" untuk [newDeviceRecoveryAdvisor] — lihat KDoc kelasnya. */
+    val pureWorkspaceReplacer = PureWorkspaceReplacer(local.db, local.syncStore)
 
     /**
      * Keluarkan anggota (Tahap 9): rotasi kunci ruang lalu siapkan undangan (QR) baru untuk anggota
