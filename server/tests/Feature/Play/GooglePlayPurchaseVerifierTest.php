@@ -152,6 +152,48 @@ class GooglePlayPurchaseVerifierTest extends TestCase
         $this->assertSame('2026-12-01', $v->expiresAt->format('Y-m-d'));
     }
 
+    public function test_subscription_reports_the_linked_purchase_token_as_the_predecessor(): void
+    {
+        $v = $this->verifier($this->subscription('SUBSCRIPTION_STATE_ACTIVE', extra: ['linkedPurchaseToken' => 'tok-lama']))
+            ->verify(PlayProduct::Sync, self::TOKEN);
+
+        $this->assertSame('tok-lama', $v->predecessorToken);
+    }
+
+    public function test_subscription_reports_the_expired_out_of_app_token_as_the_predecessor_when_there_is_no_linked_token(): void
+    {
+        $v = $this->verifier($this->subscription('SUBSCRIPTION_STATE_ACTIVE', extra: [
+            'outOfAppPurchaseContext' => ['expiredPurchaseToken' => 'tok-lapsed'],
+        ]))->verify(PlayProduct::Sync, self::TOKEN);
+
+        $this->assertSame('tok-lapsed', $v->predecessorToken);
+    }
+
+    public function test_linked_purchase_token_is_preferred_over_the_expired_out_of_app_token(): void
+    {
+        $v = $this->verifier($this->subscription('SUBSCRIPTION_STATE_ACTIVE', extra: [
+            'linkedPurchaseToken' => 'tok-linked',
+            'outOfAppPurchaseContext' => ['expiredPurchaseToken' => 'tok-expired'],
+        ]))->verify(PlayProduct::Sync, self::TOKEN);
+
+        $this->assertSame('tok-linked', $v->predecessorToken);
+    }
+
+    public function test_subscription_without_any_chain_field_has_a_null_predecessor(): void
+    {
+        $v = $this->verifier($this->subscription('SUBSCRIPTION_STATE_ACTIVE'))->verify(PlayProduct::Sync, self::TOKEN);
+
+        $this->assertNull($v->predecessorToken);
+    }
+
+    public function test_one_time_product_never_reports_a_predecessor_token(): void
+    {
+        // Play API tidak punya field rantai untuk produk sekali beli (INAPP).
+        $v = $this->verifier($this->product('PURCHASED'))->verify(PlayProduct::Pro, self::TOKEN);
+
+        $this->assertNull($v->predecessorToken);
+    }
+
     public function test_subscription_for_a_different_product_reports_that_product(): void
     {
         $response = $this->subscription('SUBSCRIPTION_STATE_ACTIVE', ['productId' => 'produk_lain']);
