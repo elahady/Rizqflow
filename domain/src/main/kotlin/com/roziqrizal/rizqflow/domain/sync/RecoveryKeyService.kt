@@ -170,11 +170,14 @@ enum class RecoveryCopyState {
  * dipakai pengguna sungguhan) tidak membawa kunci ruang sama sekali; [recoverKey] tetap bisa membukanya
  * (hanya kunci akun) supaya tidak mogok bila suatu saat ditemukan.
  *
- * Kebijakan menimpa: [recoverKey] MENIMPA kunci akun lokal DAN kunci ruang-ruang yang ikut terbungkus. Saat ini
- * aman karena belum ada data lokal yang dienkripsi dengan kunci akun, dan kunci ruang yang ditimpa hanya berarti
- * ciphertext ruang itu kembali terbaca seperti pemilik aslinya (tidak ada data yang hilang, karena kunci ruang
+ * Kebijakan menimpa (diperbarui Tahap 3 sync-desain.md, sejak sinkron entitas akun cakupan pribadi ada):
+ * [recoverKey] MENGGABUNGKAN (merge) kunci akun — lihat kontrak [AccountKeyProvider.importAccountKeyFromRecovery]
+ * — kunci lokal yang mungkin sudah mengenkripsi data cakupan pribadi di perangkat ini TETAP ADA di keyset,
+ * kunci pulihan jadi primary untuk enkripsi berikutnya; tidak ada data yang hilang. Kunci ruang-ruang yang ikut
+ * terbungkus tetap DITIMPA ([RoomKeyProvider.importRoomKey], belum diubah di Tahap 3 ini): aman karena kunci ruang
  * sebelum dipulihkan memang baru dibuat acak sendiri oleh perangkat baru dan belum pernah dipakai mengenkripsi
- * apa pun). Begitu sync entitas akun ada, pulihkan wajib menjaga data lama; itu kewajiban butir sync berikutnya.
+ * apa pun (ruang keluarga masih memakai alur undang-ulang QR untuk kasus lain; distribusi keyset rotasi menyusul
+ * Tahap 5 sync-desain.md).
  *
  * Token API dibaca dari [tokens] tiap pemanggilan; 401 ditangani `ServerSession` lewat remote yang sudah
  * dibungkus, bukan di sini. Pemanggil di UI yang memutar token dan mengulang sekali bila 401 karena token diputar.

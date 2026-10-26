@@ -32,17 +32,24 @@ interface AccountKeyProvider {
 
     /**
      * Memasang kunci akun hasil pemulihan ([exportedAccountKey] = keluaran [exportAccountKeyForRecovery]
-     * dari perangkat lain, sudah dibuka dari bungkus kode pemulihan) dan MENIMPA kunci akun lokal.
+     * dari perangkat lain, sudah dibuka dari bungkus kode pemulihan) dan MENGGABUNGKAN (merge) ke
+     * keyset akun lokal — pola yang sama dengan [RoomKeyProvider.rotateRoomKey]: kunci pulihan
+     * ditambahkan ke keyset SEBAGAI PRIMARY (dipakai untuk enkripsi berikutnya), kunci lokal yang
+     * sudah ada (yang mungkin sudah mengenkripsi data cakupan pribadi di perangkat ini, sejak sinkron
+     * entitas akun dibangun di Tahap 3 sync-desain.md) TETAP ADA di keyset yang sama sehingga
+     * ciphertext lama tetap bisa didekripsi. Bila perangkat ini belum pernah punya kunci akun sama
+     * sekali (benar-benar baru), tidak ada yang digabung — kunci pulihan langsung dipasang sebagai
+     * satu-satunya kunci, sama seperti [RoomKeyProvider.importRoomKey] untuk ruang yang belum pernah dipakai.
      *
      * Kontrak keselamatan, wajib dipenuhi implementasi:
      * - [exportedAccountKey] divalidasi dan di-parse SEBELUM apa pun ditulis. Bila rusak, melempar
      *   [InvalidAccountKeyExport] dan kunci lokal yang ada tetap utuh dan tetap dipakai.
      * - Setelah kembali tanpa galat, [getOrCreateAccountKey] (termasuk [SyncAead] yang sudah dibagikan
-     *   sebelumnya) memakai kunci pulihan, bukan kunci lama. Pemanggil tidak perlu mengambil ulang.
-     * - Kunci lama tidak lagi bisa dipakai setelah ini. SAAT INI aman karena belum ada data lokal yang
-     *   dienkripsi dengan kunci akun (sync data akun belum dibangun; yang ada baru kunci ruang). Begitu
-     *   sync entitas akun ada, pulihkan WAJIB menjaga data lama (mis. menyimpan kunci lama di keyset yang
-     *   sama seperti `rotateRoomKey`) sebelum menimpa. Itu kewajiban butir sync berikutnya, bukan di sini.
+     *   sebelumnya) memakai kunci pulihan sebagai PRIMARY untuk enkripsi baru, tetapi tetap bisa
+     *   mendekripsi ciphertext yang dibuat dengan kunci lokal lama sebelum pemanggilan ini. Pemanggil
+     *   tidak perlu mengambil ulang.
+     * - Kunci lama TIDAK dibuang: tidak pernah dipakai lagi untuk enkripsi baru, tetapi tetap tersimpan
+     *   di keyset yang sama untuk dekripsi, selamanya (tidak ada pembersihan otomatis di v1).
      */
     fun importAccountKeyFromRecovery(exportedAccountKey: ByteArray)
 }
