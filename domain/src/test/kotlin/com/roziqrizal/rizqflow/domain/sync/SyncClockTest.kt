@@ -82,6 +82,14 @@ class SyncClockTest {
     }
 
     @Test
+    fun `rawDeviceNowMillis mengembalikan jam perangkat mentah tanpa offset atau lantai`() {
+        assertEquals(1_000_000L, clock.rawDeviceNowMillis())
+        clock.setServerOffset(5_000) // offset tidak ikut dihitung di sini, beda dengan stamp()
+        now = 2_000_000L
+        assertEquals(2_000_000L, clock.rawDeviceNowMillis())
+    }
+
+    @Test
     fun `urutan acak jam dan lantai tidak pernah menghasilkan cap yang turun`() {
         val seed = 20261025L
         val random = Random(seed)
