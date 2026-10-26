@@ -74,6 +74,46 @@ class RecoveryKeyTest extends TestCase
         $this->assertStringNotContainsString(base64_encode($bytes), $response->getContent());
     }
 
+    /**
+     * `version` 2 (ditambahkan 2026-10-27, roadmap.md Tahap 13 "Masukkan kunci ruang keluarga..."):
+     * server hanya menyimpan angka versinya, TIDAK membaca isi blob — jadi tidak ada bedanya dengan
+     * version 1 selain angka yang diterima dan dikembalikan. Isi [RecoveryBundle] (kunci akun + kunci
+     * ruang) sepenuhnya urusan klien (`:domain`); tes ini hanya membuktikan server tidak menolaknya.
+     */
+    public function test_put_accepts_version_2_and_returns_it_unmodified(): void
+    {
+        $user = $this->syncUser();
+        $token = $this->tokenFor($user);
+        $bytes = $this->blob();
+
+        $response = $this->putKey($token, $bytes, 2)->assertOk();
+
+        $response->assertJsonPath('version', 2)->assertJsonPath('updated_at', '2026-10-28T08:00:00Z');
+        $this->assertSame($bytes, $this->storedBytes($user));
+        $this->assertSame(2, $this->api('GET', self::URL, $token)->assertOk()->json('version'));
+    }
+
+    /** Mengganti salinan version 1 lama dengan version 2 baru (atau sebaliknya) tetap satu baris per akun. */
+    public function test_put_can_replace_a_version_1_copy_with_version_2_and_back(): void
+    {
+        $user = $this->syncUser();
+        $token = $this->tokenFor($user);
+        $v1 = $this->blob(60);
+        $v2 = $this->blob(90);
+
+        $this->putKey($token, $v1, 1)->assertOk()->assertJsonPath('version', 1);
+        $this->assertSame(1, $this->api('GET', self::URL, $token)->json('version'));
+
+        $this->putKey($token, $v2, 2)->assertOk()->assertJsonPath('version', 2);
+        $this->assertSame(1, RecoveryKey::count());
+        $this->assertSame($v2, $this->storedBytes($user));
+        $this->assertSame(2, $this->api('GET', self::URL, $token)->json('version'));
+
+        $this->putKey($token, $v1, 1)->assertOk()->assertJsonPath('version', 1);
+        $this->assertSame(1, RecoveryKey::count());
+        $this->assertSame($v1, $this->storedBytes($user));
+    }
+
     public function test_put_replaces_the_existing_copy_keeping_one_row_per_account(): void
     {
         $user = $this->syncUser();
@@ -225,7 +265,7 @@ class RecoveryKeyTest extends TestCase
             'version desimal' => [['wrapped_key' => $ok, 'version' => 1.5], 'version'],
             'version boolean' => [['wrapped_key' => $ok, 'version' => true], 'version'],
             'version array' => [['wrapped_key' => $ok, 'version' => [1]], 'version'],
-            'version tak dikenal 2' => [['wrapped_key' => $ok, 'version' => 2], 'version'],
+            'version tak dikenal 3' => [['wrapped_key' => $ok, 'version' => 3], 'version'],
             'version nol' => [['wrapped_key' => $ok, 'version' => 0], 'version'],
             'version negatif' => [['wrapped_key' => $ok, 'version' => -1], 'version'],
         ];

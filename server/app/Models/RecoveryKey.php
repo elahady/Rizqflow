@@ -19,8 +19,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class RecoveryKey extends Model
 {
-    /** Versi pembungkus yang dikenal: 1 = BackupCrypto AES-256-GCM, kunci PBKDF2 dari frasa 24 kata. */
-    public const KNOWN_VERSIONS = [1];
+    /**
+     * Versi pembungkus yang dikenal server (hanya angkanya — isi blob tetap buram bagi server,
+     * tidak pernah diperiksa di sini):
+     * - 1 = kunci akun saja (lama, sebelum 2026-10-27; belum pernah dipakai pengguna sungguhan).
+     * - 2 = kunci akun PLUS kunci semua ruang keluarga aktif yang diikuti perangkat saat diunggah
+     *   (ditambahkan 2026-10-27, roadmap.md Tahap 13 "Masukkan kunci ruang keluarga..."; klien kini
+     *   hanya menulis versi ini — lihat `RecoveryBundle` di `:domain`). Kriptonya sama persis dengan
+     *   versi 1 (AES-256-GCM, kunci PBKDF2 dari frasa 24 kata) — hanya ISI plaintext di sisi klien
+     *   yang berbeda, server tidak membaca isi itu sama sekali.
+     */
+    public const KNOWN_VERSIONS = [1, 2];
 
     /** Batas ukuran blob terdekode (byte). Blob sebenarnya (salt+IV+kunci+tag) puluhan byte. */
     public const MAX_BYTES = 8192;
