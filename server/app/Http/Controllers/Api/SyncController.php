@@ -64,9 +64,10 @@ class SyncController extends Controller
 
             // Siapa pun yang push ke sebuah room_id otomatis jadi anggotanya (idempoten) — bootstrap
             // keanggotaan tanpa butuh endpoint "buat ruang" terpisah, lihat RoomMembershipController.
+            // Penambahan lewat RoomMember::tambahAnggota agar pendaftar pertama tercatat sebagai pemilik.
             $roomIds = array_unique(array_filter(array_column($data['entries'], 'room_id')));
             foreach ($roomIds as $roomId) {
-                RoomMember::firstOrCreate(['user_id' => $userId, 'room_id' => $roomId]);
+                RoomMember::tambahAnggota($userId, $roomId);
             }
 
             foreach ($data['entries'] as $entry) {

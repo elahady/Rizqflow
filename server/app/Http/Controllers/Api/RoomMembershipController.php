@@ -22,10 +22,41 @@ class RoomMembershipController extends Controller
             return $denied;
         }
 
-        RoomMember::firstOrCreate([
-            'user_id' => $request->user()->id,
-            'room_id' => $roomId,
-        ]);
+        RoomMember::tambahAnggota($request->user()->id, $roomId);
+
+        return response()->json(status: 204);
+    }
+
+    /**
+     * Mengeluarkan anggota dari ruang (keputusan 2026-10-27): hanya pemilik ruang yang boleh, dan
+     * pemilik sendiri tidak bisa dikeluarkan (belum ada alur pindah kepemilikan). Yang dikeluarkan
+     * kehilangan akses pull ke baris ruang ini; kunci ruang baru dibagikan lewat undangan QR ulang
+     * oleh sisi aplikasi (RoomMemberKeyRedistribution), bukan oleh endpoint ini.
+     */
+    public function remove(Request $request, string $roomId, string $userId): JsonResponse
+    {
+        if ($denied = $this->denyWithoutSharedRoom($request)) {
+            return $denied;
+        }
+
+        $isOwner = RoomMember::where('room_id', $roomId)
+            ->where('user_id', $request->user()->id)
+            ->where('is_owner', true)
+            ->exists();
+        if (! $isOwner) {
+            return response()->json(['message' => 'Hanya pemilik ruang yang bisa mengeluarkan anggota.'], 403);
+        }
+
+        $target = RoomMember::where('room_id', $roomId)->where('user_id', $userId)->first();
+        if ($target === null) {
+            return response()->json(['message' => 'Anggota tidak ditemukan di ruang ini.'], 404);
+        }
+
+        if ($target->is_owner) {
+            return response()->json(['message' => 'Pemilik ruang tidak bisa dikeluarkan.'], 422);
+        }
+
+        $target->delete();
 
         return response()->json(status: 204);
     }
@@ -50,6 +81,7 @@ class RoomMembershipController extends Controller
                 'name' => $member->user->name,
                 'email' => $member->user->email,
                 'you' => $member->user_id === $userId,
+                'owner' => $member->is_owner,
             ]);
 
         return response()->json(['members' => $members]);
