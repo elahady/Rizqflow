@@ -273,6 +273,38 @@ interface ZakatDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertPayment(payment: ZakatPaymentEntity)
+
+    // Tulis dari hasil pull (Tahap 4 sync-desain.md): tidak lewat repositori, jadi tidak ada recorder.
+    @Query("SELECT * FROM wealth_item WHERE id = :id")
+    suspend fun findItem(id: String): WealthItemEntity?
+
+    @Upsert
+    suspend fun upsertItemFromSync(item: WealthItemEntity)
+
+    @Query("DELETE FROM wealth_item WHERE id = :id")
+    suspend fun deleteItem(id: String): Int
+
+    @Query("SELECT * FROM wealth_check WHERE id = :id")
+    suspend fun findCheck(id: String): WealthCheckEntity?
+
+    @Upsert
+    suspend fun upsertCheckFromSync(check: WealthCheckEntity)
+
+    @Query("DELETE FROM wealth_check WHERE id = :id")
+    suspend fun deleteCheck(id: String): Int
+
+    @Query("SELECT * FROM zakat_payment WHERE id = :id")
+    suspend fun findPayment(id: String): ZakatPaymentEntity?
+
+    @Upsert
+    suspend fun upsertPaymentFromSync(payment: ZakatPaymentEntity)
+
+    @Query("DELETE FROM zakat_payment WHERE id = :id")
+    suspend fun deletePayment(id: String): Int
+
+    /** Hanya harga MANUAL: harga AUTO di hari yang sama milik perangkat ini dan tidak boleh ikut terhapus. */
+    @Query("DELETE FROM gold_price WHERE day = :day AND source = 'MANUAL'")
+    suspend fun deleteManualGoldPrice(day: Long): Int
 }
 
 @Dao
@@ -315,6 +347,10 @@ interface SettingsDao {
 
     @Query("SELECT COUNT(*) FROM day_check WHERE day = :day")
     suspend fun isDayChecked(day: Long): Int
+
+    /** Hanya untuk tombstone dari sinkron (Tahap 4); tidak ada jalur lokal yang membatalkan centang harian. */
+    @Query("DELETE FROM day_check WHERE day = :day")
+    suspend fun unmarkDayCheckedFromSync(day: Long): Int
 }
 
 @Dao

@@ -26,6 +26,15 @@ import com.roziqrizal.rizqflow.data.sync.RoomWorkspacePurityChecker
 import com.roziqrizal.rizqflow.data.sync.SharedPrefsRecoveryStatusStore
 import com.roziqrizal.rizqflow.data.sync.SharedPrefsSyncCursorStore
 import com.roziqrizal.rizqflow.data.sync.TransactionSyncHandler
+import com.roziqrizal.rizqflow.data.sync.ZakatProfileSyncHandler
+import com.roziqrizal.rizqflow.data.sync.WealthItemSyncHandler
+import com.roziqrizal.rizqflow.data.sync.WealthCheckSyncHandler
+import com.roziqrizal.rizqflow.data.sync.ZakatPaymentSyncHandler
+import com.roziqrizal.rizqflow.data.sync.GoldPriceSyncHandler
+import com.roziqrizal.rizqflow.data.sync.TraderProfileSyncHandler
+import com.roziqrizal.rizqflow.data.sync.DcaPlanSyncHandler
+import com.roziqrizal.rizqflow.data.sync.QuickFavoriteSyncHandler
+import com.roziqrizal.rizqflow.data.sync.DayCheckSyncHandler
 import com.roziqrizal.rizqflow.domain.sync.AccountKeyProvider
 import com.roziqrizal.rizqflow.domain.sync.AccountRemote
 import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
@@ -172,6 +181,15 @@ class AccountWorkspace private constructor(
             CategorySyncHandler(local.db, local.syncStore),
             AllocationConfigSyncHandler(local.db, local.syncStore),
             TransactionSyncHandler(local.db, local.syncStore),
+            ZakatProfileSyncHandler(local.db, local.syncStore),
+            WealthItemSyncHandler(local.db, local.syncStore),
+            WealthCheckSyncHandler(local.db, local.syncStore),
+            ZakatPaymentSyncHandler(local.db, local.syncStore),
+            GoldPriceSyncHandler(local.db, local.syncStore),
+            TraderProfileSyncHandler(local.db, local.syncStore),
+            DcaPlanSyncHandler(local.db, local.syncStore),
+            QuickFavoriteSyncHandler(local.db, local.syncStore),
+            DayCheckSyncHandler(local.db, local.syncStore),
         ),
         store = local.syncStore,
         accountKeys = accountKeyProvider,
