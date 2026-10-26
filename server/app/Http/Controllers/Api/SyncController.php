@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\DeniesWithoutSync;
 use App\Http\Controllers\Controller;
 use App\Models\RoomMember;
+use App\Models\SyncCompactionState;
 use App\Models\SyncDevice;
 use App\Models\SyncLogEntry;
+use App\Models\SyncQuota;
+use App\Support\SyncQuotaExceeded;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,6 +26,9 @@ use Illuminate\Support\Facades\Log;
  *
  * [pull] juga mengirim baris ruang yang dibagi (lihat RoomMember/RoomMembershipController), tidak
  * hanya baris milik akun sendiri — baris tanpa room_id (mis. Account) tetap selalu privat per akun.
+ *
+ * Kuota per akun (push ditolak 422 `quota_exceeded`) dan kursor basi (pull dijawab 410
+ * `cursor_expired`) mengikuti sync-desain.md bagian G dan J #6/#12; lihat SyncQuota dan SyncRetention.
  */
 class SyncController extends Controller
 {
@@ -58,71 +64,89 @@ class SyncController extends Controller
 
         $userId = $request->user()->id;
 
-        // Satu transaksi DB per batch (Tahap 2 bagian G): gagal di tengah tidak meninggalkan separuh baris.
-        $ids = DB::transaction(function () use ($data, $userId) {
-            $ids = [];
+        try {
+            // Satu transaksi DB per batch (Tahap 2 bagian G): gagal di tengah tidak meninggalkan separuh baris.
+            $ids = DB::transaction(function () use ($data, $userId) {
+                // Kunci penghitung kuota akun lebih dulu: push serentak satu akun antre di sini.
+                $kuota = SyncQuota::kunciUntukTulis($userId);
+                $barisBaru = 0;
+                $bytesBaru = 0;
 
-            // Siapa pun yang push ke sebuah room_id otomatis jadi anggotanya (idempoten) — bootstrap
-            // keanggotaan tanpa butuh endpoint "buat ruang" terpisah, lihat RoomMembershipController.
-            // Penambahan lewat RoomMember::tambahAnggota agar pendaftar pertama tercatat sebagai pemilik.
-            $roomIds = array_unique(array_filter(array_column($data['entries'], 'room_id')));
-            foreach ($roomIds as $roomId) {
-                RoomMember::tambahAnggota($userId, $roomId);
-            }
+                $ids = [];
 
-            foreach ($data['entries'] as $entry) {
-                $roomId = $entry['room_id'] ?? null;
-                $changedAtMs = $entry['changed_at_ms'] ?? Carbon::parse($entry['changed_at'])->getTimestampMs();
+                // Siapa pun yang push ke sebuah room_id otomatis jadi anggotanya (idempoten) — bootstrap
+                // keanggotaan tanpa butuh endpoint "buat ruang" terpisah, lihat RoomMembershipController.
+                // Penambahan lewat RoomMember::tambahAnggota agar pendaftar pertama tercatat sebagai pemilik.
+                $roomIds = array_unique(array_filter(array_column($data['entries'], 'room_id')));
+                foreach ($roomIds as $roomId) {
+                    RoomMember::tambahAnggota($userId, $roomId);
+                }
 
-                // Penulis tunggal (Tahap 2 bagian B R3): hanya penulis PERTAMA baris ini (dalam ruang
-                // yang sama) boleh mengubah atau menghapusnya — anggota lain memegang kunci ruang yang
-                // sama jadi `device_id`/isi payload bisa dipalsukan; id baris tidak bisa.
-                if ($roomId !== null) {
-                    $firstAuthor = SyncLogEntry::where('room_id', $roomId)
+                foreach ($data['entries'] as $entry) {
+                    $roomId = $entry['room_id'] ?? null;
+                    $changedAtMs = $entry['changed_at_ms'] ?? Carbon::parse($entry['changed_at'])->getTimestampMs();
+
+                    // Penulis tunggal (Tahap 2 bagian B R3): hanya penulis PERTAMA baris ini (dalam ruang
+                    // yang sama) boleh mengubah atau menghapusnya — anggota lain memegang kunci ruang yang
+                    // sama jadi `device_id`/isi payload bisa dipalsukan; id baris tidak bisa.
+                    if ($roomId !== null) {
+                        $firstAuthor = SyncLogEntry::where('room_id', $roomId)
+                            ->where('record_id', $entry['record_id'])
+                            ->orderBy('id')
+                            ->value('user_id');
+                        if ($firstAuthor !== null && $firstAuthor !== $userId) {
+                            Log::info('sync push: baris ditolak, bukan penulis pertama', [
+                                'room_id' => $roomId,
+                                'record_id' => $entry['record_id'],
+                                'first_author' => $firstAuthor,
+                                'rejected_user' => $userId,
+                            ]);
+
+                            continue;
+                        }
+                    }
+
+                    // Idempoten: push yang diulang (ack hilang di klien) menemukan baris yang sama dan
+                    // mengembalikan id-nya, tidak menggandakan baris.
+                    $existing = SyncLogEntry::where('user_id', $userId)
+                        ->where('device_id', $entry['device_id'])
                         ->where('record_id', $entry['record_id'])
-                        ->orderBy('id')
-                        ->value('user_id');
-                    if ($firstAuthor !== null && $firstAuthor !== $userId) {
-                        Log::info('sync push: baris ditolak, bukan penulis pertama', [
-                            'room_id' => $roomId,
-                            'record_id' => $entry['record_id'],
-                            'first_author' => $firstAuthor,
-                            'rejected_user' => $userId,
-                        ]);
+                        ->where('changed_at_ms', $changedAtMs)
+                        ->where('deleted', $entry['deleted'] ?? false)
+                        ->first();
+                    if ($existing !== null) {
+                        $ids[] = $existing->id;
 
                         continue;
                     }
+
+                    $ids[] = SyncLogEntry::create([
+                        'user_id' => $userId,
+                        'room_id' => $roomId,
+                        'record_type' => $entry['record_type'],
+                        'record_id' => $entry['record_id'],
+                        'device_id' => $entry['device_id'],
+                        'payload' => $entry['payload'],
+                        'deleted' => $entry['deleted'] ?? false,
+                        'changed_at' => $entry['changed_at'],
+                        'changed_at_ms' => $changedAtMs,
+                    ])->id;
+
+                    $barisBaru++;
+                    $bytesBaru += strlen($entry['payload']);
                 }
 
-                // Idempoten: push yang diulang (ack hilang di klien) menemukan baris yang sama dan
-                // mengembalikan id-nya, tidak menggandakan baris.
-                $existing = SyncLogEntry::where('user_id', $userId)
-                    ->where('device_id', $entry['device_id'])
-                    ->where('record_id', $entry['record_id'])
-                    ->where('changed_at_ms', $changedAtMs)
-                    ->where('deleted', $entry['deleted'] ?? false)
-                    ->first();
-                if ($existing !== null) {
-                    $ids[] = $existing->id;
+                // Melempar bila melewati kuota: seluruh batch di-rollback, tidak ada yang tersimpan.
+                $kuota->tambahPemakaian($barisBaru, $bytesBaru);
 
-                    continue;
-                }
-
-                $ids[] = SyncLogEntry::create([
-                    'user_id' => $userId,
-                    'room_id' => $roomId,
-                    'record_type' => $entry['record_type'],
-                    'record_id' => $entry['record_id'],
-                    'device_id' => $entry['device_id'],
-                    'payload' => $entry['payload'],
-                    'deleted' => $entry['deleted'] ?? false,
-                    'changed_at' => $entry['changed_at'],
-                    'changed_at_ms' => $changedAtMs,
-                ])->id;
-            }
-
-            return $ids;
-        });
+                return $ids;
+            });
+        } catch (SyncQuotaExceeded) {
+            return response()->json([
+                'message' => 'Penyimpanan sinkron akun ini sudah penuh. Data di perangkat tetap aman dan tidak ada yang dihapus; sinkron baru dijeda sampai ada ruang tersedia.',
+                'code' => 'quota_exceeded',
+            ], 422);
+        }
 
         // Semua baris ditolak (bukan penulis pertama): cursor tetap baris terakhir milik user ini,
         // bukan 0 — klien lama membaca ini apa adanya (lihat catatan SyncCoordinator: tidak dipakai
@@ -154,6 +178,16 @@ class SyncController extends Controller
         $after = (int) ($validated['after'] ?? 0);
         $limit = (int) ($validated['limit'] ?? self::DEFAULT_PULL_LIMIT);
         $deviceId = $validated['device_id'] ?? null;
+
+        // Kursor di bawah watermark kompaksi: sebagian tombstone sudah dihapus fisik setelah kursor ini,
+        // jadi klien harus pull ulang dari 0 dan menggabung (sync-desain.md bagian J #6). after=0 selalu
+        // diizinkan: itu memang sinkron ulang penuh.
+        if ($after > 0 && $after < SyncCompactionState::tombstoneWatermark()) {
+            return response()->json([
+                'message' => 'Kursor sinkron sudah basi karena riwayat dirapikan. Sinkron ulang dari awal (after=0).',
+                'code' => 'cursor_expired',
+            ], 410);
+        }
 
         $userId = $request->user()->id;
         $sharedRoomIds = RoomMember::where('user_id', $userId)->pluck('room_id');

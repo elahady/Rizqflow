@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\PurchaseController;
 use App\Http\Controllers\Api\RecoveryKeyController;
 use App\Http\Controllers\Api\RoomMembershipController;
 use App\Http\Controllers\Api\SyncController;
+use App\Http\Controllers\Api\SyncHistoryController;
 use Illuminate\Support\Facades\Route;
 
 // Akun server dan sinkronisasi untuk aplikasi Android (Tahap 9, server-sync.md).
@@ -45,6 +46,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Butuh langganan Sync (Feature::EncryptedSync); lihat SyncController::denyWithoutSync.
     Route::post('/sync/push', [SyncController::class, 'push']);
     Route::get('/sync/pull', [SyncController::class, 'pull']);
+    // Riwayat sinkron (Tahap 7): ringkasan metadata saja, tanpa payload; tidak butuh langganan Sync.
+    Route::get('/sync/history', [SyncHistoryController::class, 'show']);
 
     // Salinan kunci akun terbungkus kode pemulihan (Tahap 13), blob buram. Satu limiter `recovery-key`
     // untuk ketiga rute (per akun). Hanya PUT yang butuh Sync; GET dan DELETE tidak, supaya pengguna
