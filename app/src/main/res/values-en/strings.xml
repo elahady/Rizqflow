@@ -523,7 +523,7 @@
     <string name="pro_restore_not_active">Pro isn\'t active on this Google Play account.</string>
     <string name="sync_restore_not_active">The Sync subscription isn\'t active on this Google Play account.</string>
     <!-- Purchase report to the server (Stage 9): the only server news that is shown. Calm tone, no blame; access on this device is unchanged. -->
-    <string name="purchase_claimed_by_other">This purchase is already used by another Rizqflow account, so the web and Sync can\'t recognize it. Your access on this device is unchanged.</string>
+    <string name="purchase_claimed_by_other">This purchase is already used by another Rizqflow account, so the web and Sync can\'t recognize it. Your access on this device is unchanged. If this purchase is yours, try signing in with the Google account you used when you bought it, or, if that old account is no longer used, delete the Rizqflow account on it to free this purchase (only the purchase record on the server is deleted).</string>
 
     <!-- App lock S19 (Stage 6) -->
     <string name="lock_title">Locked</string>
