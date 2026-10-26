@@ -13,6 +13,15 @@ import com.roziqrizal.rizqflow.data.sync.DebtSyncHandler
 import com.roziqrizal.rizqflow.data.sync.RecurringRuleSyncHandler
 import com.roziqrizal.rizqflow.data.sync.RoomSyncHandler
 import com.roziqrizal.rizqflow.data.sync.TransactionSyncHandler
+import com.roziqrizal.rizqflow.data.sync.ZakatProfileSyncHandler
+import com.roziqrizal.rizqflow.data.sync.WealthItemSyncHandler
+import com.roziqrizal.rizqflow.data.sync.WealthCheckSyncHandler
+import com.roziqrizal.rizqflow.data.sync.ZakatPaymentSyncHandler
+import com.roziqrizal.rizqflow.data.sync.GoldPriceSyncHandler
+import com.roziqrizal.rizqflow.data.sync.TraderProfileSyncHandler
+import com.roziqrizal.rizqflow.data.sync.DcaPlanSyncHandler
+import com.roziqrizal.rizqflow.data.sync.QuickFavoriteSyncHandler
+import com.roziqrizal.rizqflow.data.sync.DayCheckSyncHandler
 import com.roziqrizal.rizqflow.domain.sync.AccountKeyProvider
 import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
 import com.roziqrizal.rizqflow.domain.sync.PersonalSyncCoordinator
@@ -126,6 +135,15 @@ internal fun engineFor(ledger: LocalLedger, remote: SyncRemote, recoveryStatus: 
             DebtPaymentSyncHandler(db, store),
             BillSyncHandler(db, store),
             RecurringRuleSyncHandler(db, store),
+            ZakatProfileSyncHandler(db, store),
+            WealthItemSyncHandler(db, store),
+            WealthCheckSyncHandler(db, store),
+            ZakatPaymentSyncHandler(db, store),
+            GoldPriceSyncHandler(db, store),
+            TraderProfileSyncHandler(db, store),
+            DcaPlanSyncHandler(db, store),
+            QuickFavoriteSyncHandler(db, store),
+            DayCheckSyncHandler(db, store),
         ),
         store = store,
         accountKeys = FakeAccountKeys(),
