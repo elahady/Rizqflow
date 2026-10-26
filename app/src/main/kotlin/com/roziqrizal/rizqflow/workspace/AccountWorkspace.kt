@@ -18,9 +18,13 @@ import com.roziqrizal.rizqflow.data.remote.RizqflowApiClient
 import com.roziqrizal.rizqflow.data.remote.SharedPrefsApiTokenStore
 import com.roziqrizal.rizqflow.data.sync.AccountSyncHandler
 import com.roziqrizal.rizqflow.data.sync.AllocationConfigSyncHandler
+import com.roziqrizal.rizqflow.data.sync.BillSyncHandler
 import com.roziqrizal.rizqflow.data.sync.CategorySyncHandler
+import com.roziqrizal.rizqflow.data.sync.DebtPaymentSyncHandler
+import com.roziqrizal.rizqflow.data.sync.DebtSyncHandler
 import com.roziqrizal.rizqflow.data.sync.JsonTransactionSyncCodec
 import com.roziqrizal.rizqflow.data.sync.PureWorkspaceReplacer
+import com.roziqrizal.rizqflow.data.sync.RecurringRuleSyncHandler
 import com.roziqrizal.rizqflow.data.sync.RoomSyncHandler
 import com.roziqrizal.rizqflow.data.sync.RoomWorkspacePurityChecker
 import com.roziqrizal.rizqflow.data.sync.SharedPrefsRecoveryStatusStore
@@ -172,6 +176,10 @@ class AccountWorkspace private constructor(
             CategorySyncHandler(local.db, local.syncStore),
             AllocationConfigSyncHandler(local.db, local.syncStore),
             TransactionSyncHandler(local.db, local.syncStore),
+            DebtSyncHandler(local.db, local.syncStore),
+            DebtPaymentSyncHandler(local.db, local.syncStore),
+            BillSyncHandler(local.db, local.syncStore),
+            RecurringRuleSyncHandler(local.db, local.syncStore),
         ),
         store = local.syncStore,
         accountKeys = accountKeyProvider,

@@ -6,7 +6,11 @@ import android.content.Context
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
 import com.roziqrizal.rizqflow.data.sync.AccountSyncHandler
 import com.roziqrizal.rizqflow.data.sync.AllocationConfigSyncHandler
+import com.roziqrizal.rizqflow.data.sync.BillSyncHandler
 import com.roziqrizal.rizqflow.data.sync.CategorySyncHandler
+import com.roziqrizal.rizqflow.data.sync.DebtPaymentSyncHandler
+import com.roziqrizal.rizqflow.data.sync.DebtSyncHandler
+import com.roziqrizal.rizqflow.data.sync.RecurringRuleSyncHandler
 import com.roziqrizal.rizqflow.data.sync.RoomSyncHandler
 import com.roziqrizal.rizqflow.data.sync.TransactionSyncHandler
 import com.roziqrizal.rizqflow.domain.sync.AccountKeyProvider
@@ -118,6 +122,10 @@ internal fun engineFor(ledger: LocalLedger, remote: SyncRemote, recoveryStatus: 
             CategorySyncHandler(db, store),
             AllocationConfigSyncHandler(db, store),
             TransactionSyncHandler(db, store),
+            DebtSyncHandler(db, store),
+            DebtPaymentSyncHandler(db, store),
+            BillSyncHandler(db, store),
+            RecurringRuleSyncHandler(db, store),
         ),
         store = store,
         accountKeys = FakeAccountKeys(),
