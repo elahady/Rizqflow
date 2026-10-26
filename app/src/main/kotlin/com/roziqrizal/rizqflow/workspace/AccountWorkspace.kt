@@ -16,13 +16,19 @@ import com.roziqrizal.rizqflow.data.remote.RetrofitRoomMembershipRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitSyncRemote
 import com.roziqrizal.rizqflow.data.remote.RizqflowApiClient
 import com.roziqrizal.rizqflow.data.remote.SharedPrefsApiTokenStore
+import com.roziqrizal.rizqflow.data.sync.AccountSyncHandler
+import com.roziqrizal.rizqflow.data.sync.AllocationConfigSyncHandler
+import com.roziqrizal.rizqflow.data.sync.CategorySyncHandler
 import com.roziqrizal.rizqflow.data.sync.JsonTransactionSyncCodec
+import com.roziqrizal.rizqflow.data.sync.RoomSyncHandler
 import com.roziqrizal.rizqflow.data.sync.SharedPrefsRecoveryStatusStore
 import com.roziqrizal.rizqflow.data.sync.SharedPrefsSyncCursorStore
+import com.roziqrizal.rizqflow.data.sync.TransactionSyncHandler
 import com.roziqrizal.rizqflow.domain.sync.AccountKeyProvider
 import com.roziqrizal.rizqflow.domain.sync.AccountRemote
 import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
 import com.roziqrizal.rizqflow.domain.sync.DeviceRemote
+import com.roziqrizal.rizqflow.domain.sync.PersonalSyncCoordinator
 import com.roziqrizal.rizqflow.domain.sync.PurchaseRemote
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyRemote
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyService
@@ -131,9 +137,15 @@ class AccountWorkspace private constructor(
      * Kode pemulihan 24 kata (Tahap 13): bungkus kunci akun PLUS kunci semua ruang keluarga aktif yang
      * diikuti perangkat ini (format `version` 2 sejak 2026-10-27, [RecoveryBundle]), simpan salinannya di
      * server, dan pulihkan keduanya di perangkat baru. Kode tidak pernah disimpan atau dikirim; lihat
-     * [RecoveryKeyService]. Pulihkan MENIMPA kunci akun lokal dan kunci ruang yang ikut terbungkus — aman
-     * sekarang karena belum ada data lokal yang memakai kunci akun (sync entitas akun belum dibangun), dan
-     * kunci ruang yang ditimpa hanya kunci acak baru yang belum pernah dipakai mengenkripsi apa pun.
+     * [RecoveryKeyService]. Sejak Tahap 3 sync-desain.md, pulihkan kunci AKUN menggabungkan (merge) ke
+     * keyset lokal (lihat `AccountKeyProvider.importAccountKeyFromRecovery`), bukan menimpa — data cakupan
+     * pribadi yang sudah dienkripsi kunci lama tetap terbaca. Kunci RUANG yang ikut terbungkus tetap ditimpa
+     * ([RoomKeyProvider.importRoomKey], belum diubah): aman karena kunci ruang sebelum dipulihkan memang
+     * baru dibuat acak sendiri dan belum pernah dipakai mengenkripsi apa pun.
+     *
+     * [onFirstTimeConfigured]: begitu kode pemulihan terkonfigurasi untuk PERTAMA kalinya di akun ini,
+     * seluruh data lokal yang sudah ada ditandai kotor ([SyncBootstrap.markAllDirty]) supaya ikut terkirim
+     * begitu gerbang push [PersonalSyncCoordinator] terbuka (Tahap 3 bagian F, keputusan pemilik #14).
      */
     val recovery = RecoveryKeyService(
         accountKeyProvider,
@@ -142,6 +154,27 @@ class AccountWorkspace private constructor(
         recoveryStatusStore,
         roomKeys = roomKeyProvider,
         activeSharedRoomIds = { local.syncStore.sharedRooms().filter { it.status == SharedRoomStatus.ACTIVE }.map { it.roomId } },
+        onFirstTimeConfigured = { local.syncBootstrap.markAllDirty() },
+    )
+
+    /**
+     * Sync push/pull cakupan PRIBADI (Tahap 3 sync-desain.md): mesin generik `room`/`account`/`category`/
+     * `allocation_config`/`transaction` lewat [PersonalSyncCoordinator], digerbang [recovery] untuk push
+     * (bagian F #14) — lihat KDoc kelas itu.
+     */
+    val personalSync = PersonalSyncCoordinator(
+        handlers = listOf(
+            RoomSyncHandler(local.db, local.syncStore),
+            AccountSyncHandler(local.db, local.syncStore),
+            CategorySyncHandler(local.db, local.syncStore),
+            AllocationConfigSyncHandler(local.db, local.syncStore),
+            TransactionSyncHandler(local.db, local.syncStore),
+        ),
+        store = local.syncStore,
+        accountKeys = accountKeyProvider,
+        syncRemote = syncRemote,
+        apiTokenStore = apiTokenStore,
+        recovery = recovery,
     )
 
     /**

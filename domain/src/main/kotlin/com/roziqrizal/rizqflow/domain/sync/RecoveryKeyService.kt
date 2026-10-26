@@ -201,6 +201,18 @@ class RecoveryKeyService(
     private val activeSharedRoomIds: suspend () -> List<RoomId> = { emptyList() },
     private val clock: () -> Instant = { Instant.now() },
     private val random: SecureRandom = SecureRandom(),
+    /**
+     * Dipanggil TEPAT SEKALI, setelah [enableRecovery] SUKSES ([EnableRecoveryResult.Ready]) untuk PERTAMA
+     * kalinya bagi akun ini (penanda [RecoveryStatus.NotConfigured] saat [enableRecovery] mulai dipanggil;
+     * mengatur ulang kode nanti tidak memanggilnya lagi). Tahap 3 sync-desain.md: begitu kode pemulihan
+     * terkonfigurasi untuk pertama kali, seluruh data lokal yang sudah ada wajib ditandai kotor supaya ikut
+     * terkirim begitu gerbang push cakupan pribadi terbuka ([RecoveryStatus.Configured], lihat KDoc kelas
+     * bagian "Kebijakan menimpa" dan gerbang di mesin sinkron pribadi). Bawaan tidak melakukan apa-apa untuk
+     * tes lama yang tidak peduli bootstrap; produksi (`AccountWorkspace`) mengisi ini dengan
+     * `SyncBootstrap.markAllDirty()`. Dipanggil di luar [enableLock] (setelah penanda ditulis) supaya gagal
+     * di sini tidak membuat [enableRecovery] tampak gagal padahal kode sudah tersimpan di server.
+     */
+    private val onFirstTimeConfigured: suspend () -> Unit = {},
 ) {
     /** Satu unggahan pada satu waktu per akun: dua klik cepat atau layar yang dibuat ulang tidak boleh saling menimpa. */
     private val enableLock = Mutex()
@@ -223,9 +235,19 @@ class RecoveryKeyService(
      * keluar) di tengah jalan tidak boleh membuang hasil yang sudah terkomit di server tanpa tercatat.
      *
      * Berat (turunan kunci PBKDF2, dua kali): jalankan di luar thread utama.
+     *
+     * [onFirstTimeConfigured] dipanggil SETELAH [enableLock] dilepas (bukan di dalamnya) bila ini sukses
+     * PERTAMA kalinya untuk akun ini (lihat KDoc parameter di konstruktor kelas) — galat atau lambat di sana
+     * tidak memblokir pemanggilan [enableRecovery] berikutnya.
      */
-    suspend fun enableRecovery(replaceExistingCopy: Boolean = false): EnableRecoveryResult =
-        enableLock.withLock { enableLocked(replaceExistingCopy) }
+    suspend fun enableRecovery(replaceExistingCopy: Boolean = false): EnableRecoveryResult {
+        val wasNeverConfigured = statusStore.read() == RecoveryStatus.NotConfigured
+        val result = enableLock.withLock { enableLocked(replaceExistingCopy) }
+        if (wasNeverConfigured && result is EnableRecoveryResult.Ready) {
+            withContext(NonCancellable) { onFirstTimeConfigured() }
+        }
+        return result
+    }
 
     private suspend fun enableLocked(replaceExistingCopy: Boolean): EnableRecoveryResult {
         val token = tokens.read() ?: return EnableRecoveryResult.NotSignedIn
