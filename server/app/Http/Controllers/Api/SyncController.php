@@ -10,12 +10,15 @@ use App\Models\SyncDevice;
 use App\Models\SyncLogEntry;
 use App\Models\SyncQuota;
 use App\Models\SyncRecordFloor;
+use App\Push\RoomActivityNotifier;
 use App\Support\SyncQuotaExceeded;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+
+use function Illuminate\Support\defer;
 
 /**
  * Sinkronisasi antar-perangkat terenkripsi (Tahap 9, server-sync.md "Model konflik sinkronisasi"):
@@ -67,13 +70,16 @@ class SyncController extends Controller
 
         try {
             // Satu transaksi DB per batch (Tahap 2 bagian G): gagal di tengah tidak meninggalkan separuh baris.
-            $ids = DB::transaction(function () use ($data, $userId) {
+            [$ids, $ruangBaru] = DB::transaction(function () use ($data, $userId) {
                 // Kunci penghitung kuota akun lebih dulu: push serentak satu akun antre di sini.
                 $kuota = SyncQuota::kunciUntukTulis($userId);
                 $barisBaru = 0;
                 $bytesBaru = 0;
 
                 $ids = [];
+                // Ruang yang benar-benar menerima baris BARU (bukan ulangan idempoten atau baris ditolak):
+                // hanya ini yang memicu kabar ke anggota lain.
+                $ruangBaru = [];
 
                 // Siapa pun yang push ke sebuah room_id otomatis jadi anggotanya (idempoten) — bootstrap
                 // keanggotaan tanpa butuh endpoint "buat ruang" terpisah, lihat RoomMembershipController.
@@ -152,18 +158,30 @@ class SyncController extends Controller
 
                     $barisBaru++;
                     $bytesBaru += strlen($entry['payload']);
+                    if ($roomId !== null) {
+                        $ruangBaru[$roomId] = true;
+                    }
                 }
 
                 // Melempar bila melewati kuota: seluruh batch di-rollback, tidak ada yang tersimpan.
                 $kuota->tambahPemakaian($barisBaru, $bytesBaru);
 
-                return $ids;
+                return [$ids, array_map('strval', array_keys($ruangBaru))];
             });
         } catch (SyncQuotaExceeded) {
             return response()->json([
                 'message' => 'Penyimpanan sinkron akun ini sudah penuh. Data di perangkat tetap aman dan tidak ada yang dihapus; sinkron baru dijeda sampai ada ruang tersedia.',
                 'code' => 'quota_exceeded',
             ], 422);
+        }
+
+        // Kabar generik "ada catatan baru" ke anggota LAIN ruang itu (bukan pencatatnya), hanya setelah
+        // transaksi berhasil. Isinya hanya roomId + kind (App\Push\SyncNotificationPayload), tanpa
+        // nominal, nama, atau catatan. `defer`: dijalankan setelah jawaban terkirim (PHP-FPM), bukan
+        // lewat antrean karena server belum punya queue worker; galatnya ditelan (`rescue`) sehingga
+        // FCM yang lambat atau gagal tidak pernah memengaruhi sync.
+        if ($ruangBaru !== []) {
+            defer(fn () => app(RoomActivityNotifier::class)->notifyNewRecords($userId, $ruangBaru));
         }
 
         // Semua baris ditolak (bukan penulis pertama): cursor tetap baris terakhir milik user ini,

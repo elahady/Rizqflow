@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\PlayNotificationController;
 use App\Http\Controllers\Api\PurchaseController;
+use App\Http\Controllers\Api\PushTokenController;
 use App\Http\Controllers\Api\RecoveryKeyController;
 use App\Http\Controllers\Api\RoomMembershipController;
 use App\Http\Controllers\Api\SyncController;
@@ -56,6 +57,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/account/recovery-key', [RecoveryKeyController::class, 'update']);
         Route::get('/account/recovery-key', [RecoveryKeyController::class, 'show']);
         Route::delete('/account/recovery-key', [RecoveryKeyController::class, 'destroy']);
+    });
+
+    // Token FCM perangkat untuk kabar generik "ada catatan baru" (Tahap 9/13) — lihat PushTokenController.
+    Route::middleware('throttle:push-token')->group(function () {
+        Route::put('/push-token', [PushTokenController::class, 'store']);
+        Route::delete('/push-token/{deviceId}', [PushTokenController::class, 'destroy']);
     });
 
     // Keanggotaan ruang yang dibagi (ruang keluarga) — lihat RoomMembershipController.

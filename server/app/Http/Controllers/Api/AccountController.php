@@ -7,6 +7,7 @@ use App\Auth\ApiTokenService;
 use App\Auth\GoogleAccountResolver;
 use App\Auth\GoogleIdTokenVerifier;
 use App\Http\Controllers\Controller;
+use App\Models\PushToken;
 use App\Models\User;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
@@ -176,16 +177,25 @@ class AccountController extends Controller
     {
         $current = $request->user()->currentAccessToken();
         if ($current instanceof PersonalAccessToken) {
+            // Token push perangkat ini ikut dicabut (nama token API `android:<device_id>`), supaya
+            // ponsel yang sudah keluar tidak lagi menerima kabar ruang bersama.
+            if (str_starts_with($current->name, 'android:')) {
+                PushToken::query()
+                    ->where('user_id', $request->user()->id)
+                    ->where('device_id', substr($current->name, strlen('android:')))
+                    ->delete();
+            }
             $current->delete();
         }
 
         return response()->noContent();
     }
 
-    /** Keluar dari semua perangkat: SEMUA token API akun ini dicabut. */
+    /** Keluar dari semua perangkat: SEMUA token API akun ini dicabut, beserta semua token push-nya. */
     public function revokeAll(Request $request): Response
     {
         $request->user()->tokens()->delete();
+        PushToken::query()->where('user_id', $request->user()->id)->delete();
 
         return response()->noContent();
     }

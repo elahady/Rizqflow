@@ -257,6 +257,8 @@ class ApiTokenExpiryTest extends TestCase
             'hapus akun' => ['DELETE', '/api/account'],
             'gabung ruang' => ['POST', '/api/rooms/abc/join'],
             'anggota ruang' => ['GET', '/api/rooms/abc/members'],
+            'daftar token push' => ['PUT', '/api/push-token'],
+            'cabut token push' => ['DELETE', '/api/push-token/hp-1'],
         ];
     }
 
