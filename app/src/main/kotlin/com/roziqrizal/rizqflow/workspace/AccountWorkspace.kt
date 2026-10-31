@@ -23,6 +23,7 @@ import com.roziqrizal.rizqflow.data.sync.CategorySyncHandler
 import com.roziqrizal.rizqflow.data.sync.DebtPaymentSyncHandler
 import com.roziqrizal.rizqflow.data.sync.DebtSyncHandler
 import com.roziqrizal.rizqflow.data.sync.JsonTransactionSyncCodec
+import com.roziqrizal.rizqflow.data.sync.PreRestoreBackup
 import com.roziqrizal.rizqflow.data.sync.PureWorkspaceReplacer
 import com.roziqrizal.rizqflow.data.sync.RecurringRuleSyncHandler
 import com.roziqrizal.rizqflow.data.sync.RoomSyncHandler
@@ -45,6 +46,7 @@ import com.roziqrizal.rizqflow.domain.sync.AccountRemote
 import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
 import com.roziqrizal.rizqflow.domain.sync.DeviceRemote
 import com.roziqrizal.rizqflow.domain.sync.NewDeviceRecoveryAdvisor
+import com.roziqrizal.rizqflow.domain.sync.NewDeviceRestoreFlow
 import com.roziqrizal.rizqflow.domain.sync.PersonalSyncCoordinator
 import com.roziqrizal.rizqflow.domain.sync.PurchaseRemote
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyRemote
@@ -110,6 +112,8 @@ class AccountWorkspace private constructor(
     private val recoveryRemote: RecoveryKeyRemote,
     /** Penanda NON-RAHASIA "kode pemulihan sudah diatur" per akun (tidak pernah memuat kode atau kunci). */
     private val recoveryStatusStore: RecoveryStatusStore,
+    /** Pengenal perangkat ini untuk sinkron (sama dengan yang dipakai sinkron otomatis ruang bersama). */
+    private val deviceId: String,
 ) : AutoCloseable {
     private val newId: () -> String = { UUID.randomUUID().toString() }
 
@@ -222,6 +226,19 @@ class AccountWorkspace private constructor(
     val pureWorkspaceReplacer = PureWorkspaceReplacer(local.db, local.syncStore)
 
     /**
+     * Alur perangkat baru lengkap (keputusan pemilik #11) yang dipakai `NewDeviceRestoreScreen` setelah kunci akun
+     * dipulihkan: otomatis ganti bila murni, atau Gabung/Pulihkan; "Pulihkan" membuat salinan `.prerestore` berkas
+     * database lebih dulu ([PreRestoreBackup]) dan baru menghapus setelah konfirmasi eksplisit.
+     */
+    val newDeviceRestore = NewDeviceRestoreFlow(
+        advisor = newDeviceRecoveryAdvisor,
+        purity = RoomWorkspacePurityChecker(local.db),
+        replacer = pureWorkspaceReplacer,
+        backup = PreRestoreBackup.forLedger(local),
+        sync = { personalSync.syncNow(deviceId) },
+    )
+
+    /**
      * Keluarkan anggota (Tahap 9): rotasi kunci ruang lalu siapkan undangan (QR) baru untuk anggota
      * yang tetap — lihat [RoomMemberKeyRedistribution]. Tidak mengubah keanggotaan di server.
      */
@@ -235,7 +252,7 @@ class AccountWorkspace private constructor(
      * memanggilnya setelah pengeluaran di ruang bersama tersimpan; [syncSharedRoomsOnOpen] dipanggil saat
      * ruang kerja dibuka. Galat hanya dicatat, tidak pernah sampai ke pemanggil penyimpanan.
      */
-    private fun connectAutoSync(deviceId: String) {
+    private fun connectAutoSync() {
         local.autoSync.attach(
             sync = { roomId -> sync.syncNow(roomId, deviceId) },
             log = { message -> Log.w(TAG, "Sync otomatis: $message") },
@@ -281,8 +298,9 @@ class AccountWorkspace private constructor(
                 accountKeyProvider = AndroidKeystoreAccountKeyProvider(context, accountId),
                 recoveryRemote = session.guard(RetrofitRecoveryKeyRemote(apiService)),
                 recoveryStatusStore = SharedPrefsRecoveryStatusStore(context, accountId),
+                deviceId = DeviceId.read(context),
             )
-            workspace.connectAutoSync(DeviceId.read(context))
+            workspace.connectAutoSync()
             return workspace
         }
 

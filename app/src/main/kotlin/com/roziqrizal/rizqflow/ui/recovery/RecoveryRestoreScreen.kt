@@ -52,9 +52,9 @@ import kotlinx.coroutines.launch
 /**
  * Pulihkan kunci akun di perangkat baru dengan kode pemulihan 24 kata (Tahap 13). Satu kolom tempel yang dipecah
  * ([RecoveryWordsInput.split]) dengan validasi per kata terhadap daftar baku, dan dialog konfirmasi SEBELUM
- * menimpa kunci akun lokal. Pulihkan MENIMPA kunci lokal: saat ini aman karena belum ada data lokal yang dienkripsi
- * dengan kunci akun (sync data akun belum dibangun; yang ada baru kunci ruang, yang tidak disentuh); begitu sync
- * entitas akun ada, pulihkan wajib menjaga data lama (kewajiban butir sync berikutnya).
+ * memasang kunci akun. Sejak Tahap 3 sync-desain.md kunci hasil pulihan DIGABUNG ke keyset lokal (bukan menimpa), jadi
+ * data lama tetap terbaca. Setelah berhasil, `MainHost` membuka `NewDeviceRestoreScreen` (otomatis ganti bila ruang
+ * kerja murni, atau pilihan Gabung/Pulihkan).
  *
  * Kata yang diketik hanya di `remember` (tidak `rememberSaveable`), jadi tidak ikut tersimpan di Bundle dan hilang
  * bila layar diputar; itu disengaja demi tidak menyimpan kode di mana pun. Kode tidak dicatat di log.
