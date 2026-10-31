@@ -5,7 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-/** Payload notifikasi push generik Tahap 13: hanya roomId+kind yang terbaca, field lain diabaikan. */
+/** Payload notifikasi push generik Tahap 13: hanya roomId+kind yang diterima; kunci lain apa pun menolak seluruh pesan. */
 class SyncNotificationPayloadTest {
 
     @Test
@@ -16,17 +16,42 @@ class SyncNotificationPayloadTest {
     }
 
     @Test
-    fun `field tambahan selain roomId dan kind tidak pernah ikut terbaca`() {
-        val payload = SyncNotificationPayload.parse(
-            mapOf(
-                "roomId" to "ruang-keluarga-1",
-                "kind" to "NEW_RECORD",
-                "nominal" to "150000",
-                "nama" to "Kopi pagi",
-            ),
-        )
+    fun `data push berisi nominal ditolak utuh`() {
+        assertFailsWith<SyncNotificationPayloadCorrupt> {
+            SyncNotificationPayload.parse(mapOf("roomId" to "ruang-keluarga-1", "kind" to "NEW_RECORD", "nominal" to "150000"))
+        }
+    }
 
-        assertEquals(SyncNotificationPayload(RoomId("ruang-keluarga-1"), SyncNotificationKind.NEW_RECORD), payload)
+    @Test
+    fun `data push berisi nama ditolak utuh`() {
+        assertFailsWith<SyncNotificationPayloadCorrupt> {
+            SyncNotificationPayload.parse(mapOf("roomId" to "ruang-keluarga-1", "kind" to "NEW_RECORD", "nama" to "Kopi pagi"))
+        }
+    }
+
+    @Test
+    fun `data push berisi catatan ditolak utuh`() {
+        assertFailsWith<SyncNotificationPayloadCorrupt> {
+            SyncNotificationPayload.parse(mapOf("roomId" to "ruang-keluarga-1", "kind" to "NEW_RECORD", "catatan" to "bayar listrik"))
+        }
+    }
+
+    @Test
+    fun `kunci apa pun selain roomId dan kind ditolak, termasuk yang tampak tak berbahaya`() {
+        for (extra in listOf("amount", "title", "body", "note", "account", "x")) {
+            assertFailsWith<SyncNotificationPayloadCorrupt>(extra) {
+                SyncNotificationPayload.parse(mapOf("roomId" to "r1", "kind" to "NEW_RECORD", extra to ""))
+            }
+        }
+    }
+
+    @Test
+    fun `roomId terlalu panjang ditolak`() {
+        assertFailsWith<SyncNotificationPayloadCorrupt> {
+            SyncNotificationPayload.parse(mapOf("roomId" to "a".repeat(SyncNotificationPayload.MAX_ROOM_ID_LENGTH + 1), "kind" to "NEW_RECORD"))
+        }
+        val atLimit = "a".repeat(SyncNotificationPayload.MAX_ROOM_ID_LENGTH)
+        assertEquals(RoomId(atLimit), SyncNotificationPayload.parse(mapOf("roomId" to atLimit, "kind" to "NEW_RECORD")).roomId)
     }
 
     @Test
