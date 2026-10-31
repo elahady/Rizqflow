@@ -129,6 +129,31 @@ class RoomMembershipControllerTest extends TestCase
         $this->assertFalse(collect($response->json('members'))->firstWhere('email', $partner->email)['owner']);
     }
 
+    public function test_members_includes_the_user_id_that_the_remove_endpoint_expects(): void
+    {
+        $owner = $this->syncUser();
+        $partner = $this->syncUser();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+
+        $this->app['auth']->forgetGuards();
+        $members = collect($this->withHeaders($this->authHeader($owner))
+            ->getJson('/api/rooms/ruang-keluarga-1/members')
+            ->assertOk()
+            ->json('members'));
+        $partnerId = $members->firstWhere('email', $partner->email)['user_id'];
+        $this->assertSame($partner->id, $partnerId);
+        $this->assertSame($owner->id, $members->firstWhere('email', $owner->email)['user_id']);
+
+        // Id yang dibaca dari daftar langsung bisa dipakai mengeluarkan anggota itu.
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($owner))
+            ->deleteJson("/api/rooms/ruang-keluarga-1/members/{$partnerId}")
+            ->assertNoContent();
+        $this->assertDatabaseMissing('room_members', ['user_id' => $partner->id, 'room_id' => 'ruang-keluarga-1']);
+    }
+
     public function test_owner_can_remove_a_member(): void
     {
         $owner = $this->syncUser();
@@ -160,7 +185,8 @@ class RoomMembershipControllerTest extends TestCase
         $this->app['auth']->forgetGuards();
         $this->withHeaders($this->authHeader($partner))
             ->deleteJson("/api/rooms/ruang-keluarga-1/members/{$third->id}")
-            ->assertForbidden();
+            ->assertForbidden()
+            ->assertJsonPath('code', 'not_room_owner');
 
         $this->assertDatabaseHas('room_members', ['user_id' => $third->id, 'room_id' => 'ruang-keluarga-1']);
     }

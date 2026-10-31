@@ -31,4 +31,23 @@ class SharedRoomActivation(private val syncStore: SyncStore) {
             ),
         )
     }
+
+    /**
+     * Menandai ruang ACTIVE dengan peran DARI SERVER ([role] dari bendera `owner` di `GET /rooms/{roomId}/members`):
+     * berbeda dari [markActive], peran yang sudah tersimpan DITIMPA bila berbeda, karena server satu-satunya sumber
+     * kebenaran siapa pemilik ruang (keputusan pemilik #1). Menutup celah lama ketika siapa pun yang membuka layar
+     * Ruang Keluarga tercatat OWNER secara lokal. Waktu bergabung yang sudah tersimpan dipertahankan.
+     */
+    suspend fun applyServerRole(roomId: RoomId, role: SharedRoomRole, nowMillis: Long = System.currentTimeMillis()) {
+        val existing = syncStore.sharedRoom(roomId)
+        if (existing != null && existing.role == role && existing.status == SharedRoomStatus.ACTIVE) return
+        syncStore.saveSharedRoom(
+            SharedRoomInfo(
+                roomId = roomId,
+                role = role,
+                status = SharedRoomStatus.ACTIVE,
+                joinedAtMillis = existing?.joinedAtMillis ?: nowMillis,
+            ),
+        )
+    }
 }

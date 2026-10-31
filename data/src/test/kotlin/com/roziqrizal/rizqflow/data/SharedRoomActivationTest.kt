@@ -119,6 +119,28 @@ class SharedRoomActivationTest {
     }
 
     @Test
+    fun `peran dari server menimpa OWNER lokal yang keliru dan mempertahankan waktu bergabung`() = runBlocking<Unit> {
+        val keluarga = room("Keluarga")
+        // Celah lama: anggota yang membuka layar Ruang Keluarga tercatat OWNER lokal tanpa syarat.
+        fx.local.syncStore.saveSharedRoom(SharedRoomInfo(keluarga.id, SharedRoomRole.OWNER, SharedRoomStatus.ACTIVE, 1_000L))
+
+        activation.applyServerRole(keluarga.id, SharedRoomRole.MEMBER, nowMillis = 5_000L)
+
+        assertEquals(SharedRoomInfo(keluarga.id, SharedRoomRole.MEMBER, SharedRoomStatus.ACTIVE, 1_000L), fx.local.syncStore.sharedRoom(keluarga.id))
+    }
+
+    @Test
+    fun `peran dari server mengaktifkan ruang yang belum punya baris atau berstatus REMOVED`() = runBlocking<Unit> {
+        val keluarga = room("Keluarga")
+        activation.applyServerRole(keluarga.id, SharedRoomRole.OWNER, nowMillis = 3_000L)
+        assertEquals(SharedRoomInfo(keluarga.id, SharedRoomRole.OWNER, SharedRoomStatus.ACTIVE, 3_000L), fx.local.syncStore.sharedRoom(keluarga.id))
+
+        fx.local.syncStore.saveSharedRoom(SharedRoomInfo(keluarga.id, SharedRoomRole.OWNER, SharedRoomStatus.REMOVED, 3_000L))
+        activation.applyServerRole(keluarga.id, SharedRoomRole.OWNER, nowMillis = 8_000L)
+        assertEquals(SharedRoomInfo(keluarga.id, SharedRoomRole.OWNER, SharedRoomStatus.ACTIVE, 3_000L), fx.local.syncStore.sharedRoom(keluarga.id))
+    }
+
+    @Test
     fun `sebelum ditandai ACTIVE, pengeluaran di ruang itu tidak memicu sinkron`() = runBlocking<Unit> {
         // Kontrol untuk dua tes di atas: tanpa penandaan, ruang bukan ruang bersama sehingga pemicu diam.
         val keluarga = room("Keluarga")

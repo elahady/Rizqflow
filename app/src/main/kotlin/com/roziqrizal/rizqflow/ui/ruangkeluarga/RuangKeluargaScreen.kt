@@ -5,6 +5,7 @@ import android.util.Base64
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,6 +52,8 @@ import com.roziqrizal.rizqflow.domain.sync.RoomInvite
 import com.roziqrizal.rizqflow.domain.sync.RoomMemberInfo
 import com.roziqrizal.rizqflow.domain.sync.SharedRoomRole
 import com.roziqrizal.rizqflow.domain.sync.SyncResult
+import com.roziqrizal.rizqflow.domain.sync.ownRole
+import com.roziqrizal.rizqflow.domain.sync.removableMembers
 import com.roziqrizal.rizqflow.sync.DeviceId
 import com.roziqrizal.rizqflow.sync.isUnauthorized
 import com.roziqrizal.rizqflow.sync.retryOnceIfRotated
@@ -102,10 +105,16 @@ fun RuangKeluargaScreen(
     var inviteSheet by rememberSaveable { mutableStateOf(false) }
     var syncing by remember { mutableStateOf(false) }
     var reloadKey by remember { mutableIntStateOf(0) }
-    // Keluarkan anggota (Tahap 9): rotasi kunci lalu QR ulang ke anggota yang tetap — lihat RoomMemberKeyRedistribution.
-    var rotateConfirm by remember { mutableStateOf(false) }
+    // Keluarkan anggota (Tahap 9, keputusan pemilik #1: hanya pemilik): pilih anggota, cabut keanggotaannya di server,
+    // lalu rotasi kunci dan QR ulang untuk anggota yang tetap — lihat RoomMemberKeyRedistribution.
+    var removeSheet by remember { mutableStateOf(false) }
+    var removeTarget by remember { mutableStateOf<RoomMemberInfo?>(null) }
+    var removing by remember { mutableStateOf(false) }
     var rotationEpoch by remember { mutableIntStateOf(0) }
     var justRotated by remember { mutableStateOf(false) }
+    // Peran perangkat ini MENURUT SERVER (bendera owner di daftar anggota), bukan siapa yang membuka layar.
+    val isOwner = members?.ownRole() == SharedRoomRole.OWNER
+    val removable = members?.removableMembers().orEmpty()
 
     suspend fun loadMembers() {
         val session = workspace.serverSession
@@ -120,11 +129,7 @@ fun RuangKeluargaScreen(
                 } else {
                     // Idempoten: memastikan diri sendiri terdaftar sebelum menampilkan daftar, supaya anggota
                     // yang baru bergabung lewat QR langsung terlihat tanpa harus menekan Sinkronkan dulu.
-                    val joined = workspace.roomMembershipRemote.join(token, roomId.value)
-                    // Sisi pengirim: ruang yang dibuka pemiliknya belum punya baris shared_room. Penandaan ACTIVE di sini
-                    // menyalakan sinkron otomatis untuk ruang ini; penerima undangan sudah ditandai di joinSharedRoom
-                    // (perannya dipertahankan, lihat SharedRoomActivation).
-                    if (joined is RemoteResult.Success) workspace.sharedRoomActivation.markActive(roomId, SharedRoomRole.OWNER)
+                    workspace.roomMembershipRemote.join(token, roomId.value)
                     workspace.roomMembershipRemote.members(token, roomId.value)
                 }
             },
@@ -138,6 +143,10 @@ fun RuangKeluargaScreen(
             is RemoteResult.Success -> {
                 members = result.value
                 loadFailed = false
+                // Penandaan ACTIVE menyalakan sinkron otomatis untuk ruang ini. Perannya diambil dari bendera owner
+                // server (pembuat ruang = pemilik, keputusan pemilik #1) dan menimpa peran lokal yang berbeda — dulu
+                // siapa pun yang membuka layar ini tercatat OWNER tanpa syarat.
+                result.value.ownRole()?.let { workspace.sharedRoomActivation.applyServerRole(roomId, it) }
             }
 
             // "Sesi berakhir" hanya dinyatakan bila ServerSession benar-benar menyatakannya (token sudah dibersihkan dan
@@ -184,7 +193,8 @@ fun RuangKeluargaScreen(
                         SyncResult.NotSignedIn
                     } else {
                         workspace.roomMembershipRemote.join(token, roomId.value)
-                        workspace.sync.syncNow(roomId, deviceId)
+                        // Kunci ruang yang sama dengan sinkron otomatis: tidak pernah berjalan bersamaan untuk ruang ini.
+                        workspace.syncSharedRoomNow(roomId, deviceId)
                     }
                 },
             )
@@ -207,6 +217,48 @@ fun RuangKeluargaScreen(
                 SyncResult.NotSignedIn -> signedIn = false
             }
             syncing = false
+        }
+    }
+
+    fun removeMember(member: RoomMemberInfo) {
+        val userId = member.userId ?: return
+        if (!workspace.entitlements.isEnabled(Feature.SHARED_FAMILY_ROOM)) {
+            leaveForSyncPaywall()
+            return
+        }
+        removing = true
+        scope.launch {
+            val session = workspace.serverSession
+            val result = session.retryOnceIfRotated(
+                isUnauthorized = { it?.isUnauthorized() == true },
+                call = { session.token()?.let { token -> workspace.roomMembershipRemote.remove(token, roomId.value, userId) } },
+            )
+            when (result) {
+                null -> signedIn = false
+                is RemoteResult.Success -> {
+                    // Keanggotaan sudah dicabut di server; kunci ruang dirotasi dan QR baru disiapkan untuk anggota yang tetap.
+                    workspace.memberRemoval.rotateAndPrepareInvite(roomId, roomName.orEmpty())
+                    rotationEpoch++ // memaksa QR di bawah dibangun ulang dari kunci yang baru dirotasi
+                    justRotated = true
+                    inviteSheet = true
+                    notifier.show(resources.getString(R.string.family_remove_done, member.name ?: member.email))
+                    reloadKey++
+                }
+
+                is RemoteResult.Failure -> when {
+                    result.error.opensSyncPaywall() -> leaveForSyncPaywall()
+                    session.sessionEndedBy(result) -> {
+                        signedIn = false
+                        sessionEnded = true
+                    }
+
+                    else -> {
+                        notifier.show(resources.getString(R.string.family_remove_failed))
+                        reloadKey++ // daftar mungkin basi (anggota sudah keluar, atau peran berubah)
+                    }
+                }
+            }
+            removing = false
         }
     }
 
@@ -250,6 +302,14 @@ fun RuangKeluargaScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.weight(1f),
                             )
+                            if (member.owner) {
+                                Text(
+                                    stringResource(R.string.family_members_owner),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(end = spacing.s2),
+                                )
+                            }
                             if (member.you) {
                                 Text(stringResource(R.string.family_members_you), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -258,42 +318,69 @@ fun RuangKeluargaScreen(
                     }
                 }
 
-                Button(
-                    onClick = { inviteSheet = true },
-                    modifier = Modifier.padding(top = spacing.s5).fillMaxWidth().height(52.dp),
-                ) { Text(stringResource(R.string.family_invite_action)) }
+                // Keputusan pemilik #1 (sync-desain.md bagian J): hanya pemilik ruang yang mengundang dan mengeluarkan.
+                if (isOwner) {
+                    Button(
+                        onClick = { inviteSheet = true },
+                        modifier = Modifier.padding(top = spacing.s5).fillMaxWidth().height(52.dp),
+                    ) { Text(stringResource(R.string.family_invite_action)) }
+                }
                 OutlinedButton(
                     onClick = ::syncNow,
                     enabled = !syncing,
                     modifier = Modifier.padding(top = spacing.s2).fillMaxWidth().height(52.dp),
                 ) { Text(stringResource(R.string.family_sync_action)) }
-                // Keluarkan anggota (Tahap 9, server-sync.md "Mengeluarkan anggota"): hanya menyiapkan kunci
-                // baru dan QR ulang di sini — TIDAK mencabut keanggotaan mana pun di server (belum ada model
-                // kepemilikan ruang/endpoint hapus anggota, keputusan pemilik belum diambil).
-                OutlinedButton(
-                    onClick = { rotateConfirm = true },
-                    modifier = Modifier.padding(top = spacing.s2).fillMaxWidth().height(52.dp),
-                ) { Text(stringResource(R.string.family_rotate_key_action)) }
+                // Keluarkan anggota (Tahap 9, server-sync.md "Mengeluarkan anggota"): pilih anggota, cabut
+                // keanggotaannya di server (DELETE /rooms/{roomId}/members/{userId}), lalu kunci baru dan QR ulang.
+                if (removable.isNotEmpty()) {
+                    OutlinedButton(
+                        onClick = { removeSheet = true },
+                        enabled = !removing,
+                        modifier = Modifier.padding(top = spacing.s2).fillMaxWidth().height(52.dp),
+                    ) { Text(stringResource(R.string.family_remove_action)) }
+                }
             }
         }
     }
 
-    if (rotateConfirm) {
+    if (removeSheet) {
+        ModalBottomSheet(onDismissRequest = { removeSheet = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
+                Text(stringResource(R.string.family_remove_pick_title), style = MaterialTheme.typography.titleLarge)
+                removable.forEach { member ->
+                    Text(
+                        member.name?.let { "$it (${member.email})" } ?: member.email,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                removeSheet = false
+                                removeTarget = member
+                            }
+                            .padding(vertical = 14.dp),
+                    )
+                    HorizontalDivider()
+                }
+                TextButton(onClick = { removeSheet = false }, modifier = Modifier.padding(top = 8.dp)) {
+                    Text(stringResource(R.string.catat_date_cancel))
+                }
+            }
+        }
+    }
+
+    removeTarget?.let { target ->
+        val label = target.name ?: target.email
         AlertDialog(
-            onDismissRequest = { rotateConfirm = false },
-            title = { Text(stringResource(R.string.family_rotate_key_confirm_title)) },
-            text = { Text(stringResource(R.string.family_rotate_key_confirm_body)) },
+            onDismissRequest = { removeTarget = null },
+            title = { Text(stringResource(R.string.family_remove_confirm_title, label)) },
+            text = { Text(stringResource(R.string.family_remove_confirm_body)) },
             confirmButton = {
                 TextButton(onClick = {
-                    rotateConfirm = false
-                    workspace.memberRemoval.rotateAndPrepareInvite(roomId, roomName.orEmpty())
-                    rotationEpoch++ // memaksa QR di bawah dibangun ulang dari kunci yang baru dirotasi
-                    justRotated = true
-                    inviteSheet = true
-                    scope.launch { notifier.show(resources.getString(R.string.family_rotate_key_done)) }
-                }) { Text(stringResource(R.string.family_rotate_key_confirm_action)) }
+                    removeTarget = null
+                    removeMember(target)
+                }) { Text(stringResource(R.string.family_remove_confirm_action)) }
             },
-            dismissButton = { TextButton(onClick = { rotateConfirm = false }) { Text(stringResource(R.string.catat_date_cancel)) } },
+            dismissButton = { TextButton(onClick = { removeTarget = null }) { Text(stringResource(R.string.catat_date_cancel)) } },
         )
     }
 
