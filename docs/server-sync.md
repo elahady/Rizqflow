@@ -235,6 +235,15 @@ Blob disimpan sebagai **byte biner** (kolom `binary`, BLOB di SQLite dan MySQL; 
 - Respons 5xx diperlakukan ambigu, jadi status "sudah diatur" bisa turun ke "belum selesai" setelah unggah ulang yang tak bisa dipastikan.
 - Migrasi `recovery_keys` dan rute baru belum di-deploy (perlu `route:cache` ulang); cadangan database VPS kini memuat blob ini (tetap buram, dan kode pemulihan tidak pernah ada di server).
 
+## Metrik pengguna anonim (Tahap 9)
+
+**Diimplementasikan 2026-11-01, sisi server saja** (`App\Support\UserMetrics`, perintah `metrik:pengguna`, tabel `user_metric_snapshots`). Jumlah pengguna, Pro, dan Sync dihitung dari server (keputusan pemilik 2026-10-24), bukan dari Firebase Analytics: `pengguna_total` = jumlah akun server (`users`), `pengguna_pro` dan `pengguna_sync` = akun yang `users.plans`-nya memuat `pro` atau `sync` (diisi `PlanSynchronizer` dari pembelian Play terverifikasi; akun seed atau uji yang diberi paket lewat `tinker` ikut terhitung).
+
+- `php artisan metrik:pengguna` menampilkan tiga angka itu; `--simpan` juga menulis potret hari itu (tanggal UTC, satu baris per hari, dijalankan ulang di hari yang sama menimpa). Dijadwalkan harian 04:15 dengan `--simpan` di `routes/console.php`; baru berjalan bila ada cron `schedule:run` di VPS (Tahap 12).
+- **Tanpa identitas dan tanpa data keuangan:** tabel `user_metric_snapshots` hanya punya `tanggal` dan tiga hitungan (dijaga tes daftar kolom); keluaran perintah tidak memuat email atau nama.
+- **Tidak ada endpoint ringkasan untuk admin.** Server belum punya konsep admin atau peran operator; menambahkannya (siapa admin, lewat apa) adalah keputusan pemilik. Sampai itu, angka dibaca lewat perintah di atas atau tabelnya, langsung di VPS.
+- Belum ada: akun yang hanya lokal (tanpa masuk server) tidak terhitung sama sekali, karena server tidak tahu keberadaannya; jumlah pemasangan atau pengguna aktif datang dari Play Console atau Firebase Analytics (proyek Firebase belum ada, menunggu pemilik). Belum diuji di MySQL (`whereJsonContains` pada kolom `plans`).
+
 ## Belum diputuskan
 
 - ~~**Firebase Analytics** dipakai atau cukup Play Console plus data akun server.~~ **Diputuskan pemilik 2026-10-24: Firebase Analytics dan FCM dipakai di rilis 1.** Aturan: tidak ada data keuangan (nominal, nama, catatan, akun) di event atau properti pengguna; keduanya disebut di kebijakan privasi dan Data Safety; jumlah pengguna, Pro, dan Sync tetap dihitung dari server.
