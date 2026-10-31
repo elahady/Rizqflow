@@ -93,7 +93,7 @@ class ApiTokenExpiryTest extends TestCase
         $token = $this->login()->json('token');
         User::sole()->forceFill(['plans' => ['sync']])->save();
 
-        $this->api('GET', '/api/sync/pull', $token)->assertOk();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $token)->assertOk();
     }
 
     public function test_login_honours_a_ttl_from_config(): void
@@ -145,9 +145,9 @@ class ApiTokenExpiryTest extends TestCase
 
             // Masa berlaku tetap dihitung pada saat mutlak yang sama, bukan bergeser 7 jam.
             $this->travelTo('2027-01-22 16:59:00'); // 09:59 UTC
-            $this->api('GET', '/api/sync/pull', $token)->assertOk();
+            $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $token)->assertOk();
             $this->travelTo('2027-01-22 17:01:00'); // 10:01 UTC
-            $this->api('GET', '/api/sync/pull', $token)->assertUnauthorized();
+            $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $token)->assertUnauthorized();
         } finally {
             date_default_timezone_set($original);
         }
@@ -237,10 +237,10 @@ class ApiTokenExpiryTest extends TestCase
         User::sole()->forceFill(['plans' => ['sync']])->save();
 
         $this->travelTo('2038-01-18 23:59:59');
-        $this->api('GET', '/api/sync/pull', $token)->assertOk();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $token)->assertOk();
 
         $this->travelTo('2038-01-19 00:00:01');
-        $this->api('GET', '/api/sync/pull', $token)->assertUnauthorized();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $token)->assertUnauthorized();
     }
 
     // --- token kedaluwarsa ditolak ------------------------------------------------------------
@@ -248,7 +248,7 @@ class ApiTokenExpiryTest extends TestCase
     public static function protectedEndpoints(): array
     {
         return [
-            'sync pull' => ['GET', '/api/sync/pull'],
+            'sync pull' => ['GET', '/api/sync/pull?device_id=pixel-uji'],
             'sync push' => ['POST', '/api/sync/push'],
             'klaim pembelian' => ['POST', '/api/purchases/claim'],
             'refresh' => ['POST', '/api/auth/refresh'],
@@ -280,13 +280,13 @@ class ApiTokenExpiryTest extends TestCase
         $user = $this->syncUser();
         $token = $this->tokenFor($user, expiresAt: now()->addHour());
 
-        $this->api('GET', '/api/sync/pull', $token)->assertOk();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $token)->assertOk();
 
         $this->travelTo('2026-10-24 10:59:59');
-        $this->api('GET', '/api/sync/pull', $token)->assertOk();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $token)->assertOk();
 
         $this->travelTo('2026-10-24 11:00:01');
-        $this->api('GET', '/api/sync/pull', $token)->assertUnauthorized();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $token)->assertUnauthorized();
     }
 
     public function test_a_token_expires_90_days_after_login_in_practice(): void
@@ -296,10 +296,10 @@ class ApiTokenExpiryTest extends TestCase
         User::sole()->forceFill(['plans' => ['sync']])->save();
 
         $this->travelTo('2027-01-22 09:59:59');
-        $this->api('GET', '/api/sync/pull', $token)->assertOk();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $token)->assertOk();
 
         $this->travelTo('2027-01-22 10:00:01');
-        $this->api('GET', '/api/sync/pull', $token)->assertUnauthorized();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $token)->assertUnauthorized();
     }
 
     public function test_a_legacy_token_without_expires_at_is_cut_off_by_the_sanctum_safety_net(): void
@@ -309,10 +309,10 @@ class ApiTokenExpiryTest extends TestCase
         $this->assertNull(PersonalAccessToken::sole()->expires_at);
 
         $this->travelTo(now()->addDays(89));
-        $this->api('GET', '/api/sync/pull', $legacy)->assertOk();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $legacy)->assertOk();
 
         $this->travelTo(now()->addDays(2));
-        $this->api('GET', '/api/sync/pull', $legacy)->assertUnauthorized();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $legacy)->assertUnauthorized();
     }
 
     // --- sanctum:prune-expired ------------------------------------------------------------------

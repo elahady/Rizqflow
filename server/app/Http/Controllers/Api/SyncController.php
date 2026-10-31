@@ -166,18 +166,29 @@ class SyncController extends Controller
             return $denied;
         }
 
+        // device_id WAJIB (Tahap 9, pengerasan sebelum rilis): kursor per perangkat di `sync_devices` adalah
+        // yang menahan kompaksi tombstone (SyncRetention). Perangkat yang pull tanpa device_id tidak
+        // tercatat, jadi tombstone bisa dihapus fisik sebelum perangkat itu melewatinya, dan ia tidak
+        // pernah tahu rekaman itu sudah dihapus. Klien Android sudah selalu mengirimnya (SyncRemote.pull).
+        // Jawaban 422 punya `code` sendiri supaya bisa dibedakan dari galat validasi lain.
+        if (! is_string($request->query('device_id')) || trim($request->query('device_id')) === '') {
+            return response()->json([
+                'message' => 'Parameter device_id wajib diisi untuk menarik data sinkron. Perbarui aplikasi Rizqflow.',
+                'code' => 'device_id_required',
+                'errors' => ['device_id' => ['Parameter device_id wajib diisi.']],
+            ], 422);
+        }
+
         $validated = $request->validate([
             'after' => ['integer', 'min:0'],
             'limit' => ['integer', 'min:1', 'max:'.self::MAX_PULL_LIMIT],
-            // Tahap 2 sync-desain.md bagian G: opsional, dasar kursor per perangkat (`sync_devices`,
-            // Tahap 7). Klien lama tanpa device_id tetap bisa pull, hanya tidak tercatat di sana.
-            'device_id' => ['nullable', 'string', 'max:100'],
+            'device_id' => ['required', 'string', 'max:100'],
         ]);
         // Laravel tidak mengubah tipe nilai yang sudah lolos validasi 'integer'; query string selalu
         // string, dan `$entries->count() === $limit` di bawah butuh int, bukan '2' !== 2.
         $after = (int) ($validated['after'] ?? 0);
         $limit = (int) ($validated['limit'] ?? self::DEFAULT_PULL_LIMIT);
-        $deviceId = $validated['device_id'] ?? null;
+        $deviceId = $validated['device_id'];
 
         // Kursor di bawah watermark kompaksi: sebagian tombstone sudah dihapus fisik setelah kursor ini,
         // jadi klien harus pull ulang dari 0 dan menggabung (sync-desain.md bagian J #6). after=0 selalu
@@ -205,12 +216,10 @@ class SyncController extends Controller
 
         $nextAfter = $entries->last()?->id ?? $after;
 
-        if ($deviceId !== null) {
-            SyncDevice::updateOrCreate(
-                ['user_id' => $userId, 'device_id' => $deviceId],
-                ['after_id' => $nextAfter, 'last_seen_at' => now()],
-            );
-        }
+        SyncDevice::updateOrCreate(
+            ['user_id' => $userId, 'device_id' => $deviceId],
+            ['after_id' => $nextAfter, 'last_seen_at' => now()],
+        );
 
         return response()->json([
             'entries' => $entries->map(fn (SyncLogEntry $entry) => [

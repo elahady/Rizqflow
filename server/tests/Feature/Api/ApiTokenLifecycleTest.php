@@ -57,7 +57,7 @@ class ApiTokenLifecycleTest extends TestCase
             PersonalAccessToken::sole()->expires_at->utc()->format('Y-m-d\TH:i:s\Z'),
         );
 
-        $this->api('GET', '/api/sync/pull', $response->json('token'))->assertOk();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $response->json('token'))->assertOk();
     }
 
     public function test_refresh_honours_the_configured_ttl(): void
@@ -74,7 +74,7 @@ class ApiTokenLifecycleTest extends TestCase
 
         $this->api('POST', '/api/auth/refresh', $old)->assertOk();
 
-        $this->api('GET', '/api/sync/pull', $old)->assertUnauthorized();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $old)->assertUnauthorized();
         $this->api('POST', '/api/auth/refresh', $old)->assertUnauthorized();
     }
 
@@ -105,7 +105,7 @@ class ApiTokenLifecycleTest extends TestCase
             $this->assertSame(1, $user->tokens()->count());
         }
 
-        $this->api('GET', '/api/sync/pull', $token)->assertOk();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $token)->assertOk();
     }
 
     public function test_refresh_with_an_expired_token_is_401_and_issues_nothing(): void
@@ -175,8 +175,8 @@ class ApiTokenLifecycleTest extends TestCase
         $this->assertSame(1, $user->tokens()->count());
         // Yang kalah tidak menerbitkan token; token pemenang berfungsi, token awal sudah tiada.
         Event::forget(TokenAuthenticated::class);
-        $this->api('GET', '/api/sync/pull', $winner->plainTextToken)->assertOk();
-        $this->api('GET', '/api/sync/pull', $plain)->assertUnauthorized();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $winner->plainTextToken)->assertOk();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $plain)->assertUnauthorized();
     }
 
     public function test_a_failure_while_issuing_the_new_token_keeps_the_old_one(): void
@@ -215,9 +215,9 @@ class ApiTokenLifecycleTest extends TestCase
         $response = $this->api('POST', '/api/auth/logout', $thisDevice)->assertNoContent();
 
         $this->assertSame('', $response->getContent());
-        $this->api('GET', '/api/sync/pull', $thisDevice)->assertUnauthorized();
-        $this->api('GET', '/api/sync/pull', $otherDevice)->assertOk();
-        $this->api('GET', '/api/sync/pull', $otherAccount)->assertOk();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $thisDevice)->assertUnauthorized();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $otherDevice)->assertOk();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $otherAccount)->assertOk();
         $this->assertSame(1, $user->tokens()->count());
     }
 
@@ -247,9 +247,9 @@ class ApiTokenLifecycleTest extends TestCase
         $this->assertSame('', $response->getContent());
         $this->assertSame(0, $user->tokens()->count());
         foreach ($tokens as $token) {
-            $this->api('GET', '/api/sync/pull', $token)->assertUnauthorized();
+            $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $token)->assertUnauthorized();
         }
-        $this->api('GET', '/api/sync/pull', $otherAccount)->assertOk();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $otherAccount)->assertOk();
         $this->assertNotNull(User::find($user->id), 'Mencabut token tidak menghapus akun.');
     }
 
@@ -296,7 +296,7 @@ class ApiTokenLifecycleTest extends TestCase
         $this->assertNotNull($blocked->headers->get('Retry-After'));
         // Token yang ditolak throttle tidak ikut dicabut dan tetap sah untuk jalur lain.
         $this->assertSame(2, $user->tokens()->count());
-        $this->api('GET', '/api/sync/pull', $token)->assertOk();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $token)->assertOk();
         // Perangkat lain di akun yang sama dan akun lain tidak terpengaruh.
         $this->api('POST', '/api/auth/refresh', $otherDevice)->assertOk();
         $this->api('POST', '/api/auth/refresh', $bystander)->assertOk();
@@ -390,7 +390,7 @@ class ApiTokenLifecycleTest extends TestCase
             $this->api('POST', '/api/auth/refresh', $token)->assertUnauthorized();
         }
         // Akun lain tidak tersentuh.
-        $this->api('GET', '/api/sync/pull', $other)->assertOk();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $other)->assertOk();
     }
 
     public function test_a_wrong_current_password_revokes_nothing(): void
@@ -439,6 +439,6 @@ class ApiTokenLifecycleTest extends TestCase
         foreach ($tokens as $token) {
             $this->api('POST', '/api/auth/refresh', $token)->assertUnauthorized();
         }
-        $this->api('GET', '/api/sync/pull', $other)->assertOk();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $other)->assertOk();
     }
 }

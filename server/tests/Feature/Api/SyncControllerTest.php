@@ -6,6 +6,7 @@ use App\Models\RoomMember;
 use App\Models\SyncLogEntry;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /** Log sinkronisasi append-only (Tahap 9, server-sync.md "Model konflik sinkronisasi"). */
@@ -93,7 +94,7 @@ class SyncControllerTest extends TestCase
             'entries' => [['record_type' => 'transaction', 'record_id' => 'tx-2', 'device_id' => 'pixel-2', 'payload' => 'b', 'changed_at' => '2026-10-19T10:01:00Z']],
         ])->json('ids.0');
 
-        $response = $this->withHeaders($headers)->getJson("/api/sync/pull?after={$firstId}");
+        $response = $this->withHeaders($headers)->getJson("/api/sync/pull?device_id=pixel-uji&after={$firstId}");
 
         $response->assertOk();
         $this->assertCount(1, $response->json('entries'));
@@ -113,7 +114,7 @@ class SyncControllerTest extends TestCase
             'entries' => [['record_type' => 'transaction', 'record_id' => 'tx-2', 'device_id' => 'pixel-1', 'payload' => 'b', 'changed_at' => '2026-10-19T10:01:00Z']],
         ]);
 
-        $response = $this->withHeaders($headers)->getJson('/api/sync/pull');
+        $response = $this->withHeaders($headers)->getJson('/api/sync/pull?device_id=pixel-uji');
 
         $response->assertOk();
         $this->assertCount(2, $response->json('entries'));
@@ -129,12 +130,12 @@ class SyncControllerTest extends TestCase
             ]);
         }
 
-        $firstPage = $this->withHeaders($headers)->getJson('/api/sync/pull?limit=2');
+        $firstPage = $this->withHeaders($headers)->getJson('/api/sync/pull?device_id=pixel-uji&limit=2');
         $firstPage->assertOk();
         $this->assertCount(2, $firstPage->json('entries'));
         $this->assertTrue($firstPage->json('has_more'));
 
-        $secondPage = $this->withHeaders($headers)->getJson('/api/sync/pull?after='.$firstPage->json('next_after').'&limit=2');
+        $secondPage = $this->withHeaders($headers)->getJson('/api/sync/pull?device_id=pixel-uji&after='.$firstPage->json('next_after').'&limit=2');
         $this->assertCount(1, $secondPage->json('entries'));
         $this->assertFalse($secondPage->json('has_more'));
     }
@@ -153,7 +154,7 @@ class SyncControllerTest extends TestCase
         // karena tiap request HTTP sungguhan membuat AuthManager baru.
         $this->app['auth']->forgetGuards();
 
-        $response = $this->withHeaders($this->authHeader($other))->getJson('/api/sync/pull');
+        $response = $this->withHeaders($this->authHeader($other))->getJson('/api/sync/pull?device_id=pixel-uji');
 
         $response->assertOk()->assertJsonCount(0, 'entries');
     }
@@ -223,7 +224,7 @@ class SyncControllerTest extends TestCase
         $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
 
         $this->app['auth']->forgetGuards();
-        $response = $this->withHeaders($this->authHeader($partner))->getJson('/api/sync/pull');
+        $response = $this->withHeaders($this->authHeader($partner))->getJson('/api/sync/pull?device_id=pixel-uji');
 
         $response->assertOk()->assertJsonCount(1, 'entries');
         $this->assertSame('dari-owner', $response->json('entries.0.payload'));
@@ -246,7 +247,7 @@ class SyncControllerTest extends TestCase
         $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
 
         $this->app['auth']->forgetGuards();
-        $response = $this->withHeaders($this->authHeader($partner))->getJson('/api/sync/pull');
+        $response = $this->withHeaders($this->authHeader($partner))->getJson('/api/sync/pull?device_id=pixel-uji');
 
         $response->assertOk()->assertJsonCount(1, 'entries');
         $this->assertSame('tx-1', $response->json('entries.0.record_id'));
@@ -300,7 +301,7 @@ class SyncControllerTest extends TestCase
             'entries' => [['record_type' => 'transaction', 'record_id' => 'tx-1', 'device_id' => 'pixel-1', 'payload' => 'a', 'changed_at' => '2026-10-19T10:00:00Z']],
         ])->assertOk();
 
-        $response = $this->withHeaders($this->authHeader($user))->getJson('/api/sync/pull');
+        $response = $this->withHeaders($this->authHeader($user))->getJson('/api/sync/pull?device_id=pixel-uji');
 
         $response->assertOk();
         $this->assertIsInt($response->json('server_time_ms'));
@@ -377,12 +378,51 @@ class SyncControllerTest extends TestCase
         ]);
     }
 
-    public function test_pull_without_device_id_does_not_write_to_sync_devices(): void
+    /**
+     * device_id wajib (Tahap 9): perangkat yang tidak tercatat di sync_devices tidak ikut menahan kompaksi
+     * tombstone, jadi pull tanpanya ditolak 422 dengan `code` yang jelas, tanpa mengirim baris apa pun.
+     */
+    #[DataProvider('deviceIdKosong')]
+    public function test_pull_without_device_id_is_rejected_with_clear_code(string $query): void
+    {
+        $user = $this->syncUser();
+        $this->withHeaders($this->authHeader($user))->postJson('/api/sync/push', [
+            'entries' => [['record_type' => 'transaction', 'record_id' => 'tx-1', 'device_id' => 'pixel-1', 'payload' => 'a', 'changed_at' => '2026-10-19T10:00:00Z']],
+        ])->assertOk();
+
+        $response = $this->withHeaders($this->authHeader($user))->getJson('/api/sync/pull'.$query);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('code', 'device_id_required')
+            ->assertJsonValidationErrors(['device_id'])
+            ->assertJsonMissingPath('entries');
+        $this->assertDatabaseCount('sync_devices', 0);
+    }
+
+    public static function deviceIdKosong(): array
+    {
+        return [
+            'tanpa parameter' => [''],
+            'kosong' => ['?device_id='],
+            'spasi' => ['?device_id=%20%20'],
+            'array' => ['?device_id[]=pixel-1'],
+        ];
+    }
+
+    public function test_pull_without_device_id_and_without_sync_plan_still_answers_403_first(): void
+    {
+        $user = User::factory()->create(['plans' => []]);
+
+        $this->withHeaders($this->authHeader($user))->getJson('/api/sync/pull')->assertForbidden();
+    }
+
+    public function test_pull_rejects_overlong_device_id(): void
     {
         $user = $this->syncUser();
 
-        $this->withHeaders($this->authHeader($user))->getJson('/api/sync/pull')->assertOk();
-
-        $this->assertDatabaseCount('sync_devices', 0);
+        $this->withHeaders($this->authHeader($user))
+            ->getJson('/api/sync/pull?device_id='.str_repeat('a', 101))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['device_id']);
     }
 }

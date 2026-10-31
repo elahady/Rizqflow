@@ -145,7 +145,7 @@ class SyncRetentionApiTest extends TestCase
         $user = $this->syncUser();
         SyncCompactionState::catatJalan(0, 0, 10);
 
-        $response = $this->withHeaders($this->authHeader($user))->getJson('/api/sync/pull?after=5');
+        $response = $this->withHeaders($this->authHeader($user))->getJson('/api/sync/pull?device_id=pixel-uji&after=5');
 
         $response->assertStatus(410);
         $response->assertJsonPath('code', 'cursor_expired');
@@ -156,8 +156,8 @@ class SyncRetentionApiTest extends TestCase
         $user = $this->syncUser();
         SyncCompactionState::catatJalan(0, 0, 10);
 
-        $this->withHeaders($this->authHeader($user))->getJson('/api/sync/pull?after=0')->assertOk();
-        $this->withHeaders($this->authHeader($user))->getJson('/api/sync/pull?after=10')->assertOk();
+        $this->withHeaders($this->authHeader($user))->getJson('/api/sync/pull?device_id=pixel-uji&after=0')->assertOk();
+        $this->withHeaders($this->authHeader($user))->getJson('/api/sync/pull?device_id=pixel-uji&after=10')->assertOk();
     }
 
     public function test_riwayat_sinkron_hanya_berisi_metadata_dan_hanya_milik_akun_sendiri(): void

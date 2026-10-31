@@ -383,7 +383,7 @@ class RecoveryKeyTest extends TestCase
         $this->assertSame(0, RecoveryKey::count()); // PUT yang diblok tidak menulis
 
         // Tidak menghalangi rute lain milik akun yang sama, maupun akun lain.
-        $this->api('GET', '/api/sync/pull', $token)->assertOk();
+        $this->api('GET', '/api/sync/pull?device_id=pixel-uji', $token)->assertOk();
         $this->api('GET', self::URL, $other)->assertNotFound();
         $this->api('POST', '/api/auth/logout', $token)->assertNoContent();
 
