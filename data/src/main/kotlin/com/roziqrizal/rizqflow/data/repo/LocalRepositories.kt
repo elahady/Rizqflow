@@ -259,28 +259,44 @@ class LocalTransactionRepository(
             db.transactions().insert(transaction.toEntity())
             recordChanged(transaction)
         }
-        // Di luar transaksi (sudah komit): sinkron tidak boleh membaca baris yang belum tersimpan. Sinkron hanya
-        // untuk pengeluaran di ruang bersama; pemicunya sendiri yang memutuskan ruang itu bersama atau tidak.
+        notifySharedSync(transaction)
+    }
+
+    /**
+     * Pemicu sinkron otomatis ruang bersama (Tahap 9, sync-desain.md bagian H): dipanggil di LUAR transaksi (sudah
+     * komit), karena sinkron tidak boleh membaca baris yang belum tersimpan. Hanya pengeluaran di sebuah ruang yang
+     * bisa masuk cakupan bersama (bagian A); pemasukan, transfer, dan pinjaman tidak pernah, jadi tidak memicu apa
+     * pun. Pemicunya sendiri yang memutuskan ruang itu bersama (ACTIVE) atau tidak.
+     */
+    private suspend fun notifySharedSync(transaction: MoneyTransaction) {
         if (transaction.kind == TransactionKind.EXPENSE) transaction.roomId?.let { autoSync.onExpenseSaved(it) }
     }
 
     override suspend fun update(transaction: MoneyTransaction) {
-        db.withTransaction {
-            if (db.transactions().update(transaction.toEntity()) > 0) recordChanged(transaction)
+        val updated = db.withTransaction {
+            val rows = db.transactions().update(transaction.toEntity())
+            if (rows > 0) recordChanged(transaction)
+            rows
         }
+        // Edit pengeluaran di ruang bersama ikut dikirim (toEntity mengosongkan synced_at, jadi baris jadi pending).
+        if (updated > 0) notifySharedSync(transaction)
     }
 
     override suspend fun replaceIncome(transaction: MoneyTransaction, entries: List<AllocationEntry>) {
-        db.withTransaction {
-            val updated = db.transactions().update(transaction.toEntity())
+        val updated = db.withTransaction {
+            val rows = db.transactions().update(transaction.toEntity())
             db.transactions().deleteEntries(transaction.id.value)
             db.transactions().insertEntries(entries.map(AllocationEntry::toEntity))
-            if (updated > 0) recordChanged(transaction)
+            if (rows > 0) recordChanged(transaction)
+            rows
         }
+        // Lewat pemicu yang sama dengan edit lain supaya tidak ada jalur tulis yang terlewat; pemasukan tidak pernah
+        // masuk cakupan bersama (sync-desain.md bagian A), jadi untuk pemasukan ini tidak memicu jaringan apa pun.
+        if (updated > 0) notifySharedSync(transaction)
     }
 
     override suspend fun delete(id: TransactionId) {
-        db.withTransaction {
+        val tombstoneRoom = db.withTransaction {
             val existing = db.transactions().find(id.value)
             // Kunci asing SET NULL mengubah utang/pelunasan yang merujuk transaksi ini tanpa lewat repositori
             // mereka; catat sebelum dihapus supaya perubahan itu ikut terkirim.
@@ -299,9 +315,13 @@ class LocalTransactionRepository(
                     db.transactions().insertPendingTombstone(
                         PendingRoomTombstoneEntity(transactionId = id.value, roomId = roomId, deletedAt = System.currentTimeMillis()),
                     )
+                    return@withTransaction RoomId(roomId)
                 }
             }
+            null
         }
+        // Tombstone pengeluaran di ruang bersama ikut dikirim otomatis, sama seperti simpan dan edit (bagian H).
+        tombstoneRoom?.let { autoSync.onExpenseSaved(it) }
     }
 
     override suspend fun between(from: LocalDate, to: LocalDate): List<MoneyTransaction> =

@@ -57,6 +57,8 @@ import com.roziqrizal.rizqflow.domain.sync.SharedRoomStatus
 import com.roziqrizal.rizqflow.domain.sync.SyncCursorStore
 import com.roziqrizal.rizqflow.domain.sync.SyncCoordinator
 import com.roziqrizal.rizqflow.domain.sync.SyncRemote
+import com.roziqrizal.rizqflow.domain.sync.SyncResult
+import com.roziqrizal.rizqflow.domain.model.RoomId
 import com.roziqrizal.rizqflow.domain.bill.BillReminderService
 import com.roziqrizal.rizqflow.domain.bill.BillService
 import com.roziqrizal.rizqflow.domain.debt.DebtReminderService
@@ -244,6 +246,14 @@ class AccountWorkspace private constructor(
 
     /** Sinkron semua ruang bersama saat ruang kerja dibuka. Tidak menunggu hasilnya; tombol manual tetap fallback. */
     fun syncSharedRoomsOnOpen() = local.autoSync.onWorkspaceOpened()
+
+    /**
+     * Tombol "Sinkronkan sekarang": [SyncCoordinator.syncNow] di bawah kunci ruang yang SAMA dengan sinkron otomatis
+     * ([com.roziqrizal.rizqflow.data.sync.SharedRoomAutoSync.withRoomLock]), jadi tidak pernah berjalan bersamaan
+     * dengan putaran otomatis untuk ruang itu; bila ada yang sedang berjalan, tombol ini menunggu lalu berjalan sendiri.
+     */
+    suspend fun syncSharedRoomNow(roomId: RoomId, deviceId: String): SyncResult =
+        local.autoSync.withRoomLock(roomId) { sync.syncNow(roomId, deviceId) }
 
     /**
      * Menandai ruang bersama ACTIVE setelah pendaftaran anggota di server berhasil (undangan QR diterima, atau

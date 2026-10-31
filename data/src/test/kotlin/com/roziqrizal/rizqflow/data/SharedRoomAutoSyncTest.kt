@@ -13,6 +13,7 @@ import com.roziqrizal.rizqflow.domain.sync.SyncResult
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -169,6 +170,83 @@ class SharedRoomAutoSyncTest {
         // Hanya ruang aktif yang dijadwalkan, jadi begitu ruang itu terpanggil tidak ada lagi yang tertinggal.
         awaitUntil { calls.isNotEmpty() }
         assertEquals(listOf(keluarga.id), calls.toList())
+    }
+
+    @Test
+    fun `mengubah pengeluaran di ruang bersama memicu sinkron`() = runBlocking<Unit> {
+        val keluarga = room("Keluarga")
+        val saved = (saveExpense(keluarga) as LedgerResult.Success).value as com.roziqrizal.rizqflow.domain.ledger.MoneyTransaction
+        markShared(keluarga) // ditandai SESUDAH simpan: hanya edit di bawah yang boleh memicu
+
+        fx.local.transactions.update(saved.copy(note = "diubah", updatedAtMillis = saved.updatedAtMillis + 1))
+
+        awaitUntil { calls.isNotEmpty() }
+        assertEquals(listOf(keluarga.id), calls.toList())
+        assertEquals("diubah", fx.local.transactions.find(saved.id)?.note)
+    }
+
+    @Test
+    fun `menghapus pengeluaran di ruang bersama memicu sinkron untuk tombstone-nya`() = runBlocking<Unit> {
+        val keluarga = room("Keluarga")
+        val saved = (saveExpense(keluarga) as LedgerResult.Success).value as com.roziqrizal.rizqflow.domain.ledger.MoneyTransaction
+        markShared(keluarga)
+
+        fx.local.transactions.delete(saved.id)
+
+        awaitUntil { calls.isNotEmpty() }
+        assertEquals(listOf(keluarga.id), calls.toList())
+        assertEquals(1, fx.local.transactions.pendingTombstones(keluarga.id).size)
+    }
+
+    @Test
+    fun `mengubah pengeluaran di ruang pribadi tidak memicu sinkron`() = runBlocking<Unit> {
+        val diri = room("Diri")
+        val saved = (saveExpense(diri) as LedgerResult.Success).value as com.roziqrizal.rizqflow.domain.ledger.MoneyTransaction
+
+        fx.local.transactions.update(saved.copy(note = "diubah", updatedAtMillis = saved.updatedAtMillis + 1))
+        fx.local.transactions.delete(saved.id)
+
+        assertTrue(calls.isEmpty())
+    }
+
+    @Test
+    fun `sinkron manual menunggu putaran otomatis ruang yang sama selesai`() = runBlocking<Unit> {
+        val keluarga = room("Keluarga")
+        markShared(keluarga)
+        val gate = CompletableDeferred<Unit>()
+        val events = CopyOnWriteArrayList<String>()
+        fx.local.autoSync.attach(
+            sync = { _ -> events += "otomatis-mulai"; gate.await(); events += "otomatis-selesai"; SyncResult.NotSignedIn },
+            log = { logs += it },
+        )
+        assertTrue(saveExpense(keluarga) is LedgerResult.Success)
+        awaitUntil { events.contains("otomatis-mulai") }
+
+        val manual = async(Dispatchers.Default) {
+            fx.local.autoSync.withRoomLock(keluarga.id) { events += "manual"; "hasil-manual" }
+        }
+        delay(100)
+        assertEquals(listOf("otomatis-mulai"), events.toList(), "tombol manual tidak boleh berjalan bersamaan dengan putaran otomatis")
+
+        gate.complete(Unit)
+        assertEquals("hasil-manual", withTimeout(5_000) { manual.await() })
+        assertEquals(listOf("otomatis-mulai", "otomatis-selesai", "manual"), events.toList())
+    }
+
+    @Test
+    fun `sinkron manual ruang lain tidak menunggu putaran otomatis ruang ini`() = runBlocking<Unit> {
+        val keluarga = room("Keluarga")
+        val diri = room("Diri")
+        markShared(keluarga)
+        val gate = CompletableDeferred<Unit>()
+        fx.local.autoSync.attach(sync = { _ -> calls += keluarga.id; gate.await(); SyncResult.NotSignedIn }, log = { logs += it })
+        assertTrue(saveExpense(keluarga) is LedgerResult.Success)
+        awaitUntil { calls.isNotEmpty() }
+
+        val result = withTimeout(5_000) { fx.local.autoSync.withRoomLock(diri.id) { "jalan" } }
+
+        assertEquals("jalan", result)
+        gate.complete(Unit)
     }
 
     @Test
