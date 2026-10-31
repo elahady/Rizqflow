@@ -109,6 +109,9 @@ import com.roziqrizal.rizqflow.domain.sync.RemoteError
 import com.roziqrizal.rizqflow.sync.DeleteAccountPlan
 import com.roziqrizal.rizqflow.sync.RefreshOutcome
 import com.roziqrizal.rizqflow.sync.planDeleteAccount
+import com.roziqrizal.rizqflow.push.FcmTokenSource
+import com.roziqrizal.rizqflow.push.revokeBestEffort
+import com.roziqrizal.rizqflow.domain.sync.PushRegistrationOutcome
 import com.roziqrizal.rizqflow.sync.forgetStatusDurably
 import com.roziqrizal.rizqflow.sync.recoveryRow
 import com.roziqrizal.rizqflow.sync.restoreAvailable
@@ -270,6 +273,16 @@ fun MainHost(
     // Baru selesai masuk ke server: laporkan pembelian lama (pemulihan). Sebelum itu belum ada token server.
     LaunchedEffect(purchaseClaims, serverLoginSignal) {
         if (serverLoginSignal > 0) reportPurchases()
+    }
+    // Token FCM ke server (wiring FCM 2026-11-01): saat ruang kerja dibuka, setelah masuk atau sambung ulang, dan saat
+    // Sync baru dimiliki. PushTokenSync sendiri yang menolak tanpa Sync atau tanpa token server; pushTokens null (tanpa
+    // google-services.json) berarti tidak ada panggilan sama sekali. Gagal dibiarkan diam; dicoba lagi di pemicu berikutnya.
+    val syncOwned = Plan.SYNC in ownedPlans
+    LaunchedEffect(workspace, demo, serverLoginSignal, hasServerToken, syncOwned) {
+        val push = workspace.pushTokens ?: return@LaunchedEffect
+        if (demo) return@LaunchedEffect
+        val outcome = push.register(FcmTokenSource.currentToken(context))
+        if (outcome is PushRegistrationOutcome.Failed) Log.i("RizqflowPush", "Token FCM belum terdaftar: ${outcome.error}")
     }
     // Pembayaran tertunda yang baru lunas (atau kode promo yang ditebus) sampai ke aplikasi lewat toko,
     // bukan lewat tombol Beli yang menunggu: baca ulang toko supaya paketnya terbuka dan di-acknowledge.
@@ -464,6 +477,8 @@ fun MainHost(
             is DeleteAccountPlan.DeleteOnServer -> {
                 deletingAccount = true
                 scope.launch {
+                    // Token FCM dicabut dulu selagi token API masih sah (upaya terbaik, batas waktu pendek).
+                    workspace.pushTokens?.revokeBestEffort(plan.token)
                     // Jawaban 401 sudah ditangani ServerSession (token dibersihkan, baris sambung ulang muncul).
                     when (val result = workspace.accountRemote.deleteAccount(plan.token)) {
                         is RemoteResult.Success -> {

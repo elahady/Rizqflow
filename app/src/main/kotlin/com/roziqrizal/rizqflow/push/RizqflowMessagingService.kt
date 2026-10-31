@@ -6,8 +6,12 @@ import com.google.firebase.messaging.RemoteMessage
 import com.roziqrizal.rizqflow.auth.SharedPrefsSessionStore
 import com.roziqrizal.rizqflow.billing.PurchaseStore
 import com.roziqrizal.rizqflow.domain.entitlement.LivePlanEntitlements
+import com.roziqrizal.rizqflow.domain.sync.PushRegistrationOutcome
 import com.roziqrizal.rizqflow.notifications.ReminderNotifier
+import com.roziqrizal.rizqflow.workspace.AccountWorkspace
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Penerima FCM (Tahap 9/13, wiring 2026-11-01). Hanya dipanggil Firebase bila Firebase terinisialisasi, yaitu bila
@@ -33,7 +37,31 @@ class RizqflowMessagingService : FirebaseMessagingService() {
         if (decision !is SyncPushDecision.Shown) Log.i(TAG, "Push sync tidak ditampilkan: ${decision::class.simpleName}")
     }
 
+    /**
+     * Token FCM baru (pertama kali, atau diganti Firebase): dikirim ke server untuk akun server yang sedang masuk,
+     * hanya bila punya Sync dan token API (keputusannya di [com.roziqrizal.rizqflow.domain.sync.PushTokenSync]).
+     * Gagal atau offline dibiarkan: pembukaan aplikasi berikutnya mendaftarkan ulang token yang sama.
+     */
+    override fun onNewToken(token: String) {
+        val context = applicationContext
+        try {
+            runBlocking {
+                withTimeoutOrNull(NEW_TOKEN_TIMEOUT_MILLIS) {
+                    val session = SharedPrefsSessionStore(context).current()
+                    if (session == null || !isServerAccount(session)) return@withTimeoutOrNull
+                    val outcome = AccountWorkspace.pushTokenSync(context, session.accountId)?.register(token)
+                    if (outcome is PushRegistrationOutcome.Failed) Log.i(TAG, "Token FCM baru belum terdaftar: ${outcome.error}")
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // Upaya terbaik; lihat KDoc.
+        }
+    }
+
     private companion object {
         const val TAG = "RizqflowPush"
+        const val NEW_TOKEN_TIMEOUT_MILLIS = 15_000L
     }
 }

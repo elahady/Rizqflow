@@ -5,6 +5,8 @@ import com.roziqrizal.rizqflow.domain.sync.ApiAccount
 import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
 import com.roziqrizal.rizqflow.domain.sync.DeviceRemote
 import com.roziqrizal.rizqflow.domain.sync.PurchaseRemote
+import com.roziqrizal.rizqflow.domain.sync.PushTokenRegistrar
+import com.roziqrizal.rizqflow.domain.sync.PushTokenSync
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyRemote
 import com.roziqrizal.rizqflow.domain.sync.RefreshedToken
 import com.roziqrizal.rizqflow.domain.sync.RemoteError
@@ -236,6 +238,9 @@ class ServerSession(
     fun guard(remote: PurchaseRemote): PurchaseRemote =
         GuardedPurchaseRemote(remote, this)
 
+    fun guard(remote: PushTokenRegistrar): PushTokenRegistrar =
+        GuardedPushTokenRegistrar(remote, this)
+
     fun guard(remote: DeviceRemote): DeviceRemote =
         GuardedDeviceRemote(remote, this)
 }
@@ -281,8 +286,12 @@ fun planDeleteAccount(google: Boolean, token: String?, everHeldToken: Boolean): 
     else -> DeleteAccountPlan.SignOutOnly
 }
 
-/** Sesi server dan remote akun yang sama, untuk keluar akun ([ServerSignOut]). */
-class ServerLink(val session: ServerSession, val remote: AccountRemote)
+/**
+ * Sesi server dan remote akun yang sama, untuk keluar akun ([ServerSignOut]). [pushTokens] (wiring FCM 2026-11-01)
+ * null bila jalur FCM mati (tanpa google-services.json); bila ada, token FCM perangkat ini dicabut di server sebelum
+ * token API dicabut.
+ */
+class ServerLink(val session: ServerSession, val remote: AccountRemote, val pushTokens: PushTokenSync? = null)
 
 /**
  * Keluar akun terhadap server untuk akun yang SEDANG masuk. Di mode demo ruang kerja aktifnya milik akun demo,
@@ -291,7 +300,7 @@ class ServerLink(val session: ServerSession, val remote: AccountRemote)
  */
 fun ServerSignOut.signOutAccount(demoActive: Boolean, workspaceLink: ServerLink, realAccountLink: () -> ServerLink): Job? {
     val link = if (demoActive) realAccountLink() else workspaceLink
-    return signOut(link.session, link.remote)
+    return signOut(link.session, link.remote, link.pushTokens)
 }
 
 fun RemoteResult<*>.isUnauthorized(): Boolean = this is RemoteResult.Failure && error == RemoteError.Unauthorized
