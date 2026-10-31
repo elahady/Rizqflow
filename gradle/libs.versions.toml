@@ -31,6 +31,9 @@ qrcodeKotlin = "4.5.0"
 playBilling = "9.1.0"
 mlkitTextRecognition = "16.0.1"
 pdfboxAndroid = "2.0.27.0"
+# Firebase Cloud Messaging (Tahap 9/13, wiring FCM 2026-11-01). Versi eksplisit, bukan Firebase BoM.
+firebaseMessaging = "26.0.1"
+googleServices = "4.5.0"
 
 [libraries]
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
@@ -74,6 +77,7 @@ qrcode-kotlin = { group = "io.github.g0dkar", name = "qrcode-kotlin", version.re
 play-billing = { group = "com.android.billingclient", name = "billing", version.ref = "playBilling" }
 mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
 pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging", version.ref = "firebaseMessaging" }
 
 [plugins]
 androidx-room = { id = "androidx.room", version.ref = "room" }
@@ -83,3 +87,5 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+# Diterapkan di :app HANYA bila app/google-services.json ada (lihat app/build.gradle.kts).
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
