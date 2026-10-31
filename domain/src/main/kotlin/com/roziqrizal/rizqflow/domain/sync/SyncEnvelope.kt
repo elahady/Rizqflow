@@ -160,6 +160,10 @@ object SyncEnvelope {
      * Membuka satu baris dari server. Semua kolom luar ([scope], [wireId], [changedAtMillis],
      * [deleted], [deviceId]) berasal dari server dan masuk AAD, jadi selisih apa pun menggagalkan
      * dekripsi. Melempar [SyncEnvelopeException] terketik; tidak pernah mengembalikan separuh isi.
+     *
+     * [isKnownType] menentukan tipe apa yang boleh keluar dari amplop. Bawaannya tipe cakupan pribadi
+     * ([SyncRecordType]); cakupan ruang bersama memakai himpunan tipenya sendiri ([SharedRecordType]),
+     * karena tipe di sana bukan tabel lokal yang dicatat recorder.
      */
     fun open(
         aead: SyncAead,
@@ -169,6 +173,7 @@ object SyncEnvelope {
         deleted: Boolean,
         deviceId: String,
         ciphertext: ByteArray,
+        isKnownType: (String) -> Boolean = { SyncRecordType.fromWire(it) != null },
     ): DecodedRecord {
         if (ciphertext.size > MAX_PAYLOAD_BYTES) throw SyncEnvelopeException(EnvelopeError.TOO_LARGE, "Ciphertext melebihi batas")
         val aad = aad(scope.wire, wireId, changedAtMillis, deleted, deviceId)
@@ -178,7 +183,7 @@ object SyncEnvelope {
             throw SyncEnvelopeException(EnvelopeError.DECRYPT_FAILED, "Dekripsi gagal (${e.javaClass.simpleName})")
         }
         val decoded = decodeJson(unframe(plaintext))
-        if (SyncRecordType.fromWire(decoded.type) == null) {
+        if (!isKnownType(decoded.type)) {
             throw SyncEnvelopeException(EnvelopeError.UNKNOWN_TYPE, "Tipe rekaman tidak dikenal")
         }
         if (wireId(decoded.type, decoded.id) != wireId) {

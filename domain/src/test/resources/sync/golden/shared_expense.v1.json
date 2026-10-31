@@ -1,0 +1,26 @@
+{
+  "_doc": "Vektor emas isi amplop pengeluaran ruang bersama, tipe shared_expense versi 1 (SharedExpensePayload, 2026-11-01). wireId dihitung terpisah (PowerShell SHA-256, bukan kode aplikasi). plaintextJson adalah JSON amplop sebelum bingkai dan enkripsi; tombstone memakai d kosong. Klien web wajib menghasilkan dan membaca bentuk yang sama.",
+  "type": "shared_expense",
+  "version": 1,
+  "id": "tx-20261101-001",
+  "wireId": "Bz_vBuom97g8pGmYxpOCPF",
+  "personalWireIdOfSameTransaction": "sZzeDWm8p-37TOSy4lkuVQ",
+  "personalWireIdNote": "wireId tipe transaction untuk id tx-1 (lihat envelope.v1.json); dipakai untuk membuktikan id kabel shared_expense tx-1 berbeda",
+  "sharedWireIdOfTx1": "a5K8NkFtK0P9vxoT3NaT8n",
+  "scope": "r:room-keluarga",
+  "changedAtMs": 1793491200000,
+  "deviceId": "device-0001",
+  "aadLive": "rizqflow-sync/1|r:room-keluarga|Bz_vBuom97g8pGmYxpOCPF|1793491200000|0|device-0001",
+  "aadTombstone": "rizqflow-sync/1|r:room-keluarga|Bz_vBuom97g8pGmYxpOCPF|1793491200000|1|device-0001",
+  "input": {
+    "amountMinor": 50000,
+    "currency": "IDR",
+    "accountName": "Dompet",
+    "categoryName": "Belanja",
+    "occurredOnEpochDay": 20758,
+    "note": "Sayur pasar"
+  },
+  "plaintextJson": "{\"v\":1,\"type\":\"shared_expense\",\"id\":\"tx-20261101-001\",\"d\":{\"amount_minor\":50000,\"currency\":\"IDR\",\"account_name\":\"Dompet\",\"category_name\":\"Belanja\",\"occurred_on\":20758,\"note\":\"Sayur pasar\"}}",
+  "plaintextJsonWithoutOptionals": "{\"v\":1,\"type\":\"shared_expense\",\"id\":\"tx-20261101-001\",\"d\":{\"amount_minor\":50000,\"currency\":\"IDR\",\"account_name\":\"Dompet\",\"occurred_on\":20758}}",
+  "plaintextJsonTombstone": "{\"v\":1,\"type\":\"shared_expense\",\"id\":\"tx-20261101-001\",\"d\":{}}"
+}
