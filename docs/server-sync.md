@@ -233,6 +233,49 @@ Blob disimpan sebagai **byte biner** (kolom `binary`, BLOB di SQLite dan MySQL; 
 - Respons 5xx diperlakukan ambigu, jadi status "sudah diatur" bisa turun ke "belum selesai" setelah unggah ulang yang tak bisa dipastikan.
 - Migrasi `recovery_keys` dan rute baru belum di-deploy (perlu `route:cache` ulang); cadangan database VPS kini memuat blob ini (tetap buram, dan kode pemulihan tidak pernah ada di server).
 
+## Push notifikasi (Tahap 9/13)
+
+**Sisi Android diimplementasikan 2026-11-01** (`RizqflowMessagingService`, `SyncPushReceiver`, `FcmAvailability`, `FcmTokenSource` di `:app/push`; `PushTokenRegistrar`/`PushTokenSync` di `:domain`; `RetrofitPushTokenRegistrar` di `:data`). Pengirim di server dikerjakan agen lain secara terpisah. **Status: hanya terbukti lewat tes otomatis dan build tanpa `google-services.json`.** Tidak pernah diuji dengan FCM sungguhan, proyek Firebase, perangkat, atau server hidup (proyek Firebase pemilik belum ada).
+
+### Kontrak endpoint
+
+Jalur dan badan di bawah adalah yang **disepakati dengan agen server** (2026-11-01). Kode status dan gating di tabel adalah **usulan sisi Android**; bila implementasi server berbeda, pemilik yang menyelaraskan (catat perbedaannya di sini, jangan diubah diam-diam di salah satu sisi).
+
+| Endpoint | Autentikasi | Badan | Jawaban yang diharapkan klien |
+|---|---|---|---|
+| `POST /api/push/tokens` | `auth:sanctum` | `{"token":"<token FCM>","device_id":"<pengenal pemasangan>","platform":"android"}` | 2xx apa pun = berhasil (badan tidak dibaca). Usulan: upsert per (`user_id`, `device_id`), sehingga token baru di perangkat yang sama menggantikan yang lama; 403 bila tanpa Sync; 422 bila badan salah |
+| `DELETE /api/push/tokens/{device_id}` | `auth:sanctum` | Tanpa badan | 2xx = berhasil. Usulan: idempoten (204 juga bila tidak ada), tanpa gerbang Sync, hanya menyentuh baris milik pemilik token |
+
+- `device_id` adalah UUID acak per pemasangan yang sama dengan yang dikirim saat masuk (`POST /api/auth/google`), bukan pengenal perangkat sungguhan.
+- Klien memetakan galat seperti endpoint lain (`RemoteError`): 401 mengakhiri sesi lewat `ServerSession`, 403 `SyncRequired`, 422 `Rejected`, lainnya `Unexpected`, jaringan mati `Unreachable`.
+
+### Bentuk pesan push (wajib diikuti pengirim di server)
+
+- **Data message murni**: blok `data` berisi **tepat** dua kunci, `roomId` (pengenal ruang, 1 sampai 128 karakter) dan `kind` (`NEW_RECORD`, `MEMBER_REMOVED`, atau `ROOM_KEY_ROTATED`). Tanpa blok `notification`: blok itu ditampilkan sistem sendiri saat aplikasi di latar tanpa melewati gerbang Sync dan parser aplikasi.
+- **Kunci lain apa pun membuat seluruh pesan ditolak** (`SyncNotificationPayload.parse`), bukan diabaikan: nominal, nama, catatan, akun, judul, atau teks tidak boleh pernah ada di push. Teks notifikasi tetap di aplikasi (`reminder_sync_*`).
+- Server hanya mengirim ke token akun yang punya Sync; aplikasi juga memeriksa ulang di sisi penerima.
+
+### Perilaku di Android
+
+- **Kapan token dikirim**: saat ruang kerja dibuka, setelah masuk atau sambung ulang ke server, saat Sync baru dimiliki, dan saat Firebase memberi token baru (`onNewToken`, tanpa membuka database akun). **Hanya bila** ada token FCM, pengguna punya Sync (`Feature.ENCRYPTED_SYNC`, lewat lapisan entitlement), dan ada token API server; akun lokal, akun uji, dan mode demo tidak pernah mengirim. Gagal atau offline dibiarkan diam dan dicoba lagi pada pemicu berikutnya.
+- **Kapan token dicabut**: saat keluar (di latar, sebelum `POST /api/auth/logout`, dengan token API yang sama; batas waktu sendiri sehingga gagal mencabut tidak menghalangi pencabutan token API) dan sebelum Hapus akun (upaya terbaik, batas 5 detik). Mencabut tidak digerbang Sync.
+- **Penerima**: notifikasi hanya bila ada akun server yang masuk, akun itu punya Sync, dan data lolos parser. Teks generik tanpa nama ruang (penerima tidak membuka database akun di latar). Mengetuknya membuka aplikasi; aplikasi belum otomatis menarik data setelah push (sync tetap lewat pemicu yang sudah ada).
+- **Tanpa `google-services.json`** (keadaan sekarang): plugin `com.google.gms.google-services` tidak diterapkan, Firebase tidak terinisialisasi, `FcmAvailability` bernilai false, sehingga tidak ada token FCM, tidak ada panggilan `/api/push/*`, dan penerima tidak pernah dipanggil. Aplikasi tidak crash.
+
+### Langkah pemasangan (pemilik)
+
+1. Buat proyek Firebase, daftarkan aplikasi Android `com.roziqrizal.rizqflow` (tambahkan sidik jari SHA-1/SHA-256 debug dan rilis bila nanti perlu).
+2. Unduh `google-services.json` dan taruh di `app/google-services.json`. Berkas ini ada di `.gitignore`; **jangan di-commit** sebelum diputuskan aman.
+3. Build ulang (`./gradlew :app:assembleDebug`): plugin google-services otomatis diterapkan karena berkasnya ada.
+4. Untuk pengirim di server: buat akun layanan dengan peran Firebase Cloud Messaging (FCM HTTP v1), simpan kuncinya hanya di `.env.production` VPS (nama variabel mengikuti implementasi server).
+5. Uji di perangkat: masuk dengan akun yang punya Sync, pastikan `POST /api/push/tokens` tercatat di server, kirim data message uji `{roomId, kind}`, lalu keluar dan pastikan `DELETE` terpanggil.
+
+### Yang belum terbukti
+
+- Belum pernah ada token FCM sungguhan, pesan FCM sungguhan, atau `onNewToken` yang benar-benar terpanggil; kompatibilitas plugin google-services 4.5.0 dengan AGP 9.4.1 hanya dicoba dengan `google-services.json` tiruan (lihat roadmap.md Tahap 9), bukan berkas asli.
+- Izin `POST_NOTIFICATIONS` Android 13+ tetap diminta lewat alur pengingat yang sudah ada; push sync tidak memintanya sendiri, jadi pengguna yang menolak izin tidak melihat notifikasi ini.
+- Pengguna yang kehilangan Sync tidak mencabut tokennya otomatis; aplikasi menolak menampilkan dan server diharapkan tidak mengirim.
+
 ## Belum diputuskan
 
 - ~~**Firebase Analytics** dipakai atau cukup Play Console plus data akun server.~~ **Diputuskan pemilik 2026-10-24: Firebase Analytics dan FCM dipakai di rilis 1.** Aturan: tidak ada data keuangan (nominal, nama, catatan, akun) di event atau properti pengguna; keduanya disebut di kebijakan privasi dan Data Safety; jumlah pengguna, Pro, dan Sync tetap dihitung dari server.
