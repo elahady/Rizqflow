@@ -9,6 +9,7 @@ use App\Models\SyncCompactionState;
 use App\Models\SyncDevice;
 use App\Models\SyncLogEntry;
 use App\Models\SyncQuota;
+use App\Models\SyncRecordFloor;
 use App\Support\SyncQuotaExceeded;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -104,6 +105,23 @@ class SyncController extends Controller
 
                             continue;
                         }
+                    }
+
+                    // Lantai per rekaman (Tahap 9): tombstone rekaman ini sudah dihapus fisik oleh
+                    // sync:compact. Versi dengan cap waktu <= tombstone itu adalah versi lama yang
+                    // terlambat; menyimpannya akan menghidupkan kembali rekaman yang sudah dihapus karena
+                    // tidak ada lagi tombstone yang mengalahkannya. Ditolak diam-diam seperti baris bukan
+                    // penulis pertama (klien tidak memakai `ids` per baris). Versi yang lebih baru dari
+                    // lantai tetap diterima: itu memang edit sesudah hapus (last-write-wins).
+                    $lantai = SyncRecordFloor::lantai($userId, $roomId, $entry['record_id']);
+                    if ($lantai !== null && $changedAtMs <= $lantai) {
+                        Log::info('sync push: baris ditolak, lebih lama dari lantai kompaksi', [
+                            'room_id' => $roomId,
+                            'record_id' => $entry['record_id'],
+                            'user_id' => $userId,
+                        ]);
+
+                        continue;
                     }
 
                     // Idempoten: push yang diulang (ack hilang di klien) menemukan baris yang sama dan

@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\SyncCompactionState;
 use App\Models\SyncDevice;
 use App\Models\SyncQuota;
+use App\Models\SyncRecordFloor;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
@@ -19,7 +20,9 @@ use Illuminate\Support\Facades\DB;
  * - TOMBSTONE: baris hapus dengan umur >= tombstone_days, TIDAK ada baris lain untuk rekaman itu
  *   (supaya tidak ada versi lama yang bangkit kembali), dan setiap perangkat aktif sudah melewatinya
  *   (after_id >= id). Untuk ruang bersama, perangkat semua anggota ruang itu ikut dihitung.
- *   Setelah dihapus, watermark naik ke id tombstone terbesar yang dihapus (lihat SyncCompactionState).
+ *   Setelah dihapus, watermark naik ke id tombstone terbesar yang dihapus (lihat SyncCompactionState),
+ *   dan `changed_at_ms` tombstone itu dicatat sebagai lantai rekaman (SyncRecordFloor) supaya push
+ *   versi lama yang terlambat tidak menghidupkan kembali rekamannya.
  *
  * Urutan: versi kalah dulu, baru tombstone (sehingga tombstone yang tinggal sendirian bisa lolos).
  * Setiap jalan idempoten: baris yang sudah dihapus tidak muncul lagi di kandidat. Kompaksi tidak
@@ -90,6 +93,9 @@ class SyncRetention
             $dihapus = DB::transaction(function () use ($jenis, $parameter, $ids) {
                 $valid = $this->kandidat($jenis, $parameter, 0, $ids);
                 if ($valid !== []) {
+                    if ($jenis === 'tombstone') {
+                        $this->catatLantai($valid);
+                    }
                     $this->hapusFisik($valid);
                 }
 
@@ -160,6 +166,27 @@ class SyncRetention
         $hasil = DB::select($sql, array_merge($bindingFilter, $bindingSyarat));
 
         return array_map(fn ($baris) => (int) $baris->id, $hasil);
+    }
+
+    /**
+     * Dipanggil di dalam transaksi, sebelum tombstone dihapus fisik: catat `changed_at_ms`-nya sebagai
+     * lantai rekaman (SyncRecordFloor), supaya push versi lama yang terlambat setelah kompaksi ditolak
+     * dan tidak menghidupkan kembali rekaman yang sudah dihapus.
+     */
+    private function catatLantai(array $ids): void
+    {
+        $baris = DB::table('sync_log_entries')
+            ->whereIn('id', $ids)
+            ->get(['user_id', 'room_id', 'record_id', 'changed_at_ms']);
+
+        foreach ($baris as $tombstone) {
+            SyncRecordFloor::naikkan(
+                (int) $tombstone->user_id,
+                $tombstone->room_id,
+                $tombstone->record_id,
+                (int) $tombstone->changed_at_ms,
+            );
+        }
     }
 
     /** Dipanggil di dalam transaksi. Mengurangi kuota pemiliknya dulu, baru menghapus barisnya. */
