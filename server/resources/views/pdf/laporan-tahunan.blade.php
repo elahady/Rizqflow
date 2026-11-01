@@ -55,7 +55,7 @@
         <tr><th>Bulan</th><th>Pemasukan</th><th>Pengeluaran</th><th>Sisa</th></tr>
         @foreach ($report->months as $month)
             <tr @class(['empty' => ! $month->hasData()])>
-                <td>{{ Carbon::createFromFormat('Y-m', $month->month)->translatedFormat('F') }}</td>
+                <td>{{ Carbon::createFromFormat('!Y-m', $month->month)->translatedFormat('F') }}</td>
                 <td>{{ Rupiah::format($month->income) }}</td>
                 <td>{{ Rupiah::format($month->expense) }}</td>
                 <td>{{ Rupiah::format($month->income - $month->expense) }}</td>

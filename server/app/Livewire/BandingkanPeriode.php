@@ -40,7 +40,7 @@ class BandingkanPeriode extends Component
     {
         $today = Carbon::today();
         $this->periodA = $this->granularity === 'bulan' ? $today->format('Y-m') : $today->format('Y');
-        $this->periodB = $this->granularity === 'bulan' ? $today->copy()->subMonth()->format('Y-m') : $today->copy()->subYear()->format('Y');
+        $this->periodB = $this->granularity === 'bulan' ? $today->copy()->subMonthNoOverflow()->format('Y-m') : $today->copy()->subYearNoOverflow()->format('Y');
     }
 
     public function render(): View

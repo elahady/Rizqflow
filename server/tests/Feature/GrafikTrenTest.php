@@ -29,6 +29,10 @@ class GrafikTrenTest extends TestCase
     {
         parent::setUp();
 
+        // Waktu dibekukan supaya tes tidak bergantung tanggal berjalan (dulu gagal di hari ke-29 sampai 31,
+        // karena subMonth() meluap). Tes akhir bulan di bawah memajukan waktu sendiri.
+        $this->travelTo(Carbon::parse('2026-10-15 10:00:00'));
+
         $this->user = User::factory()->create();
         $this->room = Room::create(['user_id' => $this->user->id, 'name' => 'Keluarga', 'type' => 'mencukupi', 'slot' => 1, 'sort_order' => 1]);
         $this->category = Category::create(['room_id' => $this->room->id, 'name' => 'Belanja bulanan', 'sort_order' => 1]);
@@ -75,8 +79,8 @@ class GrafikTrenTest extends TestCase
     public function test_pro_user_gets_monthly_totals_for_the_selected_range(): void
     {
         $this->user->update(['plans' => ['pro']]);
-        $this->tx('pemasukan', 1_000_000, Carbon::now()->subMonths(1));
-        $this->tx('pengeluaran', 300_000, Carbon::now()->subMonths(1), $this->room->id, $this->category->id);
+        $this->tx('pemasukan', 1_000_000, Carbon::now()->subMonthNoOverflow());
+        $this->tx('pengeluaran', 300_000, Carbon::now()->subMonthNoOverflow(), $this->room->id, $this->category->id);
         $this->tx('pemasukan', 2_000_000, Carbon::now());
         $this->tx('pengeluaran', 500_000, Carbon::now(), $this->room->id, $this->category->id);
 
@@ -132,10 +136,24 @@ class GrafikTrenTest extends TestCase
             ->assertSet('categoryId', null);
     }
 
+    public function test_the_previous_month_is_not_skipped_when_today_is_the_31st(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-31 10:00:00'));
+        $this->user->update(['plans' => ['pro']]);
+        $this->tx('pengeluaran', 300_000, Carbon::parse('2026-09-30'), $this->room->id, $this->category->id);
+        $this->tx('pengeluaran', 500_000, Carbon::parse('2026-10-31'), $this->room->id, $this->category->id);
+
+        $component = Livewire::actingAs($this->user)->test(GrafikTren::class)->set('months', 2);
+        $series = $this->capturedSeries($component);
+
+        $this->assertSame([300_000, 500_000], $series['expense']);
+        $this->assertCount(2, $series['labels']);
+    }
+
     public function test_months_outside_the_range_are_zero(): void
     {
         $this->user->update(['plans' => ['pro']]);
-        $this->tx('pemasukan', 1_000_000, Carbon::now()->subMonths(5));
+        $this->tx('pemasukan', 1_000_000, Carbon::now()->subMonthsNoOverflow(5));
 
         $component = Livewire::actingAs($this->user)->test(GrafikTren::class)->set('months', 2);
         $series = $this->capturedSeries($component);

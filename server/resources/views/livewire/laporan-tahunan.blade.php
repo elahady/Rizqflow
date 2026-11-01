@@ -85,7 +85,7 @@
                         <tbody>
                             @foreach ($report->months as $month)
                                 <tr @if (! $month->hasData()) style="color: var(--rf-on-surface-variant);" @endif>
-                                    <td style="font-weight: 600;">{{ Carbon::createFromFormat('Y-m', $month->month)->translatedFormat('F') }}</td>
+                                    <td style="font-weight: 600;">{{ Carbon::createFromFormat('!Y-m', $month->month)->translatedFormat('F') }}</td>
                                     <td class="num">{{ Rupiah::format($month->income) }}</td>
                                     <td class="num">{{ Rupiah::format($month->expense) }}</td>
                                     <td class="num">{{ Rupiah::format($month->income - $month->expense) }}</td>

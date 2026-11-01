@@ -97,6 +97,17 @@ class LaporanPdfTest extends TestCase
         $this->assertStringContainsString('laporan-tahunan-'.Carbon::today()->format('Y').'.pdf', $year->headers->get('content-disposition'));
     }
 
+    /** Regresi: `createFromFormat('Y-m')` memakai hari ini; pada tanggal 31 bulan pendek (Februari) dianggap tak sah dan jatuh ke bulan ini. */
+    public function test_a_short_month_in_the_query_is_honoured_when_today_is_the_31st(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-31 10:00:00'));
+
+        $response = $this->actingAs($this->user)->get(route('laporan.bulanan.pdf', ['bulan' => '2026-02']));
+
+        $response->assertOk();
+        $this->assertStringContainsString('laporan-bulanan-2026-02.pdf', $response->headers->get('content-disposition'));
+    }
+
     public function test_a_year_without_records_still_produces_a_pdf(): void
     {
         $response = $this->actingAs($this->user)->get(route('laporan.tahunan.pdf', ['tahun' => '2019']));

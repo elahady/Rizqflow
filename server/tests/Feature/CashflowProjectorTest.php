@@ -31,6 +31,10 @@ class CashflowProjectorTest extends TestCase
     {
         parent::setUp();
 
+        // Waktu dibekukan: jendela proyeksi 30 hari memuat satu kemunculan lagi aturan bulanan bila
+        // bulan berjalan pendek, jadi hasilnya dulu bergantung tanggal berjalan.
+        $this->travelTo(Carbon::parse('2026-10-15 10:00:00'));
+
         $this->user = User::factory()->create(['plans' => ['pro']]);
         $this->room = Room::create(['user_id' => $this->user->id, 'name' => 'Keluarga', 'type' => 'mencukupi', 'slot' => 1, 'sort_order' => 1]);
         $this->category = Category::create(['room_id' => $this->room->id, 'name' => 'Belanja bulanan', 'sort_order' => 1]);
@@ -51,7 +55,9 @@ class CashflowProjectorTest extends TestCase
         RecurringRule::create([
             'user_id' => $this->user->id, 'type' => 'pemasukan', 'amount_minor' => 500_000, 'source' => 'Bonus',
             'account_id' => $this->account->id, 'frequency' => 'bulanan',
-            'start_date' => Carbon::today(), 'next_due' => Carbon::today()->addDays(5), 'active' => true,
+            // start_date sejajar dengan next_due (jangkar bulanan = tanggal jatuh tempo): kemunculan
+            // berikutnya paling cepat 28 hari sesudah +5 hari, selalu di luar jendela 30 hari.
+            'start_date' => Carbon::today()->addDays(5), 'next_due' => Carbon::today()->addDays(5), 'active' => true,
         ]);
 
         $result = CashflowProjector::project($this->user, 30);
