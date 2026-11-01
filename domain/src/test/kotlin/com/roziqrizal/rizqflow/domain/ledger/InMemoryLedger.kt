@@ -63,10 +63,22 @@ class InMemoryLedger(private val nowMillis: () -> Long = System::currentTimeMill
 
     override suspend fun activeAccounts() = accountRows.values.filter { !it.archived && it.sharedFrom == null }.sortedBy { it.sortOrder }
 
-    override suspend fun allAccounts() = accountRows.values.sortedBy { it.sortOrder }
+    override suspend fun allAccounts() = accountRows.values.filter { it.sharedFrom == null }.sortedBy { it.sortOrder }
+
+    override suspend fun allAccountsIncludingMembers() = accountRows.values.sortedBy { it.sortOrder }
 
     override suspend fun save(account: Account) {
         accountRows[account.id] = account
+    }
+
+    override suspend fun delete(id: AccountId): LedgerResult<Unit> {
+        val account = accountRows[id]
+        if (account == null || account.sharedFrom != null) return failure(LedgerError.ACCOUNT_NOT_FOUND)
+        if (transactionRows.values.any { it.accountId == id || it.toAccountId == id }) return failure(LedgerError.ACCOUNT_IN_USE)
+        if (!account.archived && activeAccounts().size <= 1) return failure(LedgerError.LAST_ACCOUNT)
+        accountRows.remove(id)
+        favoriteRows.values.removeAll { it.accountId == id }
+        return LedgerResult.Success(Unit)
     }
 
     override suspend fun findOrCreateVirtualMember(roomId: RoomId, author: String, accountName: String): Account {
@@ -139,6 +151,28 @@ class InMemoryLedger(private val nowMillis: () -> Long = System::currentTimeMill
         categoryRows.values.filter { it.roomId == roomId && !it.archived }.sortedBy { it.sortOrder }
 
     override suspend fun findCategory(id: CategoryId) = categoryRows[id]
+
+    // Hapus meniru aturan ringkas repositori Room (rujukan transaksi -> ditolak); aturan lengkap (FK RESTRICT, tombstone,
+    // urutan cascade) diuji pada Room di :data (DeleteApiTest).
+    override suspend fun deleteCategory(id: CategoryId): LedgerResult<Unit> {
+        val category = categoryRows[id] ?: return failure(LedgerError.CATEGORY_NOT_FOUND)
+        if (category.isSystem) return failure(LedgerError.CATEGORY_IS_SYSTEM)
+        if (transactionRows.values.any { it.categoryId == id }) return failure(LedgerError.CATEGORY_IN_USE)
+        categoryRows.remove(id)
+        favoriteRows.values.removeAll { it.categoryId == id }
+        return LedgerResult.Success(Unit)
+    }
+
+    override suspend fun deleteRoom(id: RoomId): LedgerResult<Unit> {
+        val room = roomRows[id] ?: return failure(LedgerError.ROOM_NOT_FOUND)
+        if (!room.archived) return failure(LedgerError.ROOM_NOT_ARCHIVED)
+        if (transactionRows.values.any { it.roomId == id }) return failure(LedgerError.ROOM_IN_USE)
+        categoryRows.values.removeAll { it.roomId == id }
+        favoriteRows.values.removeAll { it.roomId == id }
+        ruleRows = ruleRows.filter { it.roomId != id }
+        roomRows.remove(id)
+        return LedgerResult.Success(Unit)
+    }
 
     override suspend fun addRoom(room: Room, categories: List<Category>) {
         maybeFail()

@@ -1,6 +1,6 @@
 package com.roziqrizal.rizqflow.data.repo
 
-import androidx.room.withTransaction
+import com.roziqrizal.rizqflow.data.db.withTransaction
 import com.roziqrizal.rizqflow.data.db.AppSettingEntity
 import com.roziqrizal.rizqflow.data.db.DayCheckEntity
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase

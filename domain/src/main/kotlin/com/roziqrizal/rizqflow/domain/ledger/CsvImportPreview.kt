@@ -32,7 +32,8 @@ data class ImportPreview(val candidates: List<ImportCandidate>) {
  * jelas, bukan dipaksakan ke pilihan yang salah.
  */
 class CsvImportPreviewBuilder(accounts: List<Account>, categories: List<Category>) {
-    private val accountByName = accounts.filterNot { it.archived }.associateBy { it.name.lowercase() }
+    // Akun anggota virtual (sharedFrom terisi) tidak pernah menjadi tujuan impor, walau namanya cocok.
+    private val accountByName = accounts.filterNot { it.archived || it.sharedFrom != null }.associateBy { it.name.lowercase() }
     private val categoryByName = categories.filterNot { it.archived }.associateBy { it.name.lowercase() }
 
     private data class Resolved(val row: ImportRow, val accountId: AccountId, val roomId: RoomId?, val categoryId: CategoryId?)

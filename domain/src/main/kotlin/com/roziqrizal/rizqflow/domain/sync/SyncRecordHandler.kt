@@ -50,8 +50,9 @@ interface SyncRecordHandler {
      *    tidak terpenuhi kembali tanpa menulis dan catat `SyncIssue` DEFERRED_MISSING_REF atau DEFERRED_FK_RESTRICT.
      *
      * Room tidak punya SAVEPOINT bersarang di jalur ini, jadi "coba lalu pulihkan" bukan pilihan. Implementasi Room
-     * mendeteksi pembatalan diam-diam sebagai [SyncApplyAbortedException] bila dipanggil di luar transaksi lain,
-     * tetapi jangan mengandalkannya.
+     * mendeteksi pembatalan diam-diam sebagai [SyncApplyAbortedException] (galat transaksi repositori dicatat di
+     * [SyncApplying.failure] sehingga terdeteksi juga bila `applyIncoming` dipanggil di dalam transaksi lain; yang tidak
+     * terdeteksi hanya transaksi yang dibuka tanpa `withTransaction` milik :data), tetapi jangan mengandalkannya.
      */
     suspend fun apply(scope: SyncScope, decoded: DecodedRecord)
 }

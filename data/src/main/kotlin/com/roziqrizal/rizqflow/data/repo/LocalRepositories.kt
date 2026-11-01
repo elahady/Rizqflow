@@ -1,6 +1,7 @@
 package com.roziqrizal.rizqflow.data.repo
 
-import androidx.room.withTransaction
+import android.database.sqlite.SQLiteConstraintException
+import com.roziqrizal.rizqflow.data.db.withTransaction
 import com.roziqrizal.rizqflow.data.db.AppSettingEntity
 import com.roziqrizal.rizqflow.data.db.AllocationRuleEntity
 import com.roziqrizal.rizqflow.data.db.PendingRoomTombstoneEntity
@@ -15,6 +16,8 @@ import com.roziqrizal.rizqflow.domain.ledger.AccountRepository
 import com.roziqrizal.rizqflow.domain.ledger.AllocationEntry
 import com.roziqrizal.rizqflow.domain.ledger.Category
 import com.roziqrizal.rizqflow.domain.ledger.FavoriteRepository
+import com.roziqrizal.rizqflow.domain.ledger.LedgerError
+import com.roziqrizal.rizqflow.domain.ledger.LedgerResult
 import com.roziqrizal.rizqflow.domain.ledger.QuickFavorite
 import com.roziqrizal.rizqflow.domain.ledger.MoneyTransaction
 import com.roziqrizal.rizqflow.domain.ledger.PendingSyncTransaction
@@ -33,6 +36,7 @@ import com.roziqrizal.rizqflow.domain.model.TransactionId
 import com.roziqrizal.rizqflow.domain.model.TransactionKind
 import com.roziqrizal.rizqflow.domain.model.TransactionOrigin
 import com.roziqrizal.rizqflow.domain.money.Money
+import com.roziqrizal.rizqflow.domain.sync.SharedRoomStatus
 import com.roziqrizal.rizqflow.domain.sync.SyncRecordIds
 import com.roziqrizal.rizqflow.domain.sync.SyncRecordType
 import com.roziqrizal.rizqflow.domain.sync.VirtualMemberAccount
@@ -49,6 +53,18 @@ import java.time.LocalDate
 
 /** Kunci `app_setting` mode alokasi; bagian dari rekaman ALLOCATION_CONFIG, bukan pengaturan perangkat. */
 internal const val ALLOCATION_MODE_KEY = "allocation_mode"
+
+/**
+ * Jaring pengaman hapus: pemeriksaan rujukan di dalam [block] sudah memberi galat domain yang tepat, tetapi kunci asing
+ * RESTRICT tetap penjaga terakhir. Bila masih ada rujukan yang lolos dari pemeriksaan (data yang tidak terduga),
+ * SQLite menolak dan transaksi di [block] batal bersih; di sini galatnya dijadikan [inUse], bukan crash.
+ */
+private suspend fun guardedDelete(inUse: LedgerError, block: suspend () -> LedgerResult<Unit>): LedgerResult<Unit> =
+    try {
+        block()
+    } catch (e: SQLiteConstraintException) {
+        LedgerResult.Failure(inUse)
+    }
 
 class LocalWorkspaceRepository(private val db: RizqflowDatabase, private val recorder: SyncRecorder) : WorkspaceRepository {
     override suspend fun isEmpty(): Boolean = db.rooms().count() == 0 && db.accounts().count() == 0
@@ -75,10 +91,32 @@ class LocalAccountRepository(private val db: RizqflowDatabase, private val recor
 
     override suspend fun allAccounts(): List<Account> = db.accounts().all().map { it.toDomain() }
 
+    override suspend fun allAccountsIncludingMembers(): List<Account> = db.accounts().allIncludingMembers().map { it.toDomain() }
+
     override suspend fun save(account: Account) {
         db.withTransaction {
             db.accounts().upsert(account.toEntity())
-            recorder.changed(SyncRecordType.ACCOUNT, account.id.value)
+            // Akun anggota virtual (shared_from terisi) bukan data pribadi pengguna ini: tidak pernah ditandai kotor,
+            // jadi tidak pernah keluar lewat sync pribadi walau disimpan ulang lewat jalur ini.
+            if (account.sharedFrom == null) recorder.changed(SyncRecordType.ACCOUNT, account.id.value)
+        }
+    }
+
+    override suspend fun delete(id: AccountId): LedgerResult<Unit> = guardedDelete(LedgerError.ACCOUNT_IN_USE) {
+        db.withTransaction<LedgerResult<Unit>> {
+            val entity = db.accounts().find(id.value)
+            // Akun anggota virtual dikelola sinkron ruang bersama, bukan akun pengguna: tidak bisa dihapus dari sini.
+            if (entity == null || entity.sharedFrom != null) return@withTransaction LedgerResult.Failure(LedgerError.ACCOUNT_NOT_FOUND)
+            if (db.accounts().inUse(id.value)) return@withTransaction LedgerResult.Failure(LedgerError.ACCOUNT_IN_USE)
+            if (!entity.archived && db.accounts().active().size <= 1) return@withTransaction LedgerResult.Failure(LedgerError.LAST_ACCOUNT)
+
+            // Favorit memakai akun ini lewat FK CASCADE; hapus eksplisit supaya masing-masing mendapat tombstone.
+            val favoriteIds = db.favorites().idsByAccount(id.value)
+            if (favoriteIds.isNotEmpty()) db.favorites().deleteAll(favoriteIds)
+            db.accounts().delete(id.value)
+            recorder.deleted(SyncRecordType.QUICK_FAVORITE, favoriteIds)
+            recorder.deleted(SyncRecordType.ACCOUNT, id.value)
+            LedgerResult.Success(Unit)
         }
     }
 
@@ -154,6 +192,66 @@ class LocalRoomRepository(private val db: RizqflowDatabase, private val recorder
         }
     }
 
+    override suspend fun deleteCategory(id: CategoryId): LedgerResult<Unit> = guardedDelete(LedgerError.CATEGORY_IN_USE) {
+        db.withTransaction<LedgerResult<Unit>> {
+            val category = db.rooms().findCategory(id.value) ?: return@withTransaction LedgerResult.Failure(LedgerError.CATEGORY_NOT_FOUND)
+            if (category.isSystem) return@withTransaction LedgerResult.Failure(LedgerError.CATEGORY_IS_SYSTEM)
+            if (db.rooms().categoryHistoryInUse(id.value) || db.rooms().categoryUsedByDca(id.value)) {
+                return@withTransaction LedgerResult.Failure(LedgerError.CATEGORY_IN_USE)
+            }
+            if (!category.archived) {
+                // Sama dengan arsip kategori: ruang harus tetap punya kategori biasa aktif supaya pengeluaran bisa dicatat.
+                val others = db.rooms().allCategories().count { it.roomId == category.roomId && it.id != category.id && !it.isSystem && !it.archived }
+                if (others == 0) return@withTransaction LedgerResult.Failure(LedgerError.LAST_CATEGORY)
+            }
+
+            val favoriteIds = db.favorites().idsByCategory(id.value)
+            if (favoriteIds.isNotEmpty()) db.favorites().deleteAll(favoriteIds)
+            db.rooms().deleteCategory(id.value)
+            recorder.deleted(SyncRecordType.QUICK_FAVORITE, favoriteIds)
+            recorder.deleted(SyncRecordType.CATEGORY, id.value)
+            LedgerResult.Success(Unit)
+        }
+    }
+
+    override suspend fun deleteRoom(id: RoomId): LedgerResult<Unit> = guardedDelete(LedgerError.ROOM_IN_USE) {
+        db.withTransaction<LedgerResult<Unit>> {
+            val room = db.rooms().find(id.value) ?: return@withTransaction LedgerResult.Failure(LedgerError.ROOM_NOT_FOUND)
+            if (!room.archived) return@withTransaction LedgerResult.Failure(LedgerError.ROOM_NOT_ARCHIVED)
+            if (db.sync().sharedRoom(id.value)?.status == SharedRoomStatus.ACTIVE.name) return@withTransaction LedgerResult.Failure(LedgerError.ROOM_SHARED)
+
+            // SEMUA pemeriksaan sebelum satu pun penulisan: penolakan tidak boleh meninggalkan ruang yang setengah terhapus.
+            val categoryIds = db.rooms().categoryIdsOf(id.value)
+            if (db.rooms().roomInUse(id.value) ||
+                categoryIds.any { db.rooms().categoryHistoryInUse(it) } ||
+                db.rooms().roomCategoriesUsedByOtherDca(id.value)
+            ) {
+                return@withTransaction LedgerResult.Failure(LedgerError.ROOM_IN_USE)
+            }
+
+            // Urutan hapus tidak boleh mengandalkan urutan cascade SQLite: rencana DCA merujuk kategori dengan RESTRICT,
+            // jadi harus hilang SEBELUM kategori ruang. Tiap rekaman yang hilang (termasuk lewat cascade ruang -> kategori,
+            // yang tidak pernah lewat saveCategory) mendapat tombstone sendiri; aturan alokasi, keanggotaan ruang bersama,
+            // dan penanda hapus tertunda ikut lewat CASCADE tanpa tombstone: aturan ruang terarsip tidak ada di payload
+            // ALLOCATION_CONFIG (hanya ruang aktif), dua lainnya keadaan lokal.
+            val hadDca = db.roles().dca(id.value) != null
+            val hadTrader = db.roles().trader(id.value) != null
+            val favoriteIds = db.favorites().idsByRoom(id.value)
+            if (hadDca) db.roles().deleteDca(id.value)
+            if (hadTrader) db.roles().deleteTrader(id.value)
+            if (favoriteIds.isNotEmpty()) db.favorites().deleteAll(favoriteIds)
+            db.rooms().deleteCategoriesOf(id.value)
+            db.rooms().deleteRoom(id.value)
+
+            if (hadDca) recorder.deleted(SyncRecordType.DCA_PLAN, id.value)
+            if (hadTrader) recorder.deleted(SyncRecordType.TRADER_PROFILE, id.value)
+            recorder.deleted(SyncRecordType.QUICK_FAVORITE, favoriteIds)
+            recorder.deleted(SyncRecordType.CATEGORY, categoryIds)
+            recorder.deleted(SyncRecordType.ROOM, id.value)
+            LedgerResult.Success(Unit)
+        }
+    }
+
     override suspend fun addRoom(room: Room, categories: List<Category>) {
         db.withTransaction {
             db.rooms().upsert(room.toEntity())
@@ -215,8 +313,13 @@ class LocalRoomRepository(private val db: RizqflowDatabase, private val recorder
 
     override suspend fun saveRooms(rooms: List<Room>, rules: List<AllocationRule>?) {
         db.withTransaction {
+            // Rekaman ALLOCATION_CONFIG dibangun dari aturan RUANG AKTIF saja (RoomDao.rules menggabung ke room.archived = 0),
+            // jadi mengarsipkan atau memulihkan ruang mengubah isinya walau tabel allocation_rule tidak disentuh. Bandingkan
+            // status arsip sebelum menimpa, supaya perubahan arsip ikut tersinkron meski `rules` tidak diberikan.
+            val archiveFlipped = rooms.any { room -> db.rooms().find(room.id.value)?.let { it.archived != room.archived } == true }
             db.rooms().upsertAll(rooms.map { it.toEntity() })
             recorder.changed(SyncRecordType.ROOM, rooms.map { it.id.value })
+            if (archiveFlipped && rules == null) recorder.changed(SyncRecordType.ALLOCATION_CONFIG, SyncRecordIds.ALLOCATION_CONFIG)
             if (rules != null) {
                 // Ruang yang baru dipulihkan sudah aktif di sini, jadi aturan lamanya ikut terhapus dan diganti.
                 // Cap_amount ruang lain dibawa serta supaya tidak ikut terhapus (lihat replaceRules).

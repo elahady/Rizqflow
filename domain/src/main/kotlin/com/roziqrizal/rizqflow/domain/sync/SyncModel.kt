@@ -159,13 +159,25 @@ data class SyncIssue(
  * Elemen konteks korutin "sedang menerapkan hasil pull": perubahan yang ditulis di dalamnya datang
  * dari luar, bukan edit lokal, jadi pencatat ([SyncStore] dan recorder di :data) tidak menandainya
  * kotor. Mencegah loop pull -> kotor -> push.
+ *
+ * Satu instans per penerapan ([withSyncApplying], atau dibuat langsung oleh [SyncStore.applyIncoming]) karena juga
+ * membawa [failure]: galat pertama yang keluar dari sebuah transaksi repositori bersarang selama penerapan ini
+ * (dicatat lewat [noteSyncApplyFailure]). SQLite menandai transaksi LUAR gagal begitu transaksi bersarang berakhir tanpa
+ * sukses, walau galatnya ditelan penangan; [failure] membuat penerapan yang dibatalkan diam-diam itu terdeteksi bahkan
+ * ketika `applyIncoming` sendiri dipanggil di dalam transaksi lain (saat itu pemeriksaan pasca-komit tidak mungkin).
  */
-class SyncApplying private constructor() : AbstractCoroutineContextElement(Key) {
+class SyncApplying : AbstractCoroutineContextElement(Key) {
+    @Volatile
+    var failure: Throwable? = null
+        private set
+
+    internal fun record(cause: Throwable) {
+        if (failure == null) failure = cause
+    }
+
     override fun toString() = "SyncApplying"
 
-    companion object Key : CoroutineContext.Key<SyncApplying> {
-        val INSTANCE = SyncApplying()
-    }
+    companion object Key : CoroutineContext.Key<SyncApplying>
 }
 
 /**
@@ -173,13 +185,21 @@ class SyncApplying private constructor() : AbstractCoroutineContextElement(Key) 
  * ternyata dibatalkan (biasanya karena penangan menelan galat repositori; lihat KDoc [SyncRecordHandler.apply]).
  * Pemanggil TIDAK boleh memajukan kursor untuk baris ini.
  */
-class SyncApplyAbortedException(message: String) : IllegalStateException(message)
+class SyncApplyAbortedException(message: String, cause: Throwable? = null) : IllegalStateException(message, cause)
 
-/** Menjalankan [block] di konteks `applying` (tidak menandai kotor). */
-suspend fun <R> withSyncApplying(block: suspend () -> R): R = withContext(SyncApplying.INSTANCE) { block() }
+/** Menjalankan [block] di konteks `applying` baru (tidak menandai kotor). */
+suspend fun <R> withSyncApplying(block: suspend () -> R): R = withContext(SyncApplying()) { block() }
 
 /** True bila pemanggil sedang berada di konteks `applying`. */
 suspend fun isSyncApplying(): Boolean = currentCoroutineContext()[SyncApplying.Key] != null
+
+/**
+ * Dipanggil lapisan data setiap kali transaksi repositori gagal (galat keluar dari blok `withTransaction`). Di konteks
+ * `applying` galat itu dicatat di [SyncApplying.failure]; di luar konteks itu tidak melakukan apa-apa.
+ */
+suspend fun noteSyncApplyFailure(cause: Throwable) {
+    currentCoroutineContext()[SyncApplying.Key]?.record(cause)
+}
 
 /**
  * Kontrak penyimpanan sinkron lokal (`sync_record`, `sync_cursor`, `sync_issue`, `shared_room`).
@@ -226,8 +246,9 @@ interface SyncStore {
      * di dalamnya menandai transaksi LUAR gagal walau galatnya ditangkap, sehingga seluruh transaksi (termasuk meta)
      * dibatalkan diam-diam sementara pemanggilnya merasa berhasil. Biarkan galat merambat, atau lakukan pra-cek (rujukan
      * ada, FK terpenuhi) sebelum menulis dan catat `SyncIssue` DEFERRED_* tanpa menulis apa pun. Implementasi Room
-     * memeriksa ulang meta setelah komit dan melempar [SyncApplyAbortedException] bila pembatalan itu terjadi
-     * (hanya terdeteksi bila dipanggil di luar transaksi lain).
+     * melempar [SyncApplyAbortedException] bila pembatalan itu terjadi: lewat [SyncApplying.failure] (galat transaksi
+     * repositori yang dicatat `withTransaction` di :data; terdeteksi juga bila dipanggil di dalam transaksi lain) dan
+     * pemeriksaan ulang meta setelah komit (hanya bila dipanggil di luar transaksi lain).
      * [localDeviceId] dipakai untuk versi lokal yang tidak menyimpan id perangkat.
      */
     suspend fun applyIncoming(

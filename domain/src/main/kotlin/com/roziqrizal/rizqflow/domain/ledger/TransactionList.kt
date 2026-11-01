@@ -63,7 +63,8 @@ class TransactionLister(
         val inMonth = transactions.between(month.atDay(1), month.atEndOfMonth())
         if (inMonth.isEmpty()) return TransactionListing(emptyList())
 
-        val accountNames = accounts.allAccounts().associate { it.id to it.name }
+        // Termasuk akun anggota virtual: baris SHARED di daftar tetap menampilkan nama akun sumbernya ("Dompet (Ayu)").
+        val accountNames = accounts.allAccountsIncludingMembers().associate { it.id to it.name }
         val roomsById = rooms.allRooms().associateBy { it.id }
         val categoriesById = rooms.allCategories().associateBy { it.id }
 

@@ -1,21 +1,29 @@
 package com.roziqrizal.rizqflow.domain.ledger
 
 import com.roziqrizal.rizqflow.domain.model.TransactionKind
+import com.roziqrizal.rizqflow.domain.model.TransactionOrigin
 
 /**
  * Menulis seluruh transaksi ke CSV mentah: nama akun/ruang/kategori tertulis apa adanya (bukan
  * pengenal), supaya berkasnya bisa dibaca sendiri di luar aplikasi. Nominal ditulis dalam rupiah
  * bulat (satuan terkecil = rupiah, tidak pernah pecahan).
+ *
+ * Ekspor ini PRIBADI: baris `origin = SHARED` (pengeluaran anggota lain di ruang bersama, akunnya akun anggota virtual)
+ * dilewati. Bila ikut, berkasnya yang diimpor ke perangkat lain akan menggandakan catatan orang lain sebagai catatan
+ * pribadi. Penelepon yang menampilkan jumlah baris sebaiknya menyaring dengan [isExportable] lebih dulu.
  */
 object CsvExporter {
     val HEADER = listOf("Tanggal", "Jenis", "Akun", "Akun Tujuan", "Ruang", "Kategori", "Nominal", "Catatan", "Sumber")
 
+    /** Benar bila [transaction] ikut ekspor pribadi (bukan pengeluaran anggota lain di ruang bersama). */
+    fun isExportable(transaction: MoneyTransaction): Boolean = transaction.origin != TransactionOrigin.SHARED
+
     fun export(transactions: List<MoneyTransaction>, accounts: List<Account>, rooms: List<Room>, categories: List<Category>): String {
-        val accountName = accounts.associate { it.id to it.name }
+        val accountName = accounts.filter { it.sharedFrom == null }.associate { it.id to it.name }
         val roomName = rooms.associate { it.id to it.name }
         val categoryName = categories.associate { it.id to it.name }
 
-        val lines = transactions.sortedBy { it.occurredOn }.map { tx ->
+        val lines = transactions.filter(::isExportable).sortedBy { it.occurredOn }.map { tx ->
             listOf(
                 tx.occurredOn.toString(),
                 jenisOf(tx.kind),

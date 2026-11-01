@@ -1,6 +1,9 @@
 package com.roziqrizal.rizqflow.domain.ledger
 
 import com.roziqrizal.rizqflow.domain.auth.runSuspend
+import com.roziqrizal.rizqflow.domain.model.TransactionId
+import com.roziqrizal.rizqflow.domain.model.TransactionKind
+import com.roziqrizal.rizqflow.domain.model.TransactionOrigin
 import com.roziqrizal.rizqflow.domain.money.Money
 import java.time.LocalDate
 import kotlin.test.Test
@@ -51,6 +54,36 @@ class CsvExporterTest {
         val line = csv.split("\r\n")[1]
 
         assertTrue(line.contains("\"beli, katanya \"\"murah\"\"\""))
+    }
+
+    @Test
+    fun `ekspor pribadi melewati pengeluaran anggota lain di ruang bersama`() {
+        val f = LedgerFixture().standard()
+        val diri = f.room("Diri")
+        val virtual = runSuspend { f.store.findOrCreateVirtualMember(diri.id, "ayu", "Tunai") }
+        val shared = MoneyTransaction(
+            id = TransactionId("shared-1"),
+            kind = TransactionKind.EXPENSE,
+            amount = rupiah(40_000),
+            accountId = virtual.id,
+            roomId = diri.id,
+            categoryId = f.category("Diri", "Investasi").id,
+            occurredOn = f.today,
+            note = "dari ayu",
+            origin = TransactionOrigin.SHARED,
+            createdAtMillis = 1,
+            updatedAtMillis = 1,
+        )
+        runSuspend { f.store.save(shared) }
+        f.income(1_000_000)
+
+        val all = f.store.transactionRows.values.toList()
+        assertEquals(2, all.size)
+        val csv = CsvExporter.export(all, f.store.accountRows.values.toList(), f.store.roomRows.values.toList(), f.store.categoryRows.values.toList())
+
+        assertEquals(2, csv.split("\r\n").size, "header + 1 baris pribadi")
+        assertTrue("dari ayu" !in csv)
+        assertTrue(!CsvExporter.isExportable(shared))
     }
 
     @Test

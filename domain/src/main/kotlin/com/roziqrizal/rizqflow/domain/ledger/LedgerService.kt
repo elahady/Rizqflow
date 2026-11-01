@@ -102,6 +102,30 @@ enum class LedgerError {
 
     /** Nama pihak (teman, keluarga, atau lainnya) kosong atau terlalu panjang. */
     INVALID_PARTY,
+
+    /**
+     * Hapus akun ditolak: masih dirujuk transaksi, transaksi berulang, tagihan, utang, atau rencana DCA (kunci asing
+     * RESTRICT). Riwayat tidak boleh kehilangan akunnya; arsipkan saja. Usulan Claude, belum dikonfirmasi pemilik.
+     */
+    ACCOUNT_IN_USE,
+
+    /**
+     * Hapus kategori ditolak: masih dirujuk transaksi, transaksi berulang, tagihan, atau rencana DCA. Arsipkan saja.
+     * Usulan Claude, belum dikonfirmasi pemilik.
+     */
+    CATEGORY_IN_USE,
+
+    /**
+     * Hapus ruang ditolak: masih punya riwayat (transaksi, potret alokasi pemasukan, transaksi berulang, atau tagihan)
+     * atau salah satu kategorinya masih dirujuk. Arsipkan saja. Usulan Claude, belum dikonfirmasi pemilik.
+     */
+    ROOM_IN_USE,
+
+    /** Hapus ruang ditolak: ruang harus diarsipkan dulu supaya aturan alokasi ruang aktif tidak diam-diam berubah. Usulan Claude. */
+    ROOM_NOT_ARCHIVED,
+
+    /** Hapus ruang ditolak: ruang ini sedang dibagi dengan anggota lain (ruang bersama aktif). Keluar dari ruang bersama dulu. Usulan Claude. */
+    ROOM_SHARED,
 }
 
 sealed interface LedgerResult<out T> {
@@ -443,6 +467,8 @@ class LedgerService(
     /** [unchanged]: akun yang sudah dipakai transaksi ini; boleh tetap dipakai walau sudah terarsip. */
     private suspend fun checkAccount(id: AccountId, amount: Money, unchanged: AccountId? = null): LedgerError? {
         val account = accounts.find(id) ?: return LedgerError.ACCOUNT_NOT_FOUND
+        // Akun anggota virtual bukan milik pengguna: tidak pernah menjadi sumber atau tujuan catatan pribadi.
+        if (account.sharedFrom != null) return LedgerError.ACCOUNT_NOT_FOUND
         if (account.archived && id != unchanged) return LedgerError.ACCOUNT_ARCHIVED
         if (account.currency != amount.currency) return LedgerError.CURRENCY_MISMATCH
         return null
