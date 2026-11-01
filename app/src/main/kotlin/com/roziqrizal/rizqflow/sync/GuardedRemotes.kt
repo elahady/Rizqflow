@@ -75,6 +75,9 @@ internal class GuardedRoomMembershipRemote(
 
     override suspend fun remove(apiToken: String, roomId: String, userId: Long): RemoteResult<Unit> =
         session.observe(apiToken, inner.remove(apiToken, roomId, userId))
+
+    override suspend fun leave(apiToken: String, roomId: String): RemoteResult<Unit> =
+        session.observe(apiToken, inner.leave(apiToken, roomId))
 }
 
 internal class GuardedPurchaseRemote(

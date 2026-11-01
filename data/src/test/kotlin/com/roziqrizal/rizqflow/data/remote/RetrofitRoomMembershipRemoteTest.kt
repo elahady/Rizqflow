@@ -119,25 +119,111 @@ class RetrofitRoomMembershipRemoteTest {
 
         val result = remote.remove(apiToken = "abc123", roomId = "ruang-keluarga-1", userId = 9)
 
-        assertEquals(RemoteResult.Failure(RemoteError.Rejected("Hanya pemilik ruang yang bisa mengeluarkan anggota.")), result)
+        assertEquals(
+            RemoteResult.Failure(RemoteError.Rejected("Hanya pemilik ruang yang bisa mengeluarkan anggota.", "not_room_owner")),
+            result,
+        )
     }
 
     @Test
-    fun `remove tanpa langganan Sync tetap SyncRequired`() = runBlocking {
+    fun `remove tanpa langganan Sync tetap SyncRequired, dengan atau tanpa kode`() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(403).setBody("""{"message":"Butuh langganan Sync."}"""))
+        server.enqueue(MockResponse().setResponseCode(403).setBody("""{"message":"Butuh langganan Sync.","code":"sync_required"}"""))
 
-        val result = remote.remove(apiToken = "abc123", roomId = "ruang-keluarga-1", userId = 9)
-
-        assertEquals(RemoteResult.Failure(RemoteError.SyncRequired), result)
+        assertEquals(RemoteResult.Failure(RemoteError.SyncRequired), remote.remove("abc123", "ruang-keluarga-1", 9))
+        assertEquals(RemoteResult.Failure(RemoteError.SyncRequired), remote.remove("abc123", "ruang-keluarga-1", 9))
     }
 
     @Test
-    fun `members menolak bukan anggota`() = runBlocking {
+    fun `members oleh bukan anggota berkode ditolak tanpa membuka paywall`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(403).setBody("""{"message":"Bukan anggota ruang ini.","code":"not_room_member"}"""))
+
+        val result = remote.members(apiToken = "abc123", roomId = "ruang-keluarga-1")
+
+        assertEquals(RemoteResult.Failure(RemoteError.Rejected("Bukan anggota ruang ini.", "not_room_member")), result)
+    }
+
+    @Test
+    fun `members 403 tanpa kode dari server lama tetap SyncRequired demi kompatibilitas`() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(403).setBody("""{"message":"Bukan anggota ruang ini."}"""))
 
         val result = remote.members(apiToken = "abc123", roomId = "ruang-keluarga-1")
 
         assertEquals(RemoteResult.Failure(RemoteError.SyncRequired), result)
+    }
+
+    @Test
+    fun `remove anggota yang tidak ada dan pemilik yang dikeluarkan dipetakan per kode`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(404).setBody("""{"message":"Anggota tidak ditemukan.","code":"member_not_found"}"""))
+        server.enqueue(MockResponse().setResponseCode(422).setBody("""{"message":"Pemilik tidak bisa dikeluarkan.","code":"owner_cannot_be_removed"}"""))
+
+        assertEquals(
+            RemoteResult.Failure(RemoteError.Rejected("Anggota tidak ditemukan.", "member_not_found")),
+            remote.remove("abc123", "ruang-keluarga-1", 9),
+        )
+        assertEquals(
+            RemoteResult.Failure(RemoteError.Rejected("Pemilik tidak bisa dikeluarkan.", "owner_cannot_be_removed")),
+            remote.remove("abc123", "ruang-keluarga-1", 7),
+        )
+    }
+
+    @Test
+    fun `leave sukses mengirim POST bertoken ke ruang yang benar`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(204))
+
+        val result = remote.leave(apiToken = "abc123", roomId = "ruang-keluarga-1")
+
+        assertEquals(RemoteResult.Success(Unit), result)
+        val sent = server.takeRequest()
+        assertEquals("POST", sent.method)
+        assertEquals("/rooms/ruang-keluarga-1/leave", sent.path)
+        assertEquals("Bearer abc123", sent.getHeader("Authorization"))
+    }
+
+    @Test
+    fun `leave oleh pemilik ditolak 422 owner_cannot_leave`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(422).setBody("""{"message":"Pemilik ruang tidak bisa keluar.","code":"owner_cannot_leave"}"""))
+
+        val result = remote.leave(apiToken = "abc123", roomId = "ruang-keluarga-1")
+
+        assertEquals(RemoteResult.Failure(RemoteError.Rejected("Pemilik ruang tidak bisa keluar.", "owner_cannot_leave")), result)
+    }
+
+    @Test
+    fun `leave oleh bukan anggota 404 not_room_member menjadi Rejected, bukan galat tak terduga`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(404).setBody("""{"message":"Bukan anggota ruang ini.","code":"not_room_member"}"""))
+
+        val result = remote.leave(apiToken = "abc123", roomId = "ruang-keluarga-1")
+
+        assertEquals(RemoteResult.Failure(RemoteError.Rejected("Bukan anggota ruang ini.", "not_room_member")), result)
+    }
+
+    @Test
+    fun `leave 404 polos tanpa kode tetap galat tak terduga`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(404).setBody("""{"message":"Not Found"}"""))
+
+        val result = remote.leave(apiToken = "abc123", roomId = "ruang-keluarga-1")
+
+        assertEquals(RemoteResult.Failure(RemoteError.Unexpected(404)), result)
+    }
+
+    @Test
+    fun `leave 401 adalah Unauthorized dan 429 membawa Retry-After`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(401).setBody("""{"message":"Unauthenticated.","code":"unauthenticated"}"""))
+        server.enqueue(
+            MockResponse().setResponseCode(429).setHeader("Retry-After", "20")
+                .setBody("""{"message":"Terlalu banyak permintaan.","code":"rate_limited","retry_after":20}"""),
+        )
+
+        assertEquals(RemoteResult.Failure(RemoteError.Unauthorized), remote.leave("abc123", "ruang-keluarga-1"))
+        assertEquals(RemoteResult.Failure(RemoteError.Unexpected(429, 20L)), remote.leave("abc123", "ruang-keluarga-1"))
+    }
+
+    @Test
+    fun `leave tanpa jaringan mengembalikan Unreachable`() = runBlocking {
+        server.shutdown()
+
+        assertEquals(RemoteResult.Failure(RemoteError.Unreachable), remote.leave("abc123", "ruang-keluarga-1"))
     }
 
     @Test
