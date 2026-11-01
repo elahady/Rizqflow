@@ -22,3 +22,6 @@ google-services.json
 # Artefak
 *.apk
 *.aab
+
+# Salinan otomatis dari ekstensi Kotlin/Java di IDE (isinya sama dengan src)
+bin/
