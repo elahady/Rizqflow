@@ -11,10 +11,12 @@ import com.roziqrizal.rizqflow.data.remote.ApiBaseUrl
 import com.roziqrizal.rizqflow.data.remote.RetrofitAccountRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitDeviceRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitPurchaseRemote
+import com.roziqrizal.rizqflow.data.remote.RetrofitPushTokenRegistrar
 import com.roziqrizal.rizqflow.data.remote.RetrofitRecoveryKeyRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitRoomMembershipRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitSyncRemote
 import com.roziqrizal.rizqflow.data.remote.RizqflowApiClient
+import com.roziqrizal.rizqflow.data.remote.RizqflowApiService
 import com.roziqrizal.rizqflow.data.remote.SharedPrefsApiTokenStore
 import com.roziqrizal.rizqflow.data.sync.AccountSyncHandler
 import com.roziqrizal.rizqflow.data.sync.AllocationConfigSyncHandler
@@ -47,6 +49,8 @@ import com.roziqrizal.rizqflow.domain.sync.DeviceRemote
 import com.roziqrizal.rizqflow.domain.sync.NewDeviceRecoveryAdvisor
 import com.roziqrizal.rizqflow.domain.sync.PersonalSyncCoordinator
 import com.roziqrizal.rizqflow.domain.sync.PurchaseRemote
+import com.roziqrizal.rizqflow.domain.sync.PushTokenRegistrar
+import com.roziqrizal.rizqflow.domain.sync.PushTokenSync
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyRemote
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyService
 import com.roziqrizal.rizqflow.domain.sync.RecoveryStatusStore
@@ -77,6 +81,7 @@ import com.roziqrizal.rizqflow.domain.role.RoleService
 import com.roziqrizal.rizqflow.domain.smartinput.SmartInputService
 import com.roziqrizal.rizqflow.domain.zakat.HaulReminderService
 import com.roziqrizal.rizqflow.domain.zakat.ZakatService
+import com.roziqrizal.rizqflow.push.FcmAvailability
 import com.roziqrizal.rizqflow.sync.DeviceId
 import com.roziqrizal.rizqflow.sync.DeviceName
 import com.roziqrizal.rizqflow.sync.ServerLink
@@ -110,6 +115,10 @@ class AccountWorkspace private constructor(
     private val recoveryRemote: RecoveryKeyRemote,
     /** Penanda NON-RAHASIA "kode pemulihan sudah diatur" per akun (tidak pernah memuat kode atau kunci). */
     private val recoveryStatusStore: RecoveryStatusStore,
+    /** Pendaftar token FCM, sudah dibungkus [serverSession]; null bila jalur FCM mati (tanpa google-services.json). */
+    pushTokenRegistrar: PushTokenRegistrar?,
+    /** Pengenal pemasangan ([DeviceId]); dipakai sync otomatis dan pendaftaran token FCM. */
+    private val deviceId: String,
 ) : AutoCloseable {
     private val newId: () -> String = { UUID.randomUUID().toString() }
 
@@ -231,11 +240,18 @@ class AccountWorkspace private constructor(
     val tokenRefresher = TokenRefresher(serverSession, accountRemote)
 
     /**
+     * Token FCM perangkat ini di server (wiring FCM 2026-11-01): kirim saat masuk/dibuka/token baru, cabut saat
+     * keluar dan sebelum hapus akun; hanya dengan Sync (lihat [PushTokenSync]). Null bila jalur FCM mati (build
+     * tanpa google-services.json), sehingga tidak ada panggilan server sama sekali untuk push.
+     */
+    val pushTokens: PushTokenSync? = pushTokenRegistrar?.let { PushTokenSync(it, entitlements, { serverSession.token() }, deviceId) }
+
+    /**
      * Sinkron otomatis (Tahap 9): dipasang ke [SyncCoordinator.syncNow] sekali per ruang kerja. Repositori transaksi
      * memanggilnya setelah pengeluaran di ruang bersama tersimpan; [syncSharedRoomsOnOpen] dipanggil saat
      * ruang kerja dibuka. Galat hanya dicatat, tidak pernah sampai ke pemanggil penyimpanan.
      */
-    private fun connectAutoSync(deviceId: String) {
+    private fun connectAutoSync() {
         local.autoSync.attach(
             sync = { roomId -> sync.syncNow(roomId, deviceId) },
             log = { message -> Log.w(TAG, "Sync otomatis: $message") },
@@ -281,9 +297,26 @@ class AccountWorkspace private constructor(
                 accountKeyProvider = AndroidKeystoreAccountKeyProvider(context, accountId),
                 recoveryRemote = session.guard(RetrofitRecoveryKeyRemote(apiService)),
                 recoveryStatusStore = SharedPrefsRecoveryStatusStore(context, accountId),
+                pushTokenRegistrar = pushTokenRegistrar(context, apiService, session),
+                deviceId = DeviceId.read(context),
             )
-            workspace.connectAutoSync(DeviceId.read(context))
+            workspace.connectAutoSync()
             return workspace
+        }
+
+        /** Null bila jalur FCM mati: tanpa Firebase tidak ada token FCM yang bisa didaftarkan atau perlu dicabut. */
+        private fun pushTokenRegistrar(context: Context, apiService: RizqflowApiService, session: ServerSession): PushTokenRegistrar? =
+            if (FcmAvailability.isAvailable(context)) session.guard(RetrofitPushTokenRegistrar(apiService)) else null
+
+        /**
+         * Pendaftar token FCM akun [accountId] TANPA membuka databasenya, untuk `RizqflowMessagingService.onNewToken`
+         * (tidak ada UI atau ruang kerja yang terbuka). Null bila jalur FCM mati.
+         */
+        fun pushTokenSync(context: Context, accountId: String): PushTokenSync? {
+            val session = ServerSession(SharedPrefsApiTokenStore(context, accountId))
+            val registrar = pushTokenRegistrar(context, RizqflowApiClient.create(resolveBaseUrl()), session) ?: return null
+            val entitlements = LivePlanEntitlements { PurchaseStore.shared(context).plans.value }
+            return PushTokenSync(registrar, entitlements, { session.token() }, DeviceId.read(context))
         }
 
         /**
@@ -298,7 +331,11 @@ class AccountWorkspace private constructor(
          */
         fun serverLink(context: Context, accountId: String): ServerLink {
             val session = ServerSession(SharedPrefsApiTokenStore(context, accountId))
-            return ServerLink(session, session.guard(RetrofitAccountRemote(RizqflowApiClient.create(resolveBaseUrl()))))
+            val apiService = RizqflowApiClient.create(resolveBaseUrl())
+            val pushTokens = pushTokenRegistrar(context, apiService, session)?.let { registrar ->
+                PushTokenSync(registrar, LivePlanEntitlements { PurchaseStore.shared(context).plans.value }, { session.token() }, DeviceId.read(context))
+            }
+            return ServerLink(session, session.guard(RetrofitAccountRemote(apiService)), pushTokens)
         }
 
         // Alamat dari BuildConfig diperiksa lagi di sini (lapis kedua setelah Gradle): alamat tak sah atau

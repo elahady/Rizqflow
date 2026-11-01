@@ -219,7 +219,7 @@ fun AppRoot(
                                     val serverSignOut = (localContext.applicationContext as RizqflowApplication).serverSignOut
                                     serverSignOut.signOutAccount(
                                         demoActive = demo,
-                                        workspaceLink = ServerLink(workspace.serverSession, workspace.accountRemote),
+                                        workspaceLink = ServerLink(workspace.serverSession, workspace.accountRemote, workspace.pushTokens),
                                         realAccountLink = { AccountWorkspace.serverLink(localContext, s.session.accountId) },
                                     )
                                     // Kode pemulihan yang sedang tampil tidak boleh tertinggal di memori setelah keluar.

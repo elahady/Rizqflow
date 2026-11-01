@@ -106,6 +106,34 @@ interface RizqflowApiService {
         @Header("Authorization") bearerToken: String,
         @Body body: RequestBody,
     ): Response<ResponseBody>
+
+    /** Daftarkan token FCM perangkat ini (wiring FCM 2026-11-01; kontrak di server-sync.md "Push notifikasi"). */
+    @Headers("Content-Type: application/json")
+    @POST("push/tokens")
+    suspend fun registerPushToken(
+        @Header("Authorization") bearerToken: String,
+        @Body body: RequestBody,
+    ): Response<ResponseBody>
+
+    /** Cabut token FCM perangkat [deviceId] dari akun ini. */
+    @DELETE("push/tokens/{deviceId}")
+    suspend fun revokePushToken(
+        @Header("Authorization") bearerToken: String,
+        @Path("deviceId") deviceId: String,
+    ): Response<ResponseBody>
+}
+
+/**
+ * Badan `POST /push/tokens`: `{"token":"...","device_id":"...","platform":"android"}`. `toString` menyembunyikan
+ * [token] supaya token FCM tidak masuk log atau pesan galat.
+ */
+@Serializable
+data class PushTokenRequestDto(
+    val token: String,
+    @SerialName("device_id") val deviceId: String,
+    val platform: String,
+) {
+    override fun toString(): String = "PushTokenRequestDto(deviceId=$deviceId, platform=$platform, token=disembunyikan)"
 }
 
 /**

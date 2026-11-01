@@ -75,6 +75,16 @@
         <receiver
             android:name=".notifications.ReminderActionReceiver"
             android:exported="false" />
+
+        <!-- Penerima FCM (Tahap 9/13): notifikasi push generik "ada catatan baru" (hanya roomId + kind). Hanya
+             dipanggil bila Firebase terinisialisasi, yaitu bila build membawa google-services.json (belum ada). -->
+        <service
+            android:name=".push.RizqflowMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

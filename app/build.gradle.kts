@@ -8,6 +8,19 @@ plugins {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// Firebase Cloud Messaging (Tahap 9/13, wiring FCM 2026-11-01).
+//
+// Plugin com.google.gms.google-services HANYA diterapkan bila app/google-services.json ada. Proyek Firebase
+// pemilik belum dibuat, jadi berkas itu belum ada; tanpa berkas itu build tetap lulus, Firebase tidak
+// terinisialisasi saat aplikasi berjalan, dan seluruh jalur FCM mati dengan tenang (lihat push/FcmAvailability.kt).
+// google-services.json TIDAK di-commit (ada di .gitignore). Langkah pemasangan: docs/server-sync.md bagian
+// "Push notifikasi".
+// ---------------------------------------------------------------------------------------------------------------
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // Alamat API (Tahap 12, "alamat API di aplikasi bisa dikonfigurasi supaya pindah ke VPS khusus mudah").
 //
 // BuildConfig.API_BASE_URL dipilih dengan prioritas berikut (yang pertama ada dan tidak kosong menang):
@@ -168,6 +181,10 @@ dependencies {
     // dari PDF e-statement. Keduanya hanya dipakai di ocr/ (adaptor Android); parsernya ada di :domain.
     implementation(libs.mlkit.text.recognition)
     implementation(libs.pdfbox.android)
+
+    // Notifikasi push generik "ada catatan baru" (Tahap 9/13): penerima FCM di push/. Tanpa google-services.json
+    // pustakanya tetap ikut, tetapi Firebase tidak pernah terinisialisasi dan penerimanya tidak pernah dipanggil.
+    implementation(libs.firebase.messaging)
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.kotlin.test.junit5) // menghubungkan kotlin.test ke JUnit 5 di modul Android

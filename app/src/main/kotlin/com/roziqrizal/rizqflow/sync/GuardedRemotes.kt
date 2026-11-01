@@ -6,6 +6,8 @@ import com.roziqrizal.rizqflow.domain.sync.DeviceRemote
 import com.roziqrizal.rizqflow.domain.sync.PurchaseClaim
 import com.roziqrizal.rizqflow.domain.sync.PurchaseClaimResponse
 import com.roziqrizal.rizqflow.domain.sync.PurchaseRemote
+import com.roziqrizal.rizqflow.domain.sync.PushTokenRegistrar
+import com.roziqrizal.rizqflow.domain.sync.PushTokenRegistration
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyLookup
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyReceipt
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyRemote
@@ -101,4 +103,15 @@ internal class GuardedRecoveryKeyRemote(
 
     override suspend fun delete(apiToken: String): RemoteResult<Unit> =
         session.observe(apiToken, inner.delete(apiToken))
+}
+
+internal class GuardedPushTokenRegistrar(
+    private val inner: PushTokenRegistrar,
+    private val session: ServerSession,
+) : PushTokenRegistrar {
+    override suspend fun register(apiToken: String, registration: PushTokenRegistration): RemoteResult<Unit> =
+        session.observe(apiToken, inner.register(apiToken, registration))
+
+    override suspend fun revoke(apiToken: String, deviceId: String): RemoteResult<Unit> =
+        session.observe(apiToken, inner.revoke(apiToken, deviceId))
 }

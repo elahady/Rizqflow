@@ -12,6 +12,9 @@ keystore.properties
 *.jks
 *.keystore
 
+# Konfigurasi Firebase (FCM): hanya lokal, jangan di-commit sebelum pemilik memutuskan aman
+google-services.json
+
 # IDE
 .idea/
 *.iml
