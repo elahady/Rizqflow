@@ -61,7 +61,7 @@ Data hilang total hanya bila semua perangkat hilang **dan** kode pemulihan hilan
 
 Dua endpoint di `Api\SyncController`, keduanya butuh `auth:sanctum` dan `Feature::EncryptedSync` (plan Sync, lewat `Entitlements` yang sama dengan Pro — lihat CLAUDE.md "satu lapisan entitlement"):
 - `POST /api/sync/push` — terima banyak baris sekaligus (maks 500/batch), simpan apa adanya, balas id yang baru dibuat.
-- `GET /api/sync/pull?after=&limit=&device_id=` — baris milik pengguna itu dengan `id` lebih besar dari `after`, urut naik, dibatasi `limit` (bawaan 200, maks 500); balas `next_after` dan `has_more` untuk paginasi. **Pull dari `after=0` di perangkat baru = restore dari backup**, karena seluruh riwayat perubahan ada di log ini. **`device_id` wajib sejak 2026-11-01** (1 sampai 100 karakter): kursor perangkat di `sync_devices` yang menahan kompaksi tombstone, jadi perangkat yang tidak tercatat bisa melewatkan penghapusan. Tanpa `device_id` (atau kosong) dijawab 422 `{"message":"...","code":"device_id_required","errors":{"device_id":[...]}}` tanpa baris apa pun; aplikasi Android sudah selalu mengirimnya. Urutan jawaban: 401 tanpa token, 403 tanpa Sync, lalu 422.
+- `GET /api/sync/pull?after=&limit=&device_id=` — baris milik pengguna itu dengan `id` lebih besar dari `after`, urut naik, dibatasi `limit` (bawaan 200, maks 500); balas `next_after` dan `has_more` untuk paginasi. **Param opsional `scope=a|r` dan `room_id` (2026-11-01) menarik satu cakupan saja dengan kursor per cakupan: lihat bagian "Pull per cakupan dan waktu per cakupan" di bawah; tanpa `scope` perilaku di bawah ini tidak berubah.** **Pull dari `after=0` di perangkat baru = restore dari backup**, karena seluruh riwayat perubahan ada di log ini. **`device_id` wajib sejak 2026-11-01** (1 sampai 100 karakter): kursor perangkat di `sync_devices` yang menahan kompaksi tombstone, jadi perangkat yang tidak tercatat bisa melewatkan penghapusan. Tanpa `device_id` (atau kosong) dijawab 422 `{"message":"...","code":"device_id_required","errors":{"device_id":[...]}}` tanpa baris apa pun; aplikasi Android sudah selalu mengirimnya. Urutan jawaban: 401 tanpa token, 403 tanpa Sync, lalu 422.
 
 **Lantai per rekaman (2026-11-01, Tahap 9).** Saat `sync:compact` menghapus fisik sebuah tombstone, `changed_at_ms`-nya dicatat di tabel `sync_record_floors` (model `SyncRecordFloor`; kolom `user_id`, `scope` = `room_id` atau string kosong untuk data pribadi, `record_id`, `floor_ms`; tanpa isi rekaman). Push berikutnya untuk rekaman yang sama dengan `changed_at_ms` <= lantai ditolak diam-diam (tidak masuk `ids`, sama seperti baris bukan penulis pertama; baris lain di batch yang sama tetap tersimpan), karena versi lama yang terlambat itu akan menghidupkan kembali rekaman yang sudah dihapus: tombstone yang mengalahkannya sudah tidak ada. Versi yang lebih baru dari lantai tetap diterima (edit sesudah hapus, last-write-wins). Lantai data pribadi hanya berlaku untuk akun itu; lantai ruang bersama berlaku untuk semua anggota ruang. Ikut terhapus bersama akun. **Belum terbukti:** hanya diuji di SQLite; di MySQL ada jendela balapan kecil antara push yang membaca lantai dan kompaksi yang sedang berjalan (tidak ada kunci baris bersama), dan perangkat yang menerbitkan ulang rekaman lama dengan cap waktu BARU (mis. backfill) tidak tertahan lantai.
 
@@ -312,6 +312,91 @@ Rangkuman kontrak `Api\RoomMembershipController` (`auth:sanctum`, limiter `room-
 - **Pemilik tidak bisa keluar** (perilaku paling aman sampai ada pindah kepemilikan): kalau boleh, ruang tanpa pemilik dan tak seorang pun bisa mengeluarkan anggota lagi. Jawabannya 422 `owner_cannot_leave`; pemilik tunggal pun tidak bisa. Pindah kepemilikan belum ada dan belum diputuskan.
 - **Celah yang BELUM tertutup (sama dengan anggota yang dikeluarkan):** server belum membedakan "keluar atau dikeluarkan" dari "tidak pernah bergabung". `join` tidak butuh rahasia dan `push` ke sebuah `room_id` mendaftarkan pengirimnya otomatis, jadi aplikasi yang keluar/dikeluarkan tetapi masih menyinkronkan ruang itu tercatat lagi. Menutupnya butuh status `removed` dan undangan terdaftar (sync-desain.md bagian F "Rencana distribusi keyset otomatis"), yang menunggu empat keputusan pemilik; tidak dikerjakan di sini. Klien wajib berhenti menyinkronkan ruang itu setelah `leave`.
 - **Klien Android:** `mapHttpError` memetakan setiap 403 ke `SyncRequired` (paywall) kecuali `not_room_owner` pada `remove`. Jadi 403 `not_room_member` dari `members` masih membuka paywall di aplikasi; `leave` belum dipanggil dari mana pun di Android (404 menjadi `Unexpected`, 422 menjadi `Rejected` dengan pesan server).
+
+## Pull per cakupan dan waktu per cakupan (Tahap 9, sisi server)
+
+**Diimplementasikan 2026-11-01, sisi server saja** (`Api\SyncController@pull` dan `@push`, `Api\SyncHistoryController`, `App\Support\SyncRetention`; tabel `sync_device_cursors`, `sync_scope_activity`, `sync_scope_watermarks`; migrasi `2026_11_01_000010` dan `2026_11_01_000011`; tes `tests/Feature/Sync/SyncScope*Test.php`). **Status: hanya terbukti lewat tes SQLite di memori.** Belum diuji di MySQL atau server hidup, dan **klien Android belum memakainya** (agen Android berikutnya mengadopsi lewat kontrak di bawah). Semuanya aditif: klien yang ada (pull tanpa `scope`) berjalan persis seperti sebelumnya.
+
+### Endpoint: `GET /api/sync/pull` dengan `scope`
+
+| Param | Arti |
+|---|---|
+| `scope=a` | Cakupan pribadi: baris dengan `user_id = saya` DAN `room_id` kosong. Tidak pernah memuat baris ruang, termasuk ruang yang ditulis sendiri. `room_id` dilarang |
+| `scope=r` dan `room_id=X` | Satu ruang bersama: semua baris `room_id = X` dari semua anggota. Hanya untuk anggota aktif ruang X (maks 100 karakter, sama dengan push). Tidak pernah memuat data pribadi siapa pun |
+| tanpa `scope` | Perilaku lama: aliran gabungan (baris sendiri plus semua ruang yang diikuti), kursor global per perangkat. `room_id` tanpa `scope` ditolak |
+
+Param lain tidak berubah (`device_id` wajib, `after`, `limit`). Bentuk jawaban sama dengan pull lama (`entries`, `next_after`, `has_more`, `server_time_ms`) **ditambah dua bidang hanya pada pull ber-`scope`**: `scope` (`"a"` atau `"r"`) dan `room_id` (id ruang, atau `null` untuk `a`). Server lama mengabaikan param yang tidak dikenal dan menjawab aliran gabungan tanpa dua bidang itu: **klien yang meminta `scope` wajib memeriksa bidang `scope` di jawaban, dan bila tidak ada, menganggapnya server lama (jangan menerapkan barisnya sebagai satu cakupan; pakai pull lama).**
+
+Urutan pemeriksaan: 401 tanpa token; 403 `sync_required` tanpa Sync; 422 `device_id_required`; validasi `after`/`limit` (422 `validation_failed`); 422 `invalid_scope` / `invalid_room_id`; 403 `not_room_member`; 410 `cursor_expired`.
+
+| Status | `code` | Kapan | Yang harus dilakukan klien |
+|---|---|---|---|
+| 403 | `sync_required` | tanpa langganan Sync | paywall, seperti sekarang |
+| 403 | `not_room_member` | `scope=r` dan akun bukan anggota ruang itu (belum pernah, keluar, atau dikeluarkan pemilik) | **bukan paywall.** Berhenti menyinkronkan ruang itu dan tandai lokal `LEFT`/`REMOVED`. `mapHttpError` Android memetakan semua 403 ke paywall kecuali `not_room_owner`: wajib dibedakan lewat `code` |
+| 410 | `cursor_expired` | `after` > 0 dan di bawah watermark kompaksi cakupan itu | atur ulang kursor cakupan ITU saja ke 0 dan tarik ulang cakupan itu; cakupan lain tidak terpengaruh |
+| 422 | `invalid_scope` | `scope` bukan `a`/`r`, `scope=r` tanpa `room_id`, `scope=a` dengan `room_id`, `room_id` tanpa `scope` | bug klien |
+| 422 | `invalid_room_id` | `room_id` lebih dari 100 karakter | bug klien |
+
+**`removed_from_room` belum ada.** sync-desain.md bagian G merencanakan 403 `removed_from_room` untuk anggota yang dikeluarkan, tetapi server menghapus fisik baris `room_members` saat keluar atau dikeluarkan, jadi "dikeluarkan" tidak bisa dibedakan dari "tidak pernah bergabung": keduanya `not_room_member`. Membedakannya butuh status `removed` di `room_members`, yang bagian dari keputusan pemilik soal undangan terdaftar (tidak dikerjakan). Klien sebaiknya menangani `removed_from_room` sama dengan `not_room_member` supaya tidak berubah saat kode itu ada.
+
+**Pull tidak mendaftarkan siapa pun.** Berbeda dengan `push` (mendaftarkan pengirim ke `room_id` otomatis) dan `join`, pull per cakupan tidak memanggil `RoomMember::tambahAnggota`. **Celah join ulang bekas anggota TIDAK ditutup dan tidak diubah** (keputusan pemilik): bekas anggota yang aplikasinya masih mem-`push` atau `join` ke ruang itu tercatat lagi, dan sesudahnya pull ruang itu berhasil lagi. Klien wajib berhenti menyinkronkan ruang setelah `leave` atau `not_room_member`.
+
+### Kursor per cakupan
+
+- Id baris log (`after`, `next_after`, `entries[].id`) adalah **satu nomor global** yang dibagi semua cakupan dan semua akun, tetapi kursor hanya bermakna untuk cakupan yang menariknya. **Satu kursor per cakupan per perangkat; jangan memakai `next_after` sebuah cakupan sebagai `after` cakupan lain.** Cakupan sepi: kursor tetap di tempat selama tidak ada baris baru (lompatan id besar normal).
+- Server mencatat kursor per `(akun, device_id, cakupan)` di `sync_device_cursors` pada setiap pull ber-`scope` (kursor = `next_after` jawaban itu; ditimpa apa adanya, termasuk turun bila klien tarik ulang dari 0 atau dari kursor lebih kecil: itu keadaan perangkat yang sebenarnya). Pull ber-`scope` **tidak** menyentuh `sync_devices` (kursor global), dan pull lama tidak menyentuh `sync_device_cursors`.
+- **Halaman terakhir** (`has_more` false) memajukan `next_after` ke watermark cakupan bila baris terakhir yang dibaca lebih kecil darinya. Tanpa ini, cakupan yang tombstone terakhirnya baru dikompaksi terjebak: kursor selalu di bawah watermark, jadi tiap pull dijawab 410 dan menarik ulang dari 0 tidak pernah menyelesaikannya. Perubahan yang sama berlaku untuk pull lama (terhadap watermark global); keduanya aman karena halaman terakhir berarti seluruh sisa baris yang terlihat sudah terbaca. Klien cukup menyimpan `next_after` apa adanya.
+
+### Kompaksi dan 410
+
+- **Sebuah perangkat dianggap sudah melewati tombstone bila SALAH SATU kursornya sudah melewatinya**: kursor global `sync_devices` (>= id tombstone, artinya semua yang terlihat sampai id itu sudah diterima) atau kursor cakupan tombstone itu (`a` untuk tombstone pribadi akunnya, `r:X` untuk tombstone ruang X). Kesimpulannya: (1) kompaksi tidak pernah menghapus tombstone yang belum dilewati perangkat aktif mana pun yang memakai kursor per cakupan untuk cakupan itu (tes: perangkat yang tertinggal menahannya, menyusul lalu terhapus); (2) perangkat yang baru pindah ke pull per cakupan dengan kursor global yang tertinggal tidak menahan kompaksi selama kursor cakupannya sudah lewat (tanpa aturan ini ia menahan sampai dianggap tidak aktif 180 hari); (3) perangkat yang tidak punya kursor untuk cakupan itu tidak menahan cakupan itu, karena tarikan pertamanya atas cakupan itu dari 0 sehingga tidak ada keadaan lokal yang butuh tombstone; (4) untuk tombstone ruang, hanya perangkat anggota ruang yang saat ini aktif (di `room_members`) yang dihitung, jadi kursor bekas anggota tidak menahan.
+- Perangkat aktif = `last_seen_at` dalam 180 hari (sama dengan sebelumnya, per kursor). Perangkat yang kembali setelah itu dengan `after` di bawah watermark cakupannya dijawab 410, lalu klien menarik ulang cakupan itu dari 0 dan menggabung.
+- **Watermark per cakupan** (`sync_scope_watermarks`: kunci `a|<userId>` atau `r|<roomId>`, id tombstone terbesar yang dihapus fisik di cakupan itu, naik di transaksi kompaksi yang sama) dipakai 410 pull ber-`scope`: hanya cakupan yang tombstone-nya dikompaksi yang mengembalikan 410. Pull lama tetap memakai watermark global `sync_compaction_state` (global >= semua watermark cakupan, jadi tetap benar, hanya lebih kasar). Pilihan per cakupan menghindari tarik ulang penuh di cakupan sepi setiap ada tombstone cakupan lain yang dikompaksi.
+- `sync:prune-stale-devices` kini juga membuang kursor per cakupan yang `last_seen_at`-nya lebih dari 180 hari dan catatan waktu per cakupan yang pull dan push-nya sama-sama lebih lama dari itu (keluaran tambahan: "Kursor cakupan tidak aktif dihapus: N." dan "Catatan waktu cakupan dihapus: N."). Aman dengan alasan yang sama seperti kursor global.
+- Indeks baru di `sync_log_entries`: `(room_id, id)` dan `(user_id, room_id, id)` untuk pull per cakupan.
+
+### Waktu push dan pull per cakupan: `GET /api/sync/history`
+
+Bidang baru (bidang lama tidak diubah): `scopes` di tingkat akun, dan `devices[].scopes` per perangkat.
+
+```json
+{
+  "scopes": [
+    {"scope": "a", "room_id": null, "last_push_at": "2026-11-01T10:00:00Z", "last_pull_at": "2026-11-01T10:05:00Z"},
+    {"scope": "r:ruang-1", "room_id": "ruang-1", "last_push_at": null, "last_pull_at": "2026-11-01T10:05:00Z"}
+  ],
+  "devices": [{"device_id": "...", "...bidang lama...": "", "scopes": [{"scope": "a", "room_id": null, "last_push_at": "...", "last_pull_at": "...", "cursor": 123}]}]
+}
+```
+
+- Tingkat akun: **selalu** memuat cakupan pribadi dan semua ruang yang masih diikuti (waktu `null` bila belum pernah), nilai terbaru dari semua perangkat. `last_push_at` dilengkapi dari `MAX(created_at)` log milik akun itu supaya data sebelum pencatatan ada tetap terisi (tertahan oleh kompaksi: bisa lebih tua dari push sebenarnya). Ruang yang sudah ditinggalkan tidak ditampilkan.
+- Per perangkat: hanya cakupan yang punya catatan untuk perangkat itu; `cursor` = kursor per cakupan perangkat itu (`null` bila belum pernah pull ber-`scope` untuk cakupan itu). `devices[].cursor` yang lama tetap kursor global. Perangkat yang hanya memakai pull ber-`scope` kini muncul dengan `active` sesuai kursor cakupan terbarunya (`last_pull_at` perangkat = yang terbaru dari kursor global dan kursor cakupan).
+- **Pencatatan:** `POST /api/sync/push` mencatat `last_push_at` per `(perangkat dari entri, cakupan)` untuk cakupan yang benar-benar menerima baris (baru atau ulangan idempoten; baris yang ditolak penjaga penulis pertama atau lantai tidak dihitung; batch yang gagal kuota di-rollback bersama catatannya). Pull ber-`scope` mencatat `last_pull_at` cakupannya; **pull lama (tanpa `scope`) mencatat pribadi dan semua ruang yang diikuti**, jadi layar Riwayat sinkron terisi per cakupan bahkan sebelum klien pindah ke pull per cakupan.
+- **Privasi:** hanya `user_id`, `device_id`, id ruang, dan dua waktu, semua sudah terlihat server lewat log dan kursor. Tidak ada isi, jumlah baris, id rekaman, atau nominal. Tabel ikut terhapus bersama akun (`cascadeOnDelete`).
+
+### Kontrak klien (untuk agen Android berikutnya)
+
+Pull per cakupan menggantikan pull gabungan. Satu siklus sinkron:
+
+1. **Pribadi dulu.** `GET /api/sync/pull?scope=a&device_id=<D>&after=<kursor a>&limit=200`. Ulangi dengan `after = next_after` selama `has_more`. Simpan `next_after` terakhir sebagai kursor cakupan `a` (tabel `sync_cursor`, `scope = "a"`).
+2. **Lalu tiap ruang bersama yang `ACTIVE` secara lokal**, satu per satu: `GET /api/sync/pull?scope=r&room_id=<X>&device_id=<D>&after=<kursor r:X>&limit=200`, dengan loop dan penyimpanan kursor yang sama (`sync_cursor.scope = "r:<X>"`). Urutannya tidak memengaruhi kebenaran; pribadi dulu mengikuti sync-desain.md bagian H.
+3. **Periksa gema.** Pastikan jawaban memuat `scope` dan `room_id` yang diminta. Tanpa itu = server lama: pakai pull lama (tanpa `scope`, kursor global) dan jangan terapkan baris sebagai cakupan tertentu.
+4. **Setiap cakupan punya kursor sendiri.** Jangan mengirim kursor sebuah cakupan ke cakupan lain, dan jangan memakai `next_after` pribadi untuk ruang. Perangkat harus memakai `device_id` yang sama untuk semua panggilan (sama seperti `push`).
+5. **Penanganan galat per cakupan:** 410 `cursor_expired` hanya mengatur ulang kursor cakupan itu ke 0 (dan menggabung hasil, tanpa menghapus data lokal). 403 `not_room_member` pada satu ruang menghentikan ruang itu saja (tandai `LEFT`/`REMOVED`, hentikan push dan pull-nya) dan bukan paywall; 403 `sync_required` tetap paywall. Cek `code`, bukan hanya status 403. 429 mengikuti `Retry-After` (tiap panggilan masuk jatah `sync-pull` 600 per menit per akun; satu siklus butuh 1 + jumlah ruang panggilan per halaman).
+6. **`push` tidak berubah.** Baris yang baru di-push tetap kembali lewat pull cakupan (gema); terapkan dengan aturan urutan total seperti biasa. Tidak ada param push baru; server mencatat waktu push per cakupan dari `room_id` dan `device_id` tiap entri.
+7. **Pindah dari pull gabungan (migrasi sekali jalan).** Kursor global `G` lama berarti "semua yang terlihat sampai `G` sudah diterima". Aman: kursor pribadi `a` = `G`. **Untuk tiap ruang, mulai dari 0** (aman dan idempoten karena penerapan memakai urutan total; `G` tidak menjamin baris ruang yang baru diikuti dengan id lebih kecil dari `G` sudah diterima). Setelah itu jangan memanggil pull lama dari `device_id` yang sama. Kursor lama yang tertinggal tidak merusak apa pun: kompaksi menganggap perangkat sudah melewati bila kursor cakupannya lewat.
+8. **Riwayat sinkron:** baca `scopes` (tingkat akun) dan `devices[].scopes` dari `GET /api/sync/history`; `last_push_at`/`last_pull_at` per cakupan menggantikan keterangan "per perangkat". `devices[]` lama tidak berubah.
+9. **Jangan** bergantung pada `next_after` sebagai "id baris terakhir yang diterima": pada halaman terakhir nilainya bisa melompat ke watermark. Simpan saja apa adanya.
+
+### Yang belum terbukti dan keputusan terbuka
+
+- **Hanya tes SQLite di memori.** Sintaks SQL dibuat portabel (`COALESCE`, `upsert`, `insertOrIgnore`, tanpa fitur khusus SQLite) tetapi belum dijalankan di MySQL: `upsert` Laravel (`ON DUPLICATE KEY UPDATE`), subquery `EXISTS` bersarang di kompaksi, dan indeks baru belum terbukti di MySQL. Tidak ada uji beban; pull ber-`scope=r` memakai indeks `(room_id, id)`, pull lama masih `OR` dan tidak diubah.
+- **Collation MySQL pada `room_id`:** kolom `sync_log_entries.room_id` dan `room_members.room_id` memakai collation bawaan MySQL (tidak peka huruf besar-kecil), jadi `room_id=ABC` dan `abc` dianggap ruang yang sama oleh pemeriksaan keanggotaan dan pull (sama seperti pull lama). Aman selama id ruang berupa UUID acak; belum diuji dan bukan hal yang diubah di sini.
+- **Balapan penulisan kursor:** dua pull bersamaan dari perangkat yang sama menimpa kursor dengan nilai yang terakhir menulis (bukan maksimum). Disengaja (kursor harus bisa turun), tetapi satu pull yang lambat bisa menurunkan kursor sementara; akibatnya hanya kompaksi lebih konservatif, bukan data hilang.
+- **Jendela balapan kecil** antara pull yang membaca `after` dan kompaksi yang berjalan bersamaan (juga ada pada pull lama dan lantai per rekaman) tidak dibuktikan di MySQL.
+- **Kursor lompat ke watermark pada halaman terakhir** dianggap aman karena ditaruh hanya setelah seluruh baris terlihat terbaca, dan id di bawah watermark adalah tombstone yang usianya >= 400 hari; baris yang baru di-commit dengan id lebih kecil dari baris yang sudah dibaca (urutan commit MySQL tidak selalu sama dengan urutan id auto-increment antar akun) adalah risiko lama pull berbasis id yang tidak diubah di sini.
+- **Dikeluarkan lalu tetap menulis:** lihat "Pull tidak mendaftarkan siapa pun" di atas; menunggu empat keputusan `key_grant` di sync-desain.md bagian F.
+- **Keputusan pemilik yang relevan:** kapan pull lama (tanpa `scope`) dihapus; status `removed` untuk `removed_from_room`; dan apakah `last_push_at` tingkat akun cukup, atau Android perlu `?device_id=` untuk hanya melihat perangkat ini (saat ini cukup `devices[].scopes` yang dicocokkan dengan `device_id` ponsel itu sendiri).
 
 ## Kode galat JSON dan batas laju (Tahap 9, pengerasan sisi server)
 
