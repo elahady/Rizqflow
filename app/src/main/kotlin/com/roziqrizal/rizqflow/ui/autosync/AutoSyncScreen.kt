@@ -108,7 +108,10 @@ fun AutoSyncScreen(
                         } else {
                             stringResource(
                                 R.string.sync_last_at,
-                                DateUtils.getRelativeTimeSpanString(last, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString(),
+                                // Jam dimundurkan setelah sync: jangan tampilkan "dalam sekian menit" (waktu masa depan).
+                                System.currentTimeMillis().let { now ->
+                                    DateUtils.getRelativeTimeSpanString(minOf(last, now), now, DateUtils.MINUTE_IN_MILLIS).toString()
+                                },
                             )
                         },
                         style = MaterialTheme.typography.bodySmall,

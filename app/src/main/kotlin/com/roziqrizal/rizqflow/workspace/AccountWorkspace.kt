@@ -97,6 +97,10 @@ import com.roziqrizal.rizqflow.sync.ServerLink
 import com.roziqrizal.rizqflow.sync.ServerSession
 import com.roziqrizal.rizqflow.sync.TokenRefresher
 import com.roziqrizal.rizqflow.data.sync.SharedPrefsAutoSyncSettings
+import com.roziqrizal.rizqflow.data.sync.AndroidNetworkChangeSource
+import com.roziqrizal.rizqflow.data.sync.SharedPrefsLastSyncStore
+import com.roziqrizal.rizqflow.domain.sync.LastSyncStore
+import com.roziqrizal.rizqflow.domain.sync.NetworkChangeSource
 import com.roziqrizal.rizqflow.domain.entitlement.Feature
 import com.roziqrizal.rizqflow.domain.sync.AutoSyncGate
 import com.roziqrizal.rizqflow.domain.sync.AutoSyncNetwork
@@ -146,6 +150,10 @@ class AccountWorkspace private constructor(
     /** Saklar "hanya Wi-Fi" sync otomatis (per perangkat); dibaca dan diubah layar Sinkron otomatis. */
     val autoSyncSettings: AutoSyncSettings,
     private val autoSyncNetwork: AutoSyncNetwork,
+    /** Pendengar perubahan jaringan sync otomatis; hanya aktif selama aplikasi di depan (diatur orkestrator). */
+    private val networkChangeSource: NetworkChangeSource,
+    /** Waktu sinkron terakhir yang bertahan setelah proses mati, satu per akun. */
+    private val lastSyncStore: LastSyncStore,
 ) : AutoCloseable {
     private val newId: () -> String = { UUID.randomUUID().toString() }
 
@@ -316,6 +324,8 @@ class AccountWorkspace private constructor(
         },
         network = autoSyncNetwork,
         log = { message -> Log.w(TAG, "Sync otomatis: $message") },
+        networkChanges = networkChangeSource,
+        lastSync = lastSyncStore,
     )
 
     /**
@@ -378,6 +388,8 @@ class AccountWorkspace private constructor(
     override fun close() {
         // Pemicu dilepas dan lingkup sync dibatalkan DULU, supaya tidak ada run yang menyentuh database yang sedang ditutup.
         local.changeNotifier.listener = null
+        // Pendengar jaringan dilepas eksplisit: membatalkan lingkup saja tidak menutup callback ConnectivityManager.
+        syncOrchestrator.shutdown()
         autoSyncScope.cancel()
         local.close()
     }
@@ -416,6 +428,8 @@ class AccountWorkspace private constructor(
                 deviceId = DeviceId.read(context),
                 autoSyncSettings = autoSyncSettings,
                 autoSyncNetwork = AndroidAutoSyncNetwork(context, autoSyncSettings),
+                networkChangeSource = AndroidNetworkChangeSource(context),
+                lastSyncStore = SharedPrefsLastSyncStore(context, accountId),
             )
             workspace.connectAutoSync()
             return workspace
