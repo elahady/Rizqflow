@@ -243,6 +243,11 @@ interface SyncStore {
 
     suspend fun setCursor(scope: SyncScope, afterId: Long)
 
+    /**
+     * Mencatat satu masalah. Bila [SyncIssue.serverId] dikenal dan masalah yang sama (cakupan, tipe, id rekaman, jenis, id
+     * baris server) sudah tercatat, tidak ada baris baru: id yang ada dikembalikan dan umur serta percobaannya dibiarkan.
+     * Dengan begitu menarik ulang baris yang sama ("sinkron ulang penuh", [FullResync]) tidak menggandakan catatan.
+     */
     suspend fun recordIssue(issue: SyncIssue): Long
 
     /** Membuang satu masalah yang sudah berhasil diterapkan ulang (Tahap 3: percobaan ulang `DEFERRED_*` di akhir sync). */

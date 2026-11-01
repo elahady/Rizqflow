@@ -60,11 +60,16 @@ class PersonalSyncCoordinator(
 
     private val handlersByType: Map<SyncRecordType, SyncRecordHandler> = handlers.associateBy { it.type }
 
-    suspend fun syncNow(deviceId: String): PersonalSyncResult {
+    /**
+     * [reapplyOwnRows]: bawaannya false, baris yang ditulis perangkat ini sendiri dilewati saat pull (optimisasi echo;
+     * [SyncOrdering] tetap aman walau tidak dilewati). Diisi true oleh "sinkron ulang penuh" ([FullResync]) supaya baris
+     * perangkat ini yang hilang dari lokal (mis. berkas database dipulihkan dari cadangan lama) ikut tertarik kembali.
+     */
+    suspend fun syncNow(deviceId: String, reapplyOwnRows: Boolean = false): PersonalSyncResult {
         val apiToken = apiTokenStore.read() ?: return PersonalSyncResult.NotSignedIn
         val aead = accountKeys.getOrCreateAccountKey()
 
-        val pulled = when (val result = pull(deviceId, apiToken, aead)) {
+        val pulled = when (val result = pull(deviceId, apiToken, aead, reapplyOwnRows)) {
             is RemoteResult.Failure -> return PersonalSyncResult.Failed(result.error)
             is RemoteResult.Success -> result.value
         }
@@ -155,7 +160,7 @@ class PersonalSyncCoordinator(
 
     // ---- Pull (tidak digerbang) ----
 
-    private suspend fun pull(deviceId: String, apiToken: String, aead: SyncAead): RemoteResult<PullOutcome> {
+    private suspend fun pull(deviceId: String, apiToken: String, aead: SyncAead, reapplyOwnRows: Boolean): RemoteResult<PullOutcome> {
         var cursor = store.cursor(SyncScope.Personal)
         var applied = 0
         var skipped = 0
@@ -168,7 +173,7 @@ class PersonalSyncCoordinator(
             }
             page.serverTimeMs?.let { clock.setServerOffset(it - clock.rawDeviceNowMillis()) }
 
-            val outcome = applyPage(page.entries, deviceId, aead)
+            val outcome = applyPage(page.entries, deviceId, aead, reapplyOwnRows)
             applied += outcome.applied
             skipped += outcome.skipped
             deferred += outcome.deferred
@@ -185,7 +190,7 @@ class PersonalSyncCoordinator(
     }
 
     /** Satu halaman: urutkan lewat [SyncApplyOrder], lalu terapkan berurutan (bagian B "Referensi belum tiba"). */
-    private suspend fun applyPage(entries: List<SyncLogEntryDownload>, deviceId: String, aead: SyncAead): PageOutcome {
+    private suspend fun applyPage(entries: List<SyncLogEntryDownload>, deviceId: String, aead: SyncAead, reapplyOwnRows: Boolean): PageOutcome {
         data class Prepared(val ref: PulledRef, val row: SyncLogEntryDownload, val decoded: DecodedRecord, val type: SyncRecordType)
 
         var skipped = 0
@@ -197,7 +202,7 @@ class PersonalSyncCoordinator(
             val type = SyncRecordType.fromWire(row.recordType) ?: continue
             val handler = handlersByType[type] ?: continue
             // Echo baris sendiri: optimisasi (SyncOrdering sendiri sudah aman terhadap echo walau ini dilewati).
-            if (row.deviceId == deviceId) continue
+            if (!reapplyOwnRows && row.deviceId == deviceId) continue
 
             val changedAtMillis = row.changedAtMillis ?: java.time.Instant.parse(row.changedAt).toEpochMilli()
             val decoded = try {

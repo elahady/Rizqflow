@@ -144,19 +144,27 @@ class RoomSyncStore(
 
     override suspend fun setCursor(scope: SyncScope, afterId: Long) = dao.upsertCursor(SyncCursorEntity(scope.wire, afterId))
 
-    override suspend fun recordIssue(issue: SyncIssue): Long = dao.insertIssue(
-        SyncIssueEntity(
-            scope = issue.scope.wire,
-            recordType = issue.recordType,
-            recordId = issue.recordId,
-            serverId = issue.serverId,
-            kind = issue.kind.name,
-            detail = issue.detail,
-            rawRow = issue.rawRow,
-            attempts = issue.attempts,
-            createdAt = issue.createdAtMillis,
-        ),
-    )
+    override suspend fun recordIssue(issue: SyncIssue): Long = db.withTransaction {
+        // Baris server yang sama (id baris server dikenal) yang sudah tercatat tidak dicatat lagi: menarik ulang dari
+        // awal ("sinkron ulang penuh") atau mengulang pull setelah gagal di tengah tidak boleh menggandakan catatan
+        // atau mengembalikan hitungan umur dan percobaannya ke nol (penanda "gagal permanen" bergantung padanya).
+        val existing = issue.serverId?.let { serverId ->
+            dao.findIssueForServerRow(issue.scope.wire, issue.recordType, issue.recordId, issue.kind.name, serverId)
+        }
+        existing ?: dao.insertIssue(
+            SyncIssueEntity(
+                scope = issue.scope.wire,
+                recordType = issue.recordType,
+                recordId = issue.recordId,
+                serverId = issue.serverId,
+                kind = issue.kind.name,
+                detail = issue.detail,
+                rawRow = issue.rawRow,
+                attempts = issue.attempts,
+                createdAt = issue.createdAtMillis,
+            ),
+        )
+    }
 
     override suspend fun resolveIssue(id: Long) = dao.deleteIssue(id)
 
