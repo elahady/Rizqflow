@@ -16,6 +16,8 @@ import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.RoomMemberInfo
 import com.roziqrizal.rizqflow.domain.sync.RoomMembershipRemote
 import com.roziqrizal.rizqflow.domain.sync.ServerDevice
+import com.roziqrizal.rizqflow.domain.sync.ServerSyncHistory
+import com.roziqrizal.rizqflow.domain.sync.SyncHistoryRemote
 import com.roziqrizal.rizqflow.domain.sync.SyncLogEntryUpload
 import com.roziqrizal.rizqflow.domain.sync.SyncPullResult
 import com.roziqrizal.rizqflow.domain.sync.SyncPushResult
@@ -92,6 +94,14 @@ internal class GuardedDeviceRemote(
 
     override suspend fun revokeAllDevices(apiToken: String): RemoteResult<Unit> =
         session.observe(apiToken, inner.revokeAllDevices(apiToken))
+}
+
+internal class GuardedSyncHistoryRemote(
+    private val inner: SyncHistoryRemote,
+    private val session: ServerSession,
+) : SyncHistoryRemote {
+    override suspend fun history(apiToken: String): RemoteResult<ServerSyncHistory> =
+        session.observe(apiToken, inner.history(apiToken))
 }
 
 internal class GuardedRecoveryKeyRemote(

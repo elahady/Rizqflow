@@ -14,6 +14,7 @@ import com.roziqrizal.rizqflow.data.remote.RetrofitPurchaseRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitPushTokenRegistrar
 import com.roziqrizal.rizqflow.data.remote.RetrofitRecoveryKeyRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitRoomMembershipRemote
+import com.roziqrizal.rizqflow.data.remote.RetrofitSyncHistoryRemote
 import com.roziqrizal.rizqflow.data.remote.RetrofitSyncRemote
 import com.roziqrizal.rizqflow.data.remote.RizqflowApiClient
 import com.roziqrizal.rizqflow.data.remote.RizqflowApiService
@@ -47,6 +48,8 @@ import com.roziqrizal.rizqflow.domain.sync.AccountKeyProvider
 import com.roziqrizal.rizqflow.domain.sync.AccountRemote
 import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
 import com.roziqrizal.rizqflow.domain.sync.DeviceRemote
+import com.roziqrizal.rizqflow.domain.sync.FullResync
+import com.roziqrizal.rizqflow.domain.sync.LocalSyncHistoryReader
 import com.roziqrizal.rizqflow.domain.sync.NewDeviceRecoveryAdvisor
 import com.roziqrizal.rizqflow.domain.sync.NewDeviceRestoreFlow
 import com.roziqrizal.rizqflow.domain.sync.PersonalSyncCoordinator
@@ -61,6 +64,7 @@ import com.roziqrizal.rizqflow.domain.sync.RoomMemberKeyRedistribution
 import com.roziqrizal.rizqflow.domain.sync.RoomMembershipRemote
 import com.roziqrizal.rizqflow.domain.sync.SharedRoomStatus
 import com.roziqrizal.rizqflow.domain.sync.SyncCursorStore
+import com.roziqrizal.rizqflow.domain.sync.SyncHistoryRemote
 import com.roziqrizal.rizqflow.domain.sync.SyncCoordinator
 import com.roziqrizal.rizqflow.domain.sync.SyncRemote
 import com.roziqrizal.rizqflow.domain.sync.SyncResult
@@ -112,6 +116,8 @@ class AccountWorkspace private constructor(
     val purchaseRemote: PurchaseRemote,
     /** Daftar perangkat dan "Keluar dari semua perangkat" (Tahap 14); sudah dibungkus [serverSession]. */
     val deviceRemote: DeviceRemote,
+    /** Riwayat sinkron dari server (metadata saja, Tahap 7); sudah dibungkus [serverSession]. */
+    val syncHistoryRemote: SyncHistoryRemote,
     private val syncCursorStore: SyncCursorStore,
     /** Kunci akun di Keystore (Tahap 13), satu per akun; dasar kode pemulihan. */
     val accountKeyProvider: AccountKeyProvider,
@@ -287,6 +293,32 @@ class AccountWorkspace private constructor(
         local.autoSync.withRoomLock(roomId) { sync.syncNow(roomId, deviceId) }
 
     /**
+     * Keadaan sinkron lokal untuk layar "Riwayat sinkron": baris kotor dan kursor per cakupan, plus daftar masalah
+     * (`sync_issue`). Hanya metadata, tanpa isi transaksi.
+     */
+    val syncHistoryReader = LocalSyncHistoryReader(
+        store = local.syncStore,
+        cursors = syncCursorStore,
+        pendingShared = { roomId -> local.transactions.pendingSync(roomId).size },
+        roomName = { roomId -> local.rooms.find(roomId)?.name },
+    )
+
+    /**
+     * Diagnostik "sinkron ulang penuh" (sync-desain.md bagian I Tahap 7): reset kursor pull lalu tarik ulang dari awal,
+     * tanpa menghapus data lokal. Sinkron pribadi ikut menerapkan ulang baris perangkat ini sendiri; ruang bersama
+     * memakai kunci ruang yang sama dengan sinkron otomatis ([syncSharedRoomNow]).
+     */
+    val fullResync = FullResync(
+        store = local.syncStore,
+        cursors = syncCursorStore,
+        personal = { personalSync.syncNow(deviceId, reapplyOwnRows = true) },
+        shared = { roomId -> syncSharedRoomNow(roomId, deviceId) },
+    )
+
+    /** Pengenal pemasangan ini, dipakai layar Riwayat sinkron untuk mengenali baris perangkat ini di jawaban server. */
+    val syncDeviceId: String get() = deviceId
+
+    /**
      * Menandai ruang bersama ACTIVE setelah pendaftaran anggota di server berhasil (undangan QR diterima, atau
      * pemilik membuka Ruang Keluarga). Tanpa baris ACTIVE, [syncSharedRoomsOnOpen] dan pemicu simpan tidak jalan.
      */
@@ -318,6 +350,7 @@ class AccountWorkspace private constructor(
                 roomMembershipRemote = session.guard(RetrofitRoomMembershipRemote(apiService)),
                 purchaseRemote = session.guard(RetrofitPurchaseRemote(apiService)),
                 deviceRemote = session.guard(RetrofitDeviceRemote(apiService)),
+                syncHistoryRemote = session.guard(RetrofitSyncHistoryRemote(apiService)),
                 syncCursorStore = SharedPrefsSyncCursorStore(context),
                 accountKeyProvider = AndroidKeystoreAccountKeyProvider(context, accountId),
                 recoveryRemote = session.guard(RetrofitRecoveryKeyRemote(apiService)),

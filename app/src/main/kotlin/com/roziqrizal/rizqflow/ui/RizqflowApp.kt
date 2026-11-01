@@ -122,6 +122,8 @@ fun RizqflowApp(
     onOpenRecoveryRestore: (() -> Unit)? = null,
     /** "Perangkat yang masuk" (Tahap 14); null = baris tidak tampil (akun lokal, demo, atau tanpa akun server). */
     onOpenDevices: (() -> Unit)? = null,
+    /** "Riwayat sinkron" (Tahap 9, dekat Rizqflow Sync); null = baris tidak tampil (akun lokal atau demo). */
+    onOpenSyncHistory: (() -> Unit)? = null,
 ) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
@@ -177,7 +179,7 @@ fun RizqflowApp(
             TopTab.entries.forEach { tab ->
                 composable(tab.route) {
                     if (tab == TopTab.Lainnya && account != null) {
-                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport, onToggleProDebug, onDeleteAccount, onOpenFamilyScan, onOpenSyncPaywall, syncOwned, onReconnect, reconnectBusy, recoveryRow, onOpenRecovery, onOpenRecoveryRestore, onOpenDevices)
+                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport, onToggleProDebug, onDeleteAccount, onOpenFamilyScan, onOpenSyncPaywall, syncOwned, onReconnect, reconnectBusy, recoveryRow, onOpenRecovery, onOpenRecoveryRestore, onOpenDevices, onOpenSyncHistory)
                     } else if (tab == TopTab.Transaksi && transaksiContent != null) {
                         transaksiContent()
                     } else if (tab == TopTab.Ruang && ruangContent != null) {
@@ -283,6 +285,7 @@ private fun LainnyaScreen(
     onOpenRecovery: (() -> Unit)? = null,
     onOpenRecoveryRestore: (() -> Unit)? = null,
     onOpenDevices: (() -> Unit)? = null,
+    onOpenSyncHistory: (() -> Unit)? = null,
 ) {
     val spacing = MaterialTheme.spacing
     Column(
@@ -341,6 +344,14 @@ private fun LainnyaScreen(
                 stringResource(R.string.menu_sync),
                 stringResource(if (syncOwned) R.string.menu_sync_sub_owned else R.string.menu_sync_sub_free),
                 onOpenSyncPaywall,
+            )
+        }
+        // Riwayat sinkron: tepat di bawah Rizqflow Sync, hanya untuk akun yang punya akun server.
+        if (onOpenSyncHistory != null) {
+            MenuRow(
+                stringResource(R.string.menu_sync_history),
+                stringResource(R.string.menu_sync_history_sub),
+                onOpenSyncHistory,
             )
         }
         // Kode pemulihan (Tahap 13): ajakan lembut, tidak pernah memblokir pemakaian lokal. Status ikon plus teks.
