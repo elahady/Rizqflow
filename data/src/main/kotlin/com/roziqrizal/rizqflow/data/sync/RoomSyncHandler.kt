@@ -36,7 +36,10 @@ class RoomSyncHandler(private val db: RizqflowDatabase, private val store: SyncS
     override suspend fun missingReferences(scope: SyncScope, decoded: DecodedRecord): List<String> = emptyList()
 
     override suspend fun apply(scope: SyncScope, decoded: DecodedRecord) {
-        if (decoded.data.isEmpty()) return // tombstone: tidak ada API hapus ruang lokal (belum ada di repositori); dilewati dengan aman.
+        if (decoded.data.isEmpty()) {
+            SyncTombstoneDeletes.room(db, decoded.id)
+            return
+        }
         val dto = decoded.data.decodeAs(RoomPayloadDto.serializer())
         val kind = RoomKind.entries.firstOrNull { it.name == dto.kind } ?: return
         db.rooms().upsert(

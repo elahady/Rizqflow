@@ -261,7 +261,11 @@ class PersonalSyncCoordinator(
 
     /** Dicoba lagi di akhir [pull] ini DAN akan dicoba lagi di awal sync berikutnya (dipanggil lagi lewat [pull]). */
     private suspend fun retryDeferred(aead: SyncAead): PullOutcome {
-        val candidates = store.issues(SyncScope.Personal).filter { it.kind == SyncIssueKind.DEFERRED_MISSING_REF && it.rawRow != null }
+        // DEFERRED_FK_RESTRICT ikut dicoba lagi: tombstone ruang/kategori/akun yang masih dirujuk transaksi baru bisa berlaku
+        // setelah tombstone transaksinya (peringkat penerapan lebih tinggi) selesai di pull yang sama atau berikutnya.
+        val candidates = store.issues(SyncScope.Personal).filter {
+            (it.kind == SyncIssueKind.DEFERRED_MISSING_REF || it.kind == SyncIssueKind.DEFERRED_FK_RESTRICT) && it.rawRow != null
+        }
         var applied = 0
         for (issue in candidates) {
             val type = SyncRecordType.fromWire(issue.recordType) ?: continue

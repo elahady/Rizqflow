@@ -40,7 +40,10 @@ class CategorySyncHandler(private val db: RizqflowDatabase, private val store: S
     }
 
     override suspend fun apply(scope: SyncScope, decoded: DecodedRecord) {
-        if (decoded.data.isEmpty()) return // tombstone: tidak ada API hapus kategori lokal; dilewati dengan aman.
+        if (decoded.data.isEmpty()) {
+            SyncTombstoneDeletes.category(db, decoded.id)
+            return
+        }
         val dto = decoded.data.decodeAs(CategoryPayloadDto.serializer())
         db.rooms().upsertCategory(
             CategoryEntity(

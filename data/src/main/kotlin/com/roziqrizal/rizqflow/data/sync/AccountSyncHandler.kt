@@ -42,7 +42,10 @@ class AccountSyncHandler(private val db: RizqflowDatabase, private val store: Sy
     override suspend fun missingReferences(scope: SyncScope, decoded: DecodedRecord): List<String> = emptyList()
 
     override suspend fun apply(scope: SyncScope, decoded: DecodedRecord) {
-        if (decoded.data.isEmpty()) return // tombstone: tidak ada API hapus akun lokal; dilewati dengan aman.
+        if (decoded.data.isEmpty()) {
+            SyncTombstoneDeletes.account(db, decoded.id)
+            return
+        }
         val dto = decoded.data.decodeAs(AccountPayloadDto.serializer())
         val kind = AccountKind.entries.firstOrNull { it.name == dto.kind } ?: return
         db.accounts().upsert(
