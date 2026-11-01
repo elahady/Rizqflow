@@ -46,12 +46,15 @@ import androidx.compose.ui.unit.dp
 import com.roziqrizal.rizqflow.R
 import com.roziqrizal.rizqflow.domain.entitlement.Feature
 import com.roziqrizal.rizqflow.domain.model.RoomId
+import com.roziqrizal.rizqflow.domain.sync.LeaveRoomOutcome
 import com.roziqrizal.rizqflow.domain.sync.RemoteError
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.RoomInvite
 import com.roziqrizal.rizqflow.domain.sync.RoomMemberInfo
 import com.roziqrizal.rizqflow.domain.sync.SharedRoomRole
+import com.roziqrizal.rizqflow.domain.sync.SharedRoomStatus
 import com.roziqrizal.rizqflow.domain.sync.SyncResult
+import com.roziqrizal.rizqflow.domain.sync.isRateLimited
 import com.roziqrizal.rizqflow.domain.sync.ownRole
 import com.roziqrizal.rizqflow.domain.sync.removableMembers
 import com.roziqrizal.rizqflow.sync.DeviceId
@@ -59,6 +62,8 @@ import com.roziqrizal.rizqflow.sync.isUnauthorized
 import com.roziqrizal.rizqflow.sync.retryOnceIfRotated
 import com.roziqrizal.rizqflow.sync.sessionEndedBy
 import com.roziqrizal.rizqflow.ui.Notifier
+import com.roziqrizal.rizqflow.ui.UiMessage
+import com.roziqrizal.rizqflow.ui.familyRoomMessage
 import com.roziqrizal.rizqflow.ui.paywall.opensSyncPaywall
 import com.roziqrizal.rizqflow.ui.theme.spacing
 import com.roziqrizal.rizqflow.workspace.AccountWorkspace
@@ -99,7 +104,8 @@ fun RuangKeluargaScreen(
 
     var roomName by remember { mutableStateOf<String?>(null) }
     var members by remember { mutableStateOf<List<RoomMemberInfo>?>(null) }
-    var loadFailed by remember { mutableStateOf(false) }
+    // Pesan lembut bila daftar anggota gagal dimuat (jaringan, 429, bukan anggota); null = tidak ada galat.
+    var loadError by remember { mutableStateOf<UiMessage?>(null) }
     var signedIn by remember { mutableStateOf(true) }
     var sessionEnded by remember { mutableStateOf(false) }
     var inviteSheet by rememberSaveable { mutableStateOf(false) }
@@ -112,6 +118,11 @@ fun RuangKeluargaScreen(
     var removing by remember { mutableStateOf(false) }
     var rotationEpoch by remember { mutableIntStateOf(0) }
     var justRotated by remember { mutableStateOf(false) }
+    // Keluar dari ruang (anggota non-pemilik): konfirmasi jujur, cabut keanggotaan di server, tandai LEFT di perangkat.
+    // `left` = perangkat ini sudah keluar (status LEFT): tidak ada permintaan ke server dan tidak ada join otomatis.
+    var leaveConfirm by remember { mutableStateOf(false) }
+    var leaving by remember { mutableStateOf(false) }
+    var left by remember { mutableStateOf(false) }
     // Peran perangkat ini MENURUT SERVER (bendera owner di daftar anggota), bukan siapa yang membuka layar.
     val isOwner = members?.ownRole() == SharedRoomRole.OWNER
     val removable = members?.removableMembers().orEmpty()
@@ -142,7 +153,7 @@ fun RuangKeluargaScreen(
         when (result) {
             is RemoteResult.Success -> {
                 members = result.value
-                loadFailed = false
+                loadError = null
                 // Penandaan ACTIVE menyalakan sinkron otomatis untuk ruang ini. Perannya diambil dari bendera owner
                 // server (pembuat ruang = pemilik, keputusan pemilik #1) dan menimpa peran lokal yang berbeda — dulu
                 // siapa pun yang membuka layar ini tercatat OWNER tanpa syarat.
@@ -158,12 +169,20 @@ fun RuangKeluargaScreen(
                     sessionEnded = true
                 }
 
-                else -> loadFailed = true
+                // 429 dan galat berkode mendapat pesannya sendiri (bukan "gagal memuat" generik).
+                else -> loadError = result.error.familyRoomMessage(R.string.family_members_error)
             }
         }
     }
 
     LaunchedEffect(roomId, reloadKey) {
+        // Sudah keluar dari ruang ini (status LEFT): tidak ada request apa pun, terutama bukan join otomatis di bawah,
+        // yang akan mendaftarkan perangkat ini kembali. Bergabung lagi hanya lewat undangan baru.
+        if (workspace.sharedRoomActivation.statusOf(roomId) == SharedRoomStatus.LEFT) {
+            roomName = workspace.repositories.rooms.find(roomId)?.name
+            left = true
+            return@LaunchedEffect
+        }
         // Dicek sebelum request apa pun (join, anggota): tanpa Sync, tidak ada yang dikirim ke server.
         if (!workspace.entitlements.isEnabled(Feature.SHARED_FAMILY_ROOM)) {
             leaveForSyncPaywall()
@@ -211,7 +230,9 @@ fun RuangKeluargaScreen(
                     }
 
                     result.error.opensSyncPaywall() -> leaveForSyncPaywall()
-                    else -> notifier.show(resources.getString(R.string.family_sync_failed))
+                    // 429 ("terlalu sering, coba lagi sebentar") dan galat berkode punya pesan sendiri; tidak ada
+                    // coba ulang otomatis di sini: pengguna yang menekan tombolnya lagi.
+                    else -> notifier.show(result.error.familyRoomMessage(R.string.family_sync_failed).resolve(resources))
                 }
 
                 SyncResult.NotSignedIn -> signedIn = false
@@ -253,12 +274,49 @@ fun RuangKeluargaScreen(
                     }
 
                     else -> {
-                        notifier.show(resources.getString(R.string.family_remove_failed))
-                        reloadKey++ // daftar mungkin basi (anggota sudah keluar, atau peran berubah)
+                        notifier.show(result.error.familyRoomMessage(R.string.family_remove_failed).resolve(resources))
+                        // Daftar mungkin basi (anggota sudah keluar, atau peran berubah) — kecuali bila server minta
+                        // menunggu (429): memuat ulang sekarang hanya menambah permintaan.
+                        if (!result.error.isRateLimited()) reloadKey++
                     }
                 }
             }
             removing = false
+        }
+    }
+
+    fun leaveRoom() {
+        leaving = true
+        scope.launch {
+            val session = workspace.serverSession
+            // Leave tidak butuh Sync di server, jadi tidak digerbang entitlement dan tidak pernah membuka paywall.
+            // Sama seperti panggilan lain: 401 karena token baru saja diputar diulang sekali, bukan "sesi berakhir".
+            val outcome = session.retryOnceIfRotated(
+                isUnauthorized = { it is LeaveRoomOutcome.Failed && it.error == RemoteError.Unauthorized },
+                call = { session.token()?.let { token -> workspace.sharedRoomLeaver.leave(token, roomId) } },
+            )
+            when (outcome) {
+                null -> signedIn = false
+                LeaveRoomOutcome.Left, LeaveRoomOutcome.NoLongerMember -> {
+                    left = true
+                    notifier.show(resources.getString(R.string.family_leave_done))
+                }
+
+                LeaveRoomOutcome.OwnerCannotLeave -> {
+                    notifier.show(resources.getString(R.string.family_err_owner_cannot_leave))
+                    reloadKey++ // peran lokal mungkin basi: muat ulang agar tombol hilang dan catatan pemilik tampil
+                }
+
+                is LeaveRoomOutcome.Failed -> when {
+                    session.sessionEndedBy(outcome.error) -> {
+                        signedIn = false
+                        sessionEnded = true
+                    }
+
+                    else -> notifier.show(outcome.error.familyRoomMessage(R.string.family_leave_failed).resolve(resources))
+                }
+            }
+            leaving = false
         }
     }
 
@@ -276,7 +334,14 @@ fun RuangKeluargaScreen(
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = spacing.s1))
             }
 
-            if (!signedIn) {
+            if (left) {
+                Text(
+                    stringResource(R.string.family_left_info),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = spacing.s4),
+                )
+            } else if (!signedIn) {
                 Text(
                     stringResource(if (sessionEnded) R.string.family_session_ended else R.string.family_not_signed_in),
                     style = MaterialTheme.typography.bodyMedium,
@@ -286,8 +351,8 @@ fun RuangKeluargaScreen(
             } else {
                 Text(stringResource(R.string.family_members_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = spacing.s5, bottom = spacing.s2))
                 when {
-                    loadFailed -> {
-                        Text(stringResource(R.string.family_members_error), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    loadError != null -> {
+                        Text(loadError!!.resolve(resources), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         TextButton(onClick = { scope.launch { loadMembers() } }, modifier = Modifier.padding(top = spacing.s1)) {
                             Text(stringResource(R.string.family_retry))
                         }
@@ -339,8 +404,39 @@ fun RuangKeluargaScreen(
                         modifier = Modifier.padding(top = spacing.s2).fillMaxWidth().height(52.dp),
                     ) { Text(stringResource(R.string.family_remove_action)) }
                 }
+                // Keluar dari ruang: hanya anggota biasa (peran MENURUT SERVER). Pemilik tidak bisa keluar (server menolak
+                // owner_cannot_leave), jadi alih-alih tombol yang pasti gagal ia mendapat penjelasan.
+                if (members?.ownRole() == SharedRoomRole.MEMBER) {
+                    OutlinedButton(
+                        onClick = { leaveConfirm = true },
+                        enabled = !leaving,
+                        modifier = Modifier.padding(top = spacing.s2).fillMaxWidth().height(52.dp),
+                    ) { Text(stringResource(R.string.family_leave_action)) }
+                } else if (isOwner) {
+                    Text(
+                        stringResource(R.string.family_owner_cannot_leave_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = spacing.s4),
+                    )
+                }
             }
         }
+    }
+
+    if (leaveConfirm) {
+        AlertDialog(
+            onDismissRequest = { leaveConfirm = false },
+            title = { Text(stringResource(R.string.family_leave_confirm_title)) },
+            text = { Text(stringResource(R.string.family_leave_confirm_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    leaveConfirm = false
+                    leaveRoom()
+                }) { Text(stringResource(R.string.family_leave_confirm_action)) }
+            },
+            dismissButton = { TextButton(onClick = { leaveConfirm = false }) { Text(stringResource(R.string.catat_date_cancel)) } },
+        )
     }
 
     if (removeSheet) {

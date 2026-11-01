@@ -133,10 +133,12 @@ internal fun messageText(message: AuthMessage): Int = when (message) {
     AuthMessage.RECONNECT_WRONG_ACCOUNT -> R.string.msg_reconnect_wrong_account
     AuthMessage.SERVER_REJECTED -> R.string.msg_email_rejected
     AuthMessage.SERVER_UNREACHABLE -> R.string.msg_server_unreachable
+    AuthMessage.SERVER_RATE_LIMITED -> R.string.msg_rate_limited
 }
 
 /** Pesan yang lahir dari masuk email+sandi ke server; tampil di bawah formulir email, bukan formulir nama pengguna. */
-internal fun AuthMessage?.isServerNotice(): Boolean = this == AuthMessage.SERVER_REJECTED || this == AuthMessage.SERVER_UNREACHABLE
+internal fun AuthMessage?.isServerNotice(): Boolean =
+    this == AuthMessage.SERVER_REJECTED || this == AuthMessage.SERVER_UNREACHABLE || this == AuthMessage.SERVER_RATE_LIMITED
 
 /** Pesan di bawah kolom untuk satu masalah isian. */
 internal fun issueText(issue: CredentialIssue): Int = when (issue) {

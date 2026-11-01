@@ -7,6 +7,7 @@ import com.roziqrizal.rizqflow.domain.sync.InvalidRecoveryCodeKind
 import com.roziqrizal.rizqflow.domain.sync.RecoverKeyResult
 import com.roziqrizal.rizqflow.domain.sync.RecoveryCopyState
 import com.roziqrizal.rizqflow.domain.sync.RemoteError
+import com.roziqrizal.rizqflow.domain.sync.isRateLimited
 
 /**
  * Pesan untuk hasil yang BUKAN sukses saat mengatur kode pemulihan. Hasil [EnableRecoveryResult.Ready] dan
@@ -33,7 +34,11 @@ fun enableFailureMessage(result: EnableRecoveryResult, sessionEnded: Boolean): I
         RemoteError.Unauthorized -> if (sessionEnded) R.string.recovery_err_session_ended else R.string.recovery_err_generic
         RemoteError.SyncRequired -> R.string.recovery_err_sync_required
         is RemoteError.Rejected -> R.string.recovery_err_generic
-        is RemoteError.Unexpected -> if (error.isRouteMissing()) R.string.recovery_err_server_not_ready else R.string.recovery_err_generic
+        is RemoteError.Unexpected -> when {
+            error.isRouteMissing() -> R.string.recovery_err_server_not_ready
+            error.isRateLimited() -> R.string.remote_rate_limited
+            else -> R.string.recovery_err_generic
+        }
     }
 }
 
@@ -53,7 +58,11 @@ fun recoverFailureMessage(result: RecoverKeyResult, sessionEnded: Boolean): Int 
         RemoteError.Unreachable -> R.string.restore_err_network
         RemoteError.Unauthorized -> if (sessionEnded) R.string.recovery_err_session_ended else R.string.restore_err_generic
         RemoteError.SyncRequired, is RemoteError.Rejected -> R.string.restore_err_generic
-        is RemoteError.Unexpected -> if (error.isRouteMissing()) R.string.restore_err_server_not_ready else R.string.restore_err_generic
+        is RemoteError.Unexpected -> when {
+            error.isRouteMissing() -> R.string.restore_err_server_not_ready
+            error.isRateLimited() -> R.string.remote_rate_limited
+            else -> R.string.restore_err_generic
+        }
     }
 }
 

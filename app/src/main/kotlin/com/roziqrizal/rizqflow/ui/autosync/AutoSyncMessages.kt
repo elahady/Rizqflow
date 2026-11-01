@@ -6,6 +6,7 @@ import com.roziqrizal.rizqflow.domain.sync.AutoSyncPhase
 import com.roziqrizal.rizqflow.domain.sync.AutoSyncReport
 import com.roziqrizal.rizqflow.domain.sync.AutoSyncState
 import com.roziqrizal.rizqflow.domain.sync.RemoteError
+import com.roziqrizal.rizqflow.domain.sync.isRateLimited
 import com.roziqrizal.rizqflow.ui.paywall.opensSyncPaywall
 
 /**
@@ -41,6 +42,9 @@ fun AutoSyncReport.feedback(): ManualSyncFeedback = when (this) {
     is AutoSyncReport.Failed -> when {
         error.opensSyncPaywall() -> ManualSyncFeedback.OpenSyncPaywall
         error == RemoteError.Unauthorized -> ManualSyncFeedback.Message(R.string.sync_status_reconnect)
+        // 429: pesan lembut "terlalu sering", bukan "belum bisa menyinkronkan" generik. Jeda dari server sudah dihormati
+        // orkestrator (backoff mengikuti Retry-After); pesan ini tidak mengulang apa pun.
+        error.isRateLimited() -> ManualSyncFeedback.Message(R.string.remote_rate_limited)
         else -> ManualSyncFeedback.Message(R.string.sync_manual_failed)
     }
 }

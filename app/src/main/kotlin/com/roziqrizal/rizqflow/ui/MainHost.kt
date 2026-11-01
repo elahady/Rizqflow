@@ -736,7 +736,8 @@ fun MainHost(
                                     openPaywall(Feature.SHARED_FAMILY_ROOM)
                                 }
 
-                                is FamilyJoinResult.Failed -> notifier.show(resources.getString(R.string.family_join_failed))
+                                // 429 ("terlalu sering") dan galat berkode mendapat pesan lembutnya sendiri, bukan "gagal" generik.
+                                is FamilyJoinResult.Failed -> notifier.show(result.error.familyRoomMessage(R.string.family_join_failed).resolve(resources))
                             }
                         }
                     },
