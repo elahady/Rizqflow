@@ -5,6 +5,10 @@
          terbawa dari pustaka lain. Http polos tetap dilarang di rilis (lihat usesCleartextTraffic di bawah). -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Sync otomatis membaca apakah jaringan aktif berbayar atau tidak (saklar "hanya Wi-Fi", Tahap 6). Izin normal,
+         tanpa dialog; tidak membaca nama Wi-Fi atau lokasi. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!-- Notifikasi pengingat malam (S26); wajib diminta saat dijalankan di Android 13+. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 

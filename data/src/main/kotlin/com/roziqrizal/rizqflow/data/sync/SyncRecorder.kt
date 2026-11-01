@@ -25,7 +25,12 @@ import com.roziqrizal.rizqflow.domain.sync.isSyncApplying
  *
  * Hanya cakupan pribadi ([SyncScope.Personal]); proyeksi ruang bersama menyusul di Tahap 2.
  */
-class SyncRecorder(private val db: RizqflowDatabase, private val clock: SyncClock = SyncClock()) {
+class SyncRecorder(
+    private val db: RizqflowDatabase,
+    private val clock: SyncClock = SyncClock(),
+    /** Memberi tahu pemicu sync otomatis setiap rekaman ditandai kotor (Tahap 6); tidak dipanggil di konteks `applying`. */
+    private val changes: LocalChangeNotifier? = null,
+) {
     suspend fun changed(type: SyncRecordType, id: String) = record(type, id, deleted = false)
 
     suspend fun changed(type: SyncRecordType, ids: Iterable<String>) {
@@ -41,6 +46,7 @@ class SyncRecorder(private val db: RizqflowDatabase, private val clock: SyncCloc
     private suspend fun record(type: SyncRecordType, id: String, deleted: Boolean) {
         if (isSyncApplying()) return
         db.sync().markDirty(SyncScope.Personal, type, id, deleted, clock)
+        changes?.fire()
     }
 }
 

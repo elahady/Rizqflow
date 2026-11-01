@@ -33,7 +33,7 @@ internal suspend fun <T> safeCall(block: suspend () -> RemoteResult<T>): RemoteR
     }
 
 /** Satu pemetaan kode HTTP ke [RemoteError] untuk semua endpoint — lihat [RemoteError] untuk alasan tiap kode. */
-internal fun mapHttpError(httpCode: Int, rawErrorBody: String?): RemoteError {
+internal fun mapHttpError(httpCode: Int, rawErrorBody: String?, retryAfterHeader: String? = null, now: java.time.Instant = java.time.Instant.now()): RemoteError {
     val message = rawErrorBody?.let { raw ->
         runCatching { apiJson.decodeFromString(ErrorResponseDto.serializer(), raw).message }.getOrNull()
     }
@@ -41,10 +41,23 @@ internal fun mapHttpError(httpCode: Int, rawErrorBody: String?): RemoteError {
         401 -> RemoteError.Unauthorized
         403 -> RemoteError.SyncRequired
         422 -> RemoteError.Rejected(message ?: "Permintaan ditolak server.")
-        else -> RemoteError.Unexpected(httpCode)
+        else -> RemoteError.Unexpected(httpCode, parseRetryAfterSeconds(retryAfterHeader, now))
     }
+}
+
+/**
+ * Header `Retry-After` berupa detik bulat ATAU tanggal HTTP (RFC 1123); keduanya jadi detik dari [now]. Tak terbaca
+ * atau sudah lewat menghasilkan null (pemanggil jatuh ke penundaan bawaannya sendiri), tidak pernah melempar.
+ */
+internal fun parseRetryAfterSeconds(header: String?, now: java.time.Instant): Long? {
+    val value = header?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    value.toLongOrNull()?.let { return it.takeIf { seconds -> seconds >= 0 } }
+    return runCatching {
+        val at = java.time.ZonedDateTime.parse(value, java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME).toInstant()
+        java.time.Duration.between(now, at).seconds.takeIf { it >= 0 }
+    }.getOrNull()
 }
 
 /** Baca `errorBody()` ke `RemoteResult.Failure` untuk response Retrofit mana pun yang gagal (!isSuccessful). */
 internal fun <T> Response<*>.toFailure(): RemoteResult<T> =
-    RemoteResult.Failure(mapHttpError(code(), errorBody()?.string()))
+    RemoteResult.Failure(mapHttpError(code(), errorBody()?.string(), headers()["Retry-After"]))

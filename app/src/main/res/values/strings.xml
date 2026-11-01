@@ -1334,4 +1334,26 @@
     <string name="synchist_resync_failed_offline">Belum selesai karena server belum terjangkau. Tidak ada data yang hilang; sinkron berikutnya melanjutkan dari awal.</string>
     <string name="synchist_resync_failed_other">Belum selesai. Tidak ada data yang hilang; coba lagi nanti, sinkron berikutnya melanjutkan dari awal.</string>
     <string name="synchist_dismiss">Tutup</string>
+    <!-- Sinkron otomatis (Tahap 6). Nada lembut: data selalu aman di ponsel, tidak ada kata galat teknis. -->
+    <string name="menu_sync_auto">Sinkron otomatis</string>
+    <string name="menu_sync_auto_sub">Status, hanya lewat Wi-Fi, dan Sinkronkan sekarang</string>
+    <string name="sync_auto_title">Sinkron otomatis</string>
+    <string name="sync_auto_body">Saat aplikasi terbuka, dan sesaat setelah kamu menyimpan, Rizqflow menyalin perubahanmu (terenkripsi) ke server dan mengambil perubahan dari perangkat lain. Data selalu tersimpan lebih dulu di ponsel; bila sinkron belum bisa jalan, aplikasi tetap bekerja seperti biasa.</string>
+    <string name="sync_status_idle">Sinkron aktif. Berjalan saat aplikasi terbuka.</string>
+    <string name="sync_status_syncing">Menyinkronkan…</string>
+    <string name="sync_status_backoff">Belum bisa tersambung ke server. Datamu aman di ponsel; aplikasi mencoba lagi sebentar lagi.</string>
+    <string name="sync_status_offline">Tidak ada koneksi. Sinkron lanjut otomatis saat tersambung.</string>
+    <string name="sync_status_wifi_only">Menunggu Wi-Fi. Sinkron otomatis hanya berjalan di jaringan tidak berbayar; kamu tetap bisa menekan Sinkronkan sekarang.</string>
+    <string name="sync_status_reconnect">Belum tersambung ke server. Sambungkan ulang dari menu Lainnya untuk melanjutkan sinkron; datamu aman di ponsel.</string>
+    <string name="sync_status_subscription">Sinkron butuh langganan Rizqflow Sync. Datamu tetap aman dan bisa dipakai di ponsel ini.</string>
+    <string name="sync_status_push_waits">Atur kode pemulihan supaya datamu ikut tersalin ke server. Sampai itu, datamu tetap aman di ponsel.</string>
+    <string name="sync_last_never">Belum ada sinkron di sesi ini.</string>
+    <string name="sync_last_at">Terakhir tersinkron %1$s.</string>
+    <string name="sync_wifi_only_title">Hanya lewat Wi-Fi</string>
+    <string name="sync_wifi_only_body">Sinkron otomatis menunggu jaringan yang tidak berbayar. Tombol Sinkronkan sekarang tetap jalan di jaringan apa pun.</string>
+    <string name="sync_now">Sinkronkan sekarang</string>
+    <string name="sync_now_busy">Menyinkronkan…</string>
+    <string name="sync_manual_done">Sinkron selesai.</string>
+    <string name="sync_manual_failed">Belum bisa menyinkronkan sekarang. Datamu aman di ponsel; coba lagi nanti.</string>
+    <string name="sync_subscribe">Lihat Rizqflow Sync</string>
 </resources>

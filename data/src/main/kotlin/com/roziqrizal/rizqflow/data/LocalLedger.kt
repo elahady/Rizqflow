@@ -11,6 +11,7 @@ import com.roziqrizal.rizqflow.data.db.MIGRATION_6_7
 import com.roziqrizal.rizqflow.data.db.MIGRATION_7_8
 import com.roziqrizal.rizqflow.data.db.MIGRATION_8_9
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
+import com.roziqrizal.rizqflow.data.sync.LocalChangeNotifier
 import com.roziqrizal.rizqflow.data.sync.SharedRoomAutoSync
 import com.roziqrizal.rizqflow.data.repo.LocalAccountRepository
 import com.roziqrizal.rizqflow.data.repo.LocalBillRepository
@@ -45,8 +46,14 @@ class LocalLedger(
     /** Lingkup untuk sinkron otomatis ruang bersama; dibatalkan saat ruang kerja ditutup. Tes memberi lingkup sinkron. */
     private val autoSyncScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) : AutoCloseable {
+    /**
+     * Pemicu sync otomatis (Tahap 6): [SyncRecorder] memanggilnya tiap rekaman ditandai kotor; ruang kerja memasang
+     * `listener`-nya setelah orkestrator sync jadi. Kosong (tidak melakukan apa pun) sampai dipasang.
+     */
+    val changeNotifier = LocalChangeNotifier()
+
     /** Pencatat perubahan lokal untuk sinkron; dipakai bersama oleh semua repositori tulis (Tahap 1 sync-desain.md). */
-    val syncRecorder = SyncRecorder(db, syncClock)
+    val syncRecorder = SyncRecorder(db, syncClock, changeNotifier)
 
     /** Penyimpanan sinkron (rekaman, kursor, masalah, ruang bersama); dipakai mesin sinkron tahap berikutnya. */
     val syncStore = RoomSyncStore(db)
