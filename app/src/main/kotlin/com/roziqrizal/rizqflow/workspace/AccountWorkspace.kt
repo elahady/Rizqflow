@@ -98,6 +98,11 @@ import com.roziqrizal.rizqflow.sync.ServerSession
 import com.roziqrizal.rizqflow.sync.TokenRefresher
 import com.roziqrizal.rizqflow.data.sync.SharedPrefsAutoSyncSettings
 import com.roziqrizal.rizqflow.data.sync.AndroidNetworkChangeSource
+import com.roziqrizal.rizqflow.domain.auth.AccountStorage
+import com.roziqrizal.rizqflow.data.sync.FilePreRestoreCopyStore
+import com.roziqrizal.rizqflow.data.sync.PreRestoreFiles
+import com.roziqrizal.rizqflow.data.sync.PreRestoreUseLock
+import com.roziqrizal.rizqflow.domain.sync.PreRestoreRevertFlow
 import com.roziqrizal.rizqflow.data.sync.SharedPrefsLastSyncStore
 import com.roziqrizal.rizqflow.domain.sync.LastSyncStore
 import com.roziqrizal.rizqflow.domain.sync.NetworkChangeSource
@@ -154,6 +159,12 @@ class AccountWorkspace private constructor(
     private val networkChangeSource: NetworkChangeSource,
     /** Waktu sinkron terakhir yang bertahan setelah proses mati, satu per akun. */
     private val lastSyncStore: LastSyncStore,
+    /**
+     * Berkas database akun ini, dihitung dari konteks TANPA membuka database. Dipakai kunci dan penyimpanan salinan
+     * pemulihan yang bisa dipanggil sesudah database ditutup untuk ditimpa (`local.databaseFile` akan membuka lagi
+     * database yang sedang ditimpa).
+     */
+    private val databasePath: java.io.File,
 ) : AutoCloseable {
     private val newId: () -> String = { UUID.randomUUID().toString() }
 
@@ -376,8 +387,32 @@ class AccountWorkspace private constructor(
      * Membersihkan salinan `.prerestore` yang sudah tidak diperlukan ([PreRestoreCleaner]): umur minimal 30 hari dan
      * hanya bila ruang kerja kini berisi data. Aman dipanggil tiap ruang kerja dibuka; tidak pernah melempar.
      */
-    suspend fun cleanUpPreRestore(): PreRestoreCleaner.Outcome =
-        PreRestoreCleaner(databaseFile = { local.databaseFile }, isWorkspacePure = { RoomWorkspacePurityChecker(local.db).isPure() }).cleanUp()
+    suspend fun cleanUpPreRestore(): PreRestoreCleaner.Outcome {
+        val cleaner = PreRestoreCleaner(
+            databaseFile = { databasePath },
+            isWorkspacePure = { RoomWorkspacePurityChecker(local.db).isPure() },
+            // Salinan yang sedang dibaca layar "Kembalikan data sebelum pemulihan" tidak boleh dihapus.
+            isInUse = preRestoreLock::isHeld,
+        )
+        val outcome = cleaner.cleanUp()
+        cleaner.cleanUpRevertCopies()
+        return outcome
+    }
+
+    /** Kunci pakai salinan `.prerestore` (berkas penanda di samping database); dihormati [cleanUpPreRestore]. */
+    private val preRestoreLock = PreRestoreUseLock(databaseFile = { databasePath })
+
+    /**
+     * "Kembalikan data sebelum pemulihan" (menu Lainnya, hanya bila `.prerestore` ada): memeriksa salinan, membuat salinan
+     * darurat `.prerevert` dari keadaan sekarang, dan setelah konfirmasi eksplisit menyerahkan isi `.prerestore` ke jalur
+     * penimpa berkas yang sama dengan pemulihan cadangan (`WorkspaceHost.restoreFromBackup`). Tidak memakai primitif baru
+     * untuk menimpa; lihat KDoc [PreRestoreRevertFlow]. Versi skema tertinggi dibaca dari database yang terbuka.
+     */
+    val preRestoreRevert = PreRestoreRevertFlow(
+        copies = FilePreRestoreCopyStore(databaseFile = { databasePath }, lock = preRestoreLock),
+        emergency = PreRestoreBackup.forLedger(local, PreRestoreFiles.PREREVERT),
+        maxSchemaVersion = { local.schemaVersion },
+    )
 
     /**
      * Menandai ruang bersama ACTIVE setelah pendaftaran anggota di server berhasil (undangan QR diterima, atau
@@ -430,6 +465,7 @@ class AccountWorkspace private constructor(
                 autoSyncNetwork = AndroidAutoSyncNetwork(context, autoSyncSettings),
                 networkChangeSource = AndroidNetworkChangeSource(context),
                 lastSyncStore = SharedPrefsLastSyncStore(context, accountId),
+                databasePath = context.getDatabasePath(AccountStorage.databaseName(accountId)),
             )
             workspace.connectAutoSync()
             return workspace

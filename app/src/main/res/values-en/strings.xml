@@ -1354,7 +1354,7 @@
     <string name="sync_status_reconnect">Not connected to the server. Reconnect from the More menu to continue syncing; your data is safe on this phone.</string>
     <string name="sync_status_subscription">Sync needs a Rizqflow Sync subscription. Your data stays safe and usable on this phone.</string>
     <string name="sync_status_push_waits">Set up your recovery code so your data is also copied to the server. Until then, your data stays safe on this phone.</string>
-    <string name="sync_last_never">No sync yet in this session.</string>
+    <string name="sync_last_never">Never synced on this device.</string>
     <string name="sync_last_at">Last synced %1$s.</string>
     <string name="sync_wifi_only_title">Wi-Fi only</string>
     <string name="sync_wifi_only_body">Automatic sync waits for an unmetered network. The Sync now button works on any network.</string>
@@ -1363,4 +1363,24 @@
     <string name="sync_manual_done">Sync complete.</string>
     <string name="sync_manual_failed">Can\'t sync right now. Your data is safe on this phone; try again later.</string>
     <string name="sync_subscribe">See Rizqflow Sync</string>
+    <string name="menu_prerestore_revert">Restore data from before recovery</string>
+    <string name="menu_prerestore_revert_sub">There is an automatic copy from before you recovered from the server</string>
+    <string name="prerestore_title">Restore data from before recovery</string>
+    <string name="prerestore_checking">Checking the copy…</string>
+    <string name="prerestore_intro">When you chose Recover on this device, the app saved an automatic copy of your local records before replacing them. Here you can bring those records back.</string>
+    <string name="prerestore_copy_info">Copy made %1$s (%2$s).</string>
+    <string name="prerestore_action">Restore data from before recovery</string>
+    <string name="prerestore_working_prepare">Saving an emergency copy of the current state…</string>
+    <string name="prerestore_working_apply">Restoring data…</string>
+    <string name="prerestore_confirm_title">Restore data from before recovery?</string>
+    <string name="prerestore_confirm_body">The records on this device now (recovered from the server, plus anything you recorded afterwards) will be replaced with the copy made %1$s (%2$s).\n\nThe current state is saved first as an emergency copy (%3$s) in app storage. There is no screen to open it yet, and it is cleaned up automatically after 30 days.\n\nData on the server does NOT change. If Auto sync is on, the next sync may pull back rows that are already on the server, so part of the recovered data may show up here again. The app will reload its data.</string>
+    <string name="prerestore_confirm_action">Yes, restore</string>
+    <string name="prerestore_done">Data restored to the copy from before recovery.</string>
+    <string name="prerestore_busy">Another restore is running. Try again in a moment; your records are unchanged.</string>
+    <string name="prerestore_gone">The copy no longer exists, so nothing was changed.</string>
+    <string name="prerestore_unreadable">The copy can\'t be read, so nothing was changed.</string>
+    <string name="prerestore_backup_failed">The emergency copy couldn\'t be saved, so nothing was changed. Make sure there is enough storage, then try again.</string>
+    <string name="prerestore_apply_failed">Restoring failed. Your records are unchanged and the copy is still there; try again.</string>
+    <string name="prerestore_unusable_corrupt">This copy is damaged or incomplete, so it can\'t be used. Your current records are unchanged.</string>
+    <string name="prerestore_unusable_newer">This copy was made by a newer app version than the one installed, so it can\'t be opened here. Update the app, then try again. Your current records are unchanged.</string>
 </resources>

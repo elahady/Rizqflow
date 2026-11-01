@@ -126,6 +126,8 @@ fun RizqflowApp(
     onOpenSyncHistory: (() -> Unit)? = null,
     /** "Sinkron otomatis" (Tahap 6): status, saklar hanya Wi-Fi, Sinkronkan sekarang; null = baris tidak tampil. */
     onOpenAutoSync: (() -> Unit)? = null,
+    /** "Kembalikan data sebelum pemulihan" (hanya bila salinan `.prerestore` ada); null = baris tidak tampil. */
+    onOpenPreRestoreRevert: (() -> Unit)? = null,
 ) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
@@ -181,7 +183,7 @@ fun RizqflowApp(
             TopTab.entries.forEach { tab ->
                 composable(tab.route) {
                     if (tab == TopTab.Lainnya && account != null) {
-                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport, onToggleProDebug, onDeleteAccount, onOpenFamilyScan, onOpenSyncPaywall, syncOwned, onReconnect, reconnectBusy, recoveryRow, onOpenRecovery, onOpenRecoveryRestore, onOpenDevices, onOpenSyncHistory, onOpenAutoSync)
+                        LainnyaScreen(account, onConnectGmail, onSignOut, onDismissNotice, onOpenRules, onOpenManage, demo, onToggleDemo, onOpenAbout, onOpenReconciliation, onOpenReminder, onOpenSecurity, onOpenCsv, onOpenBackup, onOpenTampilan, onOpenPaywall, proOwned, onOpenRecurring, onOpenBills, onOpenDebts, onOpenReport, onToggleProDebug, onDeleteAccount, onOpenFamilyScan, onOpenSyncPaywall, syncOwned, onReconnect, reconnectBusy, recoveryRow, onOpenRecovery, onOpenRecoveryRestore, onOpenDevices, onOpenSyncHistory, onOpenAutoSync, onOpenPreRestoreRevert)
                     } else if (tab == TopTab.Transaksi && transaksiContent != null) {
                         transaksiContent()
                     } else if (tab == TopTab.Ruang && ruangContent != null) {
@@ -289,6 +291,7 @@ private fun LainnyaScreen(
     onOpenDevices: (() -> Unit)? = null,
     onOpenSyncHistory: (() -> Unit)? = null,
     onOpenAutoSync: (() -> Unit)? = null,
+    onOpenPreRestoreRevert: (() -> Unit)? = null,
 ) {
     val spacing = MaterialTheme.spacing
     Column(
@@ -384,6 +387,14 @@ private fun LainnyaScreen(
                 stringResource(R.string.menu_recovery_restore),
                 stringResource(R.string.menu_recovery_restore_sub),
                 onOpenRecoveryRestore,
+            )
+        }
+        // Hanya bila salinan `.prerestore` (dari alur Pulihkan di perangkat baru) masih ada.
+        if (onOpenPreRestoreRevert != null) {
+            MenuRow(
+                stringResource(R.string.menu_prerestore_revert),
+                stringResource(R.string.menu_prerestore_revert_sub),
+                onOpenPreRestoreRevert,
             )
         }
         if (onOpenDevices != null) {
