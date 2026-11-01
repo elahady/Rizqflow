@@ -219,8 +219,13 @@ class LocalRoomRepository(private val db: RizqflowDatabase, private val recorder
 
     override suspend fun saveRooms(rooms: List<Room>, rules: List<AllocationRule>?) {
         db.withTransaction {
+            // Rekaman ALLOCATION_CONFIG dibangun dari aturan RUANG AKTIF saja (RoomDao.rules menggabung ke room.archived = 0),
+            // jadi mengarsipkan atau memulihkan ruang mengubah isinya walau tabel allocation_rule tidak disentuh. Bandingkan
+            // status arsip sebelum menimpa, supaya perubahan arsip ikut tersinkron meski `rules` tidak diberikan.
+            val archiveFlipped = rooms.any { room -> db.rooms().find(room.id.value)?.let { it.archived != room.archived } == true }
             db.rooms().upsertAll(rooms.map { it.toEntity() })
             recorder.changed(SyncRecordType.ROOM, rooms.map { it.id.value })
+            if (archiveFlipped && rules == null) recorder.changed(SyncRecordType.ALLOCATION_CONFIG, SyncRecordIds.ALLOCATION_CONFIG)
             if (rules != null) {
                 // Ruang yang baru dipulihkan sudah aktif di sini, jadi aturan lamanya ikut terhapus dan diganti.
                 // Cap_amount ruang lain dibawa serta supaya tidak ikut terhapus (lihat replaceRules).
