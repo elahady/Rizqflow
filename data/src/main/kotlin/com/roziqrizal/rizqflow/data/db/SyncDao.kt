@@ -91,6 +91,20 @@ interface SyncDao {
     @Insert
     suspend fun insertIssue(issue: SyncIssueEntity): Long
 
+    /**
+     * Id masalah yang sudah mencatat BARIS SERVER yang sama (cakupan, tipe, id rekaman, jenis, dan id baris server).
+     * Dipakai [com.roziqrizal.rizqflow.data.sync.RoomSyncStore.recordIssue] supaya menarik ulang baris yang sama
+     * ("sinkron ulang penuh") tidak menggandakan catatan dan tidak mengembalikan hitungan umur/percobaannya ke nol.
+     */
+    @Query(
+        """
+        SELECT id FROM sync_issue
+        WHERE scope = :scope AND record_type = :recordType AND record_id = :recordId AND kind = :kind AND server_id = :serverId
+        ORDER BY id LIMIT 1
+        """,
+    )
+    suspend fun findIssueForServerRow(scope: String, recordType: String, recordId: String, kind: String, serverId: Long): Long?
+
     @Query("DELETE FROM sync_issue WHERE id = :id")
     suspend fun deleteIssue(id: Long)
 

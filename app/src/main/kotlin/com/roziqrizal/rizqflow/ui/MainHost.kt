@@ -43,6 +43,8 @@ import com.roziqrizal.rizqflow.ui.report.ReportScreen
 import com.roziqrizal.rizqflow.ui.reminder.ReminderSettingsScreen
 import com.roziqrizal.rizqflow.ui.security.DeleteAccountConfirmContent
 import com.roziqrizal.rizqflow.ui.security.SecuritySettingsScreen
+import com.roziqrizal.rizqflow.ui.synchistory.SyncHistoryScreen
+import com.roziqrizal.rizqflow.ui.synchistory.SyncHistoryViewModel
 import com.roziqrizal.rizqflow.ui.theme.ThemePreference
 import com.roziqrizal.rizqflow.ui.theme.ThemeSettingsScreen
 import com.roziqrizal.rizqflow.domain.auth.AppLockService
@@ -189,6 +191,7 @@ fun MainHost(
     var recoveryRestoreOpen by rememberSaveable { mutableStateOf(false) }
     var newDeviceRestoreOpen by rememberSaveable { mutableStateOf(false) }
     var devicesOpen by rememberSaveable { mutableStateOf(false) }
+    var syncHistoryOpen by rememberSaveable { mutableStateOf(false) }
     var tampilanOpen by rememberSaveable { mutableStateOf(false) }
     var paywallOpen by rememberSaveable { mutableStateOf(false) }
     var deleteAccountSheet by rememberSaveable { mutableStateOf(false) }
@@ -248,6 +251,16 @@ fun MainHost(
     // Daftar perangkat (Tahap 14): ViewModel per ruang kerja, token dibaca saat dipakai supaya selalu yang terbaru.
     val devicesViewModel = remember(workspace) {
         DevicesViewModel(workspace.deviceRemote, tokenProvider = { workspace.serverSession.token() })
+    }
+    // Riwayat sinkron (Tahap 9): bagian lokal dari database akun, bagian server dari GET /api/sync/history.
+    val syncHistoryViewModel = remember(workspace) {
+        SyncHistoryViewModel(
+            readLocal = { workspace.syncHistoryReader.read() },
+            remote = workspace.syncHistoryRemote,
+            tokenProvider = { workspace.serverSession.token() },
+            deviceId = workspace.syncDeviceId,
+            runFullResync = { workspace.fullResync.run() },
+        )
     }
     val hasServerToken = !needsReconnect
     val restoreAllowed = restoreAvailable(google = account.google, demo = demo, hasToken = hasServerToken)
@@ -363,6 +376,11 @@ fun MainHost(
     // bisa sudah berganti), tidak di mode demo. Aman diulang: tiap kemunculan punya pengenal tetap.
     // Yang tertahan (akun, ruang, atau kategorinya diarsipkan) diberitahukan sekali per pembukaan.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    // Membersihkan salinan `.prerestore` yang sudah tua dan tidak diperlukan lagi (PreRestoreCleaner): sekali per ruang
+    // kerja yang dibuka, di thread IO, senyap, dan tidak pernah menghapus bila ruang kerja masih kosong.
+    LaunchedEffect(workspace, demo) {
+        if (!demo) workspace.cleanUpPreRestore()
+    }
     LaunchedEffect(workspace, demo) {
         if (demo) return@LaunchedEffect
         // Sinkron otomatis ruang bersama saat aplikasi dibuka (Tahap 9): sekali per ruang kerja, tanpa penjadwal
@@ -638,6 +656,7 @@ fun MainHost(
         onOpenRecoveryRestore = if (restoreAllowed) ({ recoveryRestoreOpen = true }) else null,
         // Hanya akun yang punya akun server (Google atau email+sandi) dan bukan demo; sama seperti baris Hapus akun.
         onOpenDevices = if (demo || !(account.google || account.emailAccount)) null else ({ devicesOpen = true }),
+        onOpenSyncHistory = if (demo || !(account.google || account.emailAccount)) null else ({ syncHistoryOpen = true }),
     )
     // Sambung ulang yang diminta pengguna tidak menjangkau server (offline, 503): satu kabar lembut, barisnya tetap ada.
     LaunchedEffect(serverConnectFailedSignal) {
@@ -807,6 +826,14 @@ fun MainHost(
                     devicesOpen = false
                     onSignOut()
                 },
+            )
+        }
+    }
+    if (syncHistoryOpen) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            SyncHistoryScreen(
+                viewModel = syncHistoryViewModel,
+                onClose = { syncHistoryOpen = false },
             )
         }
     }

@@ -12,6 +12,7 @@ import com.roziqrizal.rizqflow.domain.sync.RefreshedToken
 import com.roziqrizal.rizqflow.domain.sync.RemoteError
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.RoomMembershipRemote
+import com.roziqrizal.rizqflow.domain.sync.SyncHistoryRemote
 import com.roziqrizal.rizqflow.domain.sync.SyncRemote
 import java.time.Instant
 import kotlinx.coroutines.CancellationException
@@ -243,6 +244,9 @@ class ServerSession(
 
     fun guard(remote: DeviceRemote): DeviceRemote =
         GuardedDeviceRemote(remote, this)
+
+    fun guard(remote: SyncHistoryRemote): SyncHistoryRemote =
+        GuardedSyncHistoryRemote(remote, this)
 }
 
 /** Nasib token hasil putar yang diterima dari server, lihat [ServerSession.onRotated]. */

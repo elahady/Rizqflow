@@ -19,8 +19,8 @@ import java.nio.file.StandardCopyOption
  * penyimpanan privat aplikasi yang sama dengan database aslinya, jadi tidak menambah paparan (alasan yang sama dengan
  * `.premigrate`).
  *
- * Hanya SATU salinan: salinan baru mengganti yang lama. Salinan TIDAK dihapus otomatis (belum ada aturan masa
- * simpan) dan belum ada layar untuk memulihkannya; lihat roadmap.md Tahap 9.
+ * Hanya SATU salinan: salinan baru mengganti yang lama. Salinan dibersihkan oleh [PreRestoreCleaner] (umur minimal 30
+ * hari dan hanya bila ruang kerja kini berisi data). Belum ada layar untuk memulihkannya; lihat roadmap.md Tahap 9.
  */
 class PreRestoreBackup(
     private val databaseFile: () -> File,

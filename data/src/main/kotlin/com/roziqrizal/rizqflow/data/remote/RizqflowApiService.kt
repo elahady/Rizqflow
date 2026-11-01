@@ -72,6 +72,13 @@ interface RizqflowApiService {
         @Query("device_id") deviceId: String,
     ): Response<ResponseBody>
 
+    /**
+     * Riwayat sinkron akun (Tahap 7, `Api\SyncHistoryController@show`): metadata saja, tanpa isi transaksi. Tidak digerbang
+     * langganan Sync di server, jadi pengguna yang langganannya berakhir tetap bisa melihat keadaannya.
+     */
+    @GET("sync/history")
+    suspend fun syncHistory(@Header("Authorization") bearerToken: String): Response<ResponseBody>
+
     /** Keanggotaan ruang yang dibagi (Tahap 9, roadmap.md "Ruang keluarga bersama"). */
     @POST("rooms/{roomId}/join")
     suspend fun joinRoom(
@@ -261,6 +268,43 @@ data class PullResponseDto(
     @SerialName("next_after") val nextAfter: Long,
     @SerialName("has_more") val hasMore: Boolean,
     @SerialName("server_time_ms") val serverTimeMs: Long? = null,
+)
+
+/**
+ * Jawaban `GET /sync/history`: `{"devices":[...],"quota":{...},"compaction":{...},"server_time_ms":...}`. Semua bidang
+ * punya bawaan supaya server yang menambah atau melewatkan bidang tidak membuat decode gagal; hanya metadata.
+ */
+@Serializable
+data class SyncHistoryResponseDto(
+    val devices: List<SyncHistoryDeviceDto> = emptyList(),
+    val quota: SyncHistoryQuotaDto = SyncHistoryQuotaDto(),
+    val compaction: SyncHistoryCompactionDto = SyncHistoryCompactionDto(),
+    @SerialName("server_time_ms") val serverTimeMs: Long? = null,
+)
+
+@Serializable
+data class SyncHistoryDeviceDto(
+    @SerialName("device_id") val deviceId: String,
+    val rows: Long = 0,
+    @SerialName("last_push_at") val lastPushAt: String? = null,
+    @SerialName("last_pull_at") val lastPullAt: String? = null,
+    val cursor: Long? = null,
+    val active: Boolean = false,
+)
+
+@Serializable
+data class SyncHistoryQuotaDto(
+    val rows: Long = 0,
+    val bytes: Long = 0,
+    @SerialName("max_rows") val maxRows: Long = 0,
+    @SerialName("max_bytes") val maxBytes: Long = 0,
+)
+
+@Serializable
+data class SyncHistoryCompactionDto(
+    @SerialName("last_run_at") val lastRunAt: String? = null,
+    @SerialName("last_removed_versions") val lastRemovedVersions: Long = 0,
+    @SerialName("last_removed_tombstones") val lastRemovedTombstones: Long = 0,
 )
 
 /** Bentuk error Laravel standar: `{"message": "..."}` (kadang disertai `errors`, sengaja diabaikan). */
