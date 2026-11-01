@@ -192,6 +192,10 @@ class RoomSyncStore(
     override suspend fun saveSharedRoom(info: SharedRoomInfo) = dao.upsertSharedRoom(
         SharedRoomEntity(info.roomId.value, info.role.name, info.status.name, info.joinedAtMillis),
     )
+
+    override suspend fun markSharedRoomHistoryDirty(roomId: RoomId) {
+        db.withTransaction { dao.backfillSharedRoomExpenses(SyncScope.SharedRoom(roomId).wire, roomId.value) }
+    }
 }
 
 private fun SyncRecordEntity.toMeta(): SyncRecordMeta? {

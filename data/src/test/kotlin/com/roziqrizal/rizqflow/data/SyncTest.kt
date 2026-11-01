@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room as AndroidRoom
 import androidx.test.core.app.ApplicationProvider
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
+import com.roziqrizal.rizqflow.data.sync.SharedRoomActivation
 import com.roziqrizal.rizqflow.domain.ledger.FirstAccount
 import com.roziqrizal.rizqflow.domain.ledger.LedgerResult
 import com.roziqrizal.rizqflow.domain.ledger.LedgerService
@@ -13,6 +14,7 @@ import com.roziqrizal.rizqflow.domain.ledger.WorkspaceSetup
 import com.roziqrizal.rizqflow.domain.model.AccountKind
 import com.roziqrizal.rizqflow.domain.model.TransactionId
 import com.roziqrizal.rizqflow.domain.money.Money
+import com.roziqrizal.rizqflow.domain.sync.SharedRoomRole
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
@@ -45,6 +47,9 @@ class SyncTest {
     }
 
     private suspend fun keluargaRoomId() = local.rooms.activeRooms().first { it.name == "Keluarga" }.id
+
+    /** Hanya ruang yang dibagi menerbitkan rekaman sinkron ruang (jalur produksi: SharedRoomActivation). */
+    private suspend fun shareKeluarga() = SharedRoomActivation(local.syncStore).markActive(keluargaRoomId(), SharedRoomRole.OWNER)
     private suspend fun accountId() = local.accounts.activeAccounts().first().id
 
     private suspend fun recordExpense(amount: Long, note: String? = null) =
@@ -63,6 +68,7 @@ class SyncTest {
 
     @Test
     fun `transaksi baru pending sync sampai ditandai markSynced`() = runBlocking {
+        shareKeluarga()
         recordExpense(25_000)
 
         val pending = local.transactions.pendingSync(keluargaRoomId())
@@ -75,6 +81,7 @@ class SyncTest {
 
     @Test
     fun `mengubah transaksi yang sudah synced menjadikannya pending lagi`() = runBlocking {
+        shareKeluarga()
         val receipt = recordExpense(25_000)
         val transaction = (receipt.value as com.roziqrizal.rizqflow.domain.ledger.MoneyTransaction)
         local.transactions.markSynced(listOf(transaction.id), 1_234L)

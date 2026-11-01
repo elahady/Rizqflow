@@ -10,6 +10,7 @@ import com.roziqrizal.rizqflow.data.db.MIGRATION_5_6
 import com.roziqrizal.rizqflow.data.db.MIGRATION_6_7
 import com.roziqrizal.rizqflow.data.db.MIGRATION_7_8
 import com.roziqrizal.rizqflow.data.db.MIGRATION_8_9
+import com.roziqrizal.rizqflow.data.db.MIGRATION_10_11
 import com.roziqrizal.rizqflow.data.db.MIGRATION_9_10
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
 import com.roziqrizal.rizqflow.data.sync.LocalChangeNotifier
@@ -26,6 +27,7 @@ import com.roziqrizal.rizqflow.data.repo.LocalTransactionRepository
 import com.roziqrizal.rizqflow.data.repo.LocalWorkspaceRepository
 import com.roziqrizal.rizqflow.data.repo.LocalZakatRepository
 import com.roziqrizal.rizqflow.data.sync.RoomSyncStore
+import com.roziqrizal.rizqflow.data.sync.SharedRoomRecorder
 import com.roziqrizal.rizqflow.data.sync.SyncBootstrap
 import com.roziqrizal.rizqflow.data.sync.SyncRecorder
 import com.roziqrizal.rizqflow.domain.auth.AccountStorage
@@ -68,7 +70,9 @@ class LocalLedger(
     val workspace = LocalWorkspaceRepository(db, syncRecorder)
     val accounts = LocalAccountRepository(db, syncRecorder)
     val rooms = LocalRoomRepository(db, syncRecorder)
-    val transactions = LocalTransactionRepository(db, syncRecorder, autoSync)
+    /** Pencatat status kotor ruang bersama (`sync_record` cakupan `r:<ruang>`); tidak memicu sync pribadi. */
+    val sharedRoomRecorder = SharedRoomRecorder(db, syncClock)
+    val transactions = LocalTransactionRepository(db, syncRecorder, autoSync, sharedRoomRecorder)
     val favorites = LocalFavoriteRepository(db, syncRecorder)
     val zakat = LocalZakatRepository(db, syncRecorder)
     val roles = LocalRoleRepository(db, syncRecorder)
@@ -114,7 +118,7 @@ class LocalLedger(
                 context.applicationContext,
                 RizqflowDatabase::class.java,
                 databaseName,
-            ).openHelperFactory(guard.openHelperFactory()).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10).addCallback(guard.callback()).build()
+            ).openHelperFactory(guard.openHelperFactory()).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11).addCallback(guard.callback()).build()
             return LocalLedger(db)
         }
     }

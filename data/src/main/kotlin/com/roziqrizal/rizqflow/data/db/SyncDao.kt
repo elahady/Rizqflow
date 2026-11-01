@@ -82,6 +82,31 @@ interface SyncDao {
     )
     suspend fun markPushed(scope: String, type: String, recordId: String, sentChangedAt: Long): Int
 
+    /**
+     * Membersihkan penanda kotor satu rekaman tanpa mengubah `changed_at` atau `pushed_changed_at`. Dipakai saat versi
+     * masuk dari perangkat lain menggantikan baris lokal yang masih menunggu kirim (versi lokal itu sudah kalah).
+     */
+    @Query("UPDATE sync_record SET dirty = 0 WHERE scope = :scope AND record_type = :type AND record_id = :recordId AND dirty = 1")
+    suspend fun clearDirty(scope: String, type: String, recordId: String): Int
+
+    /** Menandai rekaman ruang bersama (cakupan `r:*`) bertipe [type] dengan id-id ini terkirim, tanpa syarat versi. */
+    @Query("UPDATE sync_record SET dirty = 0, pushed_changed_at = changed_at WHERE scope LIKE 'r:%' AND record_type = :type AND record_id IN (:ids)")
+    suspend fun markSharedPushedByIds(type: String, ids: List<String>): Int
+
+    /**
+     * Riwayat pengeluaran buatan sendiri di ruang [roomId] yang belum punya rekaman `shared_expense` di cakupan [scope]
+     * (`r:<roomId>`): ditandai kotor dengan `changed_at` = `updated_at` transaksi (minimal 1). `INSERT OR IGNORE`, jadi
+     * rekaman yang sudah ada (terkirim, menunggu, atau tombstone) tidak tertimpa dan hasilnya idempoten.
+     */
+    @Query(
+        """
+        INSERT OR IGNORE INTO sync_record (scope, record_type, record_id, changed_at, deleted, dirty, pushed_changed_at, author, device_id)
+        SELECT :scope, 'shared_expense', id, MAX(updated_at, 1), 0, 1, NULL, NULL, NULL
+        FROM money_transaction WHERE room_id = :roomId AND kind = 'EXPENSE' AND origin <> 'SHARED'
+        """,
+    )
+    suspend fun backfillSharedRoomExpenses(scope: String, roomId: String)
+
     @Query("SELECT after_id FROM sync_cursor WHERE scope = :scope")
     suspend fun cursor(scope: String): Long?
 

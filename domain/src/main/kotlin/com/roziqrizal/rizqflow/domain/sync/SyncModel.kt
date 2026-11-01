@@ -287,4 +287,12 @@ interface SyncStore {
     suspend fun sharedRooms(): List<SharedRoomInfo>
 
     suspend fun saveSharedRoom(info: SharedRoomInfo)
+
+    /**
+     * Menandai pengeluaran buatan sendiri di [roomId] yang belum punya rekaman sinkron ruang bersama sebagai kotor, supaya
+     * riwayat ruang terkirim begitu ruang mulai dibagi (sync-desain.md bagian A, butir 2.3). Pengeluaran yang sudah punya
+     * rekaman (terkirim atau menunggu) tidak disentuh, jadi aman dipanggil berulang. Bawaan kosong untuk penyimpanan
+     * palsu di tes yang tidak menyimpan rekaman ruang bersama.
+     */
+    suspend fun markSharedRoomHistoryDirty(roomId: RoomId) {}
 }

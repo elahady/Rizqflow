@@ -1,6 +1,7 @@
 package com.roziqrizal.rizqflow.data
 
 import com.roziqrizal.rizqflow.data.sync.JsonTransactionSyncCodec
+import com.roziqrizal.rizqflow.data.sync.SharedRoomActivation
 import com.roziqrizal.rizqflow.domain.ledger.LedgerResult
 import com.roziqrizal.rizqflow.domain.ledger.MoneyTransaction
 import com.roziqrizal.rizqflow.domain.ledger.NewExpense
@@ -51,10 +52,11 @@ private class HookedRemote(private val inner: MemoryPersonalRemote) : SyncRemote
 }
 
 /**
- * Mengunci perilaku status kotor ruang bersama SEKARANG (kolom `money_transaction.synced_at` dan tabel
- * `pending_room_tombstone`), terhadap Room sungguhan. Tes ini adalah jaring pengaman untuk pemindahan status itu ke
- * `sync_record` kelak (sync-desain.md bagian I Tahap 2 butir (d), rancangan di bagian itu): perilaku yang tertulis di sini
- * wajib tetap sama sesudah pemindahan. Hanya terbukti di JVM (Robolectric), belum di perangkat.
+ * Mengunci perilaku status kotor ruang bersama terhadap Room sungguhan. Status ini disimpan di `sync_record` (cakupan
+ * `r:<ruang>`, tipe `shared_expense`) sejak skema v11 (sync-desain.md bagian I Tahap 2 butir (d)); sebelumnya di kolom
+ * `money_transaction.synced_at` dan tabel `pending_room_tombstone`. Perilaku yang tertulis di sini sama sebelum dan sesudah
+ * pemindahan, dengan SATU perbedaan yang disengaja: ruang yang belum dibagi tidak menerbitkan apa pun (riwayatnya ditandai
+ * kotor ketika ruang mulai dibagi). Hanya terbukti di JVM (Robolectric), belum di perangkat.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -76,8 +78,9 @@ class SharedRoomDirtyStateTest {
 
     private suspend fun room(f: SyncFixture, name: String): Room = f.local.rooms.activeRooms().first { it.name == name }
 
+    /** Jalur produksi: SharedRoomActivation menyimpan status ACTIVE sekaligus menandai riwayat ruang kotor. */
     private suspend fun markShared(f: SyncFixture, room: Room) =
-        f.local.syncStore.saveSharedRoom(SharedRoomInfo(room.id, SharedRoomRole.OWNER, SharedRoomStatus.ACTIVE, 1_000L))
+        SharedRoomActivation(f.local.syncStore).markActive(room.id, SharedRoomRole.OWNER, nowMillis = 1_000L)
 
     private suspend fun spend(f: SyncFixture, room: Room, amount: Long = 25_000): MoneyTransaction {
         val category = f.local.rooms.categories(room.id).first()
@@ -98,7 +101,8 @@ class SharedRoomDirtyStateTest {
         spend(a, keluarga)
         spend(a, keluarga)
         spend(a, room(a, "Diri"))
-        assertEquals(2, pending(a, keluarga.id), "belum dibagikan pun, tiap pengeluaran ruang itu sudah menunggu kirim")
+        assertEquals(0, pending(a, keluarga.id), "ruang yang belum dibagi tidak menerbitkan apa pun")
+        assertTrue(a.rows().none { it.scope.startsWith("r:") }, "tidak ada rekaman r:* sebelum ruang dibagi")
 
         markShared(a, keluarga)
         val remote = MemoryPersonalRemote()

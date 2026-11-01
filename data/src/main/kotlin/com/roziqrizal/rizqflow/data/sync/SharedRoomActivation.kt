@@ -30,6 +30,10 @@ class SharedRoomActivation(private val syncStore: SyncStore) {
                 joinedAtMillis = existing?.joinedAtMillis ?: nowMillis,
             ),
         )
+        // Riwayat pengeluaran sebelum ruang dibagi ikut terkirim (keputusan #4, sekarang tanpa pilihan "mulai hari ini"):
+        // ditandai kotor di cakupan ruang. Selalu dijalankan, bukan hanya saat peralihan status: idempoten, dan menutup
+        // celah bila aplikasi mati di antara penyimpanan status dan penandaan.
+        syncStore.markSharedRoomHistoryDirty(roomId)
     }
 
     /** Status ruang bersama di perangkat ini; null bila ruang belum pernah ditandai (bukan ruang bersama). */
@@ -65,5 +69,6 @@ class SharedRoomActivation(private val syncStore: SyncStore) {
                 joinedAtMillis = existing?.joinedAtMillis ?: nowMillis,
             ),
         )
+        syncStore.markSharedRoomHistoryDirty(roomId)
     }
 }

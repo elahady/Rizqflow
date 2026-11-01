@@ -11,6 +11,7 @@ import com.roziqrizal.rizqflow.data.db.MIGRATION_5_6
 import com.roziqrizal.rizqflow.data.db.MIGRATION_6_7
 import com.roziqrizal.rizqflow.data.db.MIGRATION_7_8
 import com.roziqrizal.rizqflow.data.db.MIGRATION_8_9
+import com.roziqrizal.rizqflow.data.db.MIGRATION_10_11
 import com.roziqrizal.rizqflow.data.db.MIGRATION_9_10
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
 import org.json.JSONObject
@@ -46,7 +47,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
             .build()
         try {
             db.openHelper.writableDatabase.query("SELECT share_bp, cap_amount FROM allocation_rule WHERE room_id = 'r1'").use { cursor ->
@@ -54,7 +55,7 @@ class MigrationTest {
                 assertEquals(10_000, cursor.getInt(0))
                 assertTrue(cursor.isNull(1))
             }
-            assertEquals(10, db.openHelper.readableDatabase.version)
+            assertEquals(11, db.openHelper.readableDatabase.version)
         } finally {
             db.close()
         }
@@ -69,7 +70,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
             .build()
         try {
             val sqlite = db.openHelper.writableDatabase
@@ -95,7 +96,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
             .build()
         try {
             db.openHelper.writableDatabase.query("SELECT COUNT(*) FROM recurring_rule").use { assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0)) }
@@ -123,7 +124,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
             .build()
         try {
             db.openHelper.writableDatabase.query("SELECT COUNT(*) FROM bill").use { assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0)) }
@@ -152,7 +153,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
             .build()
         try {
             val sqlite = db.openHelper.writableDatabase
@@ -181,7 +182,7 @@ class MigrationTest {
         buildSchemaVersion1(context, dbFile.path)
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
             .build()
         try {
             kotlinx.coroutines.runBlocking {
@@ -217,11 +218,11 @@ class MigrationTest {
         raw.close()
 
         val db = Room.databaseBuilder(context, RizqflowDatabase::class.java, TEST_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
             .build()
         try {
             val sqlite = db.openHelper.writableDatabase
-            assertEquals(10, sqlite.version)
+            assertEquals(11, sqlite.version)
             sqlite.query("SELECT COUNT(*) FROM pending_room_tombstone").use { assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0)) }
             sqlite.query("PRAGMA foreign_key_check").use { assertEquals(0, it.count, "foreign_key_check harus kosong") }
 

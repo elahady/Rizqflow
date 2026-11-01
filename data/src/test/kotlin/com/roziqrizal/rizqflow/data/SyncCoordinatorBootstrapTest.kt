@@ -1,12 +1,14 @@
 package com.roziqrizal.rizqflow.data
 
 import com.roziqrizal.rizqflow.data.sync.JsonTransactionSyncCodec
+import com.roziqrizal.rizqflow.data.sync.SharedRoomActivation
 import com.roziqrizal.rizqflow.domain.model.RoomId
 import com.roziqrizal.rizqflow.domain.model.TransactionId
 import com.roziqrizal.rizqflow.domain.model.TransactionOrigin
 import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.RoomKeyProvider
+import com.roziqrizal.rizqflow.domain.sync.SharedRoomRole
 import com.roziqrizal.rizqflow.domain.sync.SyncAead
 import com.roziqrizal.rizqflow.domain.sync.SyncCoordinator
 import com.roziqrizal.rizqflow.domain.sync.SyncCursorStore
@@ -110,6 +112,8 @@ class SyncCoordinatorBootstrapTest {
         val expense = (a.ledger.recordExpense(
             com.roziqrizal.rizqflow.domain.ledger.NewExpense(com.roziqrizal.rizqflow.domain.money.Money.rupiah(50_000), a.accountId(), roomA.id, category.id, a.today, "belanja"),
         ) as com.roziqrizal.rizqflow.domain.ledger.LedgerResult.Success).value
+        // Ruang dibagi SETELAH pengeluaran dicatat: riwayatnya ikut terkirim lewat penandaan saat aktivasi.
+        SharedRoomActivation(a.local.syncStore).markActive(roomA.id, SharedRoomRole.OWNER)
         assertTrue(engine(a, remote).syncNow(roomA.id, "device-a") is SyncResult.Success)
 
         val roomB = keluarga(b)

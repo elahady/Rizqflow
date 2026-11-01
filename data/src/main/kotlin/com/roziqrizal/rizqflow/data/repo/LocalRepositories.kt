@@ -4,10 +4,10 @@ import android.database.sqlite.SQLiteConstraintException
 import com.roziqrizal.rizqflow.data.db.withTransaction
 import com.roziqrizal.rizqflow.data.db.AppSettingEntity
 import com.roziqrizal.rizqflow.data.db.AllocationRuleEntity
-import com.roziqrizal.rizqflow.data.db.PendingRoomTombstoneEntity
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
 import com.roziqrizal.rizqflow.data.db.TransactionEntity
 import com.roziqrizal.rizqflow.data.sync.SharedRoomAutoSync
+import com.roziqrizal.rizqflow.data.sync.SharedRoomRecorder
 import com.roziqrizal.rizqflow.data.sync.SyncRecorder
 import com.roziqrizal.rizqflow.domain.allocation.AllocationCap
 import com.roziqrizal.rizqflow.domain.allocation.AllocationMode
@@ -37,7 +37,9 @@ import com.roziqrizal.rizqflow.domain.model.TransactionId
 import com.roziqrizal.rizqflow.domain.model.TransactionKind
 import com.roziqrizal.rizqflow.domain.model.TransactionOrigin
 import com.roziqrizal.rizqflow.domain.money.Money
+import com.roziqrizal.rizqflow.domain.sync.SharedRecordType
 import com.roziqrizal.rizqflow.domain.sync.SharedRoomStatus
+import com.roziqrizal.rizqflow.domain.sync.SyncScope
 import com.roziqrizal.rizqflow.domain.sync.SyncRecordIds
 import com.roziqrizal.rizqflow.domain.sync.SyncRecordType
 import com.roziqrizal.rizqflow.domain.sync.VirtualMemberAccount
@@ -337,6 +339,7 @@ class LocalTransactionRepository(
     private val db: RizqflowDatabase,
     private val recorder: SyncRecorder,
     private val autoSync: SharedRoomAutoSync,
+    private val sharedRecorder: SharedRoomRecorder,
 ) : TransactionRepository {
     override suspend fun find(id: TransactionId): MoneyTransaction? = db.transactions().find(id.value)?.toDomain()
 
@@ -368,36 +371,32 @@ class LocalTransactionRepository(
         notifySharedSync(transaction)
     }
 
-    private suspend fun isActiveSharedRoom(roomId: String): Boolean =
-        db.sync().sharedRoom(roomId)?.status == SharedRoomStatus.ACTIVE.name
-
     /**
-     * Menyelaraskan tombstone ruang bersama dengan penulisan ulang sebuah transaksi (sync-desain.md bagian A). Dipanggil
-     * DI DALAM transaksi database yang sama dengan penulisannya.
+     * Menyelaraskan rekaman sinkron ruang bersama dengan penulisan ulang sebuah transaksi (sync-desain.md bagian A).
+     * Dipanggil DI DALAM transaksi database yang sama dengan penulisannya. Status disimpan di `sync_record` (cakupan
+     * `r:<ruang>`, tipe `shared_expense`) lewat [SharedRoomRecorder].
      *
-     * 1. **Masuk/tetap**: bila [updated] adalah pengeluaran di ruang X, tombstone yang menunggu untuk (transaksi, X)
-     *    gugur. Versi hidup yang dikirim lewat `pendingSync(X)` lebih baru, dan keduanya tidak boleh dikirim bersamaan
-     *    (tombstone akan menang atas versi hidup di server bila capnya lebih besar).
+     * 1. **Masuk/tetap**: bila [updated] adalah pengeluaran buatan sendiri di ruang X, rekaman (X, transaksi) ditandai
+     *    kotor-hidup. Kunci rekaman per (cakupan, tipe, id), jadi ini sekaligus menggantikan tombstone yang menunggu di X
+     *    (keduanya tidak boleh dikirim bersamaan: tombstone akan menang atas versi hidup di server bila capnya lebih besar).
      * 2. **Keluar**: bila [existing] (versi sebelum ditulis ulang) adalah pengeluaran buatan sendiri di ruang bersama
      *    AKTIF Y dan [updated] bukan lagi pengeluaran di Y (ruang berubah ke ruang non-bersama atau ruang bersama lain,
-     *    atau jenisnya berubah), satu tombstone untuk (transaksi, Y) dicatat supaya anggota Y ikut menghapusnya. Baris
-     *    pasangan (origin SHARED) bukan milik lokal dan tidak pernah menerbitkan tombstone. Ruang non-bersama tidak
+     *    atau jenisnya berubah), rekaman (Y, transaksi) ditandai kotor-tombstone supaya anggota Y ikut menghapusnya.
+     *    Baris pasangan (origin SHARED) bukan milik lokal dan tidak pernah menerbitkan tombstone. Ruang non-bersama tidak
      *    menerbitkan apa pun: tidak ada yang pernah dikirim ke sana.
      *
      * @return ruang Y yang baru mendapat tombstone (untuk memicu sinkron otomatis setelah komit), atau null.
      */
     private suspend fun settleSharedRooms(existing: TransactionEntity?, updated: MoneyTransaction): RoomId? {
-        val newRoom = updated.roomId?.takeIf { updated.kind == TransactionKind.EXPENSE }
-        if (newRoom != null) db.transactions().deletePendingTombstone(updated.id.value, newRoom.value)
+        val newRoom = updated.roomId?.takeIf { updated.kind == TransactionKind.EXPENSE && updated.origin != TransactionOrigin.SHARED }
+        if (newRoom != null) sharedRecorder.live(newRoom.value, updated.id.value)
 
         val old = existing ?: return null
         val oldRoom = old.roomId ?: return null
         if (old.kind != TransactionKind.EXPENSE || old.origin == TransactionOrigin.SHARED) return null
         if (newRoom?.value == oldRoom) return null
-        if (!isActiveSharedRoom(oldRoom)) return null
-        db.transactions().insertPendingTombstone(
-            PendingRoomTombstoneEntity(transactionId = updated.id.value, roomId = oldRoom, deletedAt = System.currentTimeMillis()),
-        )
+        if (db.sync().sharedRoom(oldRoom)?.status != SharedRoomStatus.ACTIVE.name) return null
+        sharedRecorder.tombstone(oldRoom, updated.id.value, onlyIfActive = true)
         return RoomId(oldRoom)
     }
 
@@ -466,12 +465,11 @@ class LocalTransactionRepository(
                 recorder.changed(SyncRecordType.DEBT_PAYMENT, paymentIds)
                 // Tahap 9, roadmap.md "Sinkron penghapusan transaksi di ruang yang dibagi": baris asli
                 // hilang fisik di sini, jadi catat tombstone-nya SEKARANG (bersama transaksi database
-                // yang sama) supaya SyncEngine lama bisa mengirimkannya nanti — lihat TransactionRepository.pendingTombstones.
+                // yang sama) di sync_record cakupan ruang, supaya mesin sinkron ruang bersama mengirimkannya nanti.
+                // Hanya ruang yang pernah dibagi yang dicatat (SharedRoomRecorder); ruang pribadi tidak menerbitkan apa pun.
                 val roomId = existing?.roomId
                 if (existing != null && existing.kind == TransactionKind.EXPENSE && roomId != null) {
-                    db.transactions().insertPendingTombstone(
-                        PendingRoomTombstoneEntity(transactionId = id.value, roomId = roomId, deletedAt = System.currentTimeMillis()),
-                    )
+                    sharedRecorder.tombstone(roomId, id.value, onlyIfActive = false)
                     return@withTransaction RoomId(roomId)
                 }
             }
@@ -495,32 +493,59 @@ class LocalTransactionRepository(
         spent = db.transactions().spentPerRoom(from.toEpochDay(), to.toEpochDay()).associate { RoomId(it.roomId) to Money.rupiah(it.total) },
     )
 
-    // ---- Sync ruang keluarga (Tahap 9)
+    // ---- Sync ruang keluarga (Tahap 9). Status "menunggu kirim" ada di sync_record (cakupan r:<ruang>, tipe shared_expense).
+    private val sharedType = SharedRecordType.SHARED_EXPENSE.wire
+
+    private fun sharedScope(roomId: String) = SyncScope.SharedRoom(RoomId(roomId)).wire
+
     override suspend fun pendingSync(roomId: RoomId): List<PendingSyncTransaction> =
-        db.transactions().pendingSync(roomId.value).map { PendingSyncTransaction(it.toDomain(), changedAtMillis = it.updatedAt) }
+        db.sync().dirtyOfType(sharedScope(roomId.value), sharedType, Int.MAX_VALUE)
+            .filter { !it.deleted }
+            .mapNotNull { record ->
+                // Rekaman hidup yang transaksinya sudah tidak di ruang ini tidak mungkin terjadi (penulisan ulang dan hapus
+                // membalikkannya jadi tombstone dalam transaksi yang sama); dilewati saja bila ada sisa yang tak terduga.
+                val entity = db.transactions().find(record.recordId)
+                    ?.takeIf { it.roomId == roomId.value && it.kind == TransactionKind.EXPENSE && it.origin != TransactionOrigin.SHARED }
+                entity?.let { PendingSyncTransaction(it.toDomain(), changedAtMillis = record.changedAt) }
+            }
 
     override suspend fun markSynced(ids: List<TransactionId>, atMillis: Long) {
         if (ids.isEmpty()) return
-        db.transactions().markSynced(ids.map { it.value }, atMillis)
+        db.sync().markSharedPushedByIds(sharedType, ids.map { it.value })
     }
 
     override suspend fun markSyncedIfUnchanged(sent: List<PendingSyncTransaction>, atMillis: Long) {
         if (sent.isEmpty()) return
         db.withTransaction {
-            for (version in sent) db.transactions().markSyncedIfUnchanged(version.transaction.id.value, version.changedAtMillis, atMillis)
+            // markPushed membersihkan penanda kotor HANYA bila changed_at masih sama dengan yang dikirim: suntingan atau
+            // pemindahan ruang selama push berjalan sudah menaikkan changed_at, jadi tetap kotor dan terkirim berikutnya.
+            for (version in sent) {
+                val roomId = version.transaction.roomId ?: continue
+                db.sync().markPushed(sharedScope(roomId.value), sharedType, version.transaction.id.value, version.changedAtMillis)
+            }
         }
     }
 
     override suspend fun pendingTombstones(roomId: RoomId): List<PendingTombstone> =
-        db.transactions().pendingTombstones(roomId.value).map { PendingTombstone(TransactionId(it.transactionId), it.deletedAt) }
+        db.sync().dirtyOfType(sharedScope(roomId.value), sharedType, Int.MAX_VALUE)
+            .filter { it.deleted }
+            .map { PendingTombstone(TransactionId(it.recordId), it.changedAt) }
 
     override suspend fun clearPendingTombstones(roomId: RoomId, ids: List<TransactionId>) {
         if (ids.isEmpty()) return
-        db.transactions().clearPendingTombstones(roomId.value, ids.map { it.value })
+        db.withTransaction {
+            for (id in ids) {
+                // Hanya baris yang MASIH tombstone: bila transaksinya sudah disimpan ulang di ruang ini selama push berjalan,
+                // barisnya kini versi hidup yang kotor dan harus tetap terkirim.
+                val row = db.sync().find(sharedScope(roomId.value), sharedType, id.value) ?: continue
+                if (row.deleted) db.sync().markPushed(row.scope, row.recordType, row.recordId, row.changedAt)
+            }
+        }
     }
 
     // Hasil pull SyncCoordinator dari anggota lain: data dari luar, bukan edit lokal, jadi sengaja tidak
-    // dicatat recorder maupun pending_room_tombstone (sama seperti konteks `applying`).
+    // dicatat recorder maupun SharedRoomRecorder (sama seperti konteks `applying`). Versi masuk yang menang menggantikan
+    // baris lokal, jadi penanda kotor versi lokal yang kalah dibersihkan supaya tidak dikirim balik menimpa versi masuk.
     override suspend fun applyFromSync(id: TransactionId, transaction: MoneyTransaction?, changedAtMillis: Long, deleted: Boolean, fromRoom: RoomId?) {
         val existing = db.transactions().find(id.value)
         if (deleted) {
@@ -531,12 +556,14 @@ class LocalTransactionRepository(
             val inScope = fromRoom == null || existing?.roomId == fromRoom.value
             if (existing == null || (inScope && changedAtMillis >= existing.updatedAt)) {
                 db.transactions().delete(id.value)
+                existing?.roomId?.let { db.sync().clearDirty(sharedScope(it), sharedType, id.value) }
             }
             return
         }
         requireNotNull(transaction) { "transaction wajib diisi bila deleted = false" }
         if (existing == null || changedAtMillis >= existing.updatedAt) {
             db.transactions().upsertFromSync(transaction.toEntity().copy(syncedAt = changedAtMillis))
+            transaction.roomId?.let { db.sync().clearDirty(sharedScope(it.value), sharedType, id.value) }
         }
     }
 }

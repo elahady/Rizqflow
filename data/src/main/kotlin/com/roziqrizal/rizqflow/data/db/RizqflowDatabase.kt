@@ -38,6 +38,10 @@ import androidx.room.RoomDatabase
  * `pending_room_tombstone` menjadi (transaction_id, room_id) supaya satu transaksi bisa menunggu tombstone di
  * lebih dari satu ruang bersama; lihat [MIGRATION_9_10]. Tabel dibangun ulang (SQLite tidak bisa mengganti kunci
  * utama di tempat) dan isinya disalin utuh.
+ *
+ * Versi 11 (2026-11-02, Tahap 9, sync-desain.md butir 2.7): status kotor sinkron ruang bersama pindah dari `synced_at` dan
+ * `pending_room_tombstone` ke `sync_record` cakupan `r:<roomId>`; lihat [MIGRATION_10_11]. Hanya isi yang berpindah, skema tidak
+ * berubah, dan kolom/tabel lama dibiarkan (tidak lagi dibaca).
  */
 @Database(
     entities = [
@@ -67,7 +71,7 @@ import androidx.room.RoomDatabase
         SharedRoomEntity::class,
         PendingRoomTombstoneEntity::class,
     ],
-    version = 10,
+    version = 11,
     exportSchema = true,
 )
 abstract class RizqflowDatabase : RoomDatabase() {

@@ -61,13 +61,26 @@ internal suspend fun SyncDao.markDirty(
     recordId: String,
     deleted: Boolean,
     clock: SyncClock,
+): Long = markDirtyWire(scope.wire, type.wire, recordId, deleted, clock)
+
+/**
+ * Sama dengan [markDirty] tetapi dengan nama cakupan dan tipe apa adanya. Dipakai tipe di luar [SyncRecordType], yaitu
+ * `shared_expense` ruang bersama ([com.roziqrizal.rizqflow.domain.sync.SharedRecordType]): enum [SyncRecordType] terikat
+ * tabel lokal dan tes cakupan, jadi tidak dilonggarkan untuk tipe turunan ini.
+ */
+internal suspend fun SyncDao.markDirtyWire(
+    scopeWire: String,
+    typeWire: String,
+    recordId: String,
+    deleted: Boolean,
+    clock: SyncClock,
 ): Long {
-    val existing = find(scope.wire, type.wire, recordId)
+    val existing = find(scopeWire, typeWire, recordId)
     val stamp = clock.stamp(existing?.changedAt)
     upsert(
         SyncRecordEntity(
-            scope = scope.wire,
-            recordType = type.wire,
+            scope = scopeWire,
+            recordType = typeWire,
             recordId = recordId,
             changedAt = stamp,
             deleted = deleted,

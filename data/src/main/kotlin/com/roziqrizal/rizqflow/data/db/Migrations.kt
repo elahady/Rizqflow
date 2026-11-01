@@ -215,3 +215,40 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         db.execSQL("DROP TABLE `pending_room_tombstone_old`")
     }
 }
+
+/**
+ * Migrasi 10 ke 11 (2026-11-02, Tahap 9, sync-desain.md butir 2.7): status "menunggu kirim" ruang bersama pindah dari
+ * `money_transaction.synced_at` dan `pending_room_tombstone` ke `sync_record` (cakupan `r:<roomId>`, tipe `shared_expense`,
+ * `record_id` = id transaksi lokal). TIDAK ada perubahan skema, hanya isi: aditif (`INSERT OR IGNORE`, idempoten), dan kolom
+ * serta tabel lama dibiarkan apa adanya (tidak lagi dibaca), jadi data lama tetap utuh dan tidak ada yang dihapus.
+ *
+ * Hanya ruang yang pernah dibagi (punya baris `shared_room`) yang dijangkau:
+ *  1. pengeluaran buatan sendiri (`kind = EXPENSE`, `origin <> SHARED`) di ruang itu: `synced_at` kosong menjadi kotor
+ *     (menunggu kirim), terisi menjadi bersih dengan `pushed_changed_at` = `updated_at`;
+ *  2. `pending_room_tombstone` menjadi tombstone kotor, kecuali transaksinya kini justru hidup di ruang yang sama (tombstone
+ *     yang sudah gugur; versi hidup di langkah 1 yang berlaku).
+ * Baris pasangan (`origin = SHARED`) tidak diberi rekaman: bukan milik perangkat ini. Rekaman `r:*` yang sudah ada
+ * (mis. dari uji awal) dipertahankan. `changed_at` minimal 1 (0 dianggap belum pernah ditulis oleh SyncClock).
+ */
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "INSERT OR IGNORE INTO `sync_record` (`scope`, `record_type`, `record_id`, `changed_at`, `deleted`, `dirty`, " +
+                "`pushed_changed_at`, `author`, `device_id`) " +
+                "SELECT 'r:' || t.`room_id`, 'shared_expense', t.`id`, MAX(t.`updated_at`, 1), 0, " +
+                "CASE WHEN t.`synced_at` IS NULL THEN 1 ELSE 0 END, " +
+                "CASE WHEN t.`synced_at` IS NULL THEN NULL ELSE MAX(t.`updated_at`, 1) END, NULL, NULL " +
+                "FROM `money_transaction` t " +
+                "WHERE t.`kind` = 'EXPENSE' AND t.`origin` <> 'SHARED' AND t.`room_id` IN (SELECT `room_id` FROM `shared_room`)",
+        )
+        db.execSQL(
+            "INSERT OR IGNORE INTO `sync_record` (`scope`, `record_type`, `record_id`, `changed_at`, `deleted`, `dirty`, " +
+                "`pushed_changed_at`, `author`, `device_id`) " +
+                "SELECT 'r:' || p.`room_id`, 'shared_expense', p.`transaction_id`, MAX(p.`deleted_at`, 1), 1, 1, NULL, NULL, NULL " +
+                "FROM `pending_room_tombstone` p " +
+                "WHERE p.`room_id` IN (SELECT `room_id` FROM `shared_room`) " +
+                "AND NOT EXISTS (SELECT 1 FROM `money_transaction` t WHERE t.`id` = p.`transaction_id` " +
+                "AND t.`room_id` = p.`room_id` AND t.`kind` = 'EXPENSE' AND t.`origin` <> 'SHARED')",
+        )
+    }
+}
