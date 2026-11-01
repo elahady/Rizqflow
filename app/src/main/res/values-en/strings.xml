@@ -1363,4 +1363,24 @@
     <string name="sync_manual_done">Sync complete.</string>
     <string name="sync_manual_failed">Can\'t sync right now. Your data is safe on this phone; try again later.</string>
     <string name="sync_subscribe">See Rizqflow Sync</string>
+
+    <!-- Per-code server errors (Stage 9): 429, room membership, leaving a room -->
+    <string name="remote_rate_limited">Too many requests. Try again in a moment.</string>
+    <string name="remote_rate_limited_seconds">Too many requests. Try again in about %1$d seconds.</string>
+    <string name="remote_rate_limited_minutes">Too many requests. Try again in about %1$d minutes.</string>
+    <string name="msg_rate_limited">Too many attempts. Wait a moment and try again.</string>
+    <string name="family_err_not_member">You are not a member of this room.</string>
+    <string name="family_err_not_owner">Only the room owner can do this.</string>
+    <string name="family_err_owner_cannot_leave">The owner can\'t leave their own room.</string>
+    <string name="family_err_owner_cannot_be_removed">The room owner can\'t be removed.</string>
+    <string name="family_err_member_not_found">That member is no longer in this room.</string>
+    <string name="family_err_invalid_room">The server doesn\'t recognise this room.</string>
+    <string name="family_leave_action">Leave room</string>
+    <string name="family_leave_confirm_title">Leave this room?</string>
+    <string name="family_leave_confirm_body">You will stop sending and receiving this room\'s entries. Entries already on this phone stay saved and you can still see them, but they no longer sync. Entries you already sent stay in the room for the other members. You can rejoin any time with a new invite from the room owner.</string>
+    <string name="family_leave_confirm_action">Leave</string>
+    <string name="family_leave_done">You have left this room.</string>
+    <string name="family_leave_failed">Can\'t leave the room yet. Check your connection and try again.</string>
+    <string name="family_owner_cannot_leave_note">You own this room, so you can\'t leave it. The owner stays a member for as long as the room exists.</string>
+    <string name="family_left_info">You have left this room. Entries on this phone stay saved but no longer sync. To rejoin, ask the room owner for a new invite and scan its QR from the More menu.</string>
 </resources>

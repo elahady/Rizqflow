@@ -2,6 +2,7 @@ package com.roziqrizal.rizqflow.data.remote
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.Response
@@ -98,6 +99,13 @@ interface RizqflowApiService {
         @Header("Authorization") bearerToken: String,
         @Path("roomId") roomId: String,
         @Path("userId") userId: Long,
+    ): Response<ResponseBody>
+
+    /** Keluar sendiri dari ruang: 204 sukses; 404 `not_room_member`; 422 `owner_cannot_leave`. Tidak butuh Sync. */
+    @POST("rooms/{roomId}/leave")
+    suspend fun leaveRoom(
+        @Header("Authorization") bearerToken: String,
+        @Path("roomId") roomId: String,
     ): Response<ResponseBody>
 
     /** Salinan kunci akun terbungkus kode pemulihan (Tahap 13): unggah/ganti, ambil, hapus. Butuh Sync hanya untuk PUT. */
@@ -307,9 +315,17 @@ data class SyncHistoryCompactionDto(
     @SerialName("last_removed_tombstones") val lastRemovedTombstones: Long = 0,
 )
 
-/** Bentuk error Laravel standar: `{"message": "..."}` (kadang disertai `errors`, sengaja diabaikan). */
+/**
+ * Bentuk galat server: `{"message": "...", "code": "...", "retry_after": 12}` (kadang disertai `errors`, sengaja
+ * diabaikan). `code` dan `retry_after` dibaca sebagai elemen JSON mentah supaya bentuk tak terduga (mis. `code`
+ * bukan teks) tidak menggagalkan pembacaan `message`; server lama tidak mengirim keduanya.
+ */
 @Serializable
-data class ErrorResponseDto(val message: String? = null)
+data class ErrorResponseDto(
+    val message: String? = null,
+    val code: JsonElement? = null,
+    @SerialName("retry_after") val retryAfter: JsonElement? = null,
+)
 
 @Serializable
 data class RoomMemberDto(

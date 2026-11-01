@@ -13,6 +13,7 @@ import com.roziqrizal.rizqflow.domain.auth.StartRouter
 import com.roziqrizal.rizqflow.domain.sync.ApiAccount
 import com.roziqrizal.rizqflow.domain.sync.RemoteError
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
+import com.roziqrizal.rizqflow.domain.sync.isRateLimited
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -57,6 +58,9 @@ enum class AuthMessage {
 
     /** Masuk email+sandi tidak bisa mencapai server (offline, server mati). Akun lokal tetap bisa dipakai. */
     SERVER_UNREACHABLE,
+
+    /** Server menjawab 429 (terlalu banyak percobaan masuk dari jaringan ini): pesan lembut, tunggu sebentar. */
+    SERVER_RATE_LIMITED,
 }
 
 sealed interface AuthUiState {
@@ -199,9 +203,11 @@ class AuthController(
                 }
 
                 is RemoteResult.Failure -> _state.value = AuthUiState.SignedOut(
-                    message = when (result.error) {
-                        is RemoteError.Rejected -> AuthMessage.SERVER_REJECTED
-                        RemoteError.Unreachable -> AuthMessage.SERVER_UNREACHABLE
+                    message = when {
+                        result.error is RemoteError.Rejected -> AuthMessage.SERVER_REJECTED
+                        result.error == RemoteError.Unreachable -> AuthMessage.SERVER_UNREACHABLE
+                        // 429 (batas masuk per IP): pesan lembut "tunggu sebentar", bukan "gagal" generik.
+                        result.error.isRateLimited() -> AuthMessage.SERVER_RATE_LIMITED
                         else -> AuthMessage.FAILED
                     },
                     detail = (result.error as? RemoteError.Rejected)?.message,

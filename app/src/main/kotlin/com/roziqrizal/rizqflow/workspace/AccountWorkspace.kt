@@ -63,6 +63,7 @@ import com.roziqrizal.rizqflow.domain.sync.RecoveryStatusStore
 import com.roziqrizal.rizqflow.domain.sync.RoomKeyProvider
 import com.roziqrizal.rizqflow.domain.sync.RoomMemberKeyRedistribution
 import com.roziqrizal.rizqflow.domain.sync.RoomMembershipRemote
+import com.roziqrizal.rizqflow.domain.sync.SharedRoomLeaver
 import com.roziqrizal.rizqflow.domain.sync.SharedRoomStatus
 import com.roziqrizal.rizqflow.domain.sync.SyncCursorStore
 import com.roziqrizal.rizqflow.domain.sync.SyncHistoryRemote
@@ -376,6 +377,12 @@ class AccountWorkspace private constructor(
      * pemilik membuka Ruang Keluarga). Tanpa baris ACTIVE, ruang itu tidak ikut [syncOrchestrator].
      */
     val sharedRoomActivation = SharedRoomActivation(local.syncStore)
+
+    /**
+     * Anggota biasa keluar dari ruang bersama: cabut keanggotaan di server, lalu tandai ruang LEFT di perangkat ini
+     * (tanpa menghapus data lokal; sinkron untuk ruang itu berhenti). Pemilik tidak bisa keluar.
+     */
+    val sharedRoomLeaver = SharedRoomLeaver(roomMembershipRemote) { roomId -> sharedRoomActivation.markLeft(roomId) }
 
     override fun close() {
         // Pemicu dilepas dan lingkup sync dibatalkan DULU, supaya tidak ada run yang menyentuh database yang sedang ditutup.

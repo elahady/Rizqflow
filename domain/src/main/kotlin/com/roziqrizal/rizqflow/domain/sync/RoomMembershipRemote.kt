@@ -18,6 +18,14 @@ interface RoomMembershipRemote {
      * Hanya mencabut keanggotaan di server: kunci ruang baru tetap dibagikan lewat [RoomMemberKeyRedistribution].
      */
     suspend fun remove(apiToken: String, roomId: String, userId: Long): RemoteResult<Unit>
+
+    /**
+     * Anggota keluar sendiri (`POST /rooms/{roomId}/leave`, 204; tanpa syarat Sync di server). Pemilik ditolak:
+     * [RemoteError.Rejected] berkode [ServerErrorCodes.OWNER_CANNOT_LEAVE]; bukan anggota (juga ulangan setelah berhasil):
+     * [RemoteError.Rejected] berkode [ServerErrorCodes.NOT_ROOM_MEMBER]. Hanya mencabut keanggotaan di server; urusan
+     * lokal (menandai ruang tidak aktif) ada di [SharedRoomLeaver].
+     */
+    suspend fun leave(apiToken: String, roomId: String): RemoteResult<Unit>
 }
 
 /**

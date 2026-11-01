@@ -1356,4 +1356,24 @@
     <string name="sync_manual_done">Sinkron selesai.</string>
     <string name="sync_manual_failed">Belum bisa menyinkronkan sekarang. Datamu aman di ponsel; coba lagi nanti.</string>
     <string name="sync_subscribe">Lihat Rizqflow Sync</string>
+
+    <!-- Galat server per kode (Tahap 9): 429, keanggotaan ruang, keluar dari ruang -->
+    <string name="remote_rate_limited">Terlalu sering. Coba lagi sebentar.</string>
+    <string name="remote_rate_limited_seconds">Terlalu sering. Coba lagi sekitar %1$d detik lagi.</string>
+    <string name="remote_rate_limited_minutes">Terlalu sering. Coba lagi sekitar %1$d menit lagi.</string>
+    <string name="msg_rate_limited">Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.</string>
+    <string name="family_err_not_member">Kamu bukan anggota ruang ini.</string>
+    <string name="family_err_not_owner">Hanya pemilik ruang yang bisa melakukan ini.</string>
+    <string name="family_err_owner_cannot_leave">Pemilik tidak bisa keluar dari ruangnya sendiri.</string>
+    <string name="family_err_owner_cannot_be_removed">Pemilik ruang tidak bisa dikeluarkan.</string>
+    <string name="family_err_member_not_found">Anggota itu sudah tidak ada di ruang ini.</string>
+    <string name="family_err_invalid_room">Server tidak mengenali ruang ini.</string>
+    <string name="family_leave_action">Keluar dari ruang</string>
+    <string name="family_leave_confirm_title">Keluar dari ruang ini?</string>
+    <string name="family_leave_confirm_body">Kamu berhenti mengirim dan menerima catatan ruang ini. Catatan yang sudah ada di ponsel ini tetap tersimpan dan tetap bisa kamu lihat, tetapi tidak lagi tersinkron. Catatan yang sudah kamu kirim tetap ada di ruang ini bagi anggota lain. Kamu bisa bergabung lagi kapan saja lewat undangan baru dari pemilik ruang.</string>
+    <string name="family_leave_confirm_action">Keluar</string>
+    <string name="family_leave_done">Kamu sudah keluar dari ruang ini.</string>
+    <string name="family_leave_failed">Belum bisa keluar dari ruang. Periksa koneksi lalu coba lagi.</string>
+    <string name="family_owner_cannot_leave_note">Kamu pemilik ruang ini, jadi tidak bisa keluar. Pemilik tetap menjadi anggota selama ruangnya ada.</string>
+    <string name="family_left_info">Kamu sudah keluar dari ruang ini. Catatan yang ada di ponsel ini tetap tersimpan, tetapi tidak lagi tersinkron. Untuk bergabung lagi, minta undangan baru dari pemilik ruang lalu pindai QR-nya dari menu Lainnya.</string>
 </resources>

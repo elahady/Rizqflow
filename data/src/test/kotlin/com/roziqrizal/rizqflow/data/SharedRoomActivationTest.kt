@@ -141,6 +141,66 @@ class SharedRoomActivationTest {
     }
 
     @Test
+    fun `keluar menandai LEFT dengan mempertahankan peran dan waktu bergabung`() = runBlocking<Unit> {
+        val keluarga = room("Keluarga")
+        activation.markActive(keluarga.id, SharedRoomRole.MEMBER, nowMillis = 2_000L)
+        assertEquals(SharedRoomStatus.ACTIVE, activation.statusOf(keluarga.id))
+
+        activation.markLeft(keluarga.id)
+
+        assertEquals(SharedRoomInfo(keluarga.id, SharedRoomRole.MEMBER, SharedRoomStatus.LEFT, 2_000L), fx.local.syncStore.sharedRoom(keluarga.id))
+        assertEquals(SharedRoomStatus.LEFT, activation.statusOf(keluarga.id))
+    }
+
+    @Test
+    fun `keluar tidak menghapus data ruang dan transaksinya, dan idempoten`() = runBlocking<Unit> {
+        val keluarga = room("Keluarga")
+        activation.markActive(keluarga.id, SharedRoomRole.MEMBER)
+        assertTrue(saveExpense(keluarga) is LedgerResult.Success)
+        val before = fx.local.transactions.between(fx.today, fx.today).size
+        assertTrue(before > 0)
+
+        activation.markLeft(keluarga.id)
+        activation.markLeft(keluarga.id)
+
+        assertEquals(before, fx.local.transactions.between(fx.today, fx.today).size)
+        assertEquals(keluarga.name, room("Keluarga").name)
+        assertEquals(1, fx.local.syncStore.sharedRooms().size)
+    }
+
+    @Test
+    fun `setelah keluar, pengeluaran di ruang itu tidak lagi memicu sinkron`() = runBlocking<Unit> {
+        val keluarga = room("Keluarga")
+        activation.markActive(keluarga.id, SharedRoomRole.MEMBER)
+        activation.markLeft(keluarga.id)
+
+        assertTrue(saveExpense(keluarga) is LedgerResult.Success)
+
+        assertTrue(calls.isEmpty())
+    }
+
+    @Test
+    fun `keluar pada ruang yang belum pernah ditandai tidak membuat baris apa pun`() = runBlocking<Unit> {
+        val keluarga = room("Keluarga")
+
+        activation.markLeft(keluarga.id)
+
+        assertNull(activation.statusOf(keluarga.id))
+        assertEquals(0, fx.local.syncStore.sharedRooms().size)
+    }
+
+    @Test
+    fun `bergabung lagi lewat undangan memulihkan ACTIVE dan mempertahankan peran lama`() = runBlocking<Unit> {
+        val keluarga = room("Keluarga")
+        activation.markActive(keluarga.id, SharedRoomRole.MEMBER, nowMillis = 2_000L)
+        activation.markLeft(keluarga.id)
+
+        activation.markActive(keluarga.id, SharedRoomRole.MEMBER, nowMillis = 9_000L)
+
+        assertEquals(SharedRoomInfo(keluarga.id, SharedRoomRole.MEMBER, SharedRoomStatus.ACTIVE, 2_000L), fx.local.syncStore.sharedRoom(keluarga.id))
+    }
+
+    @Test
     fun `sebelum ditandai ACTIVE, pengeluaran di ruang itu tidak memicu sinkron`() = runBlocking<Unit> {
         // Kontrol untuk dua tes di atas: tanpa penandaan, ruang bukan ruang bersama sehingga pemicu diam.
         val keluarga = room("Keluarga")

@@ -646,6 +646,16 @@ class AuthControllerTest {
     }
 
     @Test
+    fun `batas laju 429 dari server memberi pesan terlalu banyak percobaan, bukan gagal umum`() {
+        val c = controller(email = { _, _ -> RemoteResult.Failure(RemoteError.Unexpected(429, 30L)) })
+        c.start()
+
+        c.signInWithEmail("roziq@example.com", "kopi-susu")
+
+        assertEquals(AuthUiState.SignedOut(message = AuthMessage.SERVER_RATE_LIMITED), c.state.value)
+    }
+
+    @Test
     fun `isian email atau sandi kosong tidak memanggil server`() {
         var panggilan = 0
         val c = controller(email = { _, _ -> panggilan++; RemoteResult.Success(akunServer) })

@@ -113,6 +113,11 @@ class ServerSessionTest {
             assertTrue(session.needsReconnect.value)
         }
         fresh().let { (store, session) ->
+            session.guard(FailingRoomMembershipRemote(RemoteError.Unauthorized)).leave("t", "ruang-1")
+            assertNull(store.token, "leave")
+            assertTrue(session.needsReconnect.value)
+        }
+        fresh().let { (store, session) ->
             session.guard(FailingPurchaseRemote(RemoteError.Unauthorized)).claim("t", listOf(PurchaseClaim("rizqflow_pro", "pt")))
             assertNull(store.token, "klaim pembelian")
             assertTrue(session.needsReconnect.value)
