@@ -102,6 +102,30 @@ enum class LedgerError {
 
     /** Nama pihak (teman, keluarga, atau lainnya) kosong atau terlalu panjang. */
     INVALID_PARTY,
+
+    /**
+     * Hapus akun ditolak: masih dirujuk transaksi, transaksi berulang, tagihan, utang, atau rencana DCA (kunci asing
+     * RESTRICT). Riwayat tidak boleh kehilangan akunnya; arsipkan saja. Usulan Claude, belum dikonfirmasi pemilik.
+     */
+    ACCOUNT_IN_USE,
+
+    /**
+     * Hapus kategori ditolak: masih dirujuk transaksi, transaksi berulang, tagihan, atau rencana DCA. Arsipkan saja.
+     * Usulan Claude, belum dikonfirmasi pemilik.
+     */
+    CATEGORY_IN_USE,
+
+    /**
+     * Hapus ruang ditolak: masih punya riwayat (transaksi, potret alokasi pemasukan, transaksi berulang, atau tagihan)
+     * atau salah satu kategorinya masih dirujuk. Arsipkan saja. Usulan Claude, belum dikonfirmasi pemilik.
+     */
+    ROOM_IN_USE,
+
+    /** Hapus ruang ditolak: ruang harus diarsipkan dulu supaya aturan alokasi ruang aktif tidak diam-diam berubah. Usulan Claude. */
+    ROOM_NOT_ARCHIVED,
+
+    /** Hapus ruang ditolak: ruang ini sedang dibagi dengan anggota lain (ruang bersama aktif). Keluar dari ruang bersama dulu. Usulan Claude. */
+    ROOM_SHARED,
 }
 
 sealed interface LedgerResult<out T> {

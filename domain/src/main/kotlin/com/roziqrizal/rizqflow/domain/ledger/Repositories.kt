@@ -54,6 +54,16 @@ interface AccountRepository {
 
     suspend fun save(account: Account)
 
+    /**
+     * Menghapus akun milik pengguna beserta tombstone sinkronnya (atomik). Perilaku paling aman, USULAN Claude (belum
+     * dikonfirmasi pemilik): ditolak dengan [LedgerError.ACCOUNT_IN_USE] bila akun masih dirujuk transaksi, transaksi
+     * berulang, tagihan, utang, atau rencana DCA, dan dengan [LedgerError.LAST_ACCOUNT] bila ini satu-satunya akun aktif.
+     * Favorit Catat kilat yang memakai akun ini ikut terhapus (kunci asing CASCADE) dan masing-masing mendapat tombstone.
+     * Akun anggota virtual tidak bisa dihapus lewat sini ([LedgerError.ACCOUNT_NOT_FOUND]). Tidak ada UI yang memakainya;
+     * Kelola akun tetap hanya mengarsipkan.
+     */
+    suspend fun delete(id: AccountId): LedgerResult<Unit>
+
     /** Saldo menurut catatan: saldo awal + pemasukan - pengeluaran +/- transfer. */
     suspend fun balance(id: AccountId): Money
 
@@ -90,6 +100,25 @@ interface RoomRepository {
 
     /** Menyimpan satu kategori (baru, diganti nama, atau diarsipkan). */
     suspend fun saveCategory(category: Category)
+
+    /**
+     * Menghapus satu kategori beserta tombstone sinkronnya (atomik). Perilaku paling aman, USULAN Claude (belum
+     * dikonfirmasi pemilik): ditolak dengan [LedgerError.CATEGORY_IN_USE] bila masih dirujuk transaksi, transaksi
+     * berulang, tagihan, atau rencana DCA; [LedgerError.CATEGORY_IS_SYSTEM] untuk kategori sistem; dan
+     * [LedgerError.LAST_CATEGORY] bila ini kategori biasa aktif terakhir di ruangnya. Favorit yang memakainya ikut
+     * terhapus (CASCADE) dan masing-masing mendapat tombstone. Tidak ada UI yang memakainya.
+     */
+    suspend fun deleteCategory(id: CategoryId): LedgerResult<Unit>
+
+    /**
+     * Menghapus satu ruang beserta isinya (kategori, aturan alokasi, rencana DCA, profil trader, favorit) dan tombstone
+     * sinkron untuk tiap rekaman yang ikut hilang (atomik; cascade ruang ke kategori tidak lewat [saveCategory], jadi
+     * dicatat di sini). Perilaku paling aman, USULAN Claude (belum dikonfirmasi pemilik): ditolak dengan
+     * [LedgerError.ROOM_NOT_ARCHIVED] bila ruang belum diarsipkan, [LedgerError.ROOM_SHARED] bila sedang dibagi
+     * (ruang bersama aktif), dan [LedgerError.ROOM_IN_USE] bila masih punya riwayat (transaksi, potret alokasi,
+     * transaksi berulang, tagihan) atau ada kategorinya yang masih dirujuk. Tidak ada UI yang memakainya.
+     */
+    suspend fun deleteRoom(id: RoomId): LedgerResult<Unit>
 
     /** Menambah ruang beserta kategori awalnya (atomik). */
     suspend fun addRoom(room: Room, categories: List<Category>)

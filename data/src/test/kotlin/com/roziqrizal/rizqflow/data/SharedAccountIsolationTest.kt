@@ -93,6 +93,8 @@ class SharedAccountIsolationTest {
             "upsert" to Reader.WRITE,
             "upsertAll" to Reader.WRITE,
             "deleteAll" to Reader.WRITE,
+            "delete" to Reader.WRITE,
+            "inUse" to Reader.BY_ID_OR_EXPLICIT, // pemeriksaan rujukan per id sebelum hapus
         )
         val declared = AccountDao::class.java.declaredMethods.map { it.name }.toSet()
         val unclassified = declared - classification.keys

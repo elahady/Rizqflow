@@ -47,6 +47,24 @@ interface AccountDao {
     suspend fun allIncludingMembers(): List<AccountEntity>
 
     /**
+     * Benar bila ada baris lain yang merujuk akun ini lewat kunci asing RESTRICT (transaksi, aturan berulang, tagihan,
+     * utang, rencana DCA). Akun yang dirujuk tidak boleh dihapus; lihat `LocalAccountRepository.delete`.
+     */
+    @Query(
+        """
+        SELECT EXISTS(SELECT 1 FROM money_transaction WHERE account_id = :id OR to_account_id = :id)
+            OR EXISTS(SELECT 1 FROM recurring_rule WHERE account_id = :id OR to_account_id = :id)
+            OR EXISTS(SELECT 1 FROM bill WHERE account_id = :id)
+            OR EXISTS(SELECT 1 FROM debt WHERE account_id = :id)
+            OR EXISTS(SELECT 1 FROM dca_plan WHERE account_id = :id)
+        """,
+    )
+    suspend fun inUse(id: String): Boolean
+
+    @Query("DELETE FROM account WHERE id = :id")
+    suspend fun delete(id: String): Int
+
+    /**
      * Membuang SEMUA akun (Tahap 3 sync-desain.md bagian B "Perangkat baru", hasil onboarding bawaan
      * di perangkat baru yang masih MURNI — lihat `WorkspacePurityChecker`). Aman hanya bila dipanggil
      * saat ruang kerja murni (tidak ada transaksi yang merujuk akun manapun, FK `RESTRICT` kalau tidak).
@@ -125,6 +143,52 @@ interface RoomDao {
 
     @Query("SELECT * FROM category WHERE room_id = :roomId AND archived = 0 ORDER BY sort_order")
     suspend fun categories(roomId: String): List<CategoryEntity>
+
+    // ---- Hapus ruang dan kategori (Tahap 2 sync-desain.md: API hapus + tombstone). Urutan dan rujukan lihat LocalRoomRepository.
+
+    @Query("SELECT id FROM category WHERE room_id = :roomId")
+    suspend fun categoryIdsOf(roomId: String): List<String>
+
+    @Query("DELETE FROM category WHERE id = :id")
+    suspend fun deleteCategory(id: String): Int
+
+    @Query("DELETE FROM category WHERE room_id = :roomId")
+    suspend fun deleteCategoriesOf(roomId: String): Int
+
+    @Query("DELETE FROM room WHERE id = :id")
+    suspend fun deleteRoom(id: String): Int
+
+    /** Riwayat yang merujuk ruang lewat kunci asing RESTRICT: transaksi, potret alokasi, transaksi berulang, tagihan. */
+    @Query(
+        """
+        SELECT EXISTS(SELECT 1 FROM money_transaction WHERE room_id = :id)
+            OR EXISTS(SELECT 1 FROM allocation_entry WHERE room_id = :id)
+            OR EXISTS(SELECT 1 FROM recurring_rule WHERE room_id = :id)
+            OR EXISTS(SELECT 1 FROM bill WHERE room_id = :id)
+        """,
+    )
+    suspend fun roomInUse(id: String): Boolean
+
+    /** Riwayat yang merujuk kategori lewat kunci asing RESTRICT: transaksi, transaksi berulang, tagihan. (Rencana DCA terpisah.) */
+    @Query(
+        """
+        SELECT EXISTS(SELECT 1 FROM money_transaction WHERE category_id = :id)
+            OR EXISTS(SELECT 1 FROM recurring_rule WHERE category_id = :id)
+            OR EXISTS(SELECT 1 FROM bill WHERE category_id = :id)
+        """,
+    )
+    suspend fun categoryHistoryInUse(id: String): Boolean
+
+    @Query("SELECT EXISTS(SELECT 1 FROM dca_plan WHERE category_id = :id)")
+    suspend fun categoryUsedByDca(id: String): Boolean
+
+    /** Rencana DCA ruang LAIN yang memakai kategori milik [roomId] (data yang tak seharusnya ada, tetapi RESTRICT akan menolak). */
+    @Query(
+        """
+        SELECT EXISTS(SELECT 1 FROM dca_plan WHERE room_id <> :roomId AND category_id IN (SELECT id FROM category WHERE room_id = :roomId))
+        """,
+    )
+    suspend fun roomCategoriesUsedByOtherDca(roomId: String): Boolean
 }
 
 @Dao
@@ -232,6 +296,20 @@ interface FavoriteDao {
 
     @Query("DELETE FROM quick_favorite WHERE id = :id")
     suspend fun delete(id: String): Int
+
+    // Favorit yang ikut hilang saat akun, kategori, atau ruang dihapus (kunci asing CASCADE). Dihapus eksplisit supaya
+    // tiap favorit mendapat tombstone sync dan urutan hapus tidak bergantung pada urutan cascade SQLite.
+    @Query("SELECT id FROM quick_favorite WHERE account_id = :accountId")
+    suspend fun idsByAccount(accountId: String): List<String>
+
+    @Query("SELECT id FROM quick_favorite WHERE category_id = :categoryId")
+    suspend fun idsByCategory(categoryId: String): List<String>
+
+    @Query("SELECT id FROM quick_favorite WHERE room_id = :roomId OR category_id IN (SELECT id FROM category WHERE room_id = :roomId)")
+    suspend fun idsByRoom(roomId: String): List<String>
+
+    @Query("DELETE FROM quick_favorite WHERE id IN (:ids)")
+    suspend fun deleteAll(ids: List<String>): Int
 }
 
 @Dao
