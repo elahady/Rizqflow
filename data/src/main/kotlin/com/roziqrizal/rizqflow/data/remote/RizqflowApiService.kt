@@ -85,6 +85,14 @@ interface RizqflowApiService {
         @Path("roomId") roomId: String,
     ): Response<ResponseBody>
 
+    /** Mengeluarkan anggota (hanya pemilik ruang): 204 sukses, 403 bukan pemilik, 404 bukan anggota, 422 pemilik sendiri. */
+    @DELETE("rooms/{roomId}/members/{userId}")
+    suspend fun removeRoomMember(
+        @Header("Authorization") bearerToken: String,
+        @Path("roomId") roomId: String,
+        @Path("userId") userId: Long,
+    ): Response<ResponseBody>
+
     /** Salinan kunci akun terbungkus kode pemulihan (Tahap 13): unggah/ganti, ambil, hapus. Butuh Sync hanya untuk PUT. */
     @Headers("Content-Type: application/json")
     @PUT("account/recovery-key")
@@ -264,6 +272,10 @@ data class RoomMemberDto(
     val name: String? = null,
     val email: String,
     val you: Boolean,
+    /** Pemilik ruang menurut server (`room_members.is_owner`); server lama tanpa bidang ini = bukan pemilik. */
+    val owner: Boolean = false,
+    /** Id pengguna server, dipakai sebagai `{userId}` saat mengeluarkan anggota; null dari server lama. */
+    @SerialName("user_id") val userId: Long? = null,
 )
 
 @Serializable

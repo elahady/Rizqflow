@@ -754,6 +754,14 @@
     <string name="family_not_signed_in">Signing in with Google and a Sync subscription are required to share this room.</string>
     <string name="family_members_title">Members</string>
     <string name="family_members_you">You</string>
+    <string name="family_members_owner">Owner</string>
+    <string name="family_remove_action">Remove member</string>
+    <string name="family_remove_pick_title">Choose the member to remove</string>
+    <string name="family_remove_confirm_title">Remove %1$s?</string>
+    <string name="family_remove_confirm_body">Their membership in this room is revoked on the server, then the room key is replaced for future transactions. They cannot read new transactions, but older transactions they already pulled stay on their device and remain readable. Every member who STAYS must scan the new QR (next step) to keep syncing.</string>
+    <string name="family_remove_confirm_action">Remove</string>
+    <string name="family_remove_done">%1$s was removed. Ask the remaining members to scan this new QR.</string>
+    <string name="family_remove_failed">Could not remove the member. Check your connection and try again.</string>
     <string name="family_members_error">Couldn\'t load members. Check your connection and try again.</string>
     <string name="family_retry">Try again</string>
     <string name="family_invite_action">Invite a member</string>

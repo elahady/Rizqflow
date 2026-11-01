@@ -771,11 +771,14 @@
     <string name="family_scan_permission_action">Izinkan kamera</string>
     <string name="family_join_not_signed_in">Masuk dengan Google dan langganan Sync diperlukan untuk bergabung.</string>
     <string name="family_join_failed">Gagal bergabung. Periksa koneksi lalu coba lagi.</string>
-    <string name="family_rotate_key_action">Keluarkan anggota &amp; buat kunci baru</string>
-    <string name="family_rotate_key_confirm_title">Buat kunci ruang baru?</string>
-    <string name="family_rotate_key_confirm_body">Pakai ini kalau ada anggota yang harus dikeluarkan dari ruang ini. Kunci ruang diganti untuk transaksi berikutnya. Transaksi lama yang sudah ditarik anggota itu tetap bisa ia baca — kunci baru tidak menghapus apa pun di perangkatnya. Semua anggota yang TETAP harus memindai QR baru (langkah berikutnya) untuk terus ikut sinkron; anggota yang ingin dikeluarkan jangan diajak memindainya. Keanggotaannya di server belum dicabut otomatis oleh langkah ini.</string>
-    <string name="family_rotate_key_confirm_action">Buat kunci baru</string>
-    <string name="family_rotate_key_done">Kunci ruang baru dibuat. Minta anggota yang tetap memindai QR ini.</string>
+    <string name="family_members_owner">Pemilik</string>
+    <string name="family_remove_action">Keluarkan anggota</string>
+    <string name="family_remove_pick_title">Pilih anggota yang dikeluarkan</string>
+    <string name="family_remove_confirm_title">Keluarkan %1$s?</string>
+    <string name="family_remove_confirm_body">Keanggotaannya di ruang ini dicabut di server, lalu kunci ruang diganti untuk transaksi berikutnya. Ia tidak bisa membaca transaksi baru, tetapi transaksi lama yang sudah ia tarik tetap ada di perangkatnya dan tetap bisa ia baca. Semua anggota yang TETAP harus memindai QR baru (langkah berikutnya) untuk terus ikut sinkron.</string>
+    <string name="family_remove_confirm_action">Keluarkan</string>
+    <string name="family_remove_done">%1$s dikeluarkan. Minta anggota yang tetap memindai QR baru ini.</string>
+    <string name="family_remove_failed">Gagal mengeluarkan anggota. Periksa koneksi lalu coba lagi.</string>
     <string name="family_rotate_key_sheet_hint">QR ini sudah pakai kunci baru. Tunjukkan hanya ke anggota yang TETAP, saat bertemu langsung — jangan ke anggota yang dikeluarkan.</string>
 
     <string name="role_title">Peran ruang</string>

@@ -76,6 +76,62 @@ class RetrofitRoomMembershipRemoteTest {
     }
 
     @Test
+    fun `members membaca bendera pemilik dan user id dari server`() = runBlocking {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "application/json")
+                .setBody("""{"members":[{"user_id":7,"name":"Roziq","email":"roziq@example.com","you":true,"owner":true},{"user_id":9,"name":null,"email":"partner@example.com","you":false,"owner":false}]}"""),
+        )
+
+        val result = remote.members(apiToken = "abc123", roomId = "ruang-keluarga-1")
+
+        assertEquals(
+            RemoteResult.Success(
+                listOf(
+                    RoomMemberInfo("Roziq", "roziq@example.com", you = true, owner = true, userId = 7),
+                    RoomMemberInfo(null, "partner@example.com", you = false, owner = false, userId = 9),
+                ),
+            ),
+            result,
+        )
+    }
+
+    @Test
+    fun `remove mengirim DELETE ke anggota yang dipilih`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(204))
+
+        val result = remote.remove(apiToken = "abc123", roomId = "ruang-keluarga-1", userId = 9)
+
+        assertEquals(RemoteResult.Success(Unit), result)
+        val sent = server.takeRequest()
+        assertEquals("DELETE", sent.method)
+        assertEquals("/rooms/ruang-keluarga-1/members/9", sent.path)
+        assertEquals("Bearer abc123", sent.getHeader("Authorization"))
+    }
+
+    @Test
+    fun `remove oleh bukan pemilik ditolak tanpa membuka paywall`() = runBlocking {
+        server.enqueue(
+            MockResponse().setResponseCode(403)
+                .setBody("""{"message":"Hanya pemilik ruang yang bisa mengeluarkan anggota.","code":"not_room_owner"}"""),
+        )
+
+        val result = remote.remove(apiToken = "abc123", roomId = "ruang-keluarga-1", userId = 9)
+
+        assertEquals(RemoteResult.Failure(RemoteError.Rejected("Hanya pemilik ruang yang bisa mengeluarkan anggota.")), result)
+    }
+
+    @Test
+    fun `remove tanpa langganan Sync tetap SyncRequired`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(403).setBody("""{"message":"Butuh langganan Sync."}"""))
+
+        val result = remote.remove(apiToken = "abc123", roomId = "ruang-keluarga-1", userId = 9)
+
+        assertEquals(RemoteResult.Failure(RemoteError.SyncRequired), result)
+    }
+
+    @Test
     fun `members menolak bukan anggota`() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(403).setBody("""{"message":"Bukan anggota ruang ini."}"""))
 

@@ -123,11 +123,24 @@ private class FakeSyncCursorStore : SyncCursorStore {
     override fun save(roomId: String, cursor: Long) { cursors[roomId] = cursor }
 }
 
+/** Kunci ruang AES-GCM JDK sungguhan (sama untuk semua ruang) supaya uji AAD amplop bermakna. */
+private class RealAeadRoomKeyProvider : RoomKeyProvider {
+    private val aead = JdkAesGcmAead()
+    override fun getOrCreateRoomKey(roomId: RoomId) = aead
+    override fun exportRoomKey(roomId: RoomId) = ByteArray(0)
+    override fun importRoomKey(roomId: RoomId, exportedRoomKey: ByteArray) = Unit
+    override fun rotateRoomKey(roomId: RoomId) = aead
+}
+
+/** wireId pengeluaran ruang bersama (sync-desain.md bagian C, keputusan #7): yang tampak di kolom luar server. */
+private fun wire(transactionId: String) = SyncEnvelope.wireId(SharedRecordType.SHARED_EXPENSE.wire, transactionId)
+
 /**
- * Menyisipkan satu baris langsung ke "server" tiruan tanpa lewat [SyncCoordinator.push] — dipakai
- * menguji baris dari sumber yang TIDAK pernah lewat jalur normal satu perangkat (cakupan pribadi
- * `room_id` null yang kebetulan ikut di aliran pull, atau versi basi "perangkat lain"). [FakeSyncAead]
- * identitas, jadi payload == ciphertext; tetap di-base64 seperti [SyncCoordinator] sungguhan.
+ * Menyisipkan satu baris FORMAT LAMA (sebelum amplop umum 2026-11-01: `record_type` = `transaction`, id terbaca,
+ * payload [TransactionSyncCodec] dengan AAD = id) langsung ke "server" tiruan tanpa lewat [SyncCoordinator.push] —
+ * dipakai menguji baris dari sumber yang TIDAK pernah lewat jalur normal satu perangkat (cakupan pribadi
+ * `room_id` null yang kebetulan ikut di aliran pull, versi basi "perangkat lain") sekaligus membuktikan baris
+ * format lama tetap terbaca. [FakeSyncAead] identitas, jadi payload == ciphertext; tetap di-base64.
  */
 private fun FakeSyncRemote.seedRawEntry(
     transaction: MoneyTransaction,
@@ -168,7 +181,8 @@ class SyncCoordinatorTest {
         remote: FakeSyncRemote,
         tokenStore: ApiTokenStore = FakeApiTokenStore(),
         clock: SyncClock = SyncClock(deviceNowMillis = { 0L }),
-    ) = SyncCoordinator(ledger, ledger, ledger, FakeRoomKeyProvider(), remote, FakeTransactionSyncCodec(), tokenStore, FakeSyncCursorStore(), clock)
+        keys: RoomKeyProvider = FakeRoomKeyProvider(),
+    ) = SyncCoordinator(ledger, ledger, ledger, keys, remote, FakeTransactionSyncCodec(), tokenStore, FakeSyncCursorStore(), clock)
 
     private fun seedRoomAndAccount(ledger: InMemoryLedger) {
         ledger.roomRows[roomId] = Room(roomId, "Keluarga", RoomKind.MENCUKUPI, "home", 1, sortOrder = 0)
@@ -531,7 +545,7 @@ class SyncCoordinatorTest {
         val result = engine(ledger, remote).syncNow(roomId, deviceId = "device-a") as SyncResult.Success
 
         assertEquals(1, result.pushed)
-        assertEquals(listOf("tx-a"), remote.stored.map { it.recordId })
+        assertEquals(listOf(wire("tx-a")), remote.stored.map { it.recordId })
         assertEquals(listOf(roomId.value), remote.stored.map { it.roomId })
     }
 
@@ -554,7 +568,7 @@ class SyncCoordinatorTest {
         assertEquals(1, result.applied)
         // Transaksi lain dari akun bernama sama di ruang lain tidak tersentuh dan tidak ikut terdorong ke ruang yang disinkron.
         assertEquals(ownInOtherRoom, ledgerB.transactionRows[TransactionId("tx-own")])
-        assertEquals(listOf("tx-1"), remote.stored.map { it.recordId })
+        assertEquals(listOf(wire("tx-1")), remote.stored.map { it.recordId })
     }
 
     /**
@@ -722,5 +736,147 @@ class SyncCoordinatorTest {
         assertEquals(1, retry.pushed)
         assertEquals(1, remote.stored.size, "retry tidak menggandakan baris di server (idempoten by record_id+changed_at_ms)")
         assertTrue(ledger.syncedAtRows.containsKey(TransactionId("tx-1")), "retry berhasil, klien sekarang tahu baris sudah tersinkron")
+    }
+
+    // ------------------------------------------------------------------ amplop umum di kabel (sync-desain.md bagian C, 2026-11-01)
+
+    @Test
+    fun pushed_rows_hide_the_record_type_and_transaction_id_from_the_server() = runSuspend {
+        val ledger = InMemoryLedger()
+        seedRoomAndAccount(ledger)
+        ledger.transactionRows[TransactionId("tx-1")] = expense("tx-1", 25_000)
+        ledger.transactionRows[TransactionId("tx-2")] = expense("tx-2", 5_000)
+        val remote = FakeSyncRemote()
+        val device = engine(ledger, remote)
+        device.syncNow(roomId, deviceId = "device-a")
+        ledger.delete(TransactionId("tx-2"))
+        device.syncNow(roomId, deviceId = "device-a")
+
+        assertEquals(3, remote.stored.size)
+        assertTrue(remote.stored.all { it.recordType == "r" }, "record_type konstan, tipe tidak terbaca server (keputusan #7)")
+        assertEquals(setOf(wire("tx-1"), wire("tx-2")), remote.stored.map { it.recordId }.toSet())
+        assertTrue(remote.stored.none { it.recordId.startsWith("tx-") }, "id transaksi tidak tampak di kolom luar")
+        // Tombstone kini membawa id transaksi di DALAM amplop, jadi payload-nya tidak lagi kosong.
+        val tombstone = remote.stored.single { it.deleted }
+        val opened = SyncEnvelope.open(
+            FakeSyncAead(), SyncScope.SharedRoom(roomId), tombstone.recordId, tombstone.changedAtMillis!!, true, tombstone.deviceId,
+            Base64.getDecoder().decode(tombstone.payload), isKnownType = { SharedRecordType.fromWire(it) != null },
+        )
+        assertEquals("tx-2", opened.id)
+        assertEquals(SharedRecordType.SHARED_EXPENSE.wire, opened.type)
+    }
+
+    @Test
+    fun round_trip_with_real_aes_gcm_applies_the_member_expense_and_its_tombstone() = runSuspend {
+        val keys = RealAeadRoomKeyProvider()
+        val ledgerA = InMemoryLedger()
+        seedRoomAndAccount(ledgerA)
+        ledgerA.transactionRows[TransactionId("tx-1")] = expense("tx-1", 50_000, note = "Sayur")
+        val remote = FakeSyncRemote()
+        val deviceA = engine(ledgerA, remote, keys = keys)
+        deviceA.syncNow(roomId, deviceId = "device-a")
+
+        val ledgerB = InMemoryLedger()
+        seedRoomAndAccount(ledgerB)
+        val deviceB = engine(ledgerB, remote, keys = keys)
+        val first = deviceB.syncNow(roomId, deviceId = "device-b") as SyncResult.Success
+        assertEquals(1, first.applied)
+        assertEquals(0, first.skipped)
+        assertEquals("Sayur", ledgerB.transactionRows[TransactionId("tx-1")]?.note)
+
+        ledgerA.delete(TransactionId("tx-1"))
+        deviceA.syncNow(roomId, deviceId = "device-a")
+        val second = deviceB.syncNow(roomId, deviceId = "device-b") as SyncResult.Success
+        assertEquals(1, second.applied)
+        assertTrue(TransactionId("tx-1") !in ledgerB.transactionRows)
+    }
+
+    /** A mendorong satu pengeluaran dengan AES-GCM sungguhan, lalu [tamper] mengubah baris di "server" sebelum B menarik. */
+    private suspend fun pullAfterTampering(tamper: (SyncLogEntryDownload) -> SyncLogEntryDownload): Pair<SyncResult.Success, InMemoryLedger> {
+        val keys = RealAeadRoomKeyProvider()
+        val ledgerA = InMemoryLedger()
+        seedRoomAndAccount(ledgerA)
+        seedSecondRoom(ledgerA)
+        ledgerA.transactionRows[TransactionId("tx-1")] = expense("tx-1", 50_000)
+        val remote = FakeSyncRemote()
+        engine(ledgerA, remote, keys = keys).syncNow(roomId, deviceId = "device-a")
+        remote.stored[0] = tamper(remote.stored[0])
+
+        val ledgerB = InMemoryLedger()
+        seedRoomAndAccount(ledgerB)
+        seedSecondRoom(ledgerB)
+        val target = RoomId(remote.stored[0].roomId!!)
+        return (engine(ledgerB, remote, keys = keys).syncNow(target, deviceId = "device-b") as SyncResult.Success) to ledgerB
+    }
+
+    @Test
+    fun a_server_that_replays_a_row_with_a_newer_timestamp_cannot_get_it_applied() = runSuspend {
+        val (result, ledgerB) = pullAfterTampering { it.copy(changedAtMillis = it.changedAtMillis!! + 10_000) }
+        assertEquals(0, result.applied)
+        assertEquals(1, result.skipped)
+        assertTrue(ledgerB.transactionRows.isEmpty())
+    }
+
+    @Test
+    fun a_server_that_turns_a_live_row_into_a_tombstone_cannot_delete_it() = runSuspend {
+        val (result, _) = pullAfterTampering { it.copy(deleted = true) }
+        assertEquals(0, result.applied)
+        assertEquals(1, result.skipped, "tombstone palsu gagal dekripsi, bukan diterapkan")
+    }
+
+    @Test
+    fun a_server_that_moves_a_row_to_another_shared_room_cannot_get_it_applied_there() = runSuspend {
+        // Kunci kedua ruang sengaja sama di tes ini: yang menggagalkan dekripsi hanyalah scope `r:<roomId>` di AAD.
+        val (result, ledgerB) = pullAfterTampering { it.copy(roomId = roomB.value) }
+        assertEquals(0, result.applied)
+        assertEquals(1, result.skipped)
+        assertTrue(ledgerB.transactionRows.isEmpty())
+    }
+
+    @Test
+    fun a_row_with_a_newer_payload_version_is_skipped_instead_of_half_applied() = runSuspend {
+        val remote = FakeSyncRemote()
+        val data = SharedExpensePayload.encode(expense("tx-9", 1_000), "Dompet", "Belanja")
+        val sealed = SyncEnvelope.seal(FakeSyncAead(), SyncScope.SharedRoom(roomId), "shared_expense", "tx-9", 2, data, 1_000L, false, "device-a")
+        remote.stored += SyncLogEntryDownload(
+            remote.nextId++, roomId.value, "r", sealed.wireId, "device-a", Base64.getEncoder().encodeToString(sealed.ciphertext), false,
+            Instant.ofEpochMilli(1_000L).toString(), 1_000L, "device-a",
+        )
+
+        val ledgerB = InMemoryLedger()
+        seedRoomAndAccount(ledgerB)
+        val result = engine(ledgerB, remote).syncNow(roomId, deviceId = "device-b") as SyncResult.Success
+
+        assertEquals(0, result.applied)
+        assertEquals(1, result.skipped)
+        assertEquals(null, ledgerB.transactionRows[TransactionId("tx-9")])
+    }
+
+    @Test
+    fun legacy_rows_already_on_the_server_stay_readable_and_a_newer_envelope_version_replaces_them() = runSuspend {
+        val remote = FakeSyncRemote()
+        // Riwayat lama: A pernah mengirim tx-1 dan tombstone tx-2 dengan format ad hoc sebelum 2026-11-01.
+        remote.seedRawEntry(expense("tx-1", 10_000, note = "lama"), "Dompet", "Belanja", "device-a", 1_000L, roomId.value)
+        remote.seedRawEntry(expense("tx-2", 3_000), "Dompet", "Belanja", "device-a", 1_100L, roomId.value)
+        remote.seedRawEntry(expense("tx-2", 3_000), "Dompet", "Belanja", "device-a", 1_200L, roomId.value, deleted = true)
+
+        val ledgerB = InMemoryLedger()
+        seedRoomAndAccount(ledgerB)
+        val deviceB = engine(ledgerB, remote)
+        val first = deviceB.syncNow(roomId, deviceId = "device-b") as SyncResult.Success
+        assertEquals(3, first.applied)
+        assertEquals("lama", ledgerB.transactionRows[TransactionId("tx-1")]?.note)
+        assertTrue(TransactionId("tx-2") !in ledgerB.transactionRows)
+
+        // A (sudah versi baru) mengedit tx-1: terkirim sebagai amplop umum, menimpa versi lama lewat LWW id transaksi.
+        val ledgerA = InMemoryLedger()
+        seedRoomAndAccount(ledgerA)
+        ledgerA.transactionRows[TransactionId("tx-1")] = expense("tx-1", 12_000, note = "baru", updatedAt = 2_000L)
+        engine(ledgerA, remote).syncNow(roomId, deviceId = "device-a")
+        assertEquals("r", remote.stored.last().recordType)
+
+        deviceB.syncNow(roomId, deviceId = "device-b")
+        assertEquals("baru", ledgerB.transactionRows[TransactionId("tx-1")]?.note)
+        assertEquals(Money(12_000), ledgerB.transactionRows[TransactionId("tx-1")]?.amount)
     }
 }

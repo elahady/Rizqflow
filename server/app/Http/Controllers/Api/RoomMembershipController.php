@@ -44,7 +44,11 @@ class RoomMembershipController extends Controller
             ->where('is_owner', true)
             ->exists();
         if (! $isOwner) {
-            return response()->json(['message' => 'Hanya pemilik ruang yang bisa mengeluarkan anggota.'], 403);
+            // `code` membedakan 403 ini dari 403 "butuh Sync" di klien (yang membuka paywall).
+            return response()->json([
+                'message' => 'Hanya pemilik ruang yang bisa mengeluarkan anggota.',
+                'code' => 'not_room_owner',
+            ], 403);
         }
 
         $target = RoomMember::where('room_id', $roomId)->where('user_id', $userId)->first();
@@ -78,6 +82,8 @@ class RoomMembershipController extends Controller
             ->with('user:id,name,email')
             ->get()
             ->map(fn (RoomMember $member) => [
+                // Dipakai aplikasi pemilik sebagai {userId} di DELETE /rooms/{roomId}/members/{userId}.
+                'user_id' => $member->user_id,
                 'name' => $member->user->name,
                 'email' => $member->user->email,
                 'you' => $member->user_id === $userId,

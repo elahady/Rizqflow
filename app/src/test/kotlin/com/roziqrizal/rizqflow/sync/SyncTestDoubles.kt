@@ -148,6 +148,8 @@ class FailingRoomMembershipRemote(private val error: RemoteError) : RoomMembersh
 
     override suspend fun members(apiToken: String, roomId: String): RemoteResult<List<RoomMemberInfo>> =
         RemoteResult.Failure(error)
+
+    override suspend fun remove(apiToken: String, roomId: String, userId: Long): RemoteResult<Unit> = RemoteResult.Failure(error)
 }
 
 class FailingPurchaseRemote(private val error: RemoteError) : PurchaseRemote {
