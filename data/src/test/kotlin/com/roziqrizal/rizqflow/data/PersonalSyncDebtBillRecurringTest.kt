@@ -109,7 +109,7 @@ class PersonalSyncDebtBillRecurringTest {
 
         val success = assertIs<PersonalSyncResult.Success>(result)
         assertTrue(success.pushed > 0)
-        val sentTypes = remote.stored.map { it.recordType }.toSet()
+        val sentTypes = remote.stored.map { it.innerType() }.toSet()
         assertTrue(sentTypes.containsAll(setOf("debt", "debt_payment", "bill", "recurring_rule")), "semua tipe baru harus terkirim, terkirim: $sentTypes")
         assertTrue(a.rows().none { it.dirty }, "semua rekaman yang berhasil terkirim harus bersih")
     }
@@ -159,7 +159,7 @@ class PersonalSyncDebtBillRecurringTest {
         engineFor(a.local, remote, RecoveryStatus.Configured(Instant.now())).syncNow("device-a")
         // Tagihan dipindah ke depan; akun, ruang, dan kategorinya datang di halaman berikutnya.
         val reordered = remote.stored
-            .sortedBy { if (it.recordType == "bill") 0 else 1 }
+            .sortedBy { if (it.innerType() == "bill") 0 else 1 }
             .mapIndexed { index, entry -> entry.copy(id = index + 1L) }
         remote.stored.clear()
         remote.stored.addAll(reordered)
@@ -177,7 +177,7 @@ class PersonalSyncDebtBillRecurringTest {
         val remote = MemoryPersonalRemote()
         engineFor(a.local, remote, RecoveryStatus.Configured(Instant.now())).syncNow("device-a")
         // Akun tidak pernah sampai ke perangkat B (mis. dihapus dari server sebelum diambil).
-        remote.stored.removeAll { it.recordType == "account" }
+        remote.stored.removeAll { it.innerType() == "account" }
 
         val b = emptyLedger()
         engineFor(b, remote).syncNow("device-b")
