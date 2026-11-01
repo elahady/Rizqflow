@@ -376,6 +376,11 @@ fun MainHost(
     // bisa sudah berganti), tidak di mode demo. Aman diulang: tiap kemunculan punya pengenal tetap.
     // Yang tertahan (akun, ruang, atau kategorinya diarsipkan) diberitahukan sekali per pembukaan.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    // Membersihkan salinan `.prerestore` yang sudah tua dan tidak diperlukan lagi (PreRestoreCleaner): sekali per ruang
+    // kerja yang dibuka, di thread IO, senyap, dan tidak pernah menghapus bila ruang kerja masih kosong.
+    LaunchedEffect(workspace, demo) {
+        if (!demo) workspace.cleanUpPreRestore()
+    }
     LaunchedEffect(workspace, demo) {
         if (demo) return@LaunchedEffect
         // Sinkron otomatis ruang bersama saat aplikasi dibuka (Tahap 9): sekali per ruang kerja, tanpa penjadwal

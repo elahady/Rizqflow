@@ -27,6 +27,7 @@ import com.roziqrizal.rizqflow.data.sync.DebtPaymentSyncHandler
 import com.roziqrizal.rizqflow.data.sync.DebtSyncHandler
 import com.roziqrizal.rizqflow.data.sync.JsonTransactionSyncCodec
 import com.roziqrizal.rizqflow.data.sync.PreRestoreBackup
+import com.roziqrizal.rizqflow.data.sync.PreRestoreCleaner
 import com.roziqrizal.rizqflow.data.sync.PureWorkspaceReplacer
 import com.roziqrizal.rizqflow.data.sync.RecurringRuleSyncHandler
 import com.roziqrizal.rizqflow.data.sync.RoomSyncHandler
@@ -317,6 +318,13 @@ class AccountWorkspace private constructor(
 
     /** Pengenal pemasangan ini, dipakai layar Riwayat sinkron untuk mengenali baris perangkat ini di jawaban server. */
     val syncDeviceId: String get() = deviceId
+
+    /**
+     * Membersihkan salinan `.prerestore` yang sudah tidak diperlukan ([PreRestoreCleaner]): umur minimal 30 hari dan
+     * hanya bila ruang kerja kini berisi data. Aman dipanggil tiap ruang kerja dibuka; tidak pernah melempar.
+     */
+    suspend fun cleanUpPreRestore(): PreRestoreCleaner.Outcome =
+        PreRestoreCleaner(databaseFile = { local.databaseFile }, isWorkspacePure = { RoomWorkspacePurityChecker(local.db).isPure() }).cleanUp()
 
     /**
      * Menandai ruang bersama ACTIVE setelah pendaftaran anggota di server berhasil (undangan QR diterima, atau
