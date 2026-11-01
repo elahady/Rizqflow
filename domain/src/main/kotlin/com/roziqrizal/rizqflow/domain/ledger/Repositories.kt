@@ -218,8 +218,16 @@ interface TransactionRepository {
     /** Pengeluaran di [roomId] yang belum terkirim ke sync (Tahap 9, kolom `synced_at` null). */
     suspend fun pendingSync(roomId: RoomId): List<PendingSyncTransaction>
 
-    /** Tandai transaksi-transaksi ini sudah terkirim ke sync. */
+    /** Tandai transaksi-transaksi ini sudah terkirim ke sync, tanpa syarat. Mesin sync memakai [markSyncedIfUnchanged]. */
     suspend fun markSynced(ids: List<TransactionId>, atMillis: Long)
+
+    /**
+     * Tandai versi-versi yang baru saja terkirim sudah terkirim, HANYA bila barisnya masih versi yang sama
+     * ([PendingSyncTransaction.changedAtMillis] == `updated_at` sekarang). Suntingan atau pemindahan ruang yang masuk
+     * selama push berjalan mengosongkan penanda dan mengubah `updated_at`; tanpa syarat ini [markSynced] menimpa
+     * penanda itu dan versi baru tidak pernah terkirim.
+     */
+    suspend fun markSyncedIfUnchanged(sent: List<PendingSyncTransaction>, atMillis: Long)
 
     /**
      * Transaksi di [roomId] yang dihapus lokal atau dipindah keluar dari ruang itu, tetapi tombstone-nya belum

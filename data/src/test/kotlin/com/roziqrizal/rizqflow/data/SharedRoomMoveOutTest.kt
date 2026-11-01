@@ -36,7 +36,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-private class IdentityRoomKeys : RoomKeyProvider {
+internal class IdentityRoomKeys : RoomKeyProvider {
     private val aead = PersonalIdentityAead()
     override fun getOrCreateRoomKey(roomId: RoomId) = aead
     override fun exportRoomKey(roomId: RoomId) = ByteArray(0)
@@ -44,7 +44,7 @@ private class IdentityRoomKeys : RoomKeyProvider {
     override fun rotateRoomKey(roomId: RoomId) = aead
 }
 
-private class MapCursorStore : SyncCursorStore {
+internal class MapCursorStore : SyncCursorStore {
     val map = mutableMapOf<String, Long>()
     override fun read(roomId: String) = map[roomId] ?: 0L
     override fun save(roomId: String, cursor: Long) { map[roomId] = cursor }

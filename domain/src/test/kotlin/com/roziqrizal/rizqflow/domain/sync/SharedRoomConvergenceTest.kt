@@ -43,6 +43,9 @@ internal class FakeSyncServer : SyncRemote {
     /** Ukuran tiap permintaan push yang sampai (sebelum penghapusan ganda), untuk menegaskan "0 unggahan". */
     val pushSizes = mutableListOf<Int>()
 
+    /** Dijalankan sekali, setelah baris tersimpan dan sebelum jawaban kembali: meniru suntingan pengguna selama push berjalan. */
+    var duringPush: (suspend () -> Unit)? = null
+
     override suspend fun push(apiToken: String, entries: List<SyncLogEntryUpload>): RemoteResult<SyncPushResult> {
         failWith?.let { return RemoteResult.Failure(it) }
         pushSizes += entries.size
@@ -61,6 +64,10 @@ internal class FakeSyncServer : SyncRemote {
                 entry.changedAt, entry.changedAtMillis, author,
             )
             id
+        }
+        duringPush?.let {
+            duringPush = null
+            it()
         }
         if (dropAck) return RemoteResult.Failure(RemoteError.Unreachable)
         return RemoteResult.Success(SyncPushResult(ids, ids.max(), null))
@@ -418,6 +425,26 @@ class SharedRoomConvergenceTest {
     }
 
     // ------------------------------------------------------------------ konvergensi dasar
+
+    @Test
+    fun an_edit_made_while_the_push_is_in_flight_is_not_marked_as_sent_and_goes_out_next_round() = runSuspend {
+        val server = FakeSyncServer()
+        val a = client("device-a", server, room1)
+        val b = client("device-b", server, room1)
+        a.record("tx-1", room1, updatedAt = 1_000L)
+        server.duringPush = {
+            val current = checkNotNull(a.ledger.find(TransactionId("tx-1")))
+            a.ledger.update(current.copy(note = "diubah saat push", updatedAtMillis = 2_000L))
+        }
+
+        assertEquals(1, a.sync(room1).pushed, "versi lama terkirim")
+        assertEquals(1, a.ledger.pendingSync(room1).size, "suntingan saat push tetap menunggu, tidak ikut ditandai terkirim")
+
+        assertEquals(1, a.sync(room1).pushed, "versi baru terkirim di putaran berikutnya")
+        assertTrue(a.ledger.pendingSync(room1).isEmpty())
+        b.sync(room1)
+        assertEquals("diubah saat push", b.ledger.transactionRows[TransactionId("tx-1")]?.note)
+    }
 
     @Test
     fun pulling_and_then_syncing_again_uploads_nothing() = runSuspend {

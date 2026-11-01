@@ -504,6 +504,13 @@ class LocalTransactionRepository(
         db.transactions().markSynced(ids.map { it.value }, atMillis)
     }
 
+    override suspend fun markSyncedIfUnchanged(sent: List<PendingSyncTransaction>, atMillis: Long) {
+        if (sent.isEmpty()) return
+        db.withTransaction {
+            for (version in sent) db.transactions().markSyncedIfUnchanged(version.transaction.id.value, version.changedAtMillis, atMillis)
+        }
+    }
+
     override suspend fun pendingTombstones(roomId: RoomId): List<PendingTombstone> =
         db.transactions().pendingTombstones(roomId.value).map { PendingTombstone(TransactionId(it.transactionId), it.deletedAt) }
 

@@ -268,6 +268,10 @@ interface TransactionDao {
     @Query("UPDATE money_transaction SET synced_at = :atMillis WHERE id IN (:ids)")
     suspend fun markSynced(ids: List<String>, atMillis: Long)
 
+    /** Menandai satu id terkirim hanya bila barisnya masih versi yang dikirim (`updated_at` sama); lihat `markSyncedIfUnchanged`. */
+    @Query("UPDATE money_transaction SET synced_at = :atMillis WHERE id = :id AND updated_at = :updatedAt")
+    suspend fun markSyncedIfUnchanged(id: String, updatedAt: Long, atMillis: Long): Int
+
     /** Insert atau timpa hasil pull dari anggota lain, dengan `synced_at` sudah terisi (tidak pending push lagi). */
     @Upsert
     suspend fun upsertFromSync(transaction: TransactionEntity)

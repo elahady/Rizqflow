@@ -3,6 +3,7 @@ package com.roziqrizal.rizqflow.domain.sync
 import com.roziqrizal.rizqflow.domain.ledger.AccountRepository
 import com.roziqrizal.rizqflow.domain.ledger.Category
 import com.roziqrizal.rizqflow.domain.ledger.MoneyTransaction
+import com.roziqrizal.rizqflow.domain.ledger.PendingSyncTransaction
 import com.roziqrizal.rizqflow.domain.ledger.RoomRepository
 import com.roziqrizal.rizqflow.domain.ledger.RoomTemplates
 import com.roziqrizal.rizqflow.domain.ledger.TransactionRepository
@@ -142,7 +143,7 @@ class SyncCoordinator(
 
         // Rekaman yang gagal dibungkus (praktis hanya payload melebihi 64 KB) tetap pending dan tidak ikut dikirim:
         // syncNow tidak pernah melempar, dan satu rekaman rusak tidak menahan rekaman lain.
-        val sentLive = mutableListOf<TransactionId>()
+        val sentLive = mutableListOf<PendingSyncTransaction>()
         val liveUploads = pending.mapNotNull { entry ->
             val transaction = entry.transaction
             // Penjepitan jam (Tahap 2, sync-desain.md bagian D "Jam salah"): cap yang DIKIRIM dipakai
@@ -159,7 +160,7 @@ class SyncCoordinator(
                 categoryName = transaction.categoryId?.let { categoryNames[it] },
             )
             seal(scope, aead, transaction.id, data, changedAtMillis, deleted = false, deviceId)
-                ?.also { sentLive += transaction.id }
+                ?.also { sentLive += entry }
         }
 
         // Tombstone (Tahap 9, roadmap.md "Sinkron penghapusan transaksi di ruang yang dibagi"): baris asli sudah
@@ -180,7 +181,9 @@ class SyncCoordinator(
             is RemoteResult.Failure -> result
             is RemoteResult.Success -> {
                 result.value.serverTimeMs?.let { clock.setServerOffset(it - clock.rawDeviceNowMillis()) }
-                transactions.markSynced(sentLive, System.currentTimeMillis())
+                // Bersyarat: hanya versi yang BENAR-BENAR terkirim yang ditandai. Suntingan yang masuk selama push berjalan
+                // (updated_at berubah dan synced_at dikosongkan) tetap pending dan terkirim di putaran berikutnya.
+                transactions.markSyncedIfUnchanged(sentLive, System.currentTimeMillis())
                 transactions.clearPendingTombstones(roomId, sentDeletes)
                 RemoteResult.Success(uploads.size)
             }

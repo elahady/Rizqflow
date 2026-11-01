@@ -317,6 +317,12 @@ class InMemoryLedger(private val nowMillis: () -> Long = System::currentTimeMill
         ids.forEach { syncedAtRows[it] = atMillis }
     }
 
+    override suspend fun markSyncedIfUnchanged(sent: List<PendingSyncTransaction>, atMillis: Long) {
+        for (version in sent) {
+            if (transactionRows[version.transaction.id]?.updatedAtMillis == version.changedAtMillis) syncedAtRows[version.transaction.id] = atMillis
+        }
+    }
+
     override suspend fun pendingTombstones(roomId: RoomId): List<PendingTombstone> =
         pendingTombstoneRows.filterKeys { it.second == roomId }.map { (key, deletedAt) -> PendingTombstone(key.first, deletedAt) }
 
