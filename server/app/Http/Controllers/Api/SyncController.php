@@ -10,6 +10,7 @@ use App\Models\SyncDevice;
 use App\Models\SyncLogEntry;
 use App\Models\SyncQuota;
 use App\Models\SyncRecordFloor;
+use App\Models\SyncScopeActivity;
 use App\Push\RoomActivityNotifier;
 use App\Support\SyncQuotaExceeded;
 use Carbon\Carbon;
@@ -80,6 +81,9 @@ class SyncController extends Controller
                 // Ruang yang benar-benar menerima baris BARU (bukan ulangan idempoten atau baris ditolak):
                 // hanya ini yang memicu kabar ke anggota lain.
                 $ruangBaru = [];
+                // Cakupan yang benar-benar menerima push per perangkat (diterima atau ulangan idempoten,
+                // bukan baris yang ditolak penjaga): bahan waktu push per cakupan di Riwayat sinkron.
+                $cakupanPush = [];
 
                 // Siapa pun yang push ke sebuah room_id otomatis jadi anggotanya (idempoten) — bootstrap
                 // keanggotaan tanpa butuh endpoint "buat ruang" terpisah, lihat RoomMembershipController.
@@ -140,6 +144,7 @@ class SyncController extends Controller
                         ->first();
                     if ($existing !== null) {
                         $ids[] = $existing->id;
+                        $cakupanPush[$entry['device_id']][$roomId ?? ''] = $roomId;
 
                         continue;
                     }
@@ -156,11 +161,18 @@ class SyncController extends Controller
                         'changed_at_ms' => $changedAtMs,
                     ])->id;
 
+                    $cakupanPush[$entry['device_id']][$roomId ?? ''] = $roomId;
                     $barisBaru++;
                     $bytesBaru += strlen($entry['payload']);
                     if ($roomId !== null) {
                         $ruangBaru[$roomId] = true;
                     }
+                }
+
+                // Waktu push per cakupan (metadata saja). Di dalam transaksi: batch yang melewati kuota
+                // di-rollback bersama baris-barisnya, jadi tidak ada catatan push untuk push yang gagal.
+                foreach ($cakupanPush as $deviceId => $ruang) {
+                    SyncScopeActivity::catatPush($userId, (string) $deviceId, array_values($ruang));
                 }
 
                 // Melempar bila melewati kuota: seluruh batch di-rollback, tidak ada yang tersimpan.
@@ -256,6 +268,10 @@ class SyncController extends Controller
             ['user_id' => $userId, 'device_id' => $deviceId],
             ['after_id' => $nextAfter, 'last_seen_at' => now()],
         );
+
+        // Waktu pull per cakupan untuk Riwayat sinkron: pull tanpa `scope` mencakup data pribadi dan
+        // semua ruang yang diikuti, jadi semuanya dicatat (klien lama terisi tanpa perubahan klien).
+        SyncScopeActivity::catatPull($userId, $deviceId, [null, ...$sharedRoomIds->all()]);
 
         return response()->json([
             'entries' => $entries->map(fn (SyncLogEntry $entry) => [
