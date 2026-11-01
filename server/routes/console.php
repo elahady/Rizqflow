@@ -25,3 +25,7 @@ Schedule::command('sanctum:prune-expired --hours=24')->dailyAt('03:45')->without
 // baru berjalan bila ada cron `schedule:run` di server (Tahap 12).
 Schedule::command('sync:prune-stale-devices')->dailyAt('03:55')->withoutOverlapping();
 Schedule::command('sync:compact')->dailyAt('04:05')->withoutOverlapping();
+
+// Metrik pengguna anonim (Tahap 9): potret harian jumlah pengguna, Pro, dan Sync di user_metric_snapshots,
+// tanpa identitas atau data keuangan. Sama seperti di atas, butuh cron `schedule:run` (Tahap 12).
+Schedule::command('metrik:pengguna --simpan')->dailyAt('04:15')->withoutOverlapping();

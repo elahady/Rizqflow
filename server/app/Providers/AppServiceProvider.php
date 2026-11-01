@@ -9,6 +9,8 @@ use App\Play\GooglePlayClientFactory;
 use App\Play\GooglePlayPurchaseVerifier;
 use App\Play\PlayNotificationAuthenticator;
 use App\Play\PlayPurchaseVerifier;
+use App\Push\FcmHttpV1Sender;
+use App\Push\FcmSender;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -37,6 +39,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PlayNotificationAuthenticator::class, fn () => new GoogleOidcNotificationAuthenticator(
             (string) config('services.play.rtdn_audience'),
             config('services.play.rtdn_service_account_email'),
+        ));
+
+        // Pengirim FCM (Tahap 9/13). Tanpa FCM_PROJECT_ID/FCM_SERVICE_ACCOUNT_JSON: NullFcmSender.
+        $this->app->singleton(FcmSender::class, fn () => FcmHttpV1Sender::fromConfig(
+            config('services.fcm.project_id'),
+            config('services.fcm.service_account_json'),
         ));
     }
 
@@ -87,5 +95,9 @@ class AppServiceProvider extends ServiceProvider
         // Batas longgar; Pub/Sub mengulang pesan yang ditolak 429.
         RateLimiter::for('play-notifications', fn (Request $request) => Limit::perMinute(120)
             ->by('play-notifications:'.$request->ip()));
+
+        // Daftar/cabut token FCM: klien memanggilnya saat token berganti atau keluar, jadi longgar.
+        RateLimiter::for('push-token', fn (Request $request) => Limit::perMinute(20)
+            ->by('push-token:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
     }
 }

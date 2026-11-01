@@ -51,6 +51,16 @@ return [
         'rtdn_service_account_email' => env('PLAY_RTDN_SERVICE_ACCOUNT_EMAIL'),
     ],
 
+    // Notifikasi push generik "ada catatan baru" lewat FCM HTTP v1 (Tahap 9/13, DEPLOY.md "Notifikasi
+    // push FCM"). Kosong = pengirim mati (NullFcmSender), sync tetap berjalan. Tidak ada nilai rahasia di
+    // berkas ini; kunci hanya di .env.production.
+    'fcm' => [
+        // ID proyek Firebase (bukan nomor proyek), mis. "rizqflow-12345".
+        'project_id' => env('FCM_PROJECT_ID'),
+        // Kunci akun layanan dengan izin kirim FCM: jalur berkas JSON, isi JSON mentah, atau base64.
+        'service_account_json' => env('FCM_SERVICE_ACCOUNT_JSON'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

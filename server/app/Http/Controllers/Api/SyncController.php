@@ -9,12 +9,16 @@ use App\Models\SyncCompactionState;
 use App\Models\SyncDevice;
 use App\Models\SyncLogEntry;
 use App\Models\SyncQuota;
+use App\Models\SyncRecordFloor;
+use App\Push\RoomActivityNotifier;
 use App\Support\SyncQuotaExceeded;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+
+use function Illuminate\Support\defer;
 
 /**
  * Sinkronisasi antar-perangkat terenkripsi (Tahap 9, server-sync.md "Model konflik sinkronisasi"):
@@ -66,13 +70,16 @@ class SyncController extends Controller
 
         try {
             // Satu transaksi DB per batch (Tahap 2 bagian G): gagal di tengah tidak meninggalkan separuh baris.
-            $ids = DB::transaction(function () use ($data, $userId) {
+            [$ids, $ruangBaru] = DB::transaction(function () use ($data, $userId) {
                 // Kunci penghitung kuota akun lebih dulu: push serentak satu akun antre di sini.
                 $kuota = SyncQuota::kunciUntukTulis($userId);
                 $barisBaru = 0;
                 $bytesBaru = 0;
 
                 $ids = [];
+                // Ruang yang benar-benar menerima baris BARU (bukan ulangan idempoten atau baris ditolak):
+                // hanya ini yang memicu kabar ke anggota lain.
+                $ruangBaru = [];
 
                 // Siapa pun yang push ke sebuah room_id otomatis jadi anggotanya (idempoten) — bootstrap
                 // keanggotaan tanpa butuh endpoint "buat ruang" terpisah, lihat RoomMembershipController.
@@ -106,6 +113,23 @@ class SyncController extends Controller
                         }
                     }
 
+                    // Lantai per rekaman (Tahap 9): tombstone rekaman ini sudah dihapus fisik oleh
+                    // sync:compact. Versi dengan cap waktu <= tombstone itu adalah versi lama yang
+                    // terlambat; menyimpannya akan menghidupkan kembali rekaman yang sudah dihapus karena
+                    // tidak ada lagi tombstone yang mengalahkannya. Ditolak diam-diam seperti baris bukan
+                    // penulis pertama (klien tidak memakai `ids` per baris). Versi yang lebih baru dari
+                    // lantai tetap diterima: itu memang edit sesudah hapus (last-write-wins).
+                    $lantai = SyncRecordFloor::lantai($userId, $roomId, $entry['record_id']);
+                    if ($lantai !== null && $changedAtMs <= $lantai) {
+                        Log::info('sync push: baris ditolak, lebih lama dari lantai kompaksi', [
+                            'room_id' => $roomId,
+                            'record_id' => $entry['record_id'],
+                            'user_id' => $userId,
+                        ]);
+
+                        continue;
+                    }
+
                     // Idempoten: push yang diulang (ack hilang di klien) menemukan baris yang sama dan
                     // mengembalikan id-nya, tidak menggandakan baris.
                     $existing = SyncLogEntry::where('user_id', $userId)
@@ -134,18 +158,30 @@ class SyncController extends Controller
 
                     $barisBaru++;
                     $bytesBaru += strlen($entry['payload']);
+                    if ($roomId !== null) {
+                        $ruangBaru[$roomId] = true;
+                    }
                 }
 
                 // Melempar bila melewati kuota: seluruh batch di-rollback, tidak ada yang tersimpan.
                 $kuota->tambahPemakaian($barisBaru, $bytesBaru);
 
-                return $ids;
+                return [$ids, array_map('strval', array_keys($ruangBaru))];
             });
         } catch (SyncQuotaExceeded) {
             return response()->json([
                 'message' => 'Penyimpanan sinkron akun ini sudah penuh. Data di perangkat tetap aman dan tidak ada yang dihapus; sinkron baru dijeda sampai ada ruang tersedia.',
                 'code' => 'quota_exceeded',
             ], 422);
+        }
+
+        // Kabar generik "ada catatan baru" ke anggota LAIN ruang itu (bukan pencatatnya), hanya setelah
+        // transaksi berhasil. Isinya hanya roomId + kind (App\Push\SyncNotificationPayload), tanpa
+        // nominal, nama, atau catatan. `defer`: dijalankan setelah jawaban terkirim (PHP-FPM), bukan
+        // lewat antrean karena server belum punya queue worker; galatnya ditelan (`rescue`) sehingga
+        // FCM yang lambat atau gagal tidak pernah memengaruhi sync.
+        if ($ruangBaru !== []) {
+            defer(fn () => app(RoomActivityNotifier::class)->notifyNewRecords($userId, $ruangBaru));
         }
 
         // Semua baris ditolak (bukan penulis pertama): cursor tetap baris terakhir milik user ini,
@@ -166,18 +202,29 @@ class SyncController extends Controller
             return $denied;
         }
 
+        // device_id WAJIB (Tahap 9, pengerasan sebelum rilis): kursor per perangkat di `sync_devices` adalah
+        // yang menahan kompaksi tombstone (SyncRetention). Perangkat yang pull tanpa device_id tidak
+        // tercatat, jadi tombstone bisa dihapus fisik sebelum perangkat itu melewatinya, dan ia tidak
+        // pernah tahu rekaman itu sudah dihapus. Klien Android sudah selalu mengirimnya (SyncRemote.pull).
+        // Jawaban 422 punya `code` sendiri supaya bisa dibedakan dari galat validasi lain.
+        if (! is_string($request->query('device_id')) || trim($request->query('device_id')) === '') {
+            return response()->json([
+                'message' => 'Parameter device_id wajib diisi untuk menarik data sinkron. Perbarui aplikasi Rizqflow.',
+                'code' => 'device_id_required',
+                'errors' => ['device_id' => ['Parameter device_id wajib diisi.']],
+            ], 422);
+        }
+
         $validated = $request->validate([
             'after' => ['integer', 'min:0'],
             'limit' => ['integer', 'min:1', 'max:'.self::MAX_PULL_LIMIT],
-            // Tahap 2 sync-desain.md bagian G: opsional, dasar kursor per perangkat (`sync_devices`,
-            // Tahap 7). Klien lama tanpa device_id tetap bisa pull, hanya tidak tercatat di sana.
-            'device_id' => ['nullable', 'string', 'max:100'],
+            'device_id' => ['required', 'string', 'max:100'],
         ]);
         // Laravel tidak mengubah tipe nilai yang sudah lolos validasi 'integer'; query string selalu
         // string, dan `$entries->count() === $limit` di bawah butuh int, bukan '2' !== 2.
         $after = (int) ($validated['after'] ?? 0);
         $limit = (int) ($validated['limit'] ?? self::DEFAULT_PULL_LIMIT);
-        $deviceId = $validated['device_id'] ?? null;
+        $deviceId = $validated['device_id'];
 
         // Kursor di bawah watermark kompaksi: sebagian tombstone sudah dihapus fisik setelah kursor ini,
         // jadi klien harus pull ulang dari 0 dan menggabung (sync-desain.md bagian J #6). after=0 selalu
@@ -205,12 +252,10 @@ class SyncController extends Controller
 
         $nextAfter = $entries->last()?->id ?? $after;
 
-        if ($deviceId !== null) {
-            SyncDevice::updateOrCreate(
-                ['user_id' => $userId, 'device_id' => $deviceId],
-                ['after_id' => $nextAfter, 'last_seen_at' => now()],
-            );
-        }
+        SyncDevice::updateOrCreate(
+            ['user_id' => $userId, 'device_id' => $deviceId],
+            ['after_id' => $nextAfter, 'last_seen_at' => now()],
+        );
 
         return response()->json([
             'entries' => $entries->map(fn (SyncLogEntry $entry) => [

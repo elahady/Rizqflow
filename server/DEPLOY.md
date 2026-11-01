@@ -342,3 +342,47 @@ variabel `.env` baru. Yang ikut saat deploy:
 - Cadangan database VPS kini memuat blob ini (tetap buram). Kehilangan cadangan tidak membocorkan
   kunci, tetapi blob + kode pemulihan yang bocor bersamaan akan membuka kunci akun; kode pemulihan
   tidak pernah ada di server.
+
+## Notifikasi push FCM ("ada catatan baru", Tahap 9/13)
+
+Kode selesai 2026-11-01 (`server/app/Push/`, `Api\PushTokenController`, tabel `push_tokens`). Setelah
+push sync yang menambah baris BARU ke ruang bersama, server mengirim pesan data FCM ke semua perangkat
+anggota LAIN ruang itu (bukan pencatatnya). Isinya hanya `{"roomId":"...","kind":"NEW_RECORD"}`
+(kontrak `SyncNotificationPayload` di `:domain`): tanpa nominal, nama, catatan, akun, atau siapa
+pencatatnya. Aplikasi lalu pull dan mendekripsi sendiri.
+
+**Status: hanya terbukti lewat tes otomatis dengan pengirim palsu dan HTTP palsu.** Belum pernah
+mengirim ke FCM sungguhan, belum ada proyek Firebase, dan penerima FCM di Android dikerjakan terpisah.
+Tanpa variabel di bawah, pengirim mati (`NullFcmSender`) dan sync tetap berjalan normal.
+
+### Variabel `.env.production` (opsional; kosong = pengirim mati)
+
+| Variabel | Isi |
+|---|---|
+| `FCM_PROJECT_ID` | ID proyek Firebase tempat aplikasi `com.roziqrizal.rizqflow` didaftarkan (Project settings > General > Project ID, bukan nomor proyek) |
+| `FCM_SERVICE_ACCOUNT_JSON` | Kunci akun layanan proyek Firebase itu yang boleh mengirim FCM (mis. peran *Firebase Cloud Messaging API Admin*): jalur berkas JSON, isi JSON mentah, atau **base64 satu baris** (`base64 -w0 kunci.json`). Rahasia: hanya di `.env.production` di VPS, jangan di git atau chat. Format sama dengan `PLAY_SERVICE_ACCOUNT_JSON`, tetapi sebaiknya akun layanan terpisah dengan izin minimum |
+
+Terapkan dengan `docker compose up -d --force-recreate`. Migrasi `2026_11_01_000004_create_push_tokens_table`
+ikut langkah migrasi deploy biasa; rute baru butuh `route:cache` ulang.
+
+### Pemasangan (tindakan pemilik; belum dijalankan)
+
+1. Buat proyek Firebase dan daftarkan aplikasi Android `com.roziqrizal.rizqflow` (sama dengan butir
+   roadmap "Proyek Firebase untuk FCM dan Analytics"); pastikan *Firebase Cloud Messaging API (V1)*
+   aktif.
+2. Buat akun layanan khusus pengirim FCM di proyek itu, unduh kuncinya, isi dua variabel di atas.
+3. Uji nyata: dua akun di satu ruang bersama, akun A mencatat, perangkat akun B menerima kabar.
+
+### Perilaku yang perlu diketahui
+
+- Endpoint aplikasi: `PUT /api/push-token` `{"device_id","token"}` (200) dan
+  `DELETE /api/push-token/{deviceId}` (204, idempoten); keduanya `auth:sanctum`, 20 per menit per akun,
+  tanpa syarat langganan. `device_id` sebaiknya sama dengan saat masuk, supaya `POST /api/auth/logout`
+  ikut mencabut token push perangkat itu; `DELETE /api/auth/tokens` dan hapus akun mencabut semuanya.
+- Kiriman berjalan **setelah** jawaban push sync terkirim (`defer` Laravel, PHP-FPM), bukan lewat
+  antrean (belum ada queue worker). Tidak ada pengulangan: kiriman yang gagal hilang, kabar berikutnya
+  datang pada push berikutnya. Token yang dijawab FCM `UNREGISTERED` dibuang.
+- Satu kabar per ruang per push (berapa pun barisnya); `collapse_key` per ruang supaya perangkat yang
+  offline hanya menerima satu.
+- Token FCM disimpan polos di `push_tokens` (server harus mengirimnya), disembunyikan dari serialisasi
+  dan tidak pernah dicatat ke log; log FCM hanya memuat kode status.
