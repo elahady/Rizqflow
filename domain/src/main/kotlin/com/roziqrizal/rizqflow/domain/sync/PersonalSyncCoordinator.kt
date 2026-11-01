@@ -20,6 +20,13 @@ import kotlinx.serialization.json.put
  *
  * - **Identitas R1** (bagian B): `record_id` DI DALAM amplop = id lokal apa adanya; `record_id` DI
  *   LUAR amplop (ke server) = [SyncEnvelope.wireId] (hash, keputusan pemilik #7 "samarkan record_id").
+ * - **`record_type` konstan** (keputusan #7, sejak 2026-11-01): kolom luar selalu [ENVELOPE_RECORD_TYPE] (`"r"`);
+ *   tipe sebenarnya hanya ada di dalam amplop terenkripsi. Baris yang sudah terkirim SEBELUM itu (kolom luar berisi
+ *   nama tipe, mis. `transaction`) tetap dibaca: pull membuka amplop untuk kedua bentuk dan mengambil tipe dari
+ *   dalam amplop, tidak pernah dari kolom luar. Baris lama tidak ditulis ulang; edit berikutnya atas rekaman itu
+ *   terkirim dengan `"r"` dan menang lewat urutan total (`record_id` hash-nya sama, jadi rantai versinya tidak putus).
+ *   Tipe di dalam amplop yang tak dikenal (mis. dari versi aplikasi lebih baru) kini dicatat `UNSUPPORTED_VERSION`
+ *   alih-alih dilewati diam-diam, karena kolom luar tidak lagi memberi tahu tipenya sebelum amplop dibuka.
  * - **Urutan penerapan per halaman** (bagian B): satu halaman pull diurutkan lewat [SyncApplyOrder]
  *   (peringkat tipe, live sebelum tombstone, `changed_at`, id server) SEBELUM diterapkan — BUKAN
  *   urutan kedatangan jaringan/JSON.
@@ -133,7 +140,9 @@ class PersonalSyncCoordinator(
             )
             SentVersion(type, record.recordId, record.changedAtMillis) to SyncLogEntryUpload(
                 roomId = null,
-                recordType = type.wire,
+                // Konstan (keputusan #7): server tidak boleh bisa menghitung rekaman per jenis. Tipe sebenarnya ada di
+                // dalam amplop terenkripsi dan terikat ke record_id lewat wireId.
+                recordType = ENVELOPE_RECORD_TYPE,
                 recordId = sealed.wireId,
                 deviceId = deviceId,
                 payload = Base64.getEncoder().encodeToString(sealed.ciphertext),
@@ -196,24 +205,36 @@ class PersonalSyncCoordinator(
         var skipped = 0
         val prepared = mutableListOf<Prepared>()
         for (row in entries) {
-            // Hanya cakupan pribadi (room_id null) dan tipe yang punya handler di sini; baris ruang bersama atau
-            // tipe tahap berikutnya (mis. debt, Tahap 4) dilewati diam-diam, bukan masalah — bukan cakupan ini.
+            // Hanya cakupan pribadi (room_id null); baris ruang bersama bukan cakupan ini.
             if (row.roomId != null) continue
-            val type = SyncRecordType.fromWire(row.recordType) ?: continue
-            val handler = handlersByType[type] ?: continue
+            // `record_type` di server: konstan "r" (sejak 2026-11-01, keputusan #7) atau nama tipe (format lama yang sudah
+            // terkirim sebelum itu, tetap DIBACA). Tipe sebenarnya selalu diambil dari dalam amplop terenkripsi, jadi kedua
+            // bentuk dibuka dengan jalur yang sama. Nama tipe lama yang tak dikenal dilewati diam-diam seperti dulu.
+            if (row.recordType != ENVELOPE_RECORD_TYPE && SyncRecordType.fromWire(row.recordType) == null) continue
             // Echo baris sendiri: optimisasi (SyncOrdering sendiri sudah aman terhadap echo walau ini dilewati).
             if (!reapplyOwnRows && row.deviceId == deviceId) continue
 
-            val changedAtMillis = row.changedAtMillis ?: java.time.Instant.parse(row.changedAt).toEpochMilli()
-            val decoded = try {
-                SyncEnvelope.open(aead, SyncScope.Personal, row.recordId, changedAtMillis, row.deleted, row.deviceId, Base64.getDecoder().decode(row.payload))
-            } catch (e: SyncEnvelopeException) {
-                store.recordIssue(
-                    SyncIssue(SyncScope.Personal, row.recordType, row.recordId, SyncIssueKind.TAMPERED_OR_CORRUPT, row.id, e.message, null, 0, nowMillis()),
-                )
+            val changedAtMillis = try {
+                row.changedAtMillis ?: java.time.Instant.parse(row.changedAt).toEpochMilli()
+            } catch (e: java.time.DateTimeException) {
+                recordRejected(row, SyncIssueKind.TAMPERED_OR_CORRUPT, "cap waktu baris tidak sah")
                 skipped++
                 continue
             }
+            val decoded = try {
+                SyncEnvelope.open(aead, SyncScope.Personal, row.recordId, changedAtMillis, row.deleted, row.deviceId, Base64.getDecoder().decode(row.payload))
+            } catch (e: SyncEnvelopeException) {
+                recordRejected(row, e.issueKind(), e.message)
+                skipped++
+                continue
+            } catch (e: IllegalArgumentException) {
+                recordRejected(row, SyncIssueKind.TAMPERED_OR_CORRUPT, "payload bukan base64 yang sah")
+                skipped++
+                continue
+            }
+            // open() sudah menolak tipe yang tak dikenal; tipe yang dikenal tetapi belum punya penangan dilewati diam-diam.
+            val type = SyncRecordType.fromWire(decoded.type) ?: continue
+            if (type !in handlersByType) continue
             prepared += Prepared(PulledRef(type, changedAtMillis, row.deleted, row.id), row, decoded, type)
         }
 
@@ -232,6 +253,10 @@ class PersonalSyncCoordinator(
             if (applyOne(p.row, p.type, p.decoded, deviceId, handler)) applied++ else skipped++
         }
         return PageOutcome(applied, skipped, deferred)
+    }
+
+    private suspend fun recordRejected(row: SyncLogEntryDownload, kind: SyncIssueKind, detail: String?) {
+        store.recordIssue(SyncIssue(SyncScope.Personal, row.recordType, row.recordId, kind, row.id, detail, null, 0, nowMillis()))
     }
 
     /** Dicoba lagi di akhir [pull] ini DAN akan dicoba lagi di awal sync berikutnya (dipanggil lagi lewat [pull]). */

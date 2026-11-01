@@ -34,8 +34,26 @@ class InMemoryLedger(private val nowMillis: () -> Long = System::currentTimeMill
     val favoriteRows = linkedMapOf<String, QuickFavorite>()
     val syncedAtRows = mutableMapOf<TransactionId, Long>()
 
-    /** Tombstone menunggu kirim (Tahap 9): id transaksi -> (ruang asal, cap waktu hapus). */
-    val pendingTombstoneRows = linkedMapOf<TransactionId, Pair<RoomId, Long>>()
+    /** Tombstone menunggu kirim (Tahap 9): (id transaksi, ruang) -> cap waktu hapus. Satu transaksi bisa menunggu di beberapa ruang. */
+    val pendingTombstoneRows = linkedMapOf<Pair<TransactionId, RoomId>, Long>()
+
+    /**
+     * Ruang yang berstatus bersama AKTIF (di Room: `shared_room.status = ACTIVE`). Hanya dipakai [update] dan
+     * [replaceIncome] untuk memutuskan apakah pindah keluar dari sebuah ruang perlu tombstone; [delete] tetap mencatat
+     * tombstone untuk ruang mana pun seperti repositori Room.
+     */
+    val sharedRoomIds = linkedSetOf<RoomId>()
+
+    /** Meniru `LocalTransactionRepository.settleSharedRooms`: tombstone gugur bila masuk ruang itu lagi; pindah keluar dari ruang bersama aktif menerbitkan satu. */
+    private fun settleSharedRooms(existing: MoneyTransaction?, updated: MoneyTransaction) {
+        val newRoom = updated.roomId?.takeIf { updated.kind == TransactionKind.EXPENSE }
+        if (newRoom != null) pendingTombstoneRows.remove(updated.id to newRoom)
+        val old = existing ?: return
+        val oldRoom = old.roomId ?: return
+        if (old.kind != TransactionKind.EXPENSE || old.origin == TransactionOrigin.SHARED) return
+        if (newRoom == oldRoom || oldRoom !in sharedRoomIds) return
+        pendingTombstoneRows[updated.id to oldRoom] = nowMillis()
+    }
 
     /** Bila diisi, penyimpanan berikutnya melempar galat ini: untuk menguji atomisitas di pemanggil. */
     var failNextWrite: Throwable? = null
@@ -236,20 +254,25 @@ class InMemoryLedger(private val nowMillis: () -> Long = System::currentTimeMill
         maybeFail()
         transactionRows[transaction.id] = transaction
         syncedAtRows.remove(transaction.id) // ubahan lokal baru selalu pending sync lagi
+        settleSharedRooms(existing = null, updated = transaction)
     }
 
     override suspend fun update(transaction: MoneyTransaction) {
         maybeFail()
-        check(transaction.id in transactionRows) { "transaksi belum ada" }
+        val existing = transactionRows[transaction.id]
+        check(existing != null) { "transaksi belum ada" }
         transactionRows[transaction.id] = transaction
         syncedAtRows.remove(transaction.id)
+        settleSharedRooms(existing, transaction)
     }
 
     override suspend fun replaceIncome(transaction: MoneyTransaction, entries: List<AllocationEntry>) {
         maybeFail()
+        val existing = transactionRows[transaction.id]
         entryRows.values.removeAll { it.incomeId == transaction.id }
         transactionRows[transaction.id] = transaction
         entries.forEach { entryRows[it.id] = it }
+        settleSharedRooms(existing, transaction)
     }
 
     override suspend fun delete(id: TransactionId) {
@@ -259,7 +282,7 @@ class InMemoryLedger(private val nowMillis: () -> Long = System::currentTimeMill
         // Tahap 9: hapus pengeluaran yang punya ruang mencatat tombstone untuk sync — lihat TransactionRepository.delete.
         // Baris SHARED (pengeluaran anggota lain) tidak ikut: itu bukan milik lokal, sudah dihapus lewat tombstone masuk.
         if (existing != null && existing.kind == TransactionKind.EXPENSE && existing.origin != TransactionOrigin.SHARED) {
-            existing.roomId?.let { roomId -> pendingTombstoneRows[id] = roomId to nowMillis() }
+            existing.roomId?.let { roomId -> pendingTombstoneRows[id to roomId] = nowMillis() }
         }
     }
 
@@ -294,23 +317,30 @@ class InMemoryLedger(private val nowMillis: () -> Long = System::currentTimeMill
         ids.forEach { syncedAtRows[it] = atMillis }
     }
 
-    override suspend fun pendingTombstones(roomId: RoomId): List<PendingTombstone> =
-        pendingTombstoneRows.filterValues { it.first == roomId }.map { (id, value) -> PendingTombstone(id, value.second) }
-
-    override suspend fun clearPendingTombstones(ids: List<TransactionId>) {
-        ids.forEach { pendingTombstoneRows.remove(it) }
+    override suspend fun markSyncedIfUnchanged(sent: List<PendingSyncTransaction>, atMillis: Long) {
+        for (version in sent) {
+            if (transactionRows[version.transaction.id]?.updatedAtMillis == version.changedAtMillis) syncedAtRows[version.transaction.id] = atMillis
+        }
     }
 
-    override suspend fun applyFromSync(id: TransactionId, transaction: MoneyTransaction?, changedAtMillis: Long, deleted: Boolean) {
+    override suspend fun pendingTombstones(roomId: RoomId): List<PendingTombstone> =
+        pendingTombstoneRows.filterKeys { it.second == roomId }.map { (key, deletedAt) -> PendingTombstone(key.first, deletedAt) }
+
+    override suspend fun clearPendingTombstones(roomId: RoomId, ids: List<TransactionId>) {
+        ids.forEach { pendingTombstoneRows.remove(it to roomId) }
+    }
+
+    override suspend fun applyFromSync(id: TransactionId, transaction: MoneyTransaction?, changedAtMillis: Long, deleted: Boolean, fromRoom: RoomId?) {
         val existing = transactionRows[id]
         if (deleted) {
             // LWW (server-sync.md "Model konflik sinkronisasi"): tombstone basi, lebih lama dari edit lokal
-            // yang belum terkirim, tidak boleh menghapus edit yang lebih baru itu.
-            if (existing == null || changedAtMillis >= existing.updatedAtMillis) {
+            // yang belum terkirim, tidak boleh menghapus edit yang lebih baru itu. Tombstone ruang bersama hanya
+            // berlaku untuk baris yang masih di ruang itu (lihat TransactionRepository.applyFromSync).
+            val inScope = fromRoom == null || existing?.roomId == fromRoom
+            if (existing == null || (inScope && changedAtMillis >= existing.updatedAtMillis)) {
                 transactionRows.remove(id)
                 entryRows.values.removeAll { it.incomeId == id }
                 syncedAtRows.remove(id)
-                pendingTombstoneRows.remove(id) // hasil pull, bukan hapus lokal baru: tidak perlu mengirim tombstone balik
             }
             return
         }

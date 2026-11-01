@@ -186,3 +186,32 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_pending_room_tombstone_room_id` ON `pending_room_tombstone` (`room_id`)")
     }
 }
+
+/**
+ * Versi 9 ke 10 (2026-11-01, sync-desain.md bagian A "pindah keluar dari ruang bersama"): kunci utama
+ * `pending_room_tombstone` berubah dari (transaction_id) menjadi (transaction_id, room_id), supaya satu
+ * transaksi bisa menunggu tombstone di lebih dari satu ruang bersama (ia dipindah keluar dari ruang A lalu dari
+ * ruang B sebelum sempat tersinkron). SQLite tidak bisa mengganti kunci utama di tempat, jadi tabel dibangun
+ * ulang: tabel lama diganti nama, tabel baru dibuat dengan pernyataan yang sama persis dengan `createSql` di 10.json
+ * (bukan `ALTER ... RENAME` dari tabel baru, supaya teks skema hasil migrasi identik dengan skema dari nol), isinya
+ * disalin utuh, lalu tabel lama dibuang. Tidak ada baris yang hilang: kunci lama (transaction_id) unik, jadi
+ * pasangan (transaction_id, room_id) juga unik. Tabel ini hanya berisi tombstone yang menunggu kirim, tidak ada
+ * tabel lain yang merujuknya, dan `synced_at` maupun `sync_record` tidak disentuh.
+ */
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP INDEX IF EXISTS `index_pending_room_tombstone_room_id`")
+        db.execSQL("ALTER TABLE `pending_room_tombstone` RENAME TO `pending_room_tombstone_old`")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `pending_room_tombstone` (`transaction_id` TEXT NOT NULL, " +
+                "`room_id` TEXT NOT NULL, `deleted_at` INTEGER NOT NULL, PRIMARY KEY(`transaction_id`, `room_id`), " +
+                "FOREIGN KEY(`room_id`) REFERENCES `room`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_pending_room_tombstone_room_id` ON `pending_room_tombstone` (`room_id`)")
+        db.execSQL(
+            "INSERT INTO `pending_room_tombstone` (`transaction_id`, `room_id`, `deleted_at`) " +
+                "SELECT `transaction_id`, `room_id`, `deleted_at` FROM `pending_room_tombstone_old`",
+        )
+        db.execSQL("DROP TABLE `pending_room_tombstone_old`")
+    }
+}

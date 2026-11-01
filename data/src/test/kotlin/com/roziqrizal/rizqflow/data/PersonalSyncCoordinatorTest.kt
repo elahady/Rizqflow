@@ -32,6 +32,7 @@ import com.roziqrizal.rizqflow.domain.sync.RecoveryStatus
 import com.roziqrizal.rizqflow.domain.sync.RecoveryStatusStore
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.SyncAead
+import com.roziqrizal.rizqflow.domain.sync.SyncEnvelope
 import com.roziqrizal.rizqflow.domain.sync.SyncIssueKind
 import com.roziqrizal.rizqflow.domain.sync.SyncLogEntryDownload
 import com.roziqrizal.rizqflow.domain.sync.SyncLogEntryUpload
@@ -113,6 +114,15 @@ internal class MemoryPersonalRemote(private val pageSize: Int = 200, private val
         return RemoteResult.Success(SyncPullResult(entries, page.lastOrNull()?.id ?: after, page.size == pageSize))
     }
 }
+
+/**
+ * Tipe rekaman sebenarnya dari amplop. Kolom luar `record_type` konstan `"r"` (keputusan #7), jadi tidak bisa dipakai untuk
+ * menyaring baris di server palsu. AEAD identitas: `payload` (base64) langsung berisi bingkai plaintext.
+ */
+internal fun SyncLogEntryDownload.innerType(): String = SyncEnvelope.open(
+    PersonalIdentityAead(), SyncScope.Personal, recordId, changedAtMillis ?: error("cap milidetik wajib"), deleted, deviceId,
+    java.util.Base64.getDecoder().decode(payload),
+).type
 
 /** Database Room di memori TANPA onboarding (perangkat baru/kosong) — lawan [SyncFixture] yang selalu onboarding. */
 internal fun emptyLedger(): LocalLedger {

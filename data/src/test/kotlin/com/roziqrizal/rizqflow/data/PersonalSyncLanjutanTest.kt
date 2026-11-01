@@ -94,7 +94,7 @@ class PersonalSyncLanjutanTest {
         engineFor(a.local, full, configured).syncNow("device-a")
 
         // Perangkat B hanya menerima semua baris KECUALI transaksi, jadi pembayaran zakat kekurangan rujukan.
-        val partial = MemoryPersonalRemote().also { it.stored += full.stored.filter { row -> row.recordType != "transaction" } }
+        val partial = MemoryPersonalRemote().also { it.stored += full.stored.filter { row -> row.innerType() != "transaction" } }
         val b = emptyLedger()
         engineFor(b, partial).syncNow("device-b")
 
@@ -105,7 +105,7 @@ class PersonalSyncLanjutanTest {
         assertTrue(b.zakat.payments("zp-1").isEmpty())
 
         // Transaksi tiba belakangan (id server lebih besar dari kursor sekarang), lalu sync berikutnya menuntaskannya.
-        partial.stored += full.stored.filter { it.recordType == "transaction" }.mapIndexed { i, row -> row.copy(id = 10_000L + i) }
+        partial.stored += full.stored.filter { it.innerType() == "transaction" }.mapIndexed { i, row -> row.copy(id = 10_000L + i) }
         engineFor(b, partial).syncNow("device-b")
 
         assertEquals(listOf("zpay-1"), b.zakat.payments("zp-1").map { it.id }, "pembayaran diterapkan begitu rujukannya ada")
@@ -118,7 +118,7 @@ class PersonalSyncLanjutanTest {
         a.local.zakat.saveGoldPrice(GoldPrice(day.plusDays(1), Money.rupiah(1_310_000), GoldPriceSource.AUTO))
         val remote = MemoryPersonalRemote()
         engineFor(a.local, remote, configured).syncNow("device-a")
-        assertEquals(1, remote.stored.count { it.recordType == "gold_price" }, "harga AUTO tidak boleh ikut terkirim")
+        assertEquals(1, remote.stored.count { it.innerType() == "gold_price" }, "harga AUTO tidak boleh ikut terkirim")
 
         val b = emptyLedger()
         engineFor(b, remote).syncNow("device-b")
@@ -161,13 +161,13 @@ class PersonalSyncLanjutanTest {
         val full = MemoryPersonalRemote()
         engineFor(a.local, full, configured).syncNow("device-a")
 
-        val partial = MemoryPersonalRemote().also { it.stored += full.stored.filter { row -> row.recordType != "category" } }
+        val partial = MemoryPersonalRemote().also { it.stored += full.stored.filter { row -> row.innerType() != "category" } }
         val b = emptyLedger()
         engineFor(b, partial).syncNow("device-b")
         assertTrue(b.syncStore.issues(SyncScope.Personal).any { it.recordType == "dca_plan" && it.kind == SyncIssueKind.DEFERRED_MISSING_REF })
         assertNull(b.roles.dca(room))
 
-        partial.stored += full.stored.filter { it.recordType == "category" }.mapIndexed { i, row -> row.copy(id = 20_000L + i) }
+        partial.stored += full.stored.filter { it.innerType() == "category" }.mapIndexed { i, row -> row.copy(id = 20_000L + i) }
         engineFor(b, partial).syncNow("device-b")
         assertEquals(500_000L, b.roles.dca(room)?.amount?.minor)
         assertTrue(b.syncStore.issues(SyncScope.Personal).none { it.recordType == "dca_plan" })
@@ -220,7 +220,7 @@ class PersonalSyncLanjutanTest {
         // Menandai hari yang sama lagi di B tidak menambah rekaman kotor (sudah tercentang di sana).
         b.settings.markDayChecked(day)
         assertEquals(0, dirtyCount(b), "hari yang sudah tercentang tidak menandai kotor ulang")
-        assertEquals(1, remote.stored.count { it.recordType == "day_check" })
+        assertEquals(1, remote.stored.count { it.innerType() == "day_check" })
     }
 
     /** Jumlah rekaman kotor di `sync_record` milik [ledger] (`LocalLedger` tidak punya `rows()`, itu milik [SyncFixture]). */

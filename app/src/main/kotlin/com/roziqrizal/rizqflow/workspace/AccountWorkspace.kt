@@ -184,6 +184,8 @@ class AccountWorkspace private constructor(
         codec = JsonTransactionSyncCodec(),
         apiTokenStore = apiTokenStore,
         cursorStore = syncCursorStore,
+        // Baris ruang bersama yang gagal dibuka/diterapkan dicatat di sync_issue (tampil di "Riwayat sinkron").
+        issueStore = local.syncStore,
     )
 
     /**

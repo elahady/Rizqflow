@@ -268,6 +268,10 @@ interface TransactionDao {
     @Query("UPDATE money_transaction SET synced_at = :atMillis WHERE id IN (:ids)")
     suspend fun markSynced(ids: List<String>, atMillis: Long)
 
+    /** Menandai satu id terkirim hanya bila barisnya masih versi yang dikirim (`updated_at` sama); lihat `markSyncedIfUnchanged`. */
+    @Query("UPDATE money_transaction SET synced_at = :atMillis WHERE id = :id AND updated_at = :updatedAt")
+    suspend fun markSyncedIfUnchanged(id: String, updatedAt: Long, atMillis: Long): Int
+
     /** Insert atau timpa hasil pull dari anggota lain, dengan `synced_at` sudah terisi (tidak pending push lagi). */
     @Upsert
     suspend fun upsertFromSync(transaction: TransactionEntity)
@@ -279,8 +283,13 @@ interface TransactionDao {
     @Query("SELECT * FROM pending_room_tombstone WHERE room_id = :roomId")
     suspend fun pendingTombstones(roomId: String): List<PendingRoomTombstoneEntity>
 
-    @Query("DELETE FROM pending_room_tombstone WHERE transaction_id IN (:ids)")
-    suspend fun clearPendingTombstones(ids: List<String>)
+    /** Membuang tombstone [ids] di [roomId] saja: tombstone transaksi yang sama di ruang lain tetap menunggu kirimnya sendiri. */
+    @Query("DELETE FROM pending_room_tombstone WHERE room_id = :roomId AND transaction_id IN (:ids)")
+    suspend fun clearPendingTombstones(roomId: String, ids: List<String>)
+
+    /** Tombstone [transactionId] di [roomId] gugur karena transaksinya ada (lagi) di ruang itu: versi hidup yang baru menggantikannya. */
+    @Query("DELETE FROM pending_room_tombstone WHERE transaction_id = :transactionId AND room_id = :roomId")
+    suspend fun deletePendingTombstone(transactionId: String, roomId: String)
 }
 
 @Dao

@@ -147,7 +147,7 @@ class FullResyncTest {
         val remote = MemoryPersonalRemote()
         engineFor(a.local, remote, configured).syncNow("device-a")
         // Buang baris kategori dari server: transaksi di B tidak pernah menemukan rujukannya (tertunda terus).
-        remote.stored.removeAll { it.recordType == "category" }
+        remote.stored.removeAll { it.innerType() == "category" }
 
         val b = emptyLedger()
         val engineB = engineFor(b, remote)

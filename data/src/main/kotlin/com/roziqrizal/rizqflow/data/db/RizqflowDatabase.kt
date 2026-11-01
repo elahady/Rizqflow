@@ -33,6 +33,11 @@ import androidx.room.RoomDatabase
  * menambah `pending_room_tombstone` untuk tombstone transaksi EXPENSE yang dihapus di ruang bersama,
  * dikirim lewat `SyncEngine` lama (bukan mesin generik Tahap 2 sync-desain.md yang belum
  * dikonfirmasi pemilik); lihat [MIGRATION_8_9]. Aditif saja.
+ *
+ * Versi 10 (2026-11-01, Tahap 9, sync-desain.md bagian A "pindah keluar dari ruang bersama"): kunci utama
+ * `pending_room_tombstone` menjadi (transaction_id, room_id) supaya satu transaksi bisa menunggu tombstone di
+ * lebih dari satu ruang bersama; lihat [MIGRATION_9_10]. Tabel dibangun ulang (SQLite tidak bisa mengganti kunci
+ * utama di tempat) dan isinya disalin utuh.
  */
 @Database(
     entities = [
@@ -62,7 +67,7 @@ import androidx.room.RoomDatabase
         SharedRoomEntity::class,
         PendingRoomTombstoneEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
 )
 abstract class RizqflowDatabase : RoomDatabase() {
