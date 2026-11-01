@@ -1,6 +1,6 @@
 package com.roziqrizal.rizqflow.data.repo
 
-import androidx.room.withTransaction
+import com.roziqrizal.rizqflow.data.db.withTransaction
 import com.roziqrizal.rizqflow.data.db.DebtEntity
 import com.roziqrizal.rizqflow.data.db.DebtPaymentEntity
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase

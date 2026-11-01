@@ -1,5 +1,6 @@
 package com.roziqrizal.rizqflow.data
 
+import com.roziqrizal.rizqflow.data.db.withTransaction
 import com.roziqrizal.rizqflow.domain.model.RoomId
 import com.roziqrizal.rizqflow.domain.sync.ApplyDecision
 import com.roziqrizal.rizqflow.domain.sync.IncomingVersion
@@ -413,5 +414,76 @@ class SyncStoreTest {
         assertEquals("galat penangan", failure.message)
         assertEquals(account.name, fx.local.accounts.find(account.id)!!.name)
         assertNull(store.meta(scope, SyncRecordType.ACCOUNT, account.id.value))
+    }
+
+    // ---- pembatalan diam-diam di dalam transaksi pemanggil lain (utang Tahap 1 dari Tahap 2)
+
+    private suspend fun badTransaction(): com.roziqrizal.rizqflow.domain.ledger.MoneyTransaction {
+        val room = fx.roomIds().first()
+        return com.roziqrizal.rizqflow.domain.ledger.MoneyTransaction(
+            id = com.roziqrizal.rizqflow.domain.model.TransactionId("bad-nested"),
+            kind = com.roziqrizal.rizqflow.domain.model.TransactionKind.EXPENSE,
+            amount = com.roziqrizal.rizqflow.domain.money.Money.rupiah(1_000),
+            accountId = com.roziqrizal.rizqflow.domain.model.AccountId("akun-tidak-ada"), // melanggar FK
+            roomId = room.id,
+            categoryId = fx.local.rooms.categories(room.id).first().id,
+            occurredOn = fx.today,
+            createdAtMillis = 1,
+            updatedAtMillis = 1,
+        )
+    }
+
+    @Test
+    fun `apply yang menelan galat repositori terdeteksi juga bila applyIncoming dipanggil di dalam transaksi lain`() = runBlocking<Unit> {
+        val account = fx.local.accounts.activeAccounts().first()
+        val bad = badTransaction()
+        fx.clearSync()
+
+        // Pemanggil membungkus applyIncoming dengan transaksinya sendiri: pemeriksaan pasca-komit tidak mungkin di sini
+        // (belum komit), jadi deteksi bergantung pada pencatatan galat transaksi bersarang di konteks applying.
+        val outcome = runCatching {
+            fx.db.withTransaction {
+                store.applyIncoming(scope, SyncRecordType.ACCOUNT, account.id.value, incoming(9_000_000_000_000L), me) {
+                    fx.local.accounts.save(account.copy(name = "Setengah jalan"))
+                    try {
+                        fx.local.transactions.save(bad)
+                    } catch (_: Exception) {
+                        // ditelan
+                    }
+                }
+            }
+        }
+
+        val aborted = outcome.exceptionOrNull()
+        assertTrue(aborted is com.roziqrizal.rizqflow.domain.sync.SyncApplyAbortedException, "harus terdeteksi, bukan APPLIED: $outcome")
+        assertNotNull(aborted.cause, "penyebab (galat repositori yang ditelan) ikut dibawa")
+        assertEquals(account.name, fx.local.accounts.find(account.id)!!.name, "semuanya dibatalkan")
+        assertNull(store.meta(scope, SyncRecordType.ACCOUNT, account.id.value))
+    }
+
+    @Test
+    fun `apply yang berhasil di dalam transaksi pemanggil tetap APPLIED dan satu penerapan tidak mencemari penerapan berikutnya`() = runBlocking<Unit> {
+        val account = fx.local.accounts.activeAccounts().first()
+        val bad = badTransaction()
+        fx.clearSync()
+
+        // Penerapan pertama gagal (ditelan) dan terdeteksi; konteks applying-nya tidak boleh bocor ke penerapan berikutnya.
+        runCatching {
+            store.applyIncoming(scope, SyncRecordType.ACCOUNT, account.id.value, incoming(9_000_000_000_000L), me) {
+                try {
+                    fx.local.transactions.save(bad)
+                } catch (_: Exception) {
+                }
+            }
+        }
+        val decision = fx.db.withTransaction {
+            store.applyIncoming(scope, SyncRecordType.ACCOUNT, account.id.value, incoming(9_000_000_000_001L), me) {
+                fx.local.accounts.save(account.copy(name = "Berhasil"))
+            }
+        }
+
+        assertEquals(ApplyDecision.APPLIED, decision)
+        assertEquals("Berhasil", fx.local.accounts.find(account.id)!!.name)
+        assertEquals(9_000_000_000_001L, store.meta(scope, SyncRecordType.ACCOUNT, account.id.value)!!.changedAtMillis)
     }
 }

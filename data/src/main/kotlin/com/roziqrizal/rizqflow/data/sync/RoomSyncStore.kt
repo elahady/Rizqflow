@@ -1,6 +1,6 @@
 package com.roziqrizal.rizqflow.data.sync
 
-import androidx.room.withTransaction
+import com.roziqrizal.rizqflow.data.db.withTransaction
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
 import com.roziqrizal.rizqflow.data.db.SharedRoomEntity
 import com.roziqrizal.rizqflow.data.db.SyncCursorEntity
@@ -12,6 +12,7 @@ import com.roziqrizal.rizqflow.domain.sync.IncomingDecision
 import com.roziqrizal.rizqflow.domain.sync.IncomingVersion
 import com.roziqrizal.rizqflow.domain.sync.SentVersion
 import com.roziqrizal.rizqflow.domain.sync.SyncApplyAbortedException
+import com.roziqrizal.rizqflow.domain.sync.SyncApplying
 import com.roziqrizal.rizqflow.domain.sync.SharedRoomInfo
 import com.roziqrizal.rizqflow.domain.sync.SharedRoomRole
 import com.roziqrizal.rizqflow.domain.sync.SharedRoomStatus
@@ -24,7 +25,7 @@ import com.roziqrizal.rizqflow.domain.sync.SyncRecordType
 import com.roziqrizal.rizqflow.domain.sync.SyncScope
 import com.roziqrizal.rizqflow.domain.sync.SyncStore
 import com.roziqrizal.rizqflow.domain.sync.isSyncApplying
-import com.roziqrizal.rizqflow.domain.sync.withSyncApplying
+import kotlinx.coroutines.withContext
 
 /**
  * Implementasi Room dari [SyncStore] (Tahap 1 sync-desain.md). Semua operasi majemuk berjalan dalam
@@ -122,7 +123,14 @@ class RoomSyncStore(
             )
         }
 
-        withSyncApplying { applyBlock() }
+        // Konteks applying baru per penerapan: bila penangan menelan galat transaksi repositori bersarang, [SyncApplying.failure]
+        // terisi (GuardedTransaction) dan penerapan dibatalkan di sini, juga saat applyIncoming dipanggil di dalam transaksi lain
+        // (verifyCommitted tidak bisa memeriksa keadaan itu). Melempar di dalam transaksi ini membatalkan data dan meta bersama.
+        val applying = SyncApplying()
+        withContext(applying) { applyBlock() }
+        applying.failure?.let { cause ->
+            throw SyncApplyAbortedException("Penerapan ${type.wire} dibatalkan: transaksi repositori gagal tetapi galatnya ditelan penangan", cause)
+        }
 
         dao.upsert(
             SyncRecordEntity(

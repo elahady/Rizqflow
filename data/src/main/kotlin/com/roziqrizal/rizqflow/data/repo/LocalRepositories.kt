@@ -1,7 +1,7 @@
 package com.roziqrizal.rizqflow.data.repo
 
 import android.database.sqlite.SQLiteConstraintException
-import androidx.room.withTransaction
+import com.roziqrizal.rizqflow.data.db.withTransaction
 import com.roziqrizal.rizqflow.data.db.AppSettingEntity
 import com.roziqrizal.rizqflow.data.db.AllocationRuleEntity
 import com.roziqrizal.rizqflow.data.db.PendingRoomTombstoneEntity
