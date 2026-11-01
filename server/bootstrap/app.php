@@ -1,10 +1,12 @@
 <?php
 
 use App\Http\Middleware\EnsureEmailCodesEnabled;
+use App\Support\ApiErrorResponses;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -29,6 +31,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // Badan galat /api/* dari pengecualian (401, 404, 405, 413, 422, 429, 5xx) diseragamkan dengan galat buatan
+        // controller: `{"message","code"}` dengan `code` stabil dan pesan Indonesia (lihat ApiErrorResponses).
+        $exceptions->respond(fn (SymfonyResponse $response, \Throwable $e, Request $request) => ApiErrorResponses::normalize($response, $e, $request));
 
         // Sesi berakhir (token CSRF tak cocok, mis. form dibiarkan terbuka lama): kembali ke Masuk
         // dengan notice, bukan halaman 419. Permintaan Livewire/JSON tetap ditangani Livewire.

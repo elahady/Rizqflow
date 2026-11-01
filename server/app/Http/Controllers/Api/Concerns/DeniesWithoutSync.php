@@ -15,6 +15,6 @@ trait DeniesWithoutSync
             return null;
         }
 
-        return response()->json(['message' => 'Butuh langganan Sync.'], 403);
+        return response()->json(['message' => 'Butuh langganan Sync.', 'code' => 'sync_required'], 403);
     }
 }

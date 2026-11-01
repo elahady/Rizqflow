@@ -45,10 +45,12 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('throttle:purchase-claim');
 
     // Butuh langganan Sync (Feature::EncryptedSync); lihat SyncController::denyWithoutSync.
-    Route::post('/sync/push', [SyncController::class, 'push']);
-    Route::get('/sync/pull', [SyncController::class, 'pull']);
+    // Batas laju per akun (limiter `sync-push` dan `sync-pull`, AppServiceProvider): longgar, hanya pagar
+    // terhadap klien yang berputar tanpa henti; sync wajar (batch 200 baris) jauh di bawahnya.
+    Route::post('/sync/push', [SyncController::class, 'push'])->middleware('throttle:sync-push');
+    Route::get('/sync/pull', [SyncController::class, 'pull'])->middleware('throttle:sync-pull');
     // Riwayat sinkron (Tahap 7): ringkasan metadata saja, tanpa payload; tidak butuh langganan Sync.
-    Route::get('/sync/history', [SyncHistoryController::class, 'show']);
+    Route::get('/sync/history', [SyncHistoryController::class, 'show'])->middleware('throttle:sync-pull');
 
     // Salinan kunci akun terbungkus kode pemulihan (Tahap 13), blob buram. Satu limiter `recovery-key`
     // untuk ketiga rute (per akun). Hanya PUT yang butuh Sync; GET dan DELETE tidak, supaya pengguna
@@ -66,7 +68,12 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Keanggotaan ruang yang dibagi (ruang keluarga) — lihat RoomMembershipController.
-    Route::post('/rooms/{roomId}/join', [RoomMembershipController::class, 'join']);
-    Route::get('/rooms/{roomId}/members', [RoomMembershipController::class, 'members']);
-    Route::delete('/rooms/{roomId}/members/{userId}', [RoomMembershipController::class, 'remove']);
+    // Limiter `room-membership`: 60 per menit per akun, bersama untuk semua rute di bawah.
+    Route::middleware('throttle:room-membership')->group(function () {
+        Route::post('/rooms/{roomId}/join', [RoomMembershipController::class, 'join']);
+        // Anggota keluar sendiri (pemilik tidak bisa; 422 `owner_cannot_leave`). Tanpa syarat Sync.
+        Route::post('/rooms/{roomId}/leave', [RoomMembershipController::class, 'leave']);
+        Route::get('/rooms/{roomId}/members', [RoomMembershipController::class, 'members']);
+        Route::delete('/rooms/{roomId}/members/{userId}', [RoomMembershipController::class, 'remove'])->whereNumber('userId');
+    });
 });

@@ -96,6 +96,21 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('play-notifications', fn (Request $request) => Limit::perMinute(120)
             ->by('play-notifications:'.$request->ip()));
 
+        // Sync (push/pull/history), batas per akun, sengaja sangat longgar: satu push membawa sampai 200
+        // baris dan satu pull sampai 500, jadi sinkron pertama akun besar (sampai kuota 250.000 baris =
+        // 500 pull) selesai dalam beberapa menit tanpa kena batas. Pagar ini hanya menahan klien yang
+        // berputar tanpa henti (bug, loop retry) agar tidak menghabiskan database. Klien yang kena 429
+        // cukup mencoba lagi setelah `Retry-After`; kursor tidak maju sehingga tidak ada data hilang.
+        RateLimiter::for('sync-push', fn (Request $request) => Limit::perMinute(120)
+            ->by('sync-push:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+        RateLimiter::for('sync-pull', fn (Request $request) => Limit::perMinute(600)
+            ->by('sync-pull:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+
+        // Gabung/keluar/daftar/keluarkan anggota ruang: dipanggil sekali-sekali (scan QR, buka layar ruang).
+        // Satu jatah per akun untuk semua rute keanggotaan.
+        RateLimiter::for('room-membership', fn (Request $request) => Limit::perMinute(60)
+            ->by('room-membership:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+
         // Daftar/cabut token FCM: klien memanggilnya saat token berganti atau keluar, jadi longgar.
         RateLimiter::for('push-token', fn (Request $request) => Limit::perMinute(20)
             ->by('push-token:'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
