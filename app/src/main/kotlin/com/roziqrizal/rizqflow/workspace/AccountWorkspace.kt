@@ -91,7 +91,20 @@ import com.roziqrizal.rizqflow.sync.DeviceName
 import com.roziqrizal.rizqflow.sync.ServerLink
 import com.roziqrizal.rizqflow.sync.ServerSession
 import com.roziqrizal.rizqflow.sync.TokenRefresher
+import com.roziqrizal.rizqflow.data.sync.SharedPrefsAutoSyncSettings
+import com.roziqrizal.rizqflow.domain.entitlement.Feature
+import com.roziqrizal.rizqflow.domain.sync.AutoSyncGate
+import com.roziqrizal.rizqflow.domain.sync.AutoSyncNetwork
+import com.roziqrizal.rizqflow.domain.sync.AutoSyncOrchestrator
+import com.roziqrizal.rizqflow.domain.sync.AutoSyncSettings
+import com.roziqrizal.rizqflow.domain.sync.RecoveryStatus
+import com.roziqrizal.rizqflow.domain.sync.WorkspaceAutoSyncSteps
+import com.roziqrizal.rizqflow.sync.AndroidAutoSyncNetwork
 import java.util.UUID
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 
 /**
  * Ruang kerja satu akun yang sedang masuk: databasenya dan layanan di atasnya. Dibuat saat akun
@@ -123,6 +136,9 @@ class AccountWorkspace private constructor(
     pushTokenRegistrar: PushTokenRegistrar?,
     /** Pengenal pemasangan ([DeviceId]); dipakai sync otomatis, sync pribadi perangkat baru, dan pendaftaran token FCM. */
     private val deviceId: String,
+    /** Saklar "hanya Wi-Fi" sync otomatis (per perangkat); dibaca dan diubah layar Sinkron otomatis. */
+    val autoSyncSettings: AutoSyncSettings,
+    private val autoSyncNetwork: AutoSyncNetwork,
 ) : AutoCloseable {
     private val newId: () -> String = { UUID.randomUUID().toString() }
 
@@ -184,7 +200,12 @@ class AccountWorkspace private constructor(
         recoveryStatusStore,
         roomKeys = roomKeyProvider,
         activeSharedRoomIds = { local.syncStore.sharedRooms().filter { it.status == SharedRoomStatus.ACTIVE }.map { it.roomId } },
-        onFirstTimeConfigured = { local.syncBootstrap.markAllDirty() },
+        // Setelah semua data ditandai kotor, beri tahu sync otomatis: gerbang push baru terbuka, jadi tanpa ini data lama
+        // baru terkirim di pemicu berikutnya (mis. aplikasi dibuka lagi).
+        onFirstTimeConfigured = {
+            local.syncBootstrap.markAllDirty()
+            local.changeNotifier.fire()
+        },
     )
 
     /**
@@ -263,20 +284,42 @@ class AccountWorkspace private constructor(
      */
     val pushTokens: PushTokenSync? = pushTokenRegistrar?.let { PushTokenSync(it, entitlements, { serverSession.token() }, deviceId) }
 
+    /** Lingkup coroutine sync otomatis (run, debounce, percobaan ulang); dibatalkan di [close] sebelum database ditutup. */
+    private val autoSyncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     /**
-     * Sinkron otomatis (Tahap 9): dipasang ke [SyncCoordinator.syncNow] sekali per ruang kerja. Repositori transaksi
-     * memanggilnya setelah pengeluaran di ruang bersama tersimpan; [syncSharedRoomsOnOpen] dipanggil saat
-     * ruang kerja dibuka. Galat hanya dicatat, tidak pernah sampai ke pemanggil penyimpanan.
+     * Sync otomatis (Tahap 6 sync-desain.md bagian H; keputusan pemilik #14 dan #15): SATU orkestrator per ruang kerja
+     * untuk cakupan pribadi lalu tiap ruang bersama aktif, hanya saat aplikasi di depan, tanpa WorkManager. Pemicunya
+     * dipasang di [connectAutoSync]; MainHost memanggil `onForeground`/`onBackground`/`resume`, dan layar Sinkron
+     * otomatis memanggil `syncNow` serta membaca `state`. Sync ruang bersama lewat [syncSharedRoomNow] (kunci ruang
+     * yang sama dengan tombol "Sinkronkan sekarang" ruang itu), jadi tidak berjalan dobel.
+     */
+    val syncOrchestrator = AutoSyncOrchestrator(
+        scope = autoSyncScope,
+        steps = WorkspaceAutoSyncSteps(
+            recoveryConfigured = { recovery.status() is RecoveryStatus.Configured },
+            personalSync = { personalSync.syncNow(deviceId) },
+            activeSharedRoomIds = { local.syncStore.sharedRooms().filter { it.status == SharedRoomStatus.ACTIVE }.map { it.roomId } },
+            sharedRoomSync = { roomId -> syncSharedRoomNow(roomId, deviceId) },
+        ),
+        gate = object : AutoSyncGate {
+            override fun apiToken(): String? = apiTokenStore.read()
+
+            override fun syncEntitled(): Boolean = entitlements.isEnabled(Feature.ENCRYPTED_SYNC)
+        },
+        network = autoSyncNetwork,
+        log = { message -> Log.w(TAG, "Sync otomatis: $message") },
+    )
+
+    /**
+     * Memasang pemicu: tiap rekaman ditandai kotor ([LocalChangeNotifier]) dan tiap pengeluaran ruang bersama
+     * tersimpan ([SharedRoomAutoSync], kini hanya meneruskan) menjadi `onLocalChange` yang didebounce. Galat sync
+     * tidak pernah sampai ke pemanggil penyimpanan.
      */
     private fun connectAutoSync() {
-        local.autoSync.attach(
-            sync = { roomId -> sync.syncNow(roomId, deviceId) },
-            log = { message -> Log.w(TAG, "Sync otomatis: $message") },
-        )
+        local.changeNotifier.listener = { syncOrchestrator.onLocalChange() }
+        local.autoSync.delegateTriggersTo { syncOrchestrator.onLocalChange() }
     }
-
-    /** Sinkron semua ruang bersama saat ruang kerja dibuka. Tidak menunggu hasilnya; tombol manual tetap fallback. */
-    fun syncSharedRoomsOnOpen() = local.autoSync.onWorkspaceOpened()
 
     /**
      * Tombol "Sinkronkan sekarang": [SyncCoordinator.syncNow] di bawah kunci ruang yang SAMA dengan sinkron otomatis
@@ -288,11 +331,16 @@ class AccountWorkspace private constructor(
 
     /**
      * Menandai ruang bersama ACTIVE setelah pendaftaran anggota di server berhasil (undangan QR diterima, atau
-     * pemilik membuka Ruang Keluarga). Tanpa baris ACTIVE, [syncSharedRoomsOnOpen] dan pemicu simpan tidak jalan.
+     * pemilik membuka Ruang Keluarga). Tanpa baris ACTIVE, ruang itu tidak ikut [syncOrchestrator].
      */
     val sharedRoomActivation = SharedRoomActivation(local.syncStore)
 
-    override fun close() = local.close()
+    override fun close() {
+        // Pemicu dilepas dan lingkup sync dibatalkan DULU, supaya tidak ada run yang menyentuh database yang sedang ditutup.
+        local.changeNotifier.listener = null
+        autoSyncScope.cancel()
+        local.close()
+    }
 
     companion object {
         /**
@@ -307,6 +355,7 @@ class AccountWorkspace private constructor(
             val tokenStore = SharedPrefsApiTokenStore(context, accountId)
             // Satu-satunya tempat jawaban 401 ditangani: setiap remote terlindungi WAJIB lewat session.guard.
             val session = ServerSession(tokenStore)
+            val autoSyncSettings = SharedPrefsAutoSyncSettings(context)
             val workspace = AccountWorkspace(
                 local = LocalLedger.open(context, accountId),
                 purchases = PurchaseStore.shared(context),
@@ -324,6 +373,8 @@ class AccountWorkspace private constructor(
                 recoveryStatusStore = SharedPrefsRecoveryStatusStore(context, accountId),
                 pushTokenRegistrar = pushTokenRegistrar(context, apiService, session),
                 deviceId = DeviceId.read(context),
+                autoSyncSettings = autoSyncSettings,
+                autoSyncNetwork = AndroidAutoSyncNetwork(context, autoSyncSettings),
             )
             workspace.connectAutoSync()
             return workspace

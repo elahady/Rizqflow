@@ -117,6 +117,7 @@ import com.roziqrizal.rizqflow.sync.recoveryRow
 import com.roziqrizal.rizqflow.sync.restoreAvailable
 import com.roziqrizal.rizqflow.ui.recovery.NewDeviceRestoreScreen
 import com.roziqrizal.rizqflow.ui.recovery.RecoveryRestoreScreen
+import com.roziqrizal.rizqflow.ui.autosync.AutoSyncScreen
 import com.roziqrizal.rizqflow.ui.devices.DevicesScreen
 import com.roziqrizal.rizqflow.ui.devices.DevicesViewModel
 import com.roziqrizal.rizqflow.ui.recovery.RecoverySetupScreen
@@ -126,6 +127,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.roziqrizal.rizqflow.notifications.ReminderScheduler
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import java.time.LocalDate
@@ -189,6 +191,7 @@ fun MainHost(
     var recoveryRestoreOpen by rememberSaveable { mutableStateOf(false) }
     var newDeviceRestoreOpen by rememberSaveable { mutableStateOf(false) }
     var devicesOpen by rememberSaveable { mutableStateOf(false) }
+    var autoSyncOpen by rememberSaveable { mutableStateOf(false) }
     var tampilanOpen by rememberSaveable { mutableStateOf(false) }
     var paywallOpen by rememberSaveable { mutableStateOf(false) }
     var deleteAccountSheet by rememberSaveable { mutableStateOf(false) }
@@ -365,9 +368,6 @@ fun MainHost(
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(workspace, demo) {
         if (demo) return@LaunchedEffect
-        // Sinkron otomatis ruang bersama saat aplikasi dibuka (Tahap 9): sekali per ruang kerja, tanpa penjadwal
-        // latar belakang, tidak menunggu hasil, dan gagal senyap. Tombol "Sinkronkan sekarang" tetap fallback.
-        workspace.syncSharedRoomsOnOpen()
         var blockedNoticed = false
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             val run = workspace.recurring.runDue(LocalDate.now())
@@ -378,7 +378,23 @@ fun MainHost(
                 scope.launch { notifier.show(context.resources.getQuantityString(R.plurals.recurring_blocked_notice, run.blocked.size, run.blocked.size)) }
             }
             if (run.blocked.isNotEmpty()) blockedNoticed = true
+            // Sync otomatis (Tahap 6, keputusan #15: hanya saat aplikasi di depan): SETELAH transaksi berulang dicatat dan
+            // token diputar. Tidak menunggu hasilnya; run berjalan di lingkup ruang kerja (tidak ikut batal bila layar
+            // ditinggalkan), gagal senyap, dan data lokal tidak pernah menunggunya. Jeda minimum 60 detik ada di orkestrator.
+            refreshServerToken()
+            workspace.syncOrchestrator.onForeground()
         }
+    }
+    // Aplikasi masuk latar: satu upaya terbaik bila ada perubahan belum terkirim (NonCancellable, sekitar 5 detik).
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        if (!demo) workspace.syncOrchestrator.onBackground()
+    }
+    // Masuk atau sambung ulang ke server berhasil, atau langganan Sync baru dimiliki: cabut halangan lama (401/403) dan coba.
+    var syncWasOwned by remember(workspace) { mutableStateOf(Plan.SYNC in ownedPlans) }
+    LaunchedEffect(workspace, demo, serverLoginSignal, Plan.SYNC in ownedPlans) {
+        val owned = Plan.SYNC in ownedPlans
+        if (!demo && (serverLoginSignal > 0 || (owned && !syncWasOwned))) workspace.syncOrchestrator.resume()
+        syncWasOwned = owned
     }
 
     // Berjalan di scope MainHost supaya tetap hidup setelah layar Aturan ditutup.
@@ -638,6 +654,8 @@ fun MainHost(
         onOpenRecoveryRestore = if (restoreAllowed) ({ recoveryRestoreOpen = true }) else null,
         // Hanya akun yang punya akun server (Google atau email+sandi) dan bukan demo; sama seperti baris Hapus akun.
         onOpenDevices = if (demo || !(account.google || account.emailAccount)) null else ({ devicesOpen = true }),
+        // Sinkron otomatis (Tahap 6): untuk akun server dengan Sync; tanpa Sync barisnya tidak tampil (yang tampil "Rizqflow Sync").
+        onOpenAutoSync = if (demo || !(account.google || account.emailAccount) || Plan.SYNC !in ownedPlans) null else ({ autoSyncOpen = true }),
     )
     // Sambung ulang yang diminta pengguna tidak menjangkau server (offline, 503): satu kabar lembut, barisnya tetap ada.
     LaunchedEffect(serverConnectFailedSignal) {
@@ -792,6 +810,20 @@ fun MainHost(
                     flow = workspace.newDeviceRestore,
                     notifier = notifier,
                     onDone = { newDeviceRestoreOpen = false },
+                )
+                SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
+            }
+        }
+    }
+    if (autoSyncOpen) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Box {
+                AutoSyncScreen(
+                    workspace = workspace,
+                    notifier = notifier,
+                    // SyncGate: server menolak (403) atau paket Sync tidak dimiliki -> paywall varian Sync, bukan pesan gagal.
+                    onOpenSyncPaywall = { openPaywall(Feature.ENCRYPTED_SYNC) },
+                    onClose = { autoSyncOpen = false },
                 )
                 SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
             }

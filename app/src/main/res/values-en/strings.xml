@@ -1234,4 +1234,27 @@
     <string name="restore_err_network">Couldn\'t reach the server. Check your connection and try again. The key on this device was not changed.</string>
     <string name="restore_err_generic">Restore did not succeed. The key on this device was not changed; try again later.</string>
     <string name="restore_err_server_not_ready">The server is not ready to serve recovery yet. This does not mean there is no recovery code. Try again later. The key on this device was not changed.</string>
+
+    <!-- Automatic sync (stage 6). Gentle tone: data is always safe on the phone, no technical error words. -->
+    <string name="menu_sync_auto">Automatic sync</string>
+    <string name="menu_sync_auto_sub">Status, Wi-Fi only, and Sync now</string>
+    <string name="sync_auto_title">Automatic sync</string>
+    <string name="sync_auto_body">While the app is open, and a moment after you save, Rizqflow copies your changes (encrypted) to the server and fetches changes from your other devices. Your data is always saved on this phone first; if sync cannot run, the app keeps working as usual.</string>
+    <string name="sync_status_idle">Sync is on. It runs while the app is open.</string>
+    <string name="sync_status_syncing">Syncing…</string>
+    <string name="sync_status_backoff">Can\'t reach the server yet. Your data is safe on this phone; the app will try again shortly.</string>
+    <string name="sync_status_offline">No connection. Sync continues automatically once you are connected.</string>
+    <string name="sync_status_wifi_only">Waiting for Wi-Fi. Automatic sync only runs on an unmetered network; you can still tap Sync now.</string>
+    <string name="sync_status_reconnect">Not connected to the server. Reconnect from the More menu to continue syncing; your data is safe on this phone.</string>
+    <string name="sync_status_subscription">Sync needs a Rizqflow Sync subscription. Your data stays safe and usable on this phone.</string>
+    <string name="sync_status_push_waits">Set up your recovery code so your data is also copied to the server. Until then, your data stays safe on this phone.</string>
+    <string name="sync_last_never">No sync yet in this session.</string>
+    <string name="sync_last_at">Last synced %1$s.</string>
+    <string name="sync_wifi_only_title">Wi-Fi only</string>
+    <string name="sync_wifi_only_body">Automatic sync waits for an unmetered network. The Sync now button works on any network.</string>
+    <string name="sync_now">Sync now</string>
+    <string name="sync_now_busy">Syncing…</string>
+    <string name="sync_manual_done">Sync complete.</string>
+    <string name="sync_manual_failed">Can\'t sync right now. Your data is safe on this phone; try again later.</string>
+    <string name="sync_subscribe">See Rizqflow Sync</string>
 </resources>
