@@ -117,14 +117,14 @@ interface RizqflowApiService {
 
     /** Daftarkan token FCM perangkat ini (wiring FCM 2026-11-01; kontrak di server-sync.md "Push notifikasi"). */
     @Headers("Content-Type: application/json")
-    @POST("push/tokens")
+    @PUT("push-token")
     suspend fun registerPushToken(
         @Header("Authorization") bearerToken: String,
         @Body body: RequestBody,
     ): Response<ResponseBody>
 
     /** Cabut token FCM perangkat [deviceId] dari akun ini. */
-    @DELETE("push/tokens/{deviceId}")
+    @DELETE("push-token/{deviceId}")
     suspend fun revokePushToken(
         @Header("Authorization") bearerToken: String,
         @Path("deviceId") deviceId: String,
@@ -132,7 +132,7 @@ interface RizqflowApiService {
 }
 
 /**
- * Badan `POST /push/tokens`: `{"token":"...","device_id":"...","platform":"android"}`. `toString` menyembunyikan
+ * Badan `PUT /push-token`: `{"token":"...","device_id":"...","platform":"android"}`. `toString` menyembunyikan
  * [token] supaya token FCM tidak masuk log atau pesan galat.
  */
 @Serializable

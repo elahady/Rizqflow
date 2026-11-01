@@ -7,8 +7,8 @@ import com.roziqrizal.rizqflow.domain.entitlement.Feature
  * Mendaftarkan dan mencabut token FCM perangkat ini di server (Tahap 9/13, wiring FCM 2026-11-01). Kontrak murni;
  * implementasinya `RetrofitPushTokenRegistrar` di `:data`, dibungkus penjaga 401 di `:app`. Kontrak endpoint ada di
  * docs/server-sync.md bagian "Push notifikasi":
- * - `POST /api/push/tokens` badan `{"token":"...","device_id":"...","platform":"android"}`
- * - `DELETE /api/push/tokens/{device_id}`
+ * - `PUT /api/push-token` badan `{"token":"...","device_id":"...","platform":"android"}`
+ * - `DELETE /api/push-token/{device_id}`
  *
  * Satu token per perangkat ([PushTokenRegistration.deviceId] = pengenal pemasangan yang sama dengan masuk). Server
  * memakai token ini hanya untuk mengirim kabar generik (`roomId` + `kind`), tidak pernah data keuangan.

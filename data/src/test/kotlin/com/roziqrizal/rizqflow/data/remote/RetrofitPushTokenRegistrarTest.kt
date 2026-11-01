@@ -16,7 +16,7 @@ import kotlin.test.assertEquals
 
 /**
  * [RetrofitPushTokenRegistrar] terhadap server HTTP sungguhan ([MockWebServer]). Kontraknya (server-sync.md "Push
- * notifikasi"): `POST /push/tokens` badan persis `{token, device_id, platform:"android"}`, `DELETE /push/tokens/{device_id}`.
+ * notifikasi"): `PUT /push-token` badan persis `{token, device_id, platform:"android"}`, `DELETE /push-token/{device_id}`.
  */
 class RetrofitPushTokenRegistrarTest {
     private lateinit var server: MockWebServer
@@ -42,8 +42,8 @@ class RetrofitPushTokenRegistrarTest {
 
         assertEquals(RemoteResult.Success(Unit), result)
         val sent = server.takeRequest()
-        assertEquals("POST", sent.method)
-        assertEquals("/push/tokens", sent.path)
+        assertEquals("PUT", sent.method)
+        assertEquals("/push-token", sent.path)
         assertEquals("Bearer api-rahasia", sent.getHeader("Authorization"))
         val body = Json.parseToJsonElement(sent.body.readUtf8()) as JsonObject
         assertEquals(
@@ -74,7 +74,7 @@ class RetrofitPushTokenRegistrarTest {
         assertEquals(RemoteResult.Success(Unit), result)
         val sent = server.takeRequest()
         assertEquals("DELETE", sent.method)
-        assertEquals("/push/tokens/perangkat-1", sent.path)
+        assertEquals("/push-token/perangkat-1", sent.path)
         assertEquals("Bearer api-rahasia", sent.getHeader("Authorization"))
     }
 

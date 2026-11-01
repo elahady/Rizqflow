@@ -6,7 +6,7 @@ import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 
 /**
  * Implementasi [PushTokenRegistrar] lewat [RizqflowApiService] (wiring FCM 2026-11-01). Kontrak di
- * docs/server-sync.md bagian "Push notifikasi": `POST /push/tokens` dan `DELETE /push/tokens/{device_id}`. Jawaban
+ * docs/server-sync.md bagian "Push notifikasi": `PUT /push-token` dan `DELETE /push-token/{device_id}`. Jawaban
  * 2xx mana pun dianggap berhasil (badannya tidak dibaca); kode lain lewat pemetaan galat yang sama dengan remote lain.
  */
 class RetrofitPushTokenRegistrar(private val service: RizqflowApiService) : PushTokenRegistrar {

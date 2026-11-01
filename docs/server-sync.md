@@ -241,12 +241,12 @@ Blob disimpan sebagai **byte biner** (kolom `binary`, BLOB di SQLite dan MySQL; 
 
 ### Kontrak endpoint
 
-Jalur dan badan di bawah adalah yang **disepakati dengan agen server** (2026-11-01). Kode status dan gating di tabel adalah **usulan sisi Android**; bila implementasi server berbeda, pemilik yang menyelaraskan (catat perbedaannya di sini, jangan diubah diam-diam di salah satu sisi).
+Kontrak di bawah **mengikuti implementasi server** (`PushTokenController`, 2026-11-01); klien Android disesuaikan ke jalur ini saat penggabungan. Draf awal sisi Android (`POST /api/push/tokens`, 403 tanpa Sync) tidak dipakai.
 
-| Endpoint | Autentikasi | Badan | Jawaban yang diharapkan klien |
+| Endpoint | Autentikasi | Badan | Jawaban |
 |---|---|---|---|
-| `POST /api/push/tokens` | `auth:sanctum` | `{"token":"<token FCM>","device_id":"<pengenal pemasangan>","platform":"android"}` | 2xx apa pun = berhasil (badan tidak dibaca). Usulan: upsert per (`user_id`, `device_id`), sehingga token baru di perangkat yang sama menggantikan yang lama; 403 bila tanpa Sync; 422 bila badan salah |
-| `DELETE /api/push/tokens/{device_id}` | `auth:sanctum` | Tanpa badan | 2xx = berhasil. Usulan: idempoten (204 juga bila tidak ada), tanpa gerbang Sync, hanya menyentuh baris milik pemilik token |
+| `PUT /api/push-token` | `auth:sanctum` | `{"device_id":"<pengenal pemasangan>","token":"<token FCM>"}`; kunci lain, termasuk `platform:"android"` yang tetap dikirim klien, diabaikan | 200 `{device_id, updated_at}`; upsert per (`user_id`, `device_id`); 422 bila badan salah. **Server tidak menuntut Sync**; klien sendiri hanya mendaftar bila punya Sync |
+| `DELETE /api/push-token/{device_id}` | `auth:sanctum` | Tanpa badan | 204, idempoten (juga bila belum pernah mendaftar); hanya menyentuh baris milik pemilik token API; tanpa gerbang Sync |
 
 - `device_id` adalah UUID acak per pemasangan yang sama dengan yang dikirim saat masuk (`POST /api/auth/google`), bukan pengenal perangkat sungguhan.
 - Klien memetakan galat seperti endpoint lain (`RemoteError`): 401 mengakhiri sesi lewat `ServerSession`, 403 `SyncRequired`, 422 `Rejected`, lainnya `Unexpected`, jaringan mati `Unreachable`.
@@ -270,7 +270,7 @@ Jalur dan badan di bawah adalah yang **disepakati dengan agen server** (2026-11-
 2. Unduh `google-services.json` dan taruh di `app/google-services.json`. Berkas ini ada di `.gitignore`; **jangan di-commit** sebelum diputuskan aman.
 3. Build ulang (`./gradlew :app:assembleDebug`): plugin google-services otomatis diterapkan karena berkasnya ada.
 4. Untuk pengirim di server: buat akun layanan dengan peran Firebase Cloud Messaging (FCM HTTP v1), simpan kuncinya hanya di `.env.production` VPS (nama variabel mengikuti implementasi server).
-5. Uji di perangkat: masuk dengan akun yang punya Sync, pastikan `POST /api/push/tokens` tercatat di server, kirim data message uji `{roomId, kind}`, lalu keluar dan pastikan `DELETE` terpanggil.
+5. Uji di perangkat: masuk dengan akun yang punya Sync, pastikan `PUT /api/push-token` tercatat di server, kirim data message uji `{roomId, kind}`, lalu keluar dan pastikan `DELETE` terpanggil.
 
 ### Yang belum terbukti
 
