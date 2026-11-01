@@ -56,9 +56,11 @@ private const val FALLBACK_CATEGORY_NAME = "Lain-lain"
  * payload [TransactionSyncCodec] dengan AAD = id) tetap DIBACA lewat [codec] supaya riwayat yang sudah terkirim
  * tidak hilang, tetapi tidak pernah ditulis lagi.
  *
- * Mesin ini sengaja belum memakai [SyncRecordHandler]/[SyncStore]: kontrak itu menaruh LWW, penulis, dan kotor di
- * `sync_record`, sedangkan status kotor ruang bersama masih tinggal di `money_transaction.synced_at` dan
- * `pending_room_tombstone`. Memindahkannya butuh migrasi data lokal tersendiri; amplop di kabel sudah sama.
+ * Mesin ini sengaja belum memakai [SyncRecordHandler]/[SyncStore] untuk status kotor dan LWW: kontrak itu menaruh
+ * LWW, penulis, dan kotor di `sync_record`, sedangkan status kotor ruang bersama masih tinggal di
+ * `money_transaction.synced_at` dan `pending_room_tombstone`. Memindahkannya butuh migrasi data lokal tersendiri
+ * (rancangan di sync-desain.md bagian I Tahap 2 butir (d)); amplop di kabel sudah sama. [SyncStore] hanya dipakai
+ * untuk buku catatan masalah ([issueStore]).
  *
  * Perbaikan Tahap 2 atas `SyncEngine` lama (sync-desain.md bagian 0, keputusan pemilik #0):
  * - **Akun anggota virtual** (bagian B/E): pengeluaran anggota lain tidak lagi dicocokkan ke akun
