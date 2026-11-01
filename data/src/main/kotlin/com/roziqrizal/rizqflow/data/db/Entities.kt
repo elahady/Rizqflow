@@ -438,17 +438,24 @@ data class SharedRoomEntity(
  * [deletedAt] disalin ke sini sebelum hapus (lihat `TransactionDao.delete`/`LocalTransactionRepository.delete`).
  * Dibuang (`DELETE`, bukan ditandai) begitu tombstone-nya terkirim — tidak perlu disimpan lagi
  * secara lokal karena server sudah menyimpannya permanen append-only (server-sync.md). Independen
- * dari `sync_record` (Tahap 1 sync-desain.md): tabel itu baru cakupan pribadi, ruang bersama
- * menyusul Tahap 2 yang belum dikonfirmasi pemilik — tabel ini sengaja terpisah dan sempit, hanya
- * untuk SyncEngine lama yang sudah ada.
+ * dari `sync_record` (Tahap 1 sync-desain.md): tabel itu baru cakupan pribadi; pemindahan status
+ * kotor ruang bersama ke `sync_record` belum dikerjakan (sync-desain.md bagian I Tahap 2 butir (d)),
+ * jadi tabel ini tetap menjadi satu-satunya jejak tombstone ruang bersama yang menunggu kirim.
+ *
+ * Versi 10 (2026-11-01): kunci utama menjadi ([transactionId], [roomId]), bukan [transactionId] saja.
+ * Satu transaksi bisa menunggu tombstone di beberapa ruang bersama sekaligus, satu per ruang yang pernah
+ * ia tinggalkan (dipindah keluar dari ruang bersama, lalu dipindah lagi sebelum sempat tersinkron);
+ * dengan kunci lama tombstone ruang kedua menimpa yang pertama dan anggota ruang pertama tidak pernah
+ * menerimanya. Lihat `MIGRATION_9_10`.
  */
 @Entity(
     tableName = "pending_room_tombstone",
+    primaryKeys = ["transaction_id", "room_id"],
     foreignKeys = [ForeignKey(RoomEntity::class, ["id"], ["room_id"], onDelete = ForeignKey.CASCADE)],
     indices = [Index("room_id")],
 )
 data class PendingRoomTombstoneEntity(
-    @PrimaryKey @ColumnInfo(name = "transaction_id") val transactionId: String,
+    @ColumnInfo(name = "transaction_id") val transactionId: String,
     @ColumnInfo(name = "room_id") val roomId: String,
     @ColumnInfo(name = "deleted_at") val deletedAt: Long,
 )

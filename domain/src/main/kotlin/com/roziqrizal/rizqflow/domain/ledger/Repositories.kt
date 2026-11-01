@@ -181,7 +181,15 @@ interface TransactionRepository {
     /** Menyimpan pengeluaran atau transfer. */
     suspend fun save(transaction: MoneyTransaction)
 
-    /** Menimpa pengeluaran atau transfer yang sudah ada (untuk pemasukan pakai [replaceIncome]). */
+    /**
+     * Menimpa pengeluaran atau transfer yang sudah ada (untuk pemasukan pakai [replaceIncome]).
+     *
+     * Bila transaksi lama adalah pengeluaran buatan sendiri di sebuah ruang bersama aktif dan versi baru tidak lagi
+     * pengeluaran di ruang itu (ruangnya berubah, ke ruang non-bersama maupun ruang bersama lain, atau jenisnya
+     * berubah), lokal mencatat satu baris di [pendingTombstones] untuk ruang LAMA dalam transaksi database yang sama,
+     * supaya anggota ruang itu ikut menghapusnya (sync-desain.md bagian A). Pengeluaran yang jadi ada di ruang
+     * bersama lain tetap terkirim sebagai versi hidup lewat [pendingSync] ruang barunya.
+     */
     suspend fun update(transaction: MoneyTransaction)
 
     /** Mengganti pemasukan dan seluruh potret alokasinya (atomik). */
@@ -214,14 +222,16 @@ interface TransactionRepository {
     suspend fun markSynced(ids: List<TransactionId>, atMillis: Long)
 
     /**
-     * Transaksi di [roomId] yang dihapus lokal tapi tombstone-nya belum terkirim ke sync (Tahap 9,
-     * roadmap.md "Sinkron penghapusan transaksi di ruang yang dibagi"). [delete] mencatat baris ini
-     * tepat sebelum hapus fisik; [clearPendingTombstones] membersihkannya setelah terkirim.
+     * Transaksi di [roomId] yang dihapus lokal atau dipindah keluar dari ruang itu, tetapi tombstone-nya belum
+     * terkirim ke sync (Tahap 9, roadmap.md "Sinkron penghapusan transaksi di ruang yang dibagi"). [delete] mencatat
+     * baris ini tepat sebelum hapus fisik, [update] saat pengeluaran ruang bersama dipindah keluar; keduanya per
+     * (transaksi, ruang), jadi satu transaksi bisa menunggu tombstone di beberapa ruang. [clearPendingTombstones]
+     * membersihkannya setelah terkirim. Tombstone gugur sendiri bila transaksinya kembali ke ruang itu ([save], [update]).
      */
     suspend fun pendingTombstones(roomId: RoomId): List<PendingTombstone>
 
-    /** Tandai tombstone-tombstone ini sudah terkirim ke sync (dibuang, tidak perlu disimpan lagi). */
-    suspend fun clearPendingTombstones(ids: List<TransactionId>)
+    /** Tandai tombstone-tombstone ini di [roomId] sudah terkirim ke sync (dibuang); tombstone transaksi yang sama di ruang lain tidak tersentuh. */
+    suspend fun clearPendingTombstones(roomId: RoomId, ids: List<TransactionId>)
 
     /**
      * Terapkan satu baris hasil pull dari anggota lain. [transaction] data lengkap untuk baris
@@ -231,8 +241,20 @@ interface TransactionRepository {
      * aturan LWW yang sama (tombstone basi tidak boleh menghapus edit lokal yang lebih baru) —
      * baris lokal (bila ada dan tidak lebih baru) dihapus seperti [delete] biasa. Hasil terapan ini
      * tidak pernah ditandai pending push lagi (datang dari luar, bukan ubahan lokal).
+     *
+     * [fromRoom] (hanya bermakna untuk tombstone): ruang bersama tempat tombstone itu terbit. Tombstone adalah
+     * pernyataan "transaksi ini sudah tidak ada DI RUANG ITU", bukan "hapus di mana pun": pengeluaran yang dipindah
+     * penulisnya dari ruang A ke ruang B menerbitkan tombstone di A, sementara versi hidupnya di B bisa tiba lebih
+     * dulu dan sudah menggeser baris lokal ke B. Karena itu baris lokal hanya dihapus bila masih berada di [fromRoom];
+     * null berarti tanpa syarat ruang (perilaku lama, dipakai baris format lama).
      */
-    suspend fun applyFromSync(id: TransactionId, transaction: MoneyTransaction?, changedAtMillis: Long, deleted: Boolean)
+    suspend fun applyFromSync(
+        id: TransactionId,
+        transaction: MoneyTransaction?,
+        changedAtMillis: Long,
+        deleted: Boolean,
+        fromRoom: RoomId? = null,
+    )
 }
 
 /** Pengaturan generik kunci/nilai dan hari yang ditandai "Tidak ada". Dasar pengingat malam (S26). */
