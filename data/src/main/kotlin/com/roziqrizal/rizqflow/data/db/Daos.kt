@@ -26,16 +26,25 @@ interface AccountDao {
     @Query("SELECT * FROM account WHERE id = :id")
     suspend fun find(id: String): AccountEntity?
 
-    @Query("SELECT COUNT(*) FROM account")
+    // shared_from IS NULL (Tahap 2 sync-desain.md bagian E): akun anggota virtual hanyalah jangkar kunci asing untuk
+    // pengeluaran anggota lain di ruang bersama. Ia tidak pernah boleh muncul di hitungan dan daftar akun pengguna
+    // (pemilih akun, saldo, rekonsiliasi, kekayaan bersih, ekspor dan impor pribadi) maupun ikut sync pribadi.
+    // Setiap pembaca daftar di sini menyaringnya; SharedAccountIsolationTest memaksa klasifikasi tiap metode DAO ini.
+    @Query("SELECT COUNT(*) FROM account WHERE shared_from IS NULL")
     suspend fun count(): Int
 
-    // shared_from IS NULL (Tahap 2 sync-desain.md bagian E): akun anggota virtual tidak pernah
-    // boleh muncul di daftar aktif (pemilih akun, saldo, rekonsiliasi, kekayaan bersih, ekspor pribadi).
     @Query("SELECT * FROM account WHERE archived = 0 AND shared_from IS NULL ORDER BY sort_order")
     suspend fun active(): List<AccountEntity>
 
-    @Query("SELECT * FROM account ORDER BY sort_order")
+    @Query("SELECT * FROM account WHERE shared_from IS NULL ORDER BY sort_order")
     suspend fun all(): List<AccountEntity>
+
+    /**
+     * SENGAJA tidak menyaring: akun anggota virtual ikut. Hanya untuk mencari nama akun sumber sebuah transaksi (daftar
+     * transaksi menampilkan "Dompet (Ayu)" untuk baris `SHARED`); jangan dipakai untuk daftar yang dilihat atau dipilih pengguna.
+     */
+    @Query("SELECT * FROM account ORDER BY sort_order")
+    suspend fun allIncludingMembers(): List<AccountEntity>
 
     /**
      * Membuang SEMUA akun (Tahap 3 sync-desain.md bagian B "Perangkat baru", hasil onboarding bawaan

@@ -31,6 +31,8 @@ class AccountSyncHandler(private val db: RizqflowDatabase, private val store: Sy
                 JsonObjects.empty
             } else {
                 val entity = db.accounts().find(meta.recordId) ?: return@mapNotNull null
+                // Pertahanan berlapis: akun anggota virtual tidak pernah dikirim, walau ada penanda kotor yang tersisa.
+                if (entity.sharedFrom != null) return@mapNotNull null
                 entity.toPayload().toJsonObject(AccountPayloadDto.serializer())
             }
             OutgoingRecord(meta.recordId, VERSION, meta.changedAtMillis, meta.deleted, data)

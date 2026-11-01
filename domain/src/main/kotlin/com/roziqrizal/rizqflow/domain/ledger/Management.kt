@@ -37,7 +37,7 @@ class ManagementService(
     // ------------------------------------------------------------------ akun
 
     suspend fun accountOverview(): AccountOverview {
-        val all = accounts.allAccounts()
+        val all = accounts.allAccounts().filter { it.sharedFrom == null }
         suspend fun row(account: Account) = AccountRow(account, accounts.balance(account.id))
         return AccountOverview(
             active = all.filter { !it.archived }.map { row(it) },

@@ -75,10 +75,14 @@ class LocalAccountRepository(private val db: RizqflowDatabase, private val recor
 
     override suspend fun allAccounts(): List<Account> = db.accounts().all().map { it.toDomain() }
 
+    override suspend fun allAccountsIncludingMembers(): List<Account> = db.accounts().allIncludingMembers().map { it.toDomain() }
+
     override suspend fun save(account: Account) {
         db.withTransaction {
             db.accounts().upsert(account.toEntity())
-            recorder.changed(SyncRecordType.ACCOUNT, account.id.value)
+            // Akun anggota virtual (shared_from terisi) bukan data pribadi pengguna ini: tidak pernah ditandai kotor,
+            // jadi tidak pernah keluar lewat sync pribadi walau disimpan ulang lewat jalur ini.
+            if (account.sharedFrom == null) recorder.changed(SyncRecordType.ACCOUNT, account.id.value)
         }
     }
 

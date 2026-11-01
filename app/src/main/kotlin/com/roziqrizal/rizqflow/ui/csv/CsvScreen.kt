@@ -79,7 +79,8 @@ fun CsvScreen(workspace: AccountWorkspace, notifier: Notifier, onClose: () -> Un
         busy = true
         scope.launch {
             val repo = workspace.repositories
-            val transactions = repo.transactions.between(LocalDate.MIN, LocalDate.MAX)
+            // Ekspor pribadi: pengeluaran anggota lain di ruang bersama (origin SHARED) tidak ikut (lihat CsvExporter).
+            val transactions = repo.transactions.between(LocalDate.MIN, LocalDate.MAX).filter(CsvExporter::isExportable)
             val csv = CsvExporter.export(transactions, repo.accounts.allAccounts(), repo.rooms.allRooms(), repo.rooms.allCategories())
             context.contentResolver.openOutputStream(uri)?.use { it.write(csv.toByteArray(Charsets.UTF_8)) }
             busy = false

@@ -63,7 +63,9 @@ class InMemoryLedger(private val nowMillis: () -> Long = System::currentTimeMill
 
     override suspend fun activeAccounts() = accountRows.values.filter { !it.archived && it.sharedFrom == null }.sortedBy { it.sortOrder }
 
-    override suspend fun allAccounts() = accountRows.values.sortedBy { it.sortOrder }
+    override suspend fun allAccounts() = accountRows.values.filter { it.sharedFrom == null }.sortedBy { it.sortOrder }
+
+    override suspend fun allAccountsIncludingMembers() = accountRows.values.sortedBy { it.sortOrder }
 
     override suspend fun save(account: Account) {
         accountRows[account.id] = account

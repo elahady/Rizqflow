@@ -443,6 +443,8 @@ class LedgerService(
     /** [unchanged]: akun yang sudah dipakai transaksi ini; boleh tetap dipakai walau sudah terarsip. */
     private suspend fun checkAccount(id: AccountId, amount: Money, unchanged: AccountId? = null): LedgerError? {
         val account = accounts.find(id) ?: return LedgerError.ACCOUNT_NOT_FOUND
+        // Akun anggota virtual bukan milik pengguna: tidak pernah menjadi sumber atau tujuan catatan pribadi.
+        if (account.sharedFrom != null) return LedgerError.ACCOUNT_NOT_FOUND
         if (account.archived && id != unchanged) return LedgerError.ACCOUNT_ARCHIVED
         if (account.currency != amount.currency) return LedgerError.CURRENCY_MISMATCH
         return null

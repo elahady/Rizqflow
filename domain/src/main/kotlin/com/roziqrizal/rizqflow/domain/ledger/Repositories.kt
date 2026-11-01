@@ -36,11 +36,21 @@ interface WorkspaceRepository {
 interface AccountRepository {
     suspend fun find(id: AccountId): Account?
 
-    /** Akun yang belum diarsipkan, berurutan. */
+    /** Akun milik pengguna yang belum diarsipkan, berurutan. Tidak pernah memuat akun anggota virtual. */
     suspend fun activeAccounts(): List<Account>
 
-    /** Semua akun termasuk yang terarsip: riwayat transaksi tetap menampilkan nama akunnya. */
+    /**
+     * Semua akun milik pengguna termasuk yang terarsip: riwayat transaksi tetap menampilkan nama akunnya.
+     * Tidak pernah memuat akun anggota virtual ([Account.sharedFrom] terisi): daftar ini dipakai untuk kelola akun,
+     * pencocokan impor CSV, dan ekspor, yang semuanya hanya urusan akun pengguna sendiri.
+     */
     suspend fun allAccounts(): List<Account>
+
+    /**
+     * [allAccounts] ditambah akun anggota virtual. Hanya untuk mencari nama akun sumber sebuah transaksi (baris `SHARED`
+     * di daftar transaksi menampilkan "Dompet (Ayu)"); jangan dipakai untuk daftar yang dilihat atau dipilih pengguna.
+     */
+    suspend fun allAccountsIncludingMembers(): List<Account>
 
     suspend fun save(account: Account)
 
