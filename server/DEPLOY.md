@@ -406,3 +406,33 @@ atau server hidup**, hanya lewat tes SQLite memori.
   ditambahkan saat debug aktif, tetapi pesan asli (dan jejak) tidak diganti.
 - `POST /api/rooms/{roomId}/leave` tidak butuh langganan Sync (pengguna yang langganannya berakhir tetap
   bisa melepaskan diri). Pemilik ruang tidak bisa keluar (422 `owner_cannot_leave`).
+
+## Pull per cakupan dan waktu per cakupan (`/api/sync/pull?scope=`, `/api/sync/history`, Tahap 9)
+
+**Dua migrasi baru, aditif** (jalan lewat langkah migrasi deploy biasa; tidak ada tabel atau kolom lama
+yang diubah, tidak ada variabel `.env` baru, dan **tidak ada rute baru** sehingga `route:cache` ulang tidak
+wajib karena perubahan ini; tetap jalankan bila `git pull` yang sama membawa perubahan rute lain):
+
+- `2026_11_01_000010_create_sync_scope_activity_table`: tabel `sync_scope_activity` (waktu push/pull per
+  akun, perangkat, dan cakupan).
+- `2026_11_01_000011_create_sync_scope_cursors_tables`: tabel `sync_device_cursors` (kursor per cakupan),
+  `sync_scope_watermarks` (watermark kompaksi per cakupan), dan dua indeks baru di `sync_log_entries`:
+  `(room_id, id)` dan `(user_id, room_id, id)`.
+
+Perhatikan sebelum deploy:
+
+- **Membuat indeks di `sync_log_entries` pada tabel yang sudah besar** bisa lambat di MySQL (belum dicoba
+  di sini). Server masih sangat kecil (belum ada pengguna sync sungguhan), jadi seharusnya cepat. Pakai pola
+  `docker exec -d` untuk migrasi seperti yang sudah dicatat di atas (MySQL VPS lambat per migrasi).
+- Kompaksi (`sync:compact`) kini membaca `sync_device_cursors` di kueri tombstone (subquery `EXISTS`
+  bersarang). Belum diuji di MySQL; bila satu jalan kompaksi terasa lambat, periksa `EXPLAIN` kueri
+  tombstone di `App\Support\SyncRetention::kandidat` dan indeks `sync_cursor_scope_idx`.
+- `sync:prune-stale-devices` kini juga membuang `sync_device_cursors` dan `sync_scope_activity`; keluarannya
+  dua baris tambahan. Tetap butuh cron `schedule:run` (Tahap 12).
+- Klien Android yang sudah dirilis tidak terpengaruh (pull tanpa `scope` berjalan seperti biasa). Klien
+  baru yang meminta `scope` terhadap server yang BELUM di-deploy versi ini menerima jawaban lama tanpa
+  bidang `scope` dan wajib jatuh ke pull lama (kontrak klien di
+  [docs/server-sync.md](../docs/server-sync.md) bagian "Pull per cakupan dan waktu per cakupan").
+  Karena itu: deploy server dulu, rilis klien belakangan.
+- Rollback: `php artisan migrate:rollback --step=2` membuang ketiga tabel baru dan kedua indeks; klien
+  yang sudah memakai pull per cakupan lalu menerima jawaban tanpa `scope` dan jatuh ke pull lama.

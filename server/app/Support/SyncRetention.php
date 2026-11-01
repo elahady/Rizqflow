@@ -4,8 +4,11 @@ namespace App\Support;
 
 use App\Models\SyncCompactionState;
 use App\Models\SyncDevice;
+use App\Models\SyncDeviceCursor;
 use App\Models\SyncQuota;
 use App\Models\SyncRecordFloor;
+use App\Models\SyncScopeActivity;
+use App\Models\SyncScopeWatermark;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
@@ -20,9 +23,18 @@ use Illuminate\Support\Facades\DB;
  * - TOMBSTONE: baris hapus dengan umur >= tombstone_days, TIDAK ada baris lain untuk rekaman itu
  *   (supaya tidak ada versi lama yang bangkit kembali), dan setiap perangkat aktif sudah melewatinya
  *   (after_id >= id). Untuk ruang bersama, perangkat semua anggota ruang itu ikut dihitung.
+ *   Dua jenis kursor dihitung (sync-desain.md bagian G, pull per cakupan): kursor GLOBAL `sync_devices`
+ *   (pull tanpa `scope`, klien lama) dan kursor PER CAKUPAN `sync_device_cursors` (pull `scope=a|r`).
+ *   Sebuah perangkat dianggap sudah melewati tombstone bila SALAH SATU kursornya sudah melewatinya:
+ *   kursor global >= id berarti ia pernah menerima semua yang terlihat sampai id itu, dan kursor
+ *   cakupan >= id berarti hal yang sama untuk cakupan tombstone itu. Perangkat yang baru bermigrasi
+ *   ke pull per cakupan (kursor global tertinggal) tidak menahan kompaksi selama kursor cakupannya
+ *   sudah lewat; perangkat yang hanya punya kursor untuk cakupan LAIN tidak menahan cakupan ini
+ *   (tarikan pertamanya atas cakupan ini dari 0, jadi tidak ada keadaan lokal yang butuh tombstone).
  *   Setelah dihapus, watermark naik ke id tombstone terbesar yang dihapus (lihat SyncCompactionState),
  *   dan `changed_at_ms` tombstone itu dicatat sebagai lantai rekaman (SyncRecordFloor) supaya push
- *   versi lama yang terlambat tidak menghidupkan kembali rekamannya.
+ *   versi lama yang terlambat tidak menghidupkan kembali rekamannya. Watermark PER CAKUPAN
+ *   (SyncScopeWatermark) ikut naik di transaksi yang sama, untuk 410 pull per cakupan.
  *
  * Urutan: versi kalah dulu, baru tombstone (sehingga tombstone yang tinggal sendirian bisa lolos).
  * Setiap jalan idempoten: baris yang sudah dihapus tidak muncul lagi di kandidat. Kompaksi tidak
@@ -63,6 +75,25 @@ class SyncRetention
         $cutoff = $this->format($this->perangkatAktifSejak(now()->utc()));
 
         return SyncDevice::where('last_seen_at', '<', $cutoff)->delete();
+    }
+
+    /**
+     * Pasangan `pruneStaleDevices` untuk pull per cakupan: buang kursor per cakupan dan catatan waktu
+     * per cakupan yang tidak aktif dalam active_device_days. Sama seperti kursor global, aman: pull
+     * berikutnya dari kursor yang sudah terlewati kompaksi dijawab 410 (per cakupan), lalu klien tarik ulang.
+     *
+     * @return array{kursor: int, aktivitas: int}
+     */
+    public function pruneStaleCursors(): array
+    {
+        $cutoff = $this->format($this->perangkatAktifSejak(now()->utc()));
+
+        $kursor = SyncDeviceCursor::where('last_seen_at', '<', $cutoff)->delete();
+        $aktivitas = SyncScopeActivity::where(fn ($q) => $q->whereNull('last_pull_at')->orWhere('last_pull_at', '<', $cutoff))
+            ->where(fn ($q) => $q->whereNull('last_push_at')->orWhere('last_push_at', '<', $cutoff))
+            ->delete();
+
+        return ['kursor' => $kursor, 'aktivitas' => $aktivitas];
     }
 
     /** Perangkat aktif = pernah pull sejak batas ini (sync_devices.last_seen_at). */
@@ -157,9 +188,25 @@ class SyncRetention
                       AND (d.user_id = l.user_id
                            OR (l.room_id IS NOT NULL AND d.user_id IN (
                                 SELECT rm.user_id FROM room_members rm WHERE rm.room_id = l.room_id)))
+                      AND NOT EXISTS (
+                          SELECT 1 FROM sync_device_cursors c2
+                          WHERE c2.user_id = d.user_id AND c2.device_id = d.device_id
+                            AND c2.room_id = COALESCE(l.room_id, '') AND c2.after_id >= l.id)
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM sync_device_cursors c
+                    WHERE c.last_seen_at >= ?
+                      AND c.after_id < l.id
+                      AND c.room_id = COALESCE(l.room_id, '')
+                      AND ((l.room_id IS NULL AND c.user_id = l.user_id)
+                           OR (l.room_id IS NOT NULL AND c.user_id IN (
+                                SELECT rm2.user_id FROM room_members rm2 WHERE rm2.room_id = l.room_id)))
+                      AND NOT EXISTS (
+                          SELECT 1 FROM sync_devices d2
+                          WHERE d2.user_id = c.user_id AND d2.device_id = c.device_id AND d2.after_id >= l.id)
                 )
                 SQL;
-            $bindingSyarat = [$parameter['tombstoneCutoff'], $parameter['activeSince']];
+            $bindingSyarat = [$parameter['tombstoneCutoff'], $parameter['activeSince'], $parameter['activeSince']];
         }
 
         $sql = 'SELECT l.id FROM sync_log_entries l WHERE '.$filter.' AND ('.$syarat.') ORDER BY l.id LIMIT '.self::CHUNK;
@@ -177,8 +224,10 @@ class SyncRetention
     {
         $baris = DB::table('sync_log_entries')
             ->whereIn('id', $ids)
-            ->get(['user_id', 'room_id', 'record_id', 'changed_at_ms']);
+            ->get(['id', 'user_id', 'room_id', 'record_id', 'changed_at_ms']);
 
+        // Watermark per cakupan: id terbesar per kunci cakupan (satu penulisan per cakupan, bukan per baris).
+        $watermark = [];
         foreach ($baris as $tombstone) {
             SyncRecordFloor::naikkan(
                 (int) $tombstone->user_id,
@@ -186,6 +235,14 @@ class SyncRetention
                 $tombstone->record_id,
                 (int) $tombstone->changed_at_ms,
             );
+
+            $kunci = SyncScopeWatermark::kunci((int) $tombstone->user_id, $tombstone->room_id);
+            if (($watermark[$kunci]['id'] ?? 0) < (int) $tombstone->id) {
+                $watermark[$kunci] = ['user' => (int) $tombstone->user_id, 'room' => $tombstone->room_id, 'id' => (int) $tombstone->id];
+            }
+        }
+        foreach ($watermark as $w) {
+            SyncScopeWatermark::naikkan($w['user'], $w['room'], $w['id']);
         }
     }
 
