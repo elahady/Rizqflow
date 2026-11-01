@@ -297,6 +297,49 @@ Kontrak di bawah **mengikuti implementasi server** (`PushTokenController`, 2026-
 - **Tidak ada endpoint ringkasan untuk admin.** Server belum punya konsep admin atau peran operator; menambahkannya (siapa admin, lewat apa) adalah keputusan pemilik. Sampai itu, angka dibaca lewat perintah di atas atau tabelnya, langsung di VPS.
 - Belum ada: akun yang hanya lokal (tanpa masuk server) tidak terhitung sama sekali, karena server tidak tahu keberadaannya; jumlah pemasangan atau pengguna aktif datang dari Play Console atau Firebase Analytics (proyek Firebase belum ada, menunggu pemilik). Belum diuji di MySQL (`whereJsonContains` pada kolom `plans`).
 
+## Keanggotaan ruang yang dibagi (Tahap 9)
+
+Rangkuman kontrak `Api\RoomMembershipController` (`auth:sanctum`, limiter `room-membership` 60 per menit per akun, satu jatah bersama). Pemilik ruang = anggota pertama yang tercatat untuk sebuah `room_id` (`room_members.is_owner`, keputusan 2026-10-27); anggota lain pencatat. Id ruang 1 sampai 100 karakter (sama dengan batas `room_id` di push): lebih panjang dijawab 422 `invalid_room_id` sebelum menyentuh database.
+
+| Endpoint | Butuh Sync | Jawaban sukses | Galat (`code`) |
+|---|---|---|---|
+| `POST /api/rooms/{roomId}/join` | Ya | 204, idempoten | 403 `sync_required`, 422 `invalid_room_id` |
+| `GET /api/rooms/{roomId}/members` | Ya | 200 `{"members":[{user_id,name,email,you,owner}]}` | 403 `sync_required`, 403 `not_room_member` (pemanggil bukan anggota), 422 `invalid_room_id` |
+| `POST /api/rooms/{roomId}/leave` | **Tidak** | 204 | 404 `not_room_member` (juga ulangan setelah berhasil keluar), 422 `owner_cannot_leave`, 422 `invalid_room_id` |
+| `DELETE /api/rooms/{roomId}/members/{userId}` | Ya | 204 | 403 `sync_required`, 403 `not_room_owner`, 404 `member_not_found`, 422 `owner_cannot_be_removed`, 422 `invalid_room_id`; `userId` non-numerik = 404 `not_found` |
+
+- **Keluar sendiri (`leave`, 2026-11-01)** hanya menghapus baris keanggotaan pemanggil. Baris sync yang pernah ia tulis tetap di server (anggota lain masih membutuhkannya; sesuai sync-desain.md bagian G "anggota keluar: baris tetap"), dan ia berhenti menerima baris ruang itu pada pull berikutnya. Tidak butuh Sync (seperti `DELETE /api/push-token`): pengguna yang langganannya berakhir tetap bisa melepaskan diri. Setelah keluar ia bisa bergabung lagi lewat undangan baru, selalu sebagai bukan-pemilik.
+- **Pemilik tidak bisa keluar** (perilaku paling aman sampai ada pindah kepemilikan): kalau boleh, ruang tanpa pemilik dan tak seorang pun bisa mengeluarkan anggota lagi. Jawabannya 422 `owner_cannot_leave`; pemilik tunggal pun tidak bisa. Pindah kepemilikan belum ada dan belum diputuskan.
+- **Celah yang BELUM tertutup (sama dengan anggota yang dikeluarkan):** server belum membedakan "keluar atau dikeluarkan" dari "tidak pernah bergabung". `join` tidak butuh rahasia dan `push` ke sebuah `room_id` mendaftarkan pengirimnya otomatis, jadi aplikasi yang keluar/dikeluarkan tetapi masih menyinkronkan ruang itu tercatat lagi. Menutupnya butuh status `removed` dan undangan terdaftar (sync-desain.md bagian F "Rencana distribusi keyset otomatis"), yang menunggu empat keputusan pemilik; tidak dikerjakan di sini. Klien wajib berhenti menyinkronkan ruang itu setelah `leave`.
+- **Klien Android:** `mapHttpError` memetakan setiap 403 ke `SyncRequired` (paywall) kecuali `not_room_owner` pada `remove`. Jadi 403 `not_room_member` dari `members` masih membuka paywall di aplikasi; `leave` belum dipanggil dari mana pun di Android (404 menjadi `Unexpected`, 422 menjadi `Rejected` dengan pesan server).
+
+## Kode galat JSON dan batas laju (Tahap 9, pengerasan sisi server)
+
+**Diimplementasikan 2026-11-01** (`App\Support\ApiErrorResponses`, hook `respond` di `bootstrap/app.php`; limiter di `AppServiceProvider`). **Status: hanya terbukti lewat tes SQLite memori.**
+
+Galat `/api/*` berbentuk `{"message": "...", "code": "...", ...}`. `message` untuk manusia (Indonesia), `code` stabil untuk percabangan klien. Galat buatan controller membawa kodenya sendiri (mis. `device_id_required`, `quota_exceeded`, `no_recovery_key`, `not_room_owner`, `sync_required`); galat dari pengecualian Laravel diseragamkan:
+
+| Status | `code` | Catatan |
+|---|---|---|
+| 401 | `unauthenticated` | tanpa token, kedaluwarsa, atau dicabut |
+| 403 | `forbidden` | hanya 403 tanpa kode sendiri |
+| 404 | `not_found` | rute atau data tak ada (404 buatan controller membawa kode sendiri, mis. `no_recovery_key`) |
+| 405 | `method_not_allowed` | |
+| 413 | `payload_too_large` | |
+| 422 | `validation_failed` | isian `errors` bawaan Laravel tetap ada; 422 buatan controller punya kode sendiri |
+| 429 | `rate_limited` | plus `retry_after` (detik) dan header `Retry-After` |
+| 5xx | `server_error` | |
+
+Saat `APP_DEBUG` aktif pesan asli tidak diganti (jejak galat tetap terbaca), tetapi `code` tetap ditambahkan; produksi wajib `APP_DEBUG=false`. Perubahan ini aditif: isian lama, status, dan header tidak berubah. Dua kontrak yang memang berubah: 403 "butuh Sync" kini membawa `code` `sync_required`, dan 404 rute-tak-ada kini membawa `not_found` (bukan lagi tanpa `code`; klien pemulihan kunci hanya memercayai `no_recovery_key`, jadi tidak terpengaruh).
+
+**Batas laju per akun** (kunci akun, bukan IP, jadi tidak bergantung `trustProxies`; sengaja sangat longgar karena hanya pagar terhadap klien yang berputar, sinkron wajar jauh di bawahnya): `POST /api/sync/push` 120 per menit (limiter `sync-push`), `GET /api/sync/pull` dan `GET /api/sync/history` 600 per menit (`sync-pull`), rute keanggotaan ruang 60 per menit (`room-membership`). Sinkron pertama akun pada kuota penuh (250.000 baris = 500 pull) tetap muat dalam satu menit. Klien yang kena 429 cukup mencoba lagi sesudah `Retry-After`; kursor tidak maju sehingga tidak ada data hilang. **Klien Android belum menangani 429 secara khusus** (jatuh ke `Unexpected(429)`); batas lain yang sudah ada (login, refresh token, klaim pembelian, kunci pemulihan, token push, RTDN) tidak diubah.
+
+## Interoperabilitas amplop sinkron dengan klien non-Android (Tahap 9/14)
+
+**Diimplementasikan 2026-11-01** (`server/tests/Unit/SyncEnvelopeInteropTest.php`, kelas acuan `server/tests/Support/SyncEnvelopeReference.php`; 26 tes, 93 asersi). Implementasi PHP murni (openssl AES-256-GCM, tanpa Tink) membaca dan menulis byte yang sama dengan vektor emas `domain/src/test/resources/sync/golden/envelope.v1.json`: wireId termasuk id unicode, AAD kanonis termasuk cap waktu `Long.MAX_VALUE`, bingkai berpengisi 256 byte, dekripsi ciphertext vektor, dan ciphertext identik byte demi byte dari PHP. Mengubah satu bidang kolom luar (scope, cap waktu, `deleted`, perangkat, wireId), membalik satu byte, atau mengganti kunci, IV, atau tag membuat otentikasi gagal. Untuk `shared_expense.v1.json` (tanpa ciphertext): wireId, AAD hidup dan tombstone, dan JSON amplop yang dibangun PHP sama persis dengan plaintext Android (urutan kunci, tanpa escape unicode; tombstone memakai objek kosong `{}`, di PHP harus `stdClass`, bukan array kosong yang menjadi `[]`), ditambah bolak-balik enkripsi.
+
+**Batas jujur (jangan dibesar-besarkan):** vektor itu dibuat dengan AES/GCM/NoPadding bawaan JDK, **bukan format kabel Tink**. Tes ini membuktikan AAD, wireId, bingkai, dan AES-GCM murni (IV 12 byte terpisah, `ciphertext || tag`). Ia **tidak** membuktikan bahwa klien web bisa membaca blob nyata dari aplikasi: aplikasi mengenkripsi lewat Tink AEAD, yang menambahkan awalan kunci 5 byte dan menaruh IV di depan ciphertext, dan kuncinya keyset Tink (bukan 32 byte mentah). Sebelum Tahap 14 membaca data nyata, salah satu harus dibuktikan terpisah: parser format kabel Tink di peramban dengan vektor yang dibuat lewat Tink sungguhan, atau AEAD murni di sisi Android. Vektor `shared_expense.v1.json` tidak memuat ciphertext, jadi untuknya hanya plaintext, wireId, dan AAD yang dibandingkan lintas bahasa. Kelas acuan sengaja di `tests/Support`, bukan `app/`: server tidak boleh bisa mendekripsi data keuangan. Hanya PHP/openssl lokal; JavaScript (WebCrypto) belum dicoba.
+
 ## Belum diputuskan
 
 - ~~**Firebase Analytics** dipakai atau cukup Play Console plus data akun server.~~ **Diputuskan pemilik 2026-10-24: Firebase Analytics dan FCM dipakai di rilis 1.** Aturan: tidak ada data keuangan (nominal, nama, catatan, akun) di event atau properti pengguna; keduanya disebut di kebijakan privasi dan Data Safety; jumlah pengguna, Pro, dan Sync tetap dihitung dari server.
