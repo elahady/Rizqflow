@@ -401,9 +401,9 @@ fun MainHost(
             val run = workspace.recurring.runDue(LocalDate.now())
             if (run.recorded > 0) {
                 version++
-                scope.launch { notifier.show(context.resources.getQuantityString(R.plurals.recurring_ran, run.recorded, run.recorded)) }
+                scope.launch { notifier.show(resources.getQuantityString(R.plurals.recurring_ran, run.recorded, run.recorded)) }
             } else if (run.blocked.isNotEmpty() && !blockedNoticed) {
-                scope.launch { notifier.show(context.resources.getQuantityString(R.plurals.recurring_blocked_notice, run.blocked.size, run.blocked.size)) }
+                scope.launch { notifier.show(resources.getQuantityString(R.plurals.recurring_blocked_notice, run.blocked.size, run.blocked.size)) }
             }
             if (run.blocked.isNotEmpty()) blockedNoticed = true
             // Sync otomatis (Tahap 6, keputusan #15: hanya saat aplikasi di depan): SETELAH transaksi berulang dicatat dan
@@ -478,7 +478,7 @@ fun MainHost(
                 LocalDate.now(),
                 resources.getString(R.string.date_today),
                 resources.getString(R.string.date_yesterday),
-                context.resources.getStringArray(R.array.month_abbrev).toList(),
+                resources.getStringArray(R.array.month_abbrev).toList(),
             )
             resources.getString(R.string.bills_paid_next, name, next)
         }

@@ -1,5 +1,6 @@
 package com.roziqrizal.rizqflow.data.sync
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
@@ -27,6 +28,10 @@ class AndroidNetworkChangeSource(
 ) : NetworkChangeSource {
     private val connectivity = context.applicationContext.getSystemService(ConnectivityManager::class.java)
 
+    // Alasan suppress: ACCESS_NETWORK_STATE dideklarasikan di manifest :app (app/src/main/AndroidManifest.xml, juga dipakai
+    // AndroidAutoSyncNetwork); :data adalah modul pustaka tanpa manifest sendiri, jadi lint tidak bisa melihatnya. Bila izin
+    // itu tidak ada saat dijalankan, SecurityException ditangkap di bawah dan sync otomatis jalan lewat pemicu lain.
+    @SuppressLint("MissingPermission")
     override fun watch(onChange: () -> Unit): AutoCloseable {
         val manager = connectivity ?: return AutoCloseable { }
         val callback = object : ConnectivityManager.NetworkCallback() {

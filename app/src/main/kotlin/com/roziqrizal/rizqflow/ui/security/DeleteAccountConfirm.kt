@@ -21,7 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -49,7 +49,8 @@ fun DeleteAccountConfirmContent(
     onCancel: () -> Unit,
 ) {
     val spacing = MaterialTheme.spacing
-    val context = LocalContext.current
+    // LocalResources, bukan LocalContext.current.getString: sadar konfigurasi (lint LocalContextGetResourceValueCall).
+    val resources = LocalResources.current
 
     var requirement by remember { mutableStateOf<DeleteAccountRequirement?>(null) }
     LaunchedEffect(confirmation) { requirement = confirmation.requirement() }
@@ -71,7 +72,7 @@ fun DeleteAccountConfirmContent(
             }
 
             is DeleteAccountPinCheck.Wrong -> {
-                error = context.getString(R.string.lock_wrong_pin, check.attemptsLeft)
+                error = resources.getString(R.string.lock_wrong_pin, check.attemptsLeft)
                 digits = ""
             }
 

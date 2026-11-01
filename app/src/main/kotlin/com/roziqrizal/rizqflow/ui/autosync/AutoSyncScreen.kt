@@ -58,8 +58,7 @@ fun AutoSyncScreen(
     val state by workspace.syncOrchestrator.state.collectAsState()
     var wifiOnly by remember(workspace) { mutableStateOf(workspace.autoSyncSettings.wifiOnly) }
     var manualBusy by remember { mutableStateOf(false) }
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val resources = context.resources
+    val resources = androidx.compose.ui.platform.LocalResources.current
 
     BackHandler(onBack = onClose)
 

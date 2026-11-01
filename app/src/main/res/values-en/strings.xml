@@ -762,6 +762,7 @@
     <string name="family_remove_confirm_action">Remove</string>
     <string name="family_remove_done">%1$s was removed. Ask the remaining members to scan this new QR.</string>
     <string name="family_remove_failed">Could not remove the member. Check your connection and try again.</string>
+    <string name="family_rotate_key_sheet_hint">This QR already uses the new key. Show it only to the members who STAY, in person — never to the member who was removed.</string>
     <string name="family_members_error">Couldn\'t load members. Check your connection and try again.</string>
     <string name="family_retry">Try again</string>
     <string name="family_invite_action">Invite a member</string>
