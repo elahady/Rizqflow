@@ -70,6 +70,23 @@ class LaporanTahunanTest extends TestCase
         $this->assertSame(300_000, $report->months[2]->expense);
     }
 
+    /** Regresi: `createFromFormat('Y-m')` memakai hari ini, jadi pada tanggal 29 sampai 31 label dan isi bulan pendek bergeser. */
+    public function test_every_month_row_has_its_own_name_and_totals_when_today_is_the_31st(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-31 10:00:00'));
+        $this->tx('pengeluaran', 400_000, '2026-02-10', $this->room, $this->category);
+        $this->tx('pengeluaran', 900_000, '2026-03-10', $this->room, $this->category);
+
+        $component = Livewire::actingAs($this->user)->test(LaporanTahunan::class)->set('tahun', '2026');
+        $report = $component->viewData('report');
+
+        $this->assertSame(400_000, $report->months[1]->expense);
+        $this->assertSame(900_000, $report->months[2]->expense);
+        foreach (['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'] as $nama) {
+            $this->assertSame(1, substr_count($component->html(), '>'.$nama.'<'), "Nama bulan $nama harus muncul tepat sekali di tabel");
+        }
+    }
+
     public function test_totals_are_compared_with_the_previous_year(): void
     {
         $this->tx('pemasukan', 2_000_000, '2026-01-05');

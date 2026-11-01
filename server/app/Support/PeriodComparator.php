@@ -18,7 +18,7 @@ class PeriodComparator
     /** @return array{start: Carbon, end: Carbon} */
     public static function range(string $granularity, string $period): array
     {
-        $start = $granularity === 'bulan' ? Carbon::createFromFormat('Y-m', $period)->startOfMonth() : Carbon::createFromFormat('Y', $period)->startOfYear();
+        $start = $granularity === 'bulan' ? Carbon::createFromFormat('!Y-m', $period)->startOfMonth() : Carbon::createFromFormat('!Y', $period)->startOfYear();
         $end = $granularity === 'bulan' ? $start->copy()->endOfMonth() : $start->copy()->endOfYear();
 
         return ['start' => $start, 'end' => $end];

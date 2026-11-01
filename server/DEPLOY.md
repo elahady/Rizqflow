@@ -386,3 +386,23 @@ ikut langkah migrasi deploy biasa; rute baru butuh `route:cache` ulang.
   offline hanya menerima satu.
 - Token FCM disimpan polos di `push_tokens` (server harus mengirimnya), disembunyikan dari serialisasi
   dan tidak pernah dicatat ke log; log FCM hanya memuat kode status.
+
+## Keanggotaan ruang, kode galat JSON, dan batas laju (Tahap 9, pengerasan sisi server)
+
+Tidak ada variabel `.env` dan tidak ada migrasi baru. Yang ikut saat deploy: rute baru
+`POST /api/rooms/{roomId}/leave` (jalankan `route:cache` ulang), tiga limiter baru, dan hook galat JSON
+di `bootstrap/app.php`. Kontrak lengkap di [docs/server-sync.md](../docs/server-sync.md) bagian
+"Keanggotaan ruang yang dibagi" dan "Kode galat JSON dan batas laju". **Belum pernah dijalankan di MySQL
+atau server hidup**, hanya lewat tes SQLite memori.
+
+- Limiter per **akun** (bukan per IP, jadi tidak bergantung `trustProxies`): `sync-push` 120 per menit,
+  `sync-pull` 600 per menit (juga untuk `GET /api/sync/history`), `room-membership` 60 per menit. Jatah
+  disimpan di cache Laravel (`CACHE_STORE`); bila cache produksi `database` atau `file`, tiap permintaan
+  menulis satu baris/berkas kecil, dan jatah hilang bila cache dibersihkan. Nilai ada di
+  `AppServiceProvider::boot`.
+- Jawaban 429 membawa `{"message","code":"rate_limited","retry_after":<detik>}` dan header
+  `Retry-After`. Klien Android belum menangani 429 secara khusus.
+- Pastikan `APP_DEBUG=false` di `.env.production`: pesan galat Indonesia dan `code` seragam tetap
+  ditambahkan saat debug aktif, tetapi pesan asli (dan jejak) tidak diganti.
+- `POST /api/rooms/{roomId}/leave` tidak butuh langganan Sync (pengguna yang langganannya berakhir tetap
+  bisa melepaskan diri). Pemilik ruang tidak bisa keluar (422 `owner_cannot_leave`).

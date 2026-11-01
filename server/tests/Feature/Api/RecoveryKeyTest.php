@@ -140,7 +140,7 @@ class RecoveryKeyTest extends TestCase
         $user->forceFill(['plans' => ['pro']])->save(); // Pro bukan Sync
         $this->putKey($this->tokenFor($user), $this->blob(70))
             ->assertForbidden()
-            ->assertExactJson(['message' => 'Butuh langganan Sync.']);
+            ->assertExactJson(['message' => 'Butuh langganan Sync.', 'code' => 'sync_required']);
 
         $this->assertSame($kept, $this->storedBytes($user));
         $nothing = User::factory()->create(['plans' => null]);
@@ -180,7 +180,8 @@ class RecoveryKeyTest extends TestCase
 
         $response = $this->api('GET', self::URL.'x', $token)->assertNotFound();
 
-        $this->assertNull($response->json('code'));
+        // 404 rute tak ada membawa kode umum `not_found` (ApiErrorResponses), bukan `no_recovery_key`.
+        $this->assertSame('not_found', $response->json('code'));
         $this->assertStringNotContainsString('no_recovery_key', $response->getContent());
     }
 

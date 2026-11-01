@@ -36,7 +36,7 @@ class ReportPdfController extends Controller
         $pattern = $granularity === 'tahun' ? '/^\d{4}$/' : '/^\d{4}-\d{2}$/';
         $today = Carbon::today();
         $defaultA = $granularity === 'tahun' ? $today->format('Y') : $today->format('Y-m');
-        $defaultB = $granularity === 'tahun' ? $today->copy()->subYear()->format('Y') : $today->copy()->subMonth()->format('Y-m');
+        $defaultB = $granularity === 'tahun' ? $today->copy()->subYearNoOverflow()->format('Y') : $today->copy()->subMonthNoOverflow()->format('Y-m');
 
         $periodA = preg_match($pattern, (string) $request->query('periodA')) ? $request->query('periodA') : $defaultA;
         $periodB = preg_match($pattern, (string) $request->query('periodB')) ? $request->query('periodB') : $defaultB;
@@ -60,7 +60,7 @@ class ReportPdfController extends Controller
         }
 
         $bulan = $this->bulanFromQuery($request);
-        $bulanLalu = Carbon::createFromFormat('Y-m', $bulan)->subMonth()->format('Y-m');
+        $bulanLalu = Carbon::createFromFormat('!Y-m', $bulan)->subMonthNoOverflow()->format('Y-m');
 
         $result = PeriodComparator::compare($user, 'bulan', $bulan, $bulanLalu);
         $a = $result['a'];
@@ -124,7 +124,7 @@ class ReportPdfController extends Controller
     private function bulanFromQuery(Request $request): string
     {
         $bulan = (string) $request->query('bulan');
-        $parsed = preg_match('/^\d{4}-\d{2}$/', $bulan) ? Carbon::createFromFormat('Y-m', $bulan) : false;
+        $parsed = preg_match('/^\d{4}-\d{2}$/', $bulan) ? Carbon::createFromFormat('!Y-m', $bulan) : false;
 
         return $parsed !== false && $parsed->format('Y-m') === $bulan ? $bulan : Carbon::today()->format('Y-m');
     }

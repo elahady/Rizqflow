@@ -242,6 +242,201 @@ class RoomMembershipControllerTest extends TestCase
             ->assertForbidden();
     }
 
+    // ---- keluar sendiri (leave) dan kode galat
+
+    private const ROOM = 'ruang-keluarga-1';
+
+    /** Pemilik dan satu anggota biasa sudah bergabung ke [self::ROOM]; mengembalikan [pemilik, anggota]. */
+    private function roomWithOwnerAndMember(): array
+    {
+        $owner = $this->syncUser();
+        $member = $this->syncUser();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        $this->app['auth']->forgetGuards();
+
+        return [$owner, $member];
+    }
+
+    private function pushRow(User $user, string $recordId): void
+    {
+        $this->withHeaders($this->authHeader($user))->postJson('/api/sync/push', ['entries' => [[
+            'room_id' => self::ROOM, 'record_type' => 'r', 'record_id' => $recordId, 'device_id' => 'dev-'.$user->id,
+            'payload' => 'cipher-'.$recordId, 'changed_at' => '2026-11-01T10:00:00Z', 'changed_at_ms' => 1793527200000,
+        ]]])->assertOk();
+        $this->app['auth']->forgetGuards();
+    }
+
+    /** @return list<string> record_id yang diterima $user dari pull. */
+    private function pulledRecordIds(User $user): array
+    {
+        $response = $this->withHeaders($this->authHeader($user))->getJson('/api/sync/pull?device_id=dev-pull')->assertOk();
+        $this->app['auth']->forgetGuards();
+
+        return array_column($response->json('entries'), 'record_id');
+    }
+
+    public function test_a_member_can_leave_and_stops_receiving_the_room_while_the_rows_stay_for_the_others(): void
+    {
+        [$owner, $member] = $this->roomWithOwnerAndMember();
+        $this->pushRow($owner, 'tx-pemilik');
+        $this->assertSame(['tx-pemilik'], $this->pulledRecordIds($member), 'kontrol: anggota menerima baris ruang');
+
+        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/'.self::ROOM.'/leave')->assertNoContent();
+        $this->app['auth']->forgetGuards();
+
+        $this->assertDatabaseMissing('room_members', ['user_id' => $member->id, 'room_id' => self::ROOM]);
+        $this->assertDatabaseHas('room_members', ['user_id' => $owner->id, 'room_id' => self::ROOM, 'is_owner' => true]);
+        $this->assertSame([], $this->pulledRecordIds($member), 'bekas anggota tidak lagi menerima baris ruang');
+        $this->assertSame(['tx-pemilik'], $this->pulledRecordIds($owner), 'baris tetap ada untuk anggota lain');
+    }
+
+    public function test_rows_written_by_the_member_who_left_stay_on_the_server(): void
+    {
+        [$owner, $member] = $this->roomWithOwnerAndMember();
+        $this->pushRow($member, 'tx-anggota');
+
+        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/'.self::ROOM.'/leave')->assertNoContent();
+        $this->app['auth']->forgetGuards();
+
+        $this->assertSame(['tx-anggota'], $this->pulledRecordIds($owner));
+    }
+
+    public function test_the_owner_cannot_leave(): void
+    {
+        [$owner] = $this->roomWithOwnerAndMember();
+
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/leave')
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'owner_cannot_leave')
+            ->assertJsonStructure(['message', 'code']);
+
+        $this->assertDatabaseHas('room_members', ['user_id' => $owner->id, 'room_id' => self::ROOM, 'is_owner' => true]);
+    }
+
+    public function test_the_sole_owner_cannot_leave_either(): void
+    {
+        $owner = $this->syncUser();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        $this->app['auth']->forgetGuards();
+
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/leave')
+            ->assertStatus(422)->assertJsonPath('code', 'owner_cannot_leave');
+    }
+
+    public function test_leaving_a_room_you_are_not_in_is_404_with_a_code_and_leaving_twice_too(): void
+    {
+        [, $member] = $this->roomWithOwnerAndMember();
+        $stranger = $this->syncUser();
+
+        $this->withHeaders($this->authHeader($stranger))->postJson('/api/rooms/'.self::ROOM.'/leave')
+            ->assertNotFound()->assertJsonPath('code', 'not_room_member');
+        $this->app['auth']->forgetGuards();
+
+        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/'.self::ROOM.'/leave')->assertNoContent();
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/'.self::ROOM.'/leave')
+            ->assertNotFound()->assertJsonPath('code', 'not_room_member');
+
+        $this->assertDatabaseHas('room_members', ['room_id' => self::ROOM, 'is_owner' => true]);
+    }
+
+    public function test_leaving_does_not_touch_other_rooms_or_other_members(): void
+    {
+        [$owner, $member] = $this->roomWithOwnerAndMember();
+        $third = $this->syncUser();
+        $this->withHeaders($this->authHeader($third))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/ruang-lain/join')->assertNoContent();
+        $this->app['auth']->forgetGuards();
+
+        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/'.self::ROOM.'/leave')->assertNoContent();
+
+        $this->assertDatabaseHas('room_members', ['user_id' => $member->id, 'room_id' => 'ruang-lain']);
+        $this->assertDatabaseHas('room_members', ['user_id' => $third->id, 'room_id' => self::ROOM]);
+        $this->assertDatabaseHas('room_members', ['user_id' => $owner->id, 'room_id' => self::ROOM]);
+    }
+
+    public function test_leaving_does_not_require_an_active_sync_subscription(): void
+    {
+        [, $member] = $this->roomWithOwnerAndMember();
+        $member->forceFill(['plans' => []])->save();
+
+        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/'.self::ROOM.'/leave')->assertNoContent();
+
+        $this->assertDatabaseMissing('room_members', ['user_id' => $member->id, 'room_id' => self::ROOM]);
+    }
+
+    public function test_leave_requires_authentication(): void
+    {
+        $this->postJson('/api/rooms/'.self::ROOM.'/leave')->assertUnauthorized()->assertJsonPath('code', 'unauthenticated');
+    }
+
+    public function test_a_member_who_left_can_join_again_with_a_new_invitation_but_never_as_owner(): void
+    {
+        [$owner, $member] = $this->roomWithOwnerAndMember();
+        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/'.self::ROOM.'/leave')->assertNoContent();
+        $this->app['auth']->forgetGuards();
+
+        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+
+        $this->assertFalse(RoomMember::where('user_id', $member->id)->where('room_id', self::ROOM)->value('is_owner'));
+        $this->assertTrue(RoomMember::where('user_id', $owner->id)->where('room_id', self::ROOM)->value('is_owner'));
+    }
+
+    public function test_error_responses_carry_stable_codes(): void
+    {
+        [$owner, $member] = $this->roomWithOwnerAndMember();
+        $stranger = $this->syncUser();
+        $noSync = User::factory()->create(['plans' => []]);
+
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/'.self::ROOM.'/join')
+            ->assertForbidden()->assertJsonPath('code', 'sync_required');
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($stranger))->getJson('/api/rooms/'.self::ROOM.'/members')
+            ->assertForbidden()->assertJsonPath('code', 'not_room_member');
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($owner))->deleteJson('/api/rooms/'.self::ROOM.'/members/'.$stranger->id)
+            ->assertNotFound()->assertJsonPath('code', 'member_not_found');
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($owner))->deleteJson('/api/rooms/'.self::ROOM.'/members/'.$owner->id)
+            ->assertStatus(422)->assertJsonPath('code', 'owner_cannot_be_removed');
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($member))->deleteJson('/api/rooms/'.self::ROOM.'/members/'.$owner->id)
+            ->assertForbidden()->assertJsonPath('code', 'not_room_owner');
+    }
+
+    public function test_a_room_id_longer_than_the_sync_limit_is_rejected_before_touching_the_database(): void
+    {
+        $user = $this->syncUser();
+        $headers = $this->authHeader($user);
+        $tooLong = str_repeat('r', 101);
+
+        foreach (["/api/rooms/$tooLong/join", "/api/rooms/$tooLong/leave"] as $uri) {
+            $this->app['auth']->forgetGuards();
+            $this->withHeaders($headers)->postJson($uri)->assertStatus(422)->assertJsonPath('code', 'invalid_room_id');
+        }
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($headers)->getJson("/api/rooms/$tooLong/members")->assertStatus(422)->assertJsonPath('code', 'invalid_room_id');
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($headers)->deleteJson("/api/rooms/$tooLong/members/{$user->id}")->assertStatus(422)->assertJsonPath('code', 'invalid_room_id');
+
+        $this->assertSame(0, RoomMember::count());
+
+        // Tepat 100 karakter (batas push) tetap diterima.
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($headers)->postJson('/api/rooms/'.str_repeat('r', 100).'/join')->assertNoContent();
+    }
+
+    public function test_a_non_numeric_member_id_in_the_remove_route_is_a_plain_404(): void
+    {
+        [$owner] = $this->roomWithOwnerAndMember();
+
+        $this->withHeaders($this->authHeader($owner))->deleteJson('/api/rooms/'.self::ROOM.'/members/bukan-angka')
+            ->assertNotFound()->assertJsonPath('code', 'not_found');
+    }
+
     public function test_backfill_marks_the_earliest_member_of_each_room_as_owner(): void
     {
         $first = $this->syncUser();

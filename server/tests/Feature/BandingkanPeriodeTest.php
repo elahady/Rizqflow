@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class BandingkanPeriodeTest extends TestCase
@@ -28,6 +29,10 @@ class BandingkanPeriodeTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Waktu dibekukan supaya tes tidak bergantung tanggal berjalan (dulu gagal di hari ke-29 sampai 31).
+        // Tes akhir bulan di bawah memajukan waktu sendiri.
+        $this->travelTo(Carbon::parse('2026-10-15 10:00:00'));
 
         $this->user = User::factory()->create(['plans' => ['pro']]);
         $this->room = Room::create(['user_id' => $this->user->id, 'name' => 'Keluarga', 'type' => 'mencukupi', 'slot' => 1, 'sort_order' => 1]);
@@ -59,7 +64,7 @@ class BandingkanPeriodeTest extends TestCase
         $component = Livewire::actingAs($this->user)->test(BandingkanPeriode::class);
 
         $this->assertSame(Carbon::today()->format('Y-m'), $component->get('periodA'));
-        $this->assertSame(Carbon::today()->subMonth()->format('Y-m'), $component->get('periodB'));
+        $this->assertSame(Carbon::today()->subMonthNoOverflow()->format('Y-m'), $component->get('periodB'));
     }
 
     public function test_switching_granularity_to_year_resets_periods_to_this_year_versus_last_year(): void
@@ -67,15 +72,15 @@ class BandingkanPeriodeTest extends TestCase
         $component = Livewire::actingAs($this->user)->test(BandingkanPeriode::class)->set('granularity', 'tahun');
 
         $this->assertSame(Carbon::today()->format('Y'), $component->get('periodA'));
-        $this->assertSame(Carbon::today()->subYear()->format('Y'), $component->get('periodB'));
+        $this->assertSame(Carbon::today()->subYearNoOverflow()->format('Y'), $component->get('periodB'));
     }
 
     public function test_income_expense_and_remainder_are_computed_per_period(): void
     {
         $this->tx('pemasukan', 2_000_000, Carbon::now());
         $this->tx('pengeluaran', 500_000, Carbon::now(), $this->room->id, $this->category->id);
-        $this->tx('pemasukan', 1_000_000, Carbon::now()->subMonth());
-        $this->tx('pengeluaran', 300_000, Carbon::now()->subMonth(), $this->room->id, $this->category->id);
+        $this->tx('pemasukan', 1_000_000, Carbon::now()->subMonthNoOverflow());
+        $this->tx('pengeluaran', 300_000, Carbon::now()->subMonthNoOverflow(), $this->room->id, $this->category->id);
 
         $component = Livewire::actingAs($this->user)->test(BandingkanPeriode::class);
 
@@ -92,7 +97,7 @@ class BandingkanPeriodeTest extends TestCase
         $otherCategory = Category::create(['room_id' => $otherRoom->id, 'name' => 'Investasi', 'sort_order' => 1]);
 
         $this->tx('pengeluaran', 500_000, Carbon::now(), $this->room->id, $this->category->id);
-        $this->tx('pengeluaran', 300_000, Carbon::now()->subMonth(), $otherRoom->id, $otherCategory->id);
+        $this->tx('pengeluaran', 300_000, Carbon::now()->subMonthNoOverflow(), $otherRoom->id, $otherCategory->id);
 
         $rooms = Livewire::actingAs($this->user)->test(BandingkanPeriode::class)->viewData('rooms');
 
@@ -165,6 +170,59 @@ class BandingkanPeriodeTest extends TestCase
             ->set('periodA', '2024');
 
         $this->assertSame([], $component->viewData('insightSentences'));
+    }
+
+    /**
+     * Regresi: `subMonth()` dan `createFromFormat('Y-m')` memakai HARI ini, jadi pada tanggal 29 sampai 31
+     * bulan lalu meluap ke bulan ini (31 Okt dikurangi 1 bulan = 1 Okt) dan periode bulanan bergeser satu bulan.
+     *
+     * @return array<string, array{string, string, string}>
+     */
+    public static function akhirBulan(): array
+    {
+        return [
+            '31 Oktober' => ['2026-10-31 10:00:00', '2026-10', '2026-09'],
+            '31 Desember' => ['2026-12-31 10:00:00', '2026-12', '2026-11'],
+            '31 Maret (Februari pendek)' => ['2027-03-31 10:00:00', '2027-03', '2027-02'],
+            '30 Maret' => ['2026-03-30 10:00:00', '2026-03', '2026-02'],
+        ];
+    }
+
+    #[DataProvider('akhirBulan')]
+    public function test_default_periods_at_the_end_of_a_month_are_this_and_the_previous_month(string $now, string $expectedA, string $expectedB): void
+    {
+        $this->travelTo(Carbon::parse($now));
+
+        $component = Livewire::actingAs($this->user)->test(BandingkanPeriode::class);
+
+        $this->assertSame($expectedA, $component->get('periodA'));
+        $this->assertSame($expectedB, $component->get('periodB'));
+    }
+
+    public function test_default_year_periods_on_a_leap_day_are_this_and_the_previous_year(): void
+    {
+        $this->travelTo(Carbon::parse('2028-02-29 10:00:00'));
+
+        $component = Livewire::actingAs($this->user)->test(BandingkanPeriode::class)->set('granularity', 'tahun');
+
+        $this->assertSame('2028', $component->get('periodA'));
+        $this->assertSame('2027', $component->get('periodB'));
+    }
+
+    public function test_a_chosen_month_is_summed_for_that_month_even_when_today_is_the_31st(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-31 10:00:00'));
+        $this->tx('pengeluaran', 400_000, Carbon::parse('2026-02-10'), $this->room->id, $this->category->id);
+        $this->tx('pengeluaran', 900_000, Carbon::parse('2026-03-10'), $this->room->id, $this->category->id);
+
+        $component = Livewire::actingAs($this->user)
+            ->test(BandingkanPeriode::class)
+            ->set('periodA', '2026-02')
+            ->set('periodB', '2026-03');
+
+        $this->assertSame(400_000, $component->viewData('a')['expense']);
+        $this->assertSame(900_000, $component->viewData('b')['expense']);
+        $this->assertSame('Februari 2026', $component->viewData('periodLabelA'));
     }
 
     public function test_insight_tidak_muncul_untuk_pengguna_tanpa_pro(): void
