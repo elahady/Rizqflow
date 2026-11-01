@@ -328,7 +328,7 @@ private fun YearlyContent(data: YearlyReport, insights: List<Insight>, onExport:
         SectionTitle(stringResource(R.string.report_insights_title))
         insights.forEach { insight ->
             Text(
-                insight.describe(context.resources),
+                insight.describe(resources),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1),
             )
@@ -386,7 +386,7 @@ private fun Bar(amount: Money, max: Money, height: androidx.compose.ui.unit.Dp, 
 @Composable
 private fun SummaryRow(label: String, comparison: MonthComparison, period: ComparePeriod) {
     val spacing = MaterialTheme.spacing
-    val context = LocalContext.current
+    val resources = LocalResources.current
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(formatRupiah(comparison.current), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = spacing.s1))
@@ -400,7 +400,7 @@ private fun SummaryRow(label: String, comparison: MonthComparison, period: Compa
             }
             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = spacing.s1))
             Text(
-                comparisonText(context.resources, comparison, period),
+                comparisonText(resources, comparison, period),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

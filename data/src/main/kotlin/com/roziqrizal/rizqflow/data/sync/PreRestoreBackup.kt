@@ -27,6 +27,12 @@ class PreRestoreBackup(
     private val checkpoint: () -> Unit,
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val log: (String) -> Unit = { Log.w(TAG, it) },
+    /**
+     * Akhiran salinan. Bawaan [SUFFIX] (`.prerestore`, sebelum "Pulihkan"); [PreRestoreFiles.PREREVERT] dipakai
+     * pengembalian ([com.roziqrizal.rizqflow.domain.sync.PreRestoreRevertFlow]) untuk salinan darurat, TERPISAH supaya tidak
+     * pernah menimpa `.prerestore` yang sedang dipulihkan.
+     */
+    private val suffix: String = SUFFIX,
 ) : LocalSafetyBackup {
     override suspend fun take(): LocalBackupHandle? = withContext(Dispatchers.IO) {
         try {
@@ -36,7 +42,7 @@ class PreRestoreBackup(
                 log("Berkas database tidak ditemukan; salinan sebelum pulihkan tidak dibuat")
                 return@withContext null
             }
-            val target = File(source.path + SUFFIX)
+            val target = File(source.path + suffix)
             val dir = source.absoluteFile.parentFile
             if (dir != null && dir.usableSpace < source.length() + SPACE_MARGIN_BYTES) {
                 log("Ruang penyimpanan tidak cukup untuk salinan sebelum pulihkan")
@@ -63,10 +69,11 @@ class PreRestoreBackup(
     }
 
     companion object {
-        const val SUFFIX = ".prerestore"
+        const val SUFFIX = PreRestoreFiles.PRERESTORE
         private const val SPACE_MARGIN_BYTES = 4L * 1024 * 1024
         private const val TAG = "PreRestoreBackup"
 
-        fun forLedger(ledger: LocalLedger) = PreRestoreBackup(databaseFile = { ledger.databaseFile }, checkpoint = ledger::checkpoint)
+        fun forLedger(ledger: LocalLedger, suffix: String = SUFFIX) =
+            PreRestoreBackup(databaseFile = { ledger.databaseFile }, checkpoint = ledger::checkpoint, suffix = suffix)
     }
 }

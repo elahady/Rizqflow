@@ -16,8 +16,8 @@ import com.roziqrizal.rizqflow.domain.sync.NetworkKind
  * ditandai tidak berbayar oleh operator boleh. Pilihan ini usulan Claude (belum dikonfirmasi pemilik); salahnya hanya
  * menunda sync otomatis, tidak pernah menghilangkan data, dan tombol manual tidak terpengaruh.
  *
- * Hanya MEMBACA keadaan saat dipanggil (tiap pemicu), tidak mendengarkan perubahan jaringan; lihat batas ini di
- * sync-desain.md bagian H.
+ * Hanya MEMBACA keadaan saat dipanggil (tiap pemicu). Perubahan jaringan saat aplikasi di depan didengarkan oleh
+ * `AndroidNetworkChangeSource` (`:data`), yang memicu orkestrator untuk menilai ulang lewat kelas ini.
  */
 class AndroidAutoSyncNetwork(context: Context, private val settings: AutoSyncSettings) : AutoSyncNetwork {
     private val connectivity = context.applicationContext.getSystemService(ConnectivityManager::class.java)

@@ -58,8 +58,7 @@ fun AutoSyncScreen(
     val state by workspace.syncOrchestrator.state.collectAsState()
     var wifiOnly by remember(workspace) { mutableStateOf(workspace.autoSyncSettings.wifiOnly) }
     var manualBusy by remember { mutableStateOf(false) }
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val resources = context.resources
+    val resources = androidx.compose.ui.platform.LocalResources.current
 
     BackHandler(onBack = onClose)
 
@@ -108,7 +107,10 @@ fun AutoSyncScreen(
                         } else {
                             stringResource(
                                 R.string.sync_last_at,
-                                DateUtils.getRelativeTimeSpanString(last, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString(),
+                                // Jam dimundurkan setelah sync: jangan tampilkan "dalam sekian menit" (waktu masa depan).
+                                System.currentTimeMillis().let { now ->
+                                    DateUtils.getRelativeTimeSpanString(minOf(last, now), now, DateUtils.MINUTE_IN_MILLIS).toString()
+                                },
                             )
                         },
                         style = MaterialTheme.typography.bodySmall,

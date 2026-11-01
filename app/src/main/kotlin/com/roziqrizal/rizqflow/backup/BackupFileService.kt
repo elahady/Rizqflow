@@ -4,6 +4,8 @@ import android.content.Context
 import com.roziqrizal.rizqflow.domain.auth.AccountStorage
 import com.roziqrizal.rizqflow.workspace.AccountWorkspace
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -32,13 +34,27 @@ object BackupFileService {
      * membuka ulang setelah ini selesai.
      */
     suspend fun overwrite(context: Context, accountId: String, decrypted: ByteArray) = withContext(Dispatchers.IO) {
-        val file = databaseFile(context, accountId)
+        overwriteFile(databaseFile(context, accountId), decrypted)
+    }
+
+    /**
+     * Penimpaan berkas yang tahan mati di tengah: isi baru ditulis lebih dulu ke berkas sementara di folder yang sama, lalu
+     * dipindahkan ke tempatnya. Proses mati/ruang penuh saat menulis meninggalkan database lama UTUH (bukan separuh
+     * tertimpa seperti `writeBytes` langsung); sisa berkas sementara dibuang. Berkas `-wal`/`-shm` lama menyimpan perubahan
+     * tertunda milik database SEBELUM ditimpa, jadi dibuang SEBELUM berkas baru dipasang: urutan sebaliknya bisa
+     * menyisakan WAL lama di atas database baru bila mati di antaranya.
+     */
+    internal fun overwriteFile(file: File, decrypted: ByteArray) {
         file.parentFile?.mkdirs()
-        file.writeBytes(decrypted)
-        // Berkas -wal/-shm lama menyimpan perubahan tertunda milik database SEBELUM ditimpa; kalau
-        // dibiarkan, Room bisa mengira ada perubahan itu yang belum tersimpan ke berkas baru ini.
-        File(file.path + "-wal").delete()
-        File(file.path + "-shm").delete()
+        val tmp = File(file.path + ".restore.tmp")
+        try {
+            tmp.writeBytes(decrypted)
+            File(file.path + "-wal").delete()
+            File(file.path + "-shm").delete()
+            Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        } finally {
+            tmp.delete()
+        }
     }
 
     private fun databaseFile(context: Context, accountId: String): File =

@@ -81,6 +81,12 @@ class LocalLedger(
     val databaseFile: File get() = File(db.openHelper.writableDatabase.path!!)
 
     /**
+     * Versi skema (`PRAGMA user_version`) database yang terbuka. Dipakai pemeriksaan "salinan ini terlalu baru untuk
+     * dibuka aplikasi" sebelum berkas salinan menggantikan database (`PreRestoreRevertFlow`); `:app` tidak punya Room.
+     */
+    val schemaVersion: Int get() = db.openHelper.readableDatabase.version
+
+    /**
      * Menyatukan perubahan yang masih di berkas `-wal` (Room memakai mode WAL) ke berkas utama,
      * supaya [databaseFile] menjadi salinan yang lengkap tanpa perlu menutup koneksi ini.
      */

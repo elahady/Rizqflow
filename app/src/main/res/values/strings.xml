@@ -1347,7 +1347,7 @@
     <string name="sync_status_reconnect">Belum tersambung ke server. Sambungkan ulang dari menu Lainnya untuk melanjutkan sinkron; datamu aman di ponsel.</string>
     <string name="sync_status_subscription">Sinkron butuh langganan Rizqflow Sync. Datamu tetap aman dan bisa dipakai di ponsel ini.</string>
     <string name="sync_status_push_waits">Atur kode pemulihan supaya datamu ikut tersalin ke server. Sampai itu, datamu tetap aman di ponsel.</string>
-    <string name="sync_last_never">Belum ada sinkron di sesi ini.</string>
+    <string name="sync_last_never">Belum pernah tersinkron di perangkat ini.</string>
     <string name="sync_last_at">Terakhir tersinkron %1$s.</string>
     <string name="sync_wifi_only_title">Hanya lewat Wi-Fi</string>
     <string name="sync_wifi_only_body">Sinkron otomatis menunggu jaringan yang tidak berbayar. Tombol Sinkronkan sekarang tetap jalan di jaringan apa pun.</string>
@@ -1376,4 +1376,24 @@
     <string name="family_leave_failed">Belum bisa keluar dari ruang. Periksa koneksi lalu coba lagi.</string>
     <string name="family_owner_cannot_leave_note">Kamu pemilik ruang ini, jadi tidak bisa keluar. Pemilik tetap menjadi anggota selama ruangnya ada.</string>
     <string name="family_left_info">Kamu sudah keluar dari ruang ini. Catatan yang ada di ponsel ini tetap tersimpan, tetapi tidak lagi tersinkron. Untuk bergabung lagi, minta undangan baru dari pemilik ruang lalu pindai QR-nya dari menu Lainnya.</string>
+    <string name="menu_prerestore_revert">Kembalikan data sebelum pemulihan</string>
+    <string name="menu_prerestore_revert_sub">Ada salinan otomatis dari sebelum kamu memulihkan dari server</string>
+    <string name="prerestore_title">Kembalikan data sebelum pemulihan</string>
+    <string name="prerestore_checking">Memeriksa salinan…</string>
+    <string name="prerestore_intro">Saat kamu memilih Pulihkan di perangkat ini, aplikasi menyimpan salinan otomatis catatan lokalmu sebelum menimpanya. Di sini kamu bisa mengembalikan catatan itu.</string>
+    <string name="prerestore_copy_info">Salinan dibuat %1$s (%2$s).</string>
+    <string name="prerestore_action">Kembalikan data sebelum pemulihan</string>
+    <string name="prerestore_working_prepare">Menyimpan salinan darurat dari keadaan sekarang…</string>
+    <string name="prerestore_working_apply">Mengembalikan data…</string>
+    <string name="prerestore_confirm_title">Kembalikan data sebelum pemulihan?</string>
+    <string name="prerestore_confirm_body">Catatan di perangkat ini sekarang (hasil pemulihan dari server, ditambah apa pun yang kamu catat sesudahnya) akan diganti dengan salinan yang dibuat %1$s (%2$s).\n\nKeadaan sekarang sudah disimpan lebih dulu sebagai salinan darurat (%3$s) di penyimpanan aplikasi. Belum ada layar untuk membukanya, dan salinan itu dibersihkan otomatis setelah 30 hari.\n\nData di server TIDAK ikut berubah. Bila Sinkron otomatis aktif, sinkron berikutnya bisa menarik kembali baris yang sudah ada di server, jadi sebagian hasil pemulihan mungkin muncul lagi di sini. Aplikasi akan memuat ulang datanya.</string>
+    <string name="prerestore_confirm_action">Ya, kembalikan</string>
+    <string name="prerestore_done">Data dikembalikan ke salinan sebelum pemulihan.</string>
+    <string name="prerestore_busy">Pengembalian lain sedang berjalan. Coba lagi sebentar lagi; catatanmu tidak berubah.</string>
+    <string name="prerestore_gone">Salinan sudah tidak ada, jadi tidak ada yang diubah.</string>
+    <string name="prerestore_unreadable">Salinan tidak bisa dibaca, jadi tidak ada yang diubah.</string>
+    <string name="prerestore_backup_failed">Salinan darurat gagal dibuat, jadi tidak ada yang diubah. Pastikan ruang penyimpanan cukup, lalu coba lagi.</string>
+    <string name="prerestore_apply_failed">Pengembalian gagal. Catatanmu tidak berubah dan salinannya masih ada; coba lagi.</string>
+    <string name="prerestore_unusable_corrupt">Salinan ini rusak atau tidak lengkap, jadi tidak bisa dipakai. Catatanmu sekarang tidak berubah.</string>
+    <string name="prerestore_unusable_newer">Salinan ini dibuat oleh versi aplikasi yang lebih baru dari yang terpasang, jadi tidak bisa dibuka di sini. Perbarui aplikasi, lalu coba lagi. Catatanmu sekarang tidak berubah.</string>
 </resources>

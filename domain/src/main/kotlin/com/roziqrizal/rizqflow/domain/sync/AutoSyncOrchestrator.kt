@@ -31,12 +31,19 @@ import kotlinx.coroutines.withTimeoutOrNull
  *    sedang berjalan), jadi hasilnya milik tombol itu.
  * 4. [onBackground] — satu upaya terbaik bila ada perubahan belum terkirim, [NonCancellable], dibatasi
  *    [AutoSyncConfig.backgroundBudgetMs]. Timer debounce dan percobaan ulang dibatalkan.
+ * 5. [onNetworkChanged] — jaringan berubah saat aplikasi di depan ([NetworkChangeSource], didaftarkan hanya selama di
+ *    depan): HANYA bila ada sync yang tertunda karena jaringan (tanpa jaringan, atau hanya-Wi-Fi di jaringan berbayar)
+ *    dan jaringan kini cukup, maka satu run dipicu. Tunduk pada jeda minimum (ditunda sampai jeda habis, bukan dibuang)
+ *    dan backoff seperti [onForeground].
  * Tambahan: [resume] (sambung ulang berhasil, atau langganan Sync baru dimiliki) dan percobaan ulang setelah jeda
  * (hanya selama di depan).
  *
  * **Satu penerbangan.** [runLock] adalah satu-satunya Mutex run. Pemicu OTOMATIS yang mendapati run berjalan bergabung
  * ke dalamnya (tidak memulai run kedua); bila pemicunya perubahan lokal, run itu diulang setelah selesai (debounce
- * ulang) supaya perubahan yang tiba setelah pengumpulan push tidak tertinggal. Cakupan berurutan: pribadi, lalu tiap
+ * ulang) supaya perubahan yang tiba setelah pengumpulan push tidak tertinggal.
+ *
+ * **Batas tunggu debounce.** Penyimpanan yang terus datang mengulang hitungan 10 detik, tetapi tidak lebih lama dari
+ * [AutoSyncConfig.debounceMaxWaitMs] sejak perubahan pertama yang belum terkirim. Cakupan berurutan: pribadi, lalu tiap
  * ruang bersama aktif ([AutoSyncSteps]; ruang bersama lewat `SharedRoomAutoSync.withRoomLock` di produksi).
  *
  * **Jeda ([SyncBackoff]).** Unreachable/5xx/galat lain berlipat dua 30 dtk..15 menit; `Retry-After` (mis. 429) diikuti;
@@ -60,6 +67,8 @@ class AutoSyncOrchestrator(
     private val nowMs: () -> Long = { System.nanoTime() / 1_000_000L },
     private val wallClockMs: () -> Long = System::currentTimeMillis,
     private val log: (String) -> Unit = {},
+    private val networkChanges: NetworkChangeSource = NetworkChangeSource.None,
+    private val lastSync: LastSyncStore = LastSyncStore.None,
 ) {
     private sealed interface Halt {
         /** Token [token] ditolak server (401). Berlaku sampai tokennya berganti. */
@@ -90,15 +99,71 @@ class AutoSyncOrchestrator(
     private var debounceJob: Job? = null
     private var retryJob: Job? = null
 
-    private val _state = MutableStateFlow(AutoSyncState())
+    /** Waktu monotonik perubahan PERTAMA yang belum terkirim (dasar [AutoSyncConfig.debounceMaxWaitMs]); null bila tidak ada. */
+    private var firstPendingChangeMs: Long? = null
+
+    /** True bila pemicu otomatis terakhir tertahan jaringan dan belum ada run sejak itu (dasar [onNetworkChanged]). */
+    private var pendingNetwork = false
+    private var networkWatch: AutoCloseable? = null
+    private var gapJob: Job? = null
+
+    private val _state = MutableStateFlow(AutoSyncState(lastSyncedAtMs = sanitizeLastSync(runCatching { lastSync.read() }.getOrNull(), wallClockMs())))
     val state: StateFlow<AutoSyncState> = _state.asStateFlow()
 
     // ---- Pemicu ----
 
     /** Aplikasi masuk ke depan. Mengembalikan job run-nya (tes menunggunya; UI boleh mengabaikan). */
     fun onForeground(): Job {
-        synchronized(stateLock) { foreground = true }
+        synchronized(stateLock) {
+            foreground = true
+            startNetworkWatch()
+        }
         return scope.launch { runAutomatic(AutoSyncTrigger.FOREGROUND) }
+    }
+
+    /**
+     * Jaringan berubah saat di depan. Murah: tidak melakukan apa pun kecuali ada sync yang tertunda karena jaringan; run-nya
+     * sendiri menilai ulang jaringan ([AutoSyncNetwork]) dan tunduk pada jeda minimum dan backoff.
+     */
+    fun onNetworkChanged() {
+        val relevant = synchronized(stateLock) { foreground && pendingNetwork }
+        if (!relevant) return
+        scope.launch { runAutomatic(AutoSyncTrigger.NETWORK_CHANGE) }
+    }
+
+    /** Ruang kerja ditutup: lepas pendengar jaringan dan semua timer. Tidak memulai upaya latar. */
+    fun shutdown() {
+        synchronized(stateLock) {
+            foreground = false
+            stopNetworkWatch()
+            debounceJob?.cancel()
+            debounceJob = null
+            retryJob?.cancel()
+            retryJob = null
+            gapJob?.cancel()
+            gapJob = null
+        }
+    }
+
+    // Dipanggil di bawah stateLock. Idempoten: onForeground boleh dipanggil berulang tanpa ke latar di antaranya.
+    private fun startNetworkWatch() {
+        if (networkWatch != null) return
+        networkWatch = try {
+            networkChanges.watch { onNetworkChanged() }
+        } catch (e: Exception) {
+            log("pendengar jaringan gagal dipasang: ${e.javaClass.simpleName}")
+            null
+        }
+    }
+
+    private fun stopNetworkWatch() {
+        val watch = networkWatch ?: return
+        networkWatch = null
+        try {
+            watch.close()
+        } catch (e: Exception) {
+            log("pendengar jaringan gagal dilepas: ${e.javaClass.simpleName}")
+        }
     }
 
     /**
@@ -108,10 +173,14 @@ class AutoSyncOrchestrator(
     fun onLocalChange() {
         synchronized(stateLock) {
             dirty = true
+            val now = nowMs()
+            val first = firstPendingChangeMs ?: now.also { firstPendingChangeMs = it }
             if (!foreground) return
             debounceJob?.cancel()
+            // Diam 10 detik, tetapi tidak melewati batas tunggu maksimum sejak perubahan pertama yang belum terkirim.
+            val wait = minOf(config.debounceMs, maxOf(0L, config.debounceMaxWaitMs - (now - first)))
             debounceJob = scope.launch {
-                delay(config.debounceMs)
+                delay(wait)
                 // Dilepas SEBELUM run: penyimpanan baru selama run tidak boleh membatalkan run yang sedang jalan.
                 val self = currentCoroutineContext()[Job]
                 synchronized(stateLock) {
@@ -126,10 +195,13 @@ class AutoSyncOrchestrator(
     fun onBackground() {
         val attempt = synchronized(stateLock) {
             foreground = false
+            stopNetworkWatch()
             debounceJob?.cancel()
             debounceJob = null
             retryJob?.cancel()
             retryJob = null
+            gapJob?.cancel()
+            gapJob = null
             dirty
         }
         if (!attempt) return
@@ -210,7 +282,7 @@ class AutoSyncOrchestrator(
                 null -> null
             } ?: when {
                 // Perubahan lokal dan percobaan ulang hanya berarti selama aplikasi di depan (keputusan #15).
-                (trigger == AutoSyncTrigger.LOCAL_CHANGE || trigger == AutoSyncTrigger.RETRY) && !foreground -> AutoSyncPhase.IDLE
+                (trigger == AutoSyncTrigger.LOCAL_CHANGE || trigger == AutoSyncTrigger.RETRY || trigger == AutoSyncTrigger.NETWORK_CHANGE) && !foreground -> AutoSyncPhase.IDLE
                 backoff.isBlocked(now) -> AutoSyncPhase.BACKOFF
                 else -> null
             }
@@ -220,11 +292,26 @@ class AutoSyncOrchestrator(
             if (blockedPhase != AutoSyncPhase.IDLE) setPhase(blockedPhase)
             return false
         }
-        if (trigger == AutoSyncTrigger.FOREGROUND) {
-            val last = synchronized(stateLock) { lastRunStartMs }
-            if (last != null && now - last < config.foregroundMinGapMs) return false
+        if (trigger == AutoSyncTrigger.NETWORK_CHANGE) {
+            // Kabar jaringan hanya berarti bila ada yang menunggu jaringan; selain itu run-nya sudah/akan dipicu pemicu lain.
+            if (!synchronized(stateLock) { pendingNetwork }) return false
         }
-        when (network.check()) {
+        if (trigger == AutoSyncTrigger.FOREGROUND || trigger == AutoSyncTrigger.NETWORK_CHANGE) {
+            val last = synchronized(stateLock) { lastRunStartMs }
+            if (last != null && now - last < config.foregroundMinGapMs) {
+                // Kabar jaringan yang jatuh di dalam jeda ditunda sampai jeda habis (bukan dibuang): tanpa ini sync yang
+                // tertunda jaringan tidak punya pemicu lagi sampai ada perubahan jaringan berikutnya.
+                if (trigger == AutoSyncTrigger.NETWORK_CHANGE) scheduleGapRetry(config.foregroundMinGapMs - (now - last))
+                return false
+            }
+        }
+        // Tertahan jaringan: ingat, supaya perubahan jaringan berikutnya (onNetworkChanged) memicu run. BACKGROUND tidak
+        // ikut: di latar tidak ada pendengar jaringan.
+        val check = network.check()
+        if (check != NetworkCheck.OK && trigger != AutoSyncTrigger.BACKGROUND) {
+            synchronized(stateLock) { pendingNetwork = true }
+        }
+        when (check) {
             NetworkCheck.OK -> Unit
             NetworkCheck.NO_NETWORK -> { setPhase(AutoSyncPhase.OFFLINE); return false }
             NetworkCheck.WIFI_ONLY_BLOCKED -> { setPhase(AutoSyncPhase.WIFI_ONLY); return false }
@@ -240,6 +327,8 @@ class AutoSyncOrchestrator(
             lastRunStartMs = nowMs()
             // Perubahan yang tiba SELAMA run menyalakan lagi bendera ini; yang sudah ada sekarang ikut terkirim run ini.
             dirty = false
+            firstPendingChangeMs = null
+            pendingNetwork = false
         }
         setPhase(AutoSyncPhase.SYNCING)
 
@@ -260,7 +349,14 @@ class AutoSyncOrchestrator(
                     retryJob?.cancel()
                     retryJob = null
                 }
-                _state.value = AutoSyncState(AutoSyncPhase.IDLE, wallClockMs(), outcome.pushWaitsForRecovery)
+                val finishedAt = wallClockMs()
+                // Bertahan setelah proses mati; gagal menyimpan tidak boleh menggagalkan sync.
+                try {
+                    lastSync.write(finishedAt)
+                } catch (e: Exception) {
+                    log("waktu sinkron terakhir gagal disimpan: ${e.javaClass.simpleName}")
+                }
+                _state.value = AutoSyncState(AutoSyncPhase.IDLE, finishedAt, outcome.pushWaitsForRecovery)
                 AutoSyncReport.Synced(outcome.pushed, outcome.applied, outcome.pushWaitsForRecovery, outcome.roomsSkipped)
             }
 
@@ -319,6 +415,22 @@ class AutoSyncOrchestrator(
                     if (retryJob === self) retryJob = null
                 }
                 runAutomatic(AutoSyncTrigger.RETRY)
+            }
+        }
+    }
+
+    /** Satu run NETWORK_CHANGE setelah jeda minimum habis; hanya selama di depan. */
+    private fun scheduleGapRetry(delayMs: Long) {
+        synchronized(stateLock) {
+            if (!foreground) return
+            gapJob?.cancel()
+            gapJob = scope.launch {
+                delay(delayMs)
+                val self = currentCoroutineContext()[Job]
+                synchronized(stateLock) {
+                    if (gapJob === self) gapJob = null
+                }
+                runAutomatic(AutoSyncTrigger.NETWORK_CHANGE)
             }
         }
     }

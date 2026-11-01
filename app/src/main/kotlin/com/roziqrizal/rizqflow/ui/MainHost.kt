@@ -118,6 +118,7 @@ import com.roziqrizal.rizqflow.sync.forgetStatusDurably
 import com.roziqrizal.rizqflow.sync.recoveryRow
 import com.roziqrizal.rizqflow.sync.restoreAvailable
 import com.roziqrizal.rizqflow.ui.recovery.NewDeviceRestoreScreen
+import com.roziqrizal.rizqflow.ui.recovery.PreRestoreRevertScreen
 import com.roziqrizal.rizqflow.ui.recovery.RecoveryRestoreScreen
 import com.roziqrizal.rizqflow.ui.autosync.AutoSyncScreen
 import com.roziqrizal.rizqflow.ui.devices.DevicesScreen
@@ -195,6 +196,7 @@ fun MainHost(
     var devicesOpen by rememberSaveable { mutableStateOf(false) }
     var syncHistoryOpen by rememberSaveable { mutableStateOf(false) }
     var autoSyncOpen by rememberSaveable { mutableStateOf(false) }
+    var preRestoreRevertOpen by rememberSaveable { mutableStateOf(false) }
     var tampilanOpen by rememberSaveable { mutableStateOf(false) }
     var paywallOpen by rememberSaveable { mutableStateOf(false) }
     var deleteAccountSheet by rememberSaveable { mutableStateOf(false) }
@@ -384,6 +386,14 @@ fun MainHost(
     LaunchedEffect(workspace, demo) {
         if (!demo) workspace.cleanUpPreRestore()
     }
+    // Baris "Kembalikan data sebelum pemulihan" di menu Lainnya tampil hanya bila salinan `.prerestore` ada. Diperiksa ulang
+    // sesudah alur Pulihkan (yang membuat salinan) dan layar pengembalian ditutup.
+    var preRestoreCopyExists by remember(workspace) { mutableStateOf(false) }
+    LaunchedEffect(workspace, demo, newDeviceRestoreOpen, preRestoreRevertOpen) {
+        preRestoreCopyExists = !demo && kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            workspace.preRestoreRevert.eligibility() != com.roziqrizal.rizqflow.domain.sync.RevertEligibility.NoCopy
+        }
+    }
     LaunchedEffect(workspace, demo) {
         if (demo) return@LaunchedEffect
         var blockedNoticed = false
@@ -391,9 +401,9 @@ fun MainHost(
             val run = workspace.recurring.runDue(LocalDate.now())
             if (run.recorded > 0) {
                 version++
-                scope.launch { notifier.show(context.resources.getQuantityString(R.plurals.recurring_ran, run.recorded, run.recorded)) }
+                scope.launch { notifier.show(resources.getQuantityString(R.plurals.recurring_ran, run.recorded, run.recorded)) }
             } else if (run.blocked.isNotEmpty() && !blockedNoticed) {
-                scope.launch { notifier.show(context.resources.getQuantityString(R.plurals.recurring_blocked_notice, run.blocked.size, run.blocked.size)) }
+                scope.launch { notifier.show(resources.getQuantityString(R.plurals.recurring_blocked_notice, run.blocked.size, run.blocked.size)) }
             }
             if (run.blocked.isNotEmpty()) blockedNoticed = true
             // Sync otomatis (Tahap 6, keputusan #15: hanya saat aplikasi di depan): SETELAH transaksi berulang dicatat dan
@@ -468,7 +478,7 @@ fun MainHost(
                 LocalDate.now(),
                 resources.getString(R.string.date_today),
                 resources.getString(R.string.date_yesterday),
-                context.resources.getStringArray(R.array.month_abbrev).toList(),
+                resources.getStringArray(R.array.month_abbrev).toList(),
             )
             resources.getString(R.string.bills_paid_next, name, next)
         }
@@ -675,6 +685,7 @@ fun MainHost(
         onOpenSyncHistory = if (demo || !(account.google || account.emailAccount)) null else ({ syncHistoryOpen = true }),
         // Sinkron otomatis (Tahap 6): untuk akun server dengan Sync; tanpa Sync barisnya tidak tampil (yang tampil "Rizqflow Sync").
         onOpenAutoSync = if (demo || !(account.google || account.emailAccount) || Plan.SYNC !in ownedPlans) null else ({ autoSyncOpen = true }),
+        onOpenPreRestoreRevert = if (demo || !preRestoreCopyExists) null else ({ preRestoreRevertOpen = true }),
     )
     // Sambung ulang yang diminta pengguna tidak menjangkau server (offline, 503): satu kabar lembut, barisnya tetap ada.
     LaunchedEffect(serverConnectFailedSignal) {
@@ -830,6 +841,24 @@ fun MainHost(
                     flow = workspace.newDeviceRestore,
                     notifier = notifier,
                     onDone = { newDeviceRestoreOpen = false },
+                )
+                SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
+            }
+        }
+    }
+    if (preRestoreRevertOpen) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Box {
+                PreRestoreRevertScreen(
+                    flow = workspace.preRestoreRevert,
+                    // Jalur penimpa yang SAMA dengan pemulihan cadangan: WorkspaceHost menutup ruang kerja, menimpa berkas, membuka ulang.
+                    onReplaceDatabase = onRestoreBackup,
+                    // Ruang kerja sedang diganti, jadi kabarnya dari scope MainHost (scope layar ini ikut hilang).
+                    onReverted = {
+                        preRestoreRevertOpen = false
+                        scope.launch { notifier.show(resources.getString(R.string.prerestore_done)) }
+                    },
+                    onDone = { preRestoreRevertOpen = false },
                 )
                 SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
             }

@@ -27,14 +27,26 @@ enum class AutoSyncTrigger {
 
     /** Tombol "Sinkronkan sekarang". */
     MANUAL,
+
+    /**
+     * Jaringan berubah saat aplikasi di depan ([NetworkChangeSource]) padahal ada sync yang tertunda karena jaringan
+     * (tanpa jaringan, atau hanya-Wi-Fi di jaringan berbayar). Tunduk pada jeda minimum dan backoff seperti [FOREGROUND].
+     */
+    NETWORK_CHANGE,
 }
 
 /** Angka-angka kebijakan; bawaannya adalah keputusan bagian H sync-desain.md, parameter supaya tes tak menunggu lama. */
 data class AutoSyncConfig(
-    /** Jarak minimum antara dua run yang dipicu [AutoSyncTrigger.FOREGROUND]. */
+    /** Jarak minimum antara dua run yang dipicu [AutoSyncTrigger.FOREGROUND] atau [AutoSyncTrigger.NETWORK_CHANGE]. */
     val foregroundMinGapMs: Long = 60_000L,
     /** Diam sebelum run dipicu [AutoSyncTrigger.LOCAL_CHANGE]; penyimpanan baru mengulang hitungan. */
     val debounceMs: Long = 10_000L,
+    /**
+     * Batas tunggu maksimum debounce: penyimpanan yang terus berdatangan tidak boleh menunda run lebih dari ini sejak
+     * perubahan PERTAMA yang belum terkirim (USULAN Claude 60 detik, belum dikonfirmasi pemilik). Setelah batas
+     * terlewati, perubahan berikutnya memicu run tanpa menunggu diam 10 detik lagi.
+     */
+    val debounceMaxWaitMs: Long = 60_000L,
     val backoffInitialMs: Long = 30_000L,
     val backoffMaxMs: Long = 900_000L,
     /** Batas atas `Retry-After` dari server. */
@@ -118,6 +130,54 @@ fun interface AutoSyncNetwork {
     fun check(): NetworkCheck
 }
 
+/**
+ * Sumber kabar "jaringan berubah" (di Android: `ConnectivityManager.registerDefaultNetworkCallback`). [watch] dipanggil
+ * [AutoSyncOrchestrator] HANYA saat aplikasi masuk ke depan dan [AutoCloseable] yang dikembalikannya ditutup saat ke latar
+ * atau ruang kerja ditutup, jadi tidak ada pendengar jaringan yang hidup di latar. [onChange] boleh dipanggil dari thread
+ * mana pun dan sesering apa pun (orkestrator menilai ulang jaringan lewat [AutoSyncNetwork], bukan memercayai argumen).
+ * Implementasi tidak boleh melempar: bila tidak bisa mendaftar, kembalikan [AutoCloseable] kosong.
+ */
+fun interface NetworkChangeSource {
+    fun watch(onChange: () -> Unit): AutoCloseable
+
+    companion object {
+        /** Tanpa pendengar (bawaan; tes yang tidak peduli jaringan). */
+        val None = NetworkChangeSource { AutoCloseable { } }
+    }
+}
+
+/**
+ * Waktu sinkron berhasil terakhir yang bertahan setelah proses mati, satu per ruang kerja (akun). Hanya jam dinding untuk
+ * TAMPILAN; tidak pernah dipakai untuk memutuskan jeda atau urutan data (itu jam monotonik dan `SyncClock`).
+ */
+interface LastSyncStore {
+    /** Null = belum pernah, atau nilai rusak. Tidak melempar. */
+    fun read(): Long?
+
+    /** Tidak melempar. */
+    fun write(epochMs: Long)
+
+    companion object {
+        /** Tanpa penyimpanan (bawaan; hanya di memori seperti sebelum 2026-11-01). */
+        val None = object : LastSyncStore {
+            override fun read(): Long? = null
+
+            override fun write(epochMs: Long) = Unit
+        }
+    }
+}
+
+/**
+ * Membersihkan waktu sinkron terakhir yang dibaca dari penyimpanan sebelum dipakai: nol/negatif (rusak) menjadi null; nilai
+ * di MASA DEPAN (jam perangkat dimundurkan sesudah sync itu) dijepit ke [nowMs] supaya layar tidak menampilkan "dalam 3 jam"
+ * atau umur negatif. Tidak menulis balik: penulisan berikutnya (sync sukses berikutnya) yang menggantinya.
+ */
+fun sanitizeLastSync(stored: Long?, nowMs: Long): Long? = when {
+    stored == null || stored <= 0L -> null
+    stored > nowMs -> nowMs
+    else -> stored
+}
+
 /** Pengaturan sync yang dipilih pengguna, per perangkat. */
 interface AutoSyncSettings {
     /**
@@ -149,7 +209,8 @@ enum class AutoSyncPhase {
 }
 
 /**
- * [lastSyncedAtMs] jam dinding run sukses terakhir di proses ini (null = belum ada; sengaja tidak disimpan ke disk).
+ * [lastSyncedAtMs] jam dinding run sukses terakhir (null = belum pernah). Bertahan setelah proses mati lewat
+ * [LastSyncStore] (satu per ruang kerja); nilai dari masa depan dijepit ([sanitizeLastSync]).
  * [pushWaitsForRecovery] true bila run terakhir menahan push pribadi karena kode pemulihan belum diatur.
  */
 data class AutoSyncState(
