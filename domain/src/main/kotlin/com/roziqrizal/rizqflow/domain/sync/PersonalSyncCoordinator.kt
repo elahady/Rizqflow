@@ -51,7 +51,13 @@ class PersonalSyncCoordinator(
     private val recovery: RecoveryKeyService,
     private val clock: SyncClock = SyncClock(),
     private val nowMillis: () -> Long = System::currentTimeMillis,
+    private val pushLimits: SyncPushLimits = SyncPushLimits(),
 ) {
+    private companion object {
+        /** Batas putaran pengumpulan ulang per push (tiap putaran sampai 200 rekaman per tipe). */
+        const val MAX_PUSH_ROUNDS = 50
+    }
+
     private val handlersByType: Map<SyncRecordType, SyncRecordHandler> = handlers.associateBy { it.type }
 
     suspend fun syncNow(deviceId: String): PersonalSyncResult {
@@ -75,10 +81,39 @@ class PersonalSyncCoordinator(
 
     // ---- Push (digerbang) ----
 
+    /**
+     * Push dipotong per [pushLimits] (bagian C "Batas": <= 200 baris dan <= 800 KB per request). Tiap batch
+     * yang sukses langsung ditandai terkirim ([SyncStore.markPushed]) sebelum batch berikutnya dikirim; bila
+     * satu batch gagal, push berhenti di situ dan batch itu beserta sisanya TETAP kotor (dikirim ulang di sync
+     * berikutnya — aman karena push server idempoten). Handler mengumpulkan paling banyak 200 rekaman per tipe
+     * per panggilan, jadi pengumpulan diulang per putaran sampai tidak ada rekaman baru (dibatasi
+     * [MAX_PUSH_ROUNDS] supaya edit terus-menerus tidak membuat loop tanpa ujung).
+     */
     private suspend fun push(deviceId: String, apiToken: String, aead: SyncAead): RemoteResult<Int> {
-        val outgoing = handlersByType.values.flatMap { handler -> handler.collectDirty(SyncScope.Personal).map { handler.type to it } }
-        if (outgoing.isEmpty()) return RemoteResult.Success(0)
+        var total = 0
+        val alreadySent = HashSet<SentVersion>()
+        repeat(MAX_PUSH_ROUNDS) {
+            val outgoing = handlersByType.values
+                .flatMap { handler -> handler.collectDirty(SyncScope.Personal).map { handler.type to it } }
+                .filter { (type, record) -> SentVersion(type, record.recordId, record.changedAtMillis) !in alreadySent }
+            if (outgoing.isEmpty()) return RemoteResult.Success(total)
+            when (val round = pushRound(outgoing, deviceId, apiToken, aead)) {
+                is RemoteResult.Failure -> return round
+                is RemoteResult.Success -> {
+                    alreadySent += round.value
+                    total += round.value.size
+                }
+            }
+        }
+        return RemoteResult.Success(total)
+    }
 
+    private suspend fun pushRound(
+        outgoing: List<Pair<SyncRecordType, OutgoingRecord>>,
+        deviceId: String,
+        apiToken: String,
+        aead: SyncAead,
+    ): RemoteResult<List<SentVersion>> {
         val uploads = outgoing.map { (type, record) ->
             val sealed = SyncEnvelope.seal(
                 aead = aead,
@@ -91,7 +126,7 @@ class PersonalSyncCoordinator(
                 deleted = record.deleted,
                 deviceId = deviceId,
             )
-            record to SyncLogEntryUpload(
+            SentVersion(type, record.recordId, record.changedAtMillis) to SyncLogEntryUpload(
                 roomId = null,
                 recordType = type.wire,
                 recordId = sealed.wireId,
@@ -103,18 +138,19 @@ class PersonalSyncCoordinator(
             )
         }
 
-        return when (val result = syncRemote.push(apiToken, uploads.map { it.second })) {
-            is RemoteResult.Failure -> result
-            is RemoteResult.Success -> {
-                result.value.serverTimeMs?.let { clock.setServerOffset(it - clock.rawDeviceNowMillis()) }
-                val sent = uploads.map { (record, upload) ->
-                    val type = checkNotNull(SyncRecordType.fromWire(upload.recordType))
-                    SentVersion(type, record.recordId, record.changedAtMillis)
+        val sentSoFar = mutableListOf<SentVersion>()
+        for (batch in SyncPushBatcher.split(uploads, pushLimits) { SyncPushBatcher.estimateBytes(it.second) }) {
+            when (val result = syncRemote.push(apiToken, batch.map { it.second })) {
+                is RemoteResult.Failure -> return result
+                is RemoteResult.Success -> {
+                    result.value.serverTimeMs?.let { clock.setServerOffset(it - clock.rawDeviceNowMillis()) }
+                    val sent = batch.map { it.first }
+                    store.markPushed(SyncScope.Personal, sent)
+                    sentSoFar += sent
                 }
-                store.markPushed(SyncScope.Personal, sent)
-                RemoteResult.Success(uploads.size)
             }
         }
+        return RemoteResult.Success(sentSoFar)
     }
 
     // ---- Pull (tidak digerbang) ----

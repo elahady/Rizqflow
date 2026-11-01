@@ -115,6 +115,7 @@ import com.roziqrizal.rizqflow.domain.sync.PushRegistrationOutcome
 import com.roziqrizal.rizqflow.sync.forgetStatusDurably
 import com.roziqrizal.rizqflow.sync.recoveryRow
 import com.roziqrizal.rizqflow.sync.restoreAvailable
+import com.roziqrizal.rizqflow.ui.recovery.NewDeviceRestoreScreen
 import com.roziqrizal.rizqflow.ui.recovery.RecoveryRestoreScreen
 import com.roziqrizal.rizqflow.ui.devices.DevicesScreen
 import com.roziqrizal.rizqflow.ui.devices.DevicesViewModel
@@ -186,6 +187,7 @@ fun MainHost(
     var backupOpen by rememberSaveable { mutableStateOf(false) }
     var recoverySetupOpen by rememberSaveable { mutableStateOf(false) }
     var recoveryRestoreOpen by rememberSaveable { mutableStateOf(false) }
+    var newDeviceRestoreOpen by rememberSaveable { mutableStateOf(false) }
     var devicesOpen by rememberSaveable { mutableStateOf(false) }
     var tampilanOpen by rememberSaveable { mutableStateOf(false) }
     var paywallOpen by rememberSaveable { mutableStateOf(false) }
@@ -774,8 +776,22 @@ fun MainHost(
                     onRecovered = {
                         recoveryRestoreOpen = false
                         recoveryStatus = workspace.recovery.status()
+                        // Kunci akun sudah terpasang: tawarkan data akun dari server (otomatis bila ruang kerja murni).
+                        newDeviceRestoreOpen = true
                     },
                     onClose = { recoveryRestoreOpen = false },
+                )
+                SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
+            }
+        }
+    }
+    if (newDeviceRestoreOpen) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Box {
+                NewDeviceRestoreScreen(
+                    flow = workspace.newDeviceRestore,
+                    notifier = notifier,
+                    onDone = { newDeviceRestoreOpen = false },
                 )
                 SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))
             }

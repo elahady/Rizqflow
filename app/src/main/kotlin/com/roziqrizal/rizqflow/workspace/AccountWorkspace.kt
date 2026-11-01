@@ -25,6 +25,7 @@ import com.roziqrizal.rizqflow.data.sync.CategorySyncHandler
 import com.roziqrizal.rizqflow.data.sync.DebtPaymentSyncHandler
 import com.roziqrizal.rizqflow.data.sync.DebtSyncHandler
 import com.roziqrizal.rizqflow.data.sync.JsonTransactionSyncCodec
+import com.roziqrizal.rizqflow.data.sync.PreRestoreBackup
 import com.roziqrizal.rizqflow.data.sync.PureWorkspaceReplacer
 import com.roziqrizal.rizqflow.data.sync.RecurringRuleSyncHandler
 import com.roziqrizal.rizqflow.data.sync.RoomSyncHandler
@@ -47,6 +48,7 @@ import com.roziqrizal.rizqflow.domain.sync.AccountRemote
 import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
 import com.roziqrizal.rizqflow.domain.sync.DeviceRemote
 import com.roziqrizal.rizqflow.domain.sync.NewDeviceRecoveryAdvisor
+import com.roziqrizal.rizqflow.domain.sync.NewDeviceRestoreFlow
 import com.roziqrizal.rizqflow.domain.sync.PersonalSyncCoordinator
 import com.roziqrizal.rizqflow.domain.sync.PurchaseRemote
 import com.roziqrizal.rizqflow.domain.sync.PushTokenRegistrar
@@ -117,7 +119,7 @@ class AccountWorkspace private constructor(
     private val recoveryStatusStore: RecoveryStatusStore,
     /** Pendaftar token FCM, sudah dibungkus [serverSession]; null bila jalur FCM mati (tanpa google-services.json). */
     pushTokenRegistrar: PushTokenRegistrar?,
-    /** Pengenal pemasangan ([DeviceId]); dipakai sync otomatis dan pendaftaran token FCM. */
+    /** Pengenal pemasangan ([DeviceId]); dipakai sync otomatis, sync pribadi perangkat baru, dan pendaftaran token FCM. */
     private val deviceId: String,
 ) : AutoCloseable {
     private val newId: () -> String = { UUID.randomUUID().toString() }
@@ -229,6 +231,19 @@ class AccountWorkspace private constructor(
 
     /** Eksekusi nyata "ganti dengan data server" untuk [newDeviceRecoveryAdvisor] — lihat KDoc kelasnya. */
     val pureWorkspaceReplacer = PureWorkspaceReplacer(local.db, local.syncStore)
+
+    /**
+     * Alur perangkat baru lengkap (keputusan pemilik #11) yang dipakai `NewDeviceRestoreScreen` setelah kunci akun
+     * dipulihkan: otomatis ganti bila murni, atau Gabung/Pulihkan; "Pulihkan" membuat salinan `.prerestore` berkas
+     * database lebih dulu ([PreRestoreBackup]) dan baru menghapus setelah konfirmasi eksplisit.
+     */
+    val newDeviceRestore = NewDeviceRestoreFlow(
+        advisor = newDeviceRecoveryAdvisor,
+        purity = RoomWorkspacePurityChecker(local.db),
+        replacer = pureWorkspaceReplacer,
+        backup = PreRestoreBackup.forLedger(local),
+        sync = { personalSync.syncNow(deviceId) },
+    )
 
     /**
      * Keluarkan anggota (Tahap 9): rotasi kunci ruang lalu siapkan undangan (QR) baru untuk anggota

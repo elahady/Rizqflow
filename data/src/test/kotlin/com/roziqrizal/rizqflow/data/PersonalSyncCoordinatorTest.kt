@@ -36,6 +36,7 @@ import com.roziqrizal.rizqflow.domain.sync.SyncIssueKind
 import com.roziqrizal.rizqflow.domain.sync.SyncLogEntryDownload
 import com.roziqrizal.rizqflow.domain.sync.SyncLogEntryUpload
 import com.roziqrizal.rizqflow.domain.sync.SyncPullResult
+import com.roziqrizal.rizqflow.domain.sync.SyncPushLimits
 import com.roziqrizal.rizqflow.domain.sync.SyncPushResult
 import com.roziqrizal.rizqflow.domain.sync.SyncRecordType
 import com.roziqrizal.rizqflow.domain.sync.SyncRemote
@@ -120,7 +121,12 @@ internal fun emptyLedger(): LocalLedger {
     return LocalLedger(db)
 }
 
-internal fun engineFor(ledger: LocalLedger, remote: SyncRemote, recoveryStatus: RecoveryStatus = RecoveryStatus.NotConfigured): PersonalSyncCoordinator {
+internal fun engineFor(
+    ledger: LocalLedger,
+    remote: SyncRemote,
+    recoveryStatus: RecoveryStatus = RecoveryStatus.NotConfigured,
+    pushLimits: SyncPushLimits = SyncPushLimits(),
+): PersonalSyncCoordinator {
     val db = ledger.db
     val store = ledger.syncStore
     val recovery = RecoveryKeyService(FakeAccountKeys(), UnusedRecoveryKeyRemote(), PersonalMemoryToken(), FakeRecoveryStatusStore(recoveryStatus))
@@ -150,6 +156,7 @@ internal fun engineFor(ledger: LocalLedger, remote: SyncRemote, recoveryStatus: 
         syncRemote = remote,
         apiTokenStore = PersonalMemoryToken(),
         recovery = recovery,
+        pushLimits = pushLimits,
     )
 }
 

@@ -1,9 +1,48 @@
 package com.roziqrizal.rizqflow.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Upsert
+
+/** Hasil [SyncDao.workspaceUsage]: satu kolom per tabel, nama kolom = nama tabel. */
+data class WorkspaceUsageCounts(
+    @ColumnInfo(name = "money_transaction") val moneyTransaction: Int,
+    @ColumnInfo(name = "allocation_entry") val allocationEntry: Int,
+    @ColumnInfo(name = "debt") val debt: Int,
+    @ColumnInfo(name = "debt_payment") val debtPayment: Int,
+    @ColumnInfo(name = "bill") val bill: Int,
+    @ColumnInfo(name = "recurring_rule") val recurringRule: Int,
+    @ColumnInfo(name = "zakat_profile") val zakatProfile: Int,
+    @ColumnInfo(name = "wealth_item") val wealthItem: Int,
+    @ColumnInfo(name = "wealth_check") val wealthCheck: Int,
+    @ColumnInfo(name = "zakat_payment") val zakatPayment: Int,
+    @ColumnInfo(name = "gold_price") val goldPrice: Int,
+    @ColumnInfo(name = "trader_profile") val traderProfile: Int,
+    @ColumnInfo(name = "dca_plan") val dcaPlan: Int,
+    @ColumnInfo(name = "quick_favorite") val quickFavorite: Int,
+    @ColumnInfo(name = "day_check") val dayCheck: Int,
+) {
+    /** Peta nama tabel ke jumlah baris, dasar pesan diagnosis dan tes cakupan. */
+    fun byTable(): Map<String, Int> = mapOf(
+        "money_transaction" to moneyTransaction,
+        "allocation_entry" to allocationEntry,
+        "debt" to debt,
+        "debt_payment" to debtPayment,
+        "bill" to bill,
+        "recurring_rule" to recurringRule,
+        "zakat_profile" to zakatProfile,
+        "wealth_item" to wealthItem,
+        "wealth_check" to wealthCheck,
+        "zakat_payment" to zakatPayment,
+        "gold_price" to goldPrice,
+        "trader_profile" to traderProfile,
+        "dca_plan" to dcaPlan,
+        "quick_favorite" to quickFavorite,
+        "day_check" to dayCheck,
+    )
+}
 
 /** Penyimpanan sinkron lokal (Tahap 1 sync-desain.md): sync_record, sync_cursor, sync_issue, shared_room. */
 @Dao
@@ -88,6 +127,94 @@ interface SyncDao {
      */
     @Query("DELETE FROM sync_record WHERE scope = 'a' AND record_type IN ('room', 'account', 'category', 'allocation_config')")
     suspend fun deletePureOnboardingRecords()
+
+    /**
+     * Jumlah baris per tabel "pemakaian nyata" untuk pemeriksaan kemurnian ruang kerja (Tahap 3/4
+     * sync-desain.md bagian B "Perangkat baru", lihat `RoomWorkspacePurityChecker`). Harga emas hanya
+     * `MANUAL` (harga `AUTO` milik perangkat, bukan isian pengguna). Profil zakat dihitung termasuk yang
+     * diarsipkan.
+     */
+    @Query(
+        """
+        SELECT
+            (SELECT COUNT(*) FROM money_transaction) AS money_transaction,
+            (SELECT COUNT(*) FROM allocation_entry) AS allocation_entry,
+            (SELECT COUNT(*) FROM debt) AS debt,
+            (SELECT COUNT(*) FROM debt_payment) AS debt_payment,
+            (SELECT COUNT(*) FROM bill) AS bill,
+            (SELECT COUNT(*) FROM recurring_rule) AS recurring_rule,
+            (SELECT COUNT(*) FROM zakat_profile) AS zakat_profile,
+            (SELECT COUNT(*) FROM wealth_item) AS wealth_item,
+            (SELECT COUNT(*) FROM wealth_check) AS wealth_check,
+            (SELECT COUNT(*) FROM zakat_payment) AS zakat_payment,
+            (SELECT COUNT(*) FROM gold_price WHERE source = 'MANUAL') AS gold_price,
+            (SELECT COUNT(*) FROM trader_profile) AS trader_profile,
+            (SELECT COUNT(*) FROM dca_plan) AS dca_plan,
+            (SELECT COUNT(*) FROM quick_favorite) AS quick_favorite,
+            (SELECT COUNT(*) FROM day_check) AS day_check
+        """,
+    )
+    suspend fun workspaceUsage(): WorkspaceUsageCounts
+
+    /*
+     * Hapus semua data pribadi untuk jalur "Pulihkan" (ruang kerja TIDAK murni, setelah salinan otomatis dan
+     * konfirmasi eksplisit; lihat `PureWorkspaceReplacer.wipeAllAndResetCursor`). Urutan pemanggilan menjaga FK
+     * RESTRICT: anak lebih dulu, ruang dan akun terakhir. Harga emas AUTO dan pengaturan perangkat tidak disentuh.
+     */
+
+    @Query("DELETE FROM zakat_payment")
+    suspend fun wipeZakatPayments()
+
+    @Query("DELETE FROM wealth_check")
+    suspend fun wipeWealthChecks()
+
+    @Query("DELETE FROM wealth_item")
+    suspend fun wipeWealthItems()
+
+    @Query("DELETE FROM zakat_profile")
+    suspend fun wipeZakatProfiles()
+
+    @Query("DELETE FROM gold_price WHERE source = 'MANUAL'")
+    suspend fun wipeManualGoldPrices()
+
+    @Query("DELETE FROM debt_payment")
+    suspend fun wipeDebtPayments()
+
+    @Query("DELETE FROM debt")
+    suspend fun wipeDebts()
+
+    @Query("DELETE FROM bill")
+    suspend fun wipeBills()
+
+    @Query("DELETE FROM recurring_rule")
+    suspend fun wipeRecurringRules()
+
+    @Query("DELETE FROM dca_plan")
+    suspend fun wipeDcaPlans()
+
+    @Query("DELETE FROM trader_profile")
+    suspend fun wipeTraderProfiles()
+
+    @Query("DELETE FROM quick_favorite")
+    suspend fun wipeQuickFavorites()
+
+    @Query("DELETE FROM day_check")
+    suspend fun wipeDayChecks()
+
+    @Query("DELETE FROM allocation_entry")
+    suspend fun wipeAllocationEntries()
+
+    @Query("DELETE FROM money_transaction")
+    suspend fun wipeTransactions()
+
+    @Query("DELETE FROM sync_record")
+    suspend fun wipeSyncRecords()
+
+    @Query("DELETE FROM sync_issue")
+    suspend fun wipeSyncIssues()
+
+    @Query("DELETE FROM sync_cursor")
+    suspend fun wipeSyncCursors()
 
     /*
      * Backfill SyncBootstrap.markAllDirty: satu pernyataan berbasis himpunan per tabel, INSERT OR IGNORE
