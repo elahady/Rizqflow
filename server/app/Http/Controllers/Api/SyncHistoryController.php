@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\RoomMember;
 use App\Models\SyncCompactionState;
 use App\Models\SyncDevice;
+use App\Models\SyncDeviceCursor;
 use App\Models\SyncQuota;
 use App\Models\SyncScopeActivity;
 use Carbon\Carbon;
@@ -41,33 +42,48 @@ class SyncHistoryController extends Controller
         // Waktu pull terakhir dan kursor, dari kursor perangkat yang pernah pull dengan device_id.
         $perangkat = SyncDevice::where('user_id', $userId)->get()->keyBy('device_id');
 
-        // Per cakupan (pribadi `a`, ruang bersama `r:<roomId>`): waktu push/pull dari tabel aktivitas.
-        // Hanya cakupan yang masih terlihat akun ini (pribadi + ruang yang
+        // Per cakupan (pribadi `a`, ruang bersama `r:<roomId>`): waktu push/pull dari tabel aktivitas
+        // dan kursor per cakupan. Hanya cakupan yang masih terlihat akun ini (pribadi + ruang yang
         // masih diikuti); catatan ruang yang sudah ditinggalkan tidak ditampilkan.
         $ruangDiikuti = RoomMember::where('user_id', $userId)->pluck('room_id')->all();
         $terlihat = array_flip($ruangDiikuti);
         $aktivitas = SyncScopeActivity::where('user_id', $userId)->get()
             ->filter(fn (SyncScopeActivity $a) => $a->room_id === '' || isset($terlihat[$a->room_id]));
+        $kursorCakupan = SyncDeviceCursor::where('user_id', $userId)->get()
+            ->filter(fn (SyncDeviceCursor $c) => $c->room_id === '' || isset($terlihat[$c->room_id]));
+
+        // Kursor per cakupan juga menandai perangkat itu aktif (perangkat yang hanya memakai pull per
+        // cakupan tidak punya baris `sync_devices`).
+        $pullTerakhirCakupan = $kursorCakupan->groupBy('device_id')->map(fn ($baris) => $baris->max('last_seen_at'));
 
         $idPerangkat = $pushPerPerangkat->keys()
             ->merge($perangkat->keys())
+            ->merge($pullTerakhirCakupan->keys())
             ->merge($aktivitas->pluck('device_id'))
             ->map(fn ($id) => (string) $id)
             ->unique()->sort()->values();
 
-        $daftar = $idPerangkat->map(function (string $deviceId) use ($pushPerPerangkat, $perangkat, $aktivitas, $sejakAktif) {
+        $daftar = $idPerangkat->map(function (string $deviceId) use ($pushPerPerangkat, $perangkat, $pullTerakhirCakupan, $aktivitas, $kursorCakupan, $sejakAktif) {
             $push = $pushPerPerangkat->get($deviceId);
             $pull = $perangkat->get($deviceId);
+
+            // Pull terakhir = yang terbaru dari pull global (klien lama) dan pull per cakupan.
+            $pullTerakhir = collect([$pull?->last_seen_at, $pullTerakhirCakupan->get($deviceId)])->filter()->max();
 
             return [
                 'device_id' => $deviceId,
                 'rows' => (int) ($push->jumlah_baris ?? 0),
                 'last_push_at' => self::iso($push?->push_terakhir),
-                'last_pull_at' => self::iso($pull?->last_seen_at),
+                'last_pull_at' => self::iso($pullTerakhir),
                 'cursor' => $pull?->after_id,
-                'active' => $pull !== null && $pull->last_seen_at !== null && $pull->last_seen_at->gte($sejakAktif),
-                // Per cakupan untuk perangkat ini (hanya cakupan yang punya catatan).
-                'scopes' => self::daftarCakupan($aktivitas->where('device_id', $deviceId), null),
+                'active' => $pullTerakhir !== null && $pullTerakhir->gte($sejakAktif),
+                // Per cakupan untuk perangkat ini; `cursor` di sini kursor per cakupan (null bila perangkat
+                // ini belum pernah pull dengan `scope` untuk cakupan itu).
+                'scopes' => self::daftarCakupan(
+                    $aktivitas->where('device_id', $deviceId),
+                    $kursorCakupan->where('device_id', $deviceId),
+                    null,
+                ),
             ];
         })->values();
 
@@ -79,7 +95,7 @@ class SyncHistoryController extends Controller
             ->selectRaw('room_id, MAX(created_at) AS push_terakhir')
             ->get()
             ->mapWithKeys(fn ($baris) => [(string) ($baris->room_id ?? '') => $baris->push_terakhir]);
-        $cakupanAkun = self::daftarCakupan($aktivitas, $ruangDiikuti, $pushLogPerRuang);
+        $cakupanAkun = self::daftarCakupan($aktivitas, $kursorCakupan, $ruangDiikuti, $pushLogPerRuang);
 
         $pemakaian = SyncQuota::pemakaianUntuk($userId);
         $kompaksi = SyncCompactionState::terakhir();
@@ -106,24 +122,25 @@ class SyncHistoryController extends Controller
     }
 
     /**
-     * Susun daftar cakupan. `$ruangDiikuti` null = hanya cakupan yang punya catatan (per perangkat); diisi =
-     * tingkat akun: cakupan pribadi dan semua ruang diikuti selalu ikut, dan waktu push dilengkapi dari log
-     * (`$pushLog`: room_id atau '' => created_at).
+     * Susun daftar cakupan. `$ruangDiikuti` null = hanya cakupan yang punya catatan (per perangkat, dengan
+     * kursor per cakupan); diisi = tingkat akun: cakupan pribadi dan semua ruang diikuti selalu ikut, tanpa
+     * kursor (banyak perangkat), dan waktu push dilengkapi dari log (`$pushLog`: room_id atau '' => created_at).
      *
      * @param  Collection<int, SyncScopeActivity>  $aktivitas
+     * @param  Collection<int, SyncDeviceCursor>  $kursor
      * @param  string[]|null  $ruangDiikuti
      * @param  Collection<string, mixed>|null  $pushLog
      * @return array<int, array<string, mixed>>
      */
-    private static function daftarCakupan(Collection $aktivitas, ?array $ruangDiikuti, ?Collection $pushLog = null): array
+    private static function daftarCakupan(Collection $aktivitas, Collection $kursor, ?array $ruangDiikuti, ?Collection $pushLog = null): array
     {
-        $kunci = $aktivitas->pluck('room_id');
+        $kunci = $aktivitas->pluck('room_id')->merge($kursor->pluck('room_id'));
         if ($ruangDiikuti !== null) {
             $kunci = $kunci->merge([''])->merge($ruangDiikuti);
         }
         $kunci = $kunci->map(fn ($k) => (string) $k)->unique()->sort()->values(); // '' (pribadi) selalu pertama
 
-        return $kunci->map(function (string $roomId) use ($aktivitas, $pushLog) {
+        return $kunci->map(function (string $roomId) use ($aktivitas, $kursor, $ruangDiikuti, $pushLog) {
             $catatan = $aktivitas->where('room_id', $roomId);
             $dariLog = $pushLog?->get($roomId);
             $push = collect([$catatan->max('last_push_at'), $dariLog === null ? null : Carbon::parse($dariLog)])->filter()->max();
@@ -134,6 +151,9 @@ class SyncHistoryController extends Controller
                 'last_push_at' => self::iso($push),
                 'last_pull_at' => self::iso($catatan->max('last_pull_at')),
             ];
+            if ($ruangDiikuti === null) {
+                $baris['cursor'] = $kursor->firstWhere('room_id', $roomId)?->after_id;
+            }
 
             return $baris;
         })->all();

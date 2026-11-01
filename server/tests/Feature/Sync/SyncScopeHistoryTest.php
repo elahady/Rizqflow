@@ -171,6 +171,28 @@ class SyncScopeHistoryTest extends TestCase
         $this->assertSame(['r:ruang-a'], array_column($devices['tablet-1']['scopes'], 'scope'));
     }
 
+    public function test_pull_per_cakupan_mengisi_waktu_pull_kursor_dan_menandai_perangkat_aktif(): void
+    {
+        $user = $this->syncUser();
+        $this->push($user, [$this->entry('r-1', 'pixel-1', 'ruang-a')])->assertOk();
+        $this->travelTo('2026-11-03 07:00:00');
+        $this->withHeaders($this->authHeader($user))->getJson('/api/sync/pull?scope=r&room_id=ruang-a&device_id=tablet-1')->assertOk();
+
+        $response = $this->history($user)->assertOk();
+        $devices = collect($response->json('devices'))->keyBy('device_id');
+
+        // Perangkat yang hanya memakai pull per cakupan tetap muncul, aktif, tanpa kursor global.
+        $this->assertTrue($devices['tablet-1']['active']);
+        $this->assertNull($devices['tablet-1']['cursor']);
+        $this->assertSame('2026-11-03T07:00:00Z', $devices['tablet-1']['last_pull_at']);
+        $scopeTablet = collect($devices['tablet-1']['scopes'])->firstWhere('scope', 'r:ruang-a');
+        $this->assertSame(1, $scopeTablet['cursor']);
+        $this->assertSame('2026-11-03T07:00:00Z', $scopeTablet['last_pull_at']);
+        // Tingkat akun tidak membawa kursor (banyak perangkat) dan mengambil yang terbaru.
+        $this->assertArrayNotHasKey('cursor', $this->scopes($response)['r:ruang-a']);
+        $this->assertSame('2026-11-03T07:00:00Z', $this->scopes($response)['r:ruang-a']['last_pull_at']);
+    }
+
     public function test_aktivitas_akun_lain_tidak_bocor(): void
     {
         $saya = $this->syncUser();
