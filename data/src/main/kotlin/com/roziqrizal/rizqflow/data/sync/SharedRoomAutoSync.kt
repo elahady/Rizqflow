@@ -51,11 +51,28 @@ class SharedRoomAutoSync(
         runSync = sync
     }
 
+    @Volatile private var delegate: (() -> Unit)? = null
+
+    /**
+     * Mode delegasi (Tahap 6): pemicu otomatis kelas ini diserahkan ke `AutoSyncOrchestrator` supaya ruang bersama TIDAK
+     * disinkronkan dua kali (sekali oleh sini, sekali oleh run orkestrator). [onExpenseSaved] hanya meneruskan "ada
+     * perubahan" ke [onChange] (debounce ada di orkestrator), [onWorkspaceOpened] tidak melakukan apa pun (pemicu
+     * foreground orkestrator yang menyinkronkan pribadi lalu semua ruang bersama aktif). [withRoomLock] tetap dipakai
+     * orkestrator dan tombol "Sinkronkan sekarang" ruang itu. Tanpa delegasi, perilaku lama persis seperti sebelumnya.
+     */
+    fun delegateTriggersTo(onChange: () -> Unit) {
+        delegate = onChange
+    }
+
     /**
      * Pengeluaran di [roomId] sudah tersimpan, diubah, atau dihapus (sudah komit). Hanya ruang bersama yang
      * disinkronkan; tidak pernah melempar.
      */
     suspend fun onExpenseSaved(roomId: RoomId) {
+        delegate?.let { onChange ->
+            onChange()
+            return
+        }
         val shared = try {
             syncStore.sharedRoom(roomId)?.status == SharedRoomStatus.ACTIVE
         } catch (e: CancellationException) {
@@ -69,6 +86,7 @@ class SharedRoomAutoSync(
 
     /** Ruang kerja baru dibuka: sinkronkan semua ruang bersama yang aktif. Tidak menunggu hasilnya. */
     fun onWorkspaceOpened() {
+        if (delegate != null) return
         scope.launch {
             val rooms = try {
                 syncStore.sharedRooms().filter { it.status == SharedRoomStatus.ACTIVE }
