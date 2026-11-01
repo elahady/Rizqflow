@@ -32,6 +32,22 @@ class SharedRoomActivation(private val syncStore: SyncStore) {
         )
     }
 
+    /** Status ruang bersama di perangkat ini; null bila ruang belum pernah ditandai (bukan ruang bersama). */
+    suspend fun statusOf(roomId: RoomId): SharedRoomStatus? = syncStore.sharedRoom(roomId)?.status
+
+    /**
+     * Menandai ruang LEFT setelah server mencabut keanggotaan perangkat ini (anggota keluar sendiri, Tahap 9). Hanya
+     * mengubah status: peran dan waktu bergabung dipertahankan, dan TIDAK ada transaksi, kategori, atau baris sync
+     * yang dihapus (data ruang tetap ada di perangkat ini). Yang berhenti: sinkron otomatis, sinkron ulang penuh, dan
+     * riwayat sinkron hanya menyentuh ruang ACTIVE. Bergabung lagi lewat undangan memanggil [markActive] dan memulihkan
+     * ACTIVE. Tanpa baris `shared_room` sebelumnya (tidak seharusnya terjadi) tidak ada yang dibuat. Idempoten.
+     */
+    suspend fun markLeft(roomId: RoomId) {
+        val existing = syncStore.sharedRoom(roomId) ?: return
+        if (existing.status == SharedRoomStatus.LEFT) return
+        syncStore.saveSharedRoom(existing.copy(status = SharedRoomStatus.LEFT))
+    }
+
     /**
      * Menandai ruang ACTIVE dengan peran DARI SERVER ([role] dari bendera `owner` di `GET /rooms/{roomId}/members`):
      * berbeda dari [markActive], peran yang sudah tersimpan DITIMPA bila berbeda, karena server satu-satunya sumber
