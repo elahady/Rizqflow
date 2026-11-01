@@ -68,6 +68,7 @@ import com.roziqrizal.rizqflow.ui.ROOM_ICON_CHOICES
 import com.roziqrizal.rizqflow.ui.RizqflowIcons
 import com.roziqrizal.rizqflow.ui.RoomTile
 import com.roziqrizal.rizqflow.ui.formatPercent
+import com.roziqrizal.rizqflow.ui.kelola.DeleteForeverDialog
 import com.roziqrizal.rizqflow.ui.roomIcon
 import com.roziqrizal.rizqflow.ui.roomIconLabel
 import com.roziqrizal.rizqflow.ui.theme.rizqflow
@@ -101,6 +102,7 @@ fun RuangScreen(
     var localVersion by remember { mutableIntStateOf(0) }
     var adding by rememberSaveable { mutableStateOf(false) }
     var showArchived by rememberSaveable { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf<Room?>(null) }
     val scope = rememberCoroutineScope()
     val spacing = MaterialTheme.spacing
     val context = LocalContext.current
@@ -256,6 +258,9 @@ fun RuangScreen(
                     ) {
                         RoomTile(room.iconKey, room.colorSlot, size = 36)
                         Text(room.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { deleting = room }) {
+                            Text(stringResource(R.string.manage_delete), color = MaterialTheme.colorScheme.error)
+                        }
                         OutlinedButton(onClick = {
                             scope.launch {
                                 when (val result = workspace.rules.restoreRoom(room.id)) {
@@ -268,6 +273,27 @@ fun RuangScreen(
                 }
             }
         }
+    }
+
+    deleting?.let { target ->
+        DeleteForeverDialog(
+            title = stringResource(R.string.room_delete_title, target.name),
+            body = stringResource(R.string.room_delete_body),
+            errorText = { roomErrorText(context, it) },
+            onDismiss = { deleting = null },
+            onConfirm = {
+                when (val result = workspace.management.deleteRoom(target.id)) {
+                    is LedgerResult.Success -> {
+                        deleting = null
+                        changed()
+                        scope.launch { notifier.show(resources.getString(R.string.manage_deleted, target.name)) }
+                        null
+                    }
+
+                    is LedgerResult.Failure -> result.error
+                }
+            },
+        )
     }
 
     if (adding) {
@@ -359,6 +385,8 @@ internal fun roomErrorText(context: Context, error: LedgerError): String = conte
         LedgerError.NAME_TAKEN -> R.string.room_err_taken
         LedgerError.INVALID_NAME -> R.string.room_err_name
         LedgerError.FEATURE_LOCKED -> R.string.rules_pro_note
+        LedgerError.ROOM_IN_USE -> R.string.room_err_in_use
+        LedgerError.ROOM_SHARED -> R.string.room_err_shared
         else -> R.string.catat_error_generic
     },
 )

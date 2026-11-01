@@ -25,9 +25,10 @@ data class AccountOverview(val active: List<AccountRow>, val archived: List<Acco
 data class RoomCategories(val room: Room, val categories: List<Category>, val archived: List<Category>)
 
 /**
- * Kelola akun dan kategori (S13). Akun dan kategori tidak pernah dihapus, hanya diarsipkan,
- * karena riwayat transaksi tetap memakai namanya. Akun dan kategori tidak dibatasi. Kategori sistem `Zakat mal` dan `Tak terlacak` tidak bisa diubah atau
- * diarsipkan, dan namanya tidak boleh dipakai kategori lain.
+ * Kelola akun dan kategori (S13). Akun dan kategori diarsipkan lebih dulu, bukan langsung dihapus, karena riwayat transaksi
+ * tetap memakai namanya. Hapus permanen ([deleteAccount], [deleteCategory], [deleteRoom]) hanya ditawarkan UI untuk yang sudah
+ * diarsipkan, dan repositori menolaknya bila masih dirujuk riwayat. Akun dan kategori tidak dibatasi. Kategori sistem
+ * `Zakat mal` dan `Tak terlacak` tidak bisa diubah atau diarsipkan, dan namanya tidak boleh dipakai kategori lain.
  */
 class ManagementService(
     private val accounts: AccountRepository,
@@ -88,7 +89,23 @@ class ManagementService(
         return LedgerResult.Success(Unit)
     }
 
+    /**
+     * Hapus permanen satu akun (USULAN Claude, belum dikonfirmasi pemilik): ditolak [LedgerError.ACCOUNT_IN_USE] bila masih
+     * dirujuk transaksi, tagihan, utang, aturan berulang, atau rencana DCA. Favorit yang memakainya ikut terhapus, dan
+     * penghapusan ikut tersinkron ke perangkat lain (tombstone). UI hanya menawarkannya untuk akun yang sudah diarsipkan.
+     */
+    suspend fun deleteAccount(id: AccountId): LedgerResult<Unit> = accounts.delete(id)
+
     // ------------------------------------------------------------------ kategori
+
+    /** Hapus permanen satu kategori; ditolak [LedgerError.CATEGORY_IN_USE] bila masih dirujuk riwayat atau rencana DCA. */
+    suspend fun deleteCategory(id: CategoryId): LedgerResult<Unit> = rooms.deleteCategory(id)
+
+    /**
+     * Hapus permanen satu ruang beserta kategorinya. Ruang harus sudah diarsipkan ([LedgerError.ROOM_NOT_ARCHIVED]), tidak
+     * sedang dibagi ([LedgerError.ROOM_SHARED]), dan tidak punya riwayat ([LedgerError.ROOM_IN_USE]).
+     */
+    suspend fun deleteRoom(id: RoomId): LedgerResult<Unit> = rooms.deleteRoom(id)
 
     /** Kategori per ruang aktif, berurutan menurut ruang; kategori sistem tampil paling akhir di tiap ruang. */
     suspend fun categoryOverview(): List<RoomCategories> {

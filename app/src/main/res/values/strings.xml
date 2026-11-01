@@ -336,6 +336,13 @@
     <string name="manage_err_last_category">Ruang harus punya satu kategori aktif. Tambah kategori lain dulu.</string>
     <string name="manage_err_system">Kategori sistem tidak bisa diubah.</string>
     <string name="manage_err_favorite_limit">Favorit sudah 6, yang paling banyak. Hapus satu dulu.</string>
+    <string name="manage_delete_account_title">Hapus akun %1$s?</string>
+    <string name="manage_delete_account_body">Akun ini dihapus untuk selamanya, juga di perangkat lain yang tersinkron, dan tidak bisa dibatalkan. Akun yang pernah dipakai transaksi, tagihan, atau utang tidak bisa dihapus; biarkan saja terarsip.</string>
+    <string name="manage_delete_category_title">Hapus kategori %1$s?</string>
+    <string name="manage_delete_category_body">Kategori ini dihapus untuk selamanya, juga di perangkat lain yang tersinkron, dan tidak bisa dibatalkan. Kategori yang pernah dipakai transaksi atau rencana tidak bisa dihapus; biarkan saja terarsip.</string>
+    <string name="manage_deleted">%1$s dihapus</string>
+    <string name="manage_err_account_in_use">Akun ini masih dipakai transaksi, tagihan, atau utang, jadi tidak bisa dihapus. Biarkan terarsip.</string>
+    <string name="manage_err_category_in_use">Kategori ini masih dipakai transaksi atau rencana, jadi tidak bisa dihapus. Biarkan terarsip.</string>
 
     <!-- Koreksi saldo S25 (Tahap 6) -->
     <string name="menu_reconcile">Koreksi saldo</string>
@@ -712,6 +719,10 @@
     <string name="room_err_limit">Batas ruang paket gratis tercapai. Ruang tak terbatas ada di Rizqflow Pro.</string>
     <string name="room_err_taken">Sudah ada ruang dengan nama itu.</string>
     <string name="room_err_name">Nama ruang 1 sampai 24 karakter.</string>
+    <string name="room_delete_title">Hapus ruang %1$s?</string>
+    <string name="room_delete_body">Ruang ini beserta kategorinya dihapus untuk selamanya, juga di perangkat lain yang tersinkron, dan tidak bisa dibatalkan. Ruang yang punya riwayat tidak bisa dihapus; biarkan saja terarsip.</string>
+    <string name="room_err_in_use">Ruang ini masih punya riwayat (transaksi, tagihan, atau rencana), jadi tidak bisa dihapus. Biarkan terarsip.</string>
+    <string name="room_err_shared">Ruang ini masih dibagi dengan anggota keluarga. Keluar dari ruang bersama itu dulu.</string>
     <string name="kind_menunaikan">Menunaikan</string>
     <string name="kind_menumbuhkan">Menumbuhkan</string>
     <string name="kind_mencukupi">Mencukupi</string>

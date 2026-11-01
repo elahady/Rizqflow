@@ -46,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -118,6 +119,8 @@ internal fun manageErrorText(context: Context, error: LedgerError): String = con
         LedgerError.LAST_ACCOUNT -> R.string.manage_err_last_account
         LedgerError.LAST_CATEGORY -> R.string.manage_err_last_category
         LedgerError.CATEGORY_IS_SYSTEM -> R.string.manage_err_system
+        LedgerError.ACCOUNT_IN_USE -> R.string.manage_err_account_in_use
+        LedgerError.CATEGORY_IN_USE -> R.string.manage_err_category_in_use
         LedgerError.FAVORITE_LIMIT_REACHED -> R.string.manage_err_favorite_limit
         else -> R.string.catat_error_generic
     },
@@ -178,9 +181,11 @@ private sealed interface AccountSheet {
 private fun AccountsTab(workspace: AccountWorkspace, notifier: Notifier, version: Int, changed: () -> Unit) {
     var overview by remember { mutableStateOf<AccountOverview?>(null) }
     var sheet by remember { mutableStateOf<AccountSheet?>(null) }
+    var deleting by remember { mutableStateOf<AccountRow?>(null) }
     var showArchived by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val resources = LocalResources.current
     val spacing = MaterialTheme.spacing
 
     LaunchedEffect(version) { overview = workspace.management.accountOverview() }
@@ -214,6 +219,9 @@ private fun AccountsTab(workspace: AccountWorkspace, notifier: Notifier, version
                             Text(row.account.name, style = MaterialTheme.typography.bodyMedium)
                             Text(formatRupiah(row.balance), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
+                        TextButton(onClick = { deleting = row }) {
+                            Text(stringResource(R.string.manage_delete), color = MaterialTheme.colorScheme.error)
+                        }
                         OutlinedButton(onClick = {
                             scope.launch {
                                 when (val result = workspace.management.restoreAccount(row.account.id)) {
@@ -226,6 +234,27 @@ private fun AccountsTab(workspace: AccountWorkspace, notifier: Notifier, version
                 }
             }
         }
+    }
+
+    deleting?.let { target ->
+        DeleteForeverDialog(
+            title = stringResource(R.string.manage_delete_account_title, target.account.name),
+            body = stringResource(R.string.manage_delete_account_body),
+            errorText = { manageErrorText(context, it) },
+            onDismiss = { deleting = null },
+            onConfirm = {
+                when (val result = workspace.management.deleteAccount(target.account.id)) {
+                    is LedgerResult.Success -> {
+                        deleting = null
+                        changed()
+                        scope.launch { notifier.show(resources.getString(R.string.manage_deleted, target.account.name)) }
+                        null
+                    }
+
+                    is LedgerResult.Failure -> result.error
+                }
+            },
+        )
     }
 
     sheet?.let { current ->
@@ -360,8 +389,10 @@ private sealed interface CategorySheet {
 private fun CategoriesTab(workspace: AccountWorkspace, notifier: Notifier, version: Int, changed: () -> Unit) {
     var overview by remember { mutableStateOf<List<RoomCategories>?>(null) }
     var sheet by remember { mutableStateOf<CategorySheet?>(null) }
+    var deleting by remember { mutableStateOf<Category?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val resources = LocalResources.current
     val spacing = MaterialTheme.spacing
 
     LaunchedEffect(version) { overview = workspace.management.categoryOverview() }
@@ -400,6 +431,9 @@ private fun CategoriesTab(workspace: AccountWorkspace, notifier: Notifier, versi
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),
                     )
+                    TextButton(onClick = { deleting = category }) {
+                        Text(stringResource(R.string.manage_delete), color = MaterialTheme.colorScheme.error)
+                    }
                     TextButton(onClick = {
                         scope.launch {
                             when (val result = workspace.management.restoreCategory(category.id)) {
@@ -411,6 +445,27 @@ private fun CategoriesTab(workspace: AccountWorkspace, notifier: Notifier, versi
                 }
             }
         }
+    }
+
+    deleting?.let { target ->
+        DeleteForeverDialog(
+            title = stringResource(R.string.manage_delete_category_title, target.name),
+            body = stringResource(R.string.manage_delete_category_body),
+            errorText = { manageErrorText(context, it) },
+            onDismiss = { deleting = null },
+            onConfirm = {
+                when (val result = workspace.management.deleteCategory(target.id)) {
+                    is LedgerResult.Success -> {
+                        deleting = null
+                        changed()
+                        scope.launch { notifier.show(resources.getString(R.string.manage_deleted, target.name)) }
+                        null
+                    }
+
+                    is LedgerResult.Failure -> result.error
+                }
+            },
+        )
     }
 
     sheet?.let { current ->

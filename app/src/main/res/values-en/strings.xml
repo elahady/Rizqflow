@@ -335,6 +335,13 @@
     <string name="manage_err_last_category">A room must have at least one active category. Add another category first.</string>
     <string name="manage_err_system">System categories can\'t be changed.</string>
     <string name="manage_err_favorite_limit">You already have 6 favorites, the maximum. Delete one first.</string>
+    <string name="manage_delete_account_title">Delete account %1$s?</string>
+    <string name="manage_delete_account_body">This account is deleted for good, also on your other synced devices, and can\'t be undone. Accounts used by transactions, bills, or debts can\'t be deleted; just leave them archived.</string>
+    <string name="manage_delete_category_title">Delete category %1$s?</string>
+    <string name="manage_delete_category_body">This category is deleted for good, also on your other synced devices, and can\'t be undone. Categories used by transactions or plans can\'t be deleted; just leave them archived.</string>
+    <string name="manage_deleted">%1$s deleted</string>
+    <string name="manage_err_account_in_use">This account is still used by transactions, bills, or debts, so it can\'t be deleted. Leave it archived.</string>
+    <string name="manage_err_category_in_use">This category is still used by transactions or plans, so it can\'t be deleted. Leave it archived.</string>
 
     <!-- Balance correction S25 (Stage 6) -->
     <string name="menu_reconcile">Correct balance</string>
@@ -710,6 +717,10 @@
     <string name="room_err_limit">Free plan room limit reached. Unlimited rooms are in Rizqflow Pro.</string>
     <string name="room_err_taken">A room with that name already exists.</string>
     <string name="room_err_name">Room name must be 1 to 24 characters.</string>
+    <string name="room_delete_title">Delete room %1$s?</string>
+    <string name="room_delete_body">This room and its categories are deleted for good, also on your other synced devices, and can\'t be undone. Rooms with history can\'t be deleted; just leave them archived.</string>
+    <string name="room_err_in_use">This room still has history (transactions, bills, or plans), so it can\'t be deleted. Leave it archived.</string>
+    <string name="room_err_shared">This room is still shared with family members. Leave the shared room first.</string>
     <string name="kind_menunaikan">Fulfilling</string>
     <string name="kind_menumbuhkan">Growing</string>
     <string name="kind_mencukupi">Sufficing</string>

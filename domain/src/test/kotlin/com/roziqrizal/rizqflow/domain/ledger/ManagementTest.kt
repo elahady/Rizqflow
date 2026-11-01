@@ -238,4 +238,78 @@ class ManagementTest {
         assertEquals(LedgerError.CATEGORY_NOT_FOUND, runSuspend { s.restoreCategory(hilang) }.error())
         assertNull(runSuspend { f.store.findCategory(hilang) })
     }
+
+    // ------------------------------------------------------------------ hapus permanen
+
+    @Test
+    fun `akun terarsip yang tidak dirujuk bisa dihapus permanen`() {
+        val f = LedgerFixture().standard()
+        val s = service(f)
+        val bank = f.addAccount("Bank", archived = true)
+
+        assertIs<LedgerResult.Success<*>>(runSuspend { s.deleteAccount(bank.id) })
+
+        assertNull(runSuspend { f.store.find(bank.id) })
+        assertEquals(listOf("Dompet"), runSuspend { s.accountOverview() }.let { it.active + it.archived }.map { it.account.name })
+    }
+
+    @Test
+    fun `akun yang dirujuk transaksi tidak bisa dihapus dan tidak berubah`() {
+        val f = LedgerFixture().standard()
+        val s = service(f)
+        val bank = f.addAccount("Bank")
+        f.income(100_000, accountId = bank.id)
+        runSuspend { s.archiveAccount(bank.id) }
+
+        assertEquals(LedgerError.ACCOUNT_IN_USE, runSuspend { s.deleteAccount(bank.id) }.error())
+
+        assertTrue(runSuspend { f.store.find(bank.id) }?.archived == true, "akun tetap ada dan tetap terarsip")
+    }
+
+    @Test
+    fun `akun aktif terakhir tidak bisa dihapus`() {
+        val f = LedgerFixture().standard()
+
+        assertEquals(LedgerError.LAST_ACCOUNT, runSuspend { service(f).deleteAccount(f.account.id) }.error())
+    }
+
+    @Test
+    fun `kategori terarsip yang tidak dirujuk bisa dihapus, kategori sistem dan yang dirujuk tidak`() {
+        val f = LedgerFixture().standard()
+        val s = service(f)
+        val sekolah = (runSuspend { s.addCategory(f.room("Keluarga").id, "Hobi baru") } as LedgerResult.Success).value
+        runSuspend { s.archiveCategory(sekolah) }
+
+        assertIs<LedgerResult.Success<*>>(runSuspend { s.deleteCategory(sekolah) })
+        assertNull(runSuspend { f.store.findCategory(sekolah) })
+
+        val system = f.store.categoryRows.values.first { it.isSystem }
+        assertEquals(LedgerError.CATEGORY_IS_SYSTEM, runSuspend { s.deleteCategory(system.id) }.error())
+
+        val used = f.category("Keluarga", "Lain-lain")
+        runSuspend {
+            f.ledger.recordExpense(NewExpense(rupiah(5_000), f.account.id, used.roomId, used.id, f.today))
+        }
+        assertEquals(LedgerError.CATEGORY_IN_USE, runSuspend { s.deleteCategory(used.id) }.error())
+    }
+
+    @Test
+    fun `ruang hanya bisa dihapus bila sudah diarsipkan dan tidak punya riwayat`() {
+        val f = LedgerFixture().standard()
+        val s = service(f)
+        val keluarga = f.room("Keluarga")
+
+        assertEquals(LedgerError.ROOM_NOT_ARCHIVED, runSuspend { s.deleteRoom(keluarga.id) }.error(), "ruang aktif tidak bisa dihapus")
+
+        val category = f.category("Keluarga", "Lain-lain")
+        runSuspend { f.ledger.recordExpense(NewExpense(rupiah(5_000), f.account.id, keluarga.id, category.id, f.today)) }
+        runSuspend { f.store.saveRooms(listOf(keluarga.copy(archived = true)), null) }
+        assertEquals(LedgerError.ROOM_IN_USE, runSuspend { s.deleteRoom(keluarga.id) }.error(), "ruang dengan riwayat tidak bisa dihapus")
+
+        val memberi = f.room("Memberi")
+        runSuspend { f.store.saveRooms(listOf(memberi.copy(archived = true)), null) }
+        assertIs<LedgerResult.Success<*>>(runSuspend { s.deleteRoom(memberi.id) })
+        assertNull(runSuspend { f.store.find(memberi.id) })
+        assertTrue(f.store.categoryRows.values.none { it.roomId == memberi.id }, "kategori ruang ikut terhapus")
+    }
 }
