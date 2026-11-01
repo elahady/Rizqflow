@@ -32,6 +32,9 @@ sealed interface RemoteError {
     /** HTTP 422: validasi gagal di server. [message] sudah dalam Bahasa Indonesia, siap ditampilkan. */
     data class Rejected(val message: String) : RemoteError
 
-    /** Kode lain yang tidak diantisipasi (5xx dan lainnya). */
-    data class Unexpected(val httpCode: Int) : RemoteError
+    /**
+     * Kode lain yang tidak diantisipasi (5xx, 429, dan lainnya). [retryAfterSeconds] = header `Retry-After` bila server
+     * mengirimnya (dalam detik; tanggal HTTP sudah dihitung selisihnya); dipakai [SyncBackoff] untuk 429 dan 503.
+     */
+    data class Unexpected(val httpCode: Int, val retryAfterSeconds: Long? = null) : RemoteError
 }

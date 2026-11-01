@@ -27,6 +27,8 @@ dependencies {
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(kotlin("test"))
+    // Waktu virtual untuk tes sync otomatis (debounce, jeda, batas latar) tanpa tidur nyata.
+    testImplementation(libs.kotlinx.coroutines.test)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
