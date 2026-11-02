@@ -353,7 +353,7 @@ Bila amplop diputuskan sesudah rilis (I-2), rilis 1 berhenti di langkah 1 sampai
 
 ## I. Pertanyaan keputusan untuk pemilik
 
-Semua belum diputuskan. Rekomendasi Claude di tiap butir; jangan dikerjakan sebelum dijawab.
+**Semua 13 butir diputuskan pemilik 2026-11-02: setuju rekomendasi Claude di tiap butir, tanpa perubahan.** Siap dikerjakan — urutan implementasi di bagian H.
 
 1. **Nama peran pembuat ruang di UI: "Pemilik" atau "Pengelola"?** Mockup web memakai "Pengelola". Rekomendasi: **"Pemilik"** di rilis 1 (sama dengan `is_owner` dan roadmap), dan "Pengelola" disimpan untuk peran terpisah sesudah rilis; mockup web disesuaikan.
 2. **Amplop masuk rilis 1 atau sesudah rilis?** Rekomendasi: **rilis 1, versi minimal** (amplop per anggota, diatur Pemilik, langkah 7 sampai 10). Alasannya butir roadmap menggabungkan peran dan amplop, dan riset menyebut amplop sebagai pembeda utama. Biayanya: menunggu prasyarat L (mesin generik cakupan bersama). Bila waktu rilis lebih penting, rilis 1 cukup rincian terpakai per anggota (langkah 5).
