@@ -22,10 +22,11 @@ interface RoomKeyProvider {
     fun exportRoomKey(roomId: RoomId): ByteArray
 
     /**
-     * Memasang kunci ruang yang diterima dari [RoomInvite] pasangan (hasil pemindaian QR),
-     * menimpa kunci acak yang mungkin sudah dibuat sendiri untuk [roomId] — supaya kedua
-     * perangkat memakai kunci ruang yang sama persis, bukan dua kunci berbeda yang tidak
-     * bisa membuka ciphertext satu sama lain.
+     * Memasang kunci ruang yang diterima dari [RoomInvite] (hasil pemindaian QR) atau dari `key_grant` setelah
+     * rotasi. Kunci yang diterima menjadi PRIMARY (kunci enkripsi berikutnya), supaya semua perangkat anggota
+     * mengenkripsi dengan kunci yang sama. Kunci yang sudah ada di perangkat ini (mis. kunci acak yang dibuat
+     * sebelum memindai, atau kunci lama sebelum rotasi) DIGABUNG sebagai kunci non-primary, bukan ditimpa — data
+     * yang sudah dienkripsi dengannya tetap terbaca. Memasang keyset yang sama dua kali tidak mengubah apa pun.
      */
     fun importRoomKey(roomId: RoomId, exportedRoomKey: ByteArray)
 

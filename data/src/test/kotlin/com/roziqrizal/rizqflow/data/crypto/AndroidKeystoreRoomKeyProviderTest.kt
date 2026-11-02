@@ -126,4 +126,67 @@ class AndroidKeystoreRoomKeyProviderTest {
         assertContentEquals("tabungan bersama".toByteArray(), dimuatUlang.decrypt(dataLama))
         assertContentEquals("setelah rotasi".toByteArray(), dimuatUlang.decrypt(dataBaru))
     }
+
+    @Test
+    fun `impor menggabung, bukan menimpa - data yang dienkripsi dengan kunci acak sendiri tetap terbaca`() {
+        val anggota = newProvider()
+        val dataSendiri = anggota.getOrCreateRoomKey(ruangKeluarga).encrypt("pengeluaran sebelum memindai QR".toByteArray())
+        val pemilik = newProvider()
+        val kunciPemilik = pemilik.getOrCreateRoomKey(RoomId("ruang-keluarga-sumber"))
+
+        anggota.importRoomKey(ruangKeluarga, pemilik.exportRoomKey(RoomId("ruang-keluarga-sumber")))
+
+        val dimuatUlang = newProvider().getOrCreateRoomKey(ruangKeluarga)
+        assertContentEquals("pengeluaran sebelum memindai QR".toByteArray(), dimuatUlang.decrypt(dataSendiri))
+        // Kunci yang diimpor jadi primary: pemilik bisa membaca apa yang dienkripsi anggota sesudah impor.
+        assertContentEquals("catatan baru".toByteArray(), kunciPemilik.decrypt(dimuatUlang.encrypt("catatan baru".toByteArray())))
+    }
+
+    @Test
+    fun `anggota yang tetap menerima keyset hasil rotasi tanpa kehilangan kunci lama`() {
+        val pemilik = newProvider()
+        val kunciAwal = pemilik.getOrCreateRoomKey(ruangKeluarga)
+        val anggota = newProvider()
+        anggota.importRoomKey(RoomId("ruang-anggota"), pemilik.exportRoomKey(ruangKeluarga))
+        val dataLama = kunciAwal.encrypt("sebelum rotasi".toByteArray())
+
+        // Pemilik mengeluarkan seseorang: rotasi, lalu keyset barunya dibagikan ke anggota yang tetap (key_grant).
+        val kunciRotasi = pemilik.rotateRoomKey(ruangKeluarga)
+        val dataBaru = kunciRotasi.encrypt("sesudah rotasi".toByteArray())
+        anggota.importRoomKey(RoomId("ruang-anggota"), pemilik.exportRoomKey(ruangKeluarga))
+
+        val kunciAnggota = newProvider().getOrCreateRoomKey(RoomId("ruang-anggota"))
+        assertContentEquals("sebelum rotasi".toByteArray(), kunciAnggota.decrypt(dataLama))
+        assertContentEquals("sesudah rotasi".toByteArray(), kunciAnggota.decrypt(dataBaru))
+        // Dan anggota kini menulis dengan kunci rotasi, sehingga pemilik membacanya.
+        assertContentEquals("balasan".toByteArray(), kunciRotasi.decrypt(kunciAnggota.encrypt("balasan".toByteArray())))
+    }
+
+    @Test
+    fun `mengimpor keyset yang sama dua kali tidak mengubah keyset tersimpan`() {
+        val pemilik = newProvider()
+        pemilik.getOrCreateRoomKey(ruangKeluarga)
+        val diekspor = pemilik.exportRoomKey(ruangKeluarga)
+        val anggota = newProvider()
+
+        anggota.importRoomKey(RoomId("ruang-anggota"), diekspor)
+        val sesudahPertama = anggota.exportRoomKey(RoomId("ruang-anggota"))
+        anggota.importRoomKey(RoomId("ruang-anggota"), diekspor)
+
+        assertContentEquals(sesudahPertama, anggota.exportRoomKey(RoomId("ruang-anggota")))
+        assertContentEquals(sesudahPertama, newProvider().exportRoomKey(RoomId("ruang-anggota")))
+    }
+
+    @Test
+    fun `keyset impor yang rusak ditolak dan keyset tersimpan tidak berubah`() {
+        val provider = newProvider()
+        val kunci = provider.getOrCreateRoomKey(ruangKeluarga)
+        val data = kunci.encrypt("masih utuh".toByteArray())
+        val sebelum = provider.exportRoomKey(ruangKeluarga)
+
+        assertFailsWith<Exception> { provider.importRoomKey(ruangKeluarga, byteArrayOf(1, 2, 3, 4)) }
+
+        assertContentEquals(sebelum, newProvider().exportRoomKey(ruangKeluarga))
+        assertContentEquals("masih utuh".toByteArray(), newProvider().getOrCreateRoomKey(ruangKeluarga).decrypt(data))
+    }
 }

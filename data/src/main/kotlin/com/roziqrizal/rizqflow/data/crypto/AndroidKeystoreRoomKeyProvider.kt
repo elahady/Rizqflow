@@ -49,8 +49,8 @@ class AndroidKeystoreRoomKeyProvider(private val context: Context) : RoomKeyProv
         }
 
     /**
-     * Menulis ulang keyset tersimpan untuk [roomId] dengan kunci dari [com.roziqrizal.rizqflow.domain.sync.RoomInvite]
-     * pasangan lewat [SharedPrefKeysetWriter] — jalur tulis publik Tink yang persis sama formatnya
+     * Menulis ulang keyset tersimpan untuk [roomId] dengan GABUNGAN kunci yang sudah ada dan kunci dari
+     * [com.roziqrizal.rizqflow.domain.sync.RoomInvite] pasangan (lihat [RoomKeysetMerger]) lewat [SharedPrefKeysetWriter] — jalur tulis publik Tink yang persis sama formatnya
      * dengan yang dibaca [AndroidKeysetManager], supaya pemanggilan [getOrCreateRoomKey] berikutnya
      * (bahkan dari provider/proses baru) memuat kunci yang baru dipasang ini, bukan kunci acak lama.
      * Dibungkus master key Keystore ruang ini sendiri bila tersedia; kalau tidak (mis. perangkat
@@ -61,8 +61,19 @@ class AndroidKeystoreRoomKeyProvider(private val context: Context) : RoomKeyProv
     override fun importRoomKey(roomId: RoomId, exportedRoomKey: ByteArray) {
         synchronized(this) {
             AeadConfig.register()
-            val importedHandle =
-                TinkProtoKeysetFormat.parseKeyset(exportedRoomKey, InsecureSecretKeyAccess.get(), RegistryConfiguration.get())
+            // Validasi dulu (keyset rusak melempar sebelum menyentuh apa pun yang tersimpan).
+            TinkProtoKeysetFormat.parseKeyset(exportedRoomKey, InsecureSecretKeyAccess.get(), RegistryConfiguration.get())
+            // Digabung dengan keyset yang sudah tersimpan untuk ruang ini (bila ada), bukan menimpanya: lihat RoomKeysetMerger.
+            val existing = if (hasStoredKeyset(roomId)) {
+                TinkProtoKeysetFormat.serializeKeyset(keysetHandle(roomId), InsecureSecretKeyAccess.get(), RegistryConfiguration.get())
+            } else {
+                null
+            }
+            val importedHandle = TinkProtoKeysetFormat.parseKeyset(
+                RoomKeysetMerger.merge(existing, exportedRoomKey),
+                InsecureSecretKeyAccess.get(),
+                RegistryConfiguration.get(),
+            )
             val writer = SharedPrefKeysetWriter(context, keysetName(roomId), prefFileName(roomId))
             try {
                 val masterAead = AndroidKeystoreKmsClient.getOrGenerateNewAeadKey(masterKeyUri(roomId))
@@ -91,6 +102,11 @@ class AndroidKeystoreRoomKeyProvider(private val context: Context) : RoomKeyProv
             return rotated
         }
     }
+
+    /** Sudah ada keyset tersimpan untuk [roomId]? Tanpa membuat kunci acak baru seperti [keysetHandle]. */
+    private fun hasStoredKeyset(roomId: RoomId): Boolean =
+        cachedHandleByRoom.containsKey(roomId) ||
+            context.getSharedPreferences(prefFileName(roomId), Context.MODE_PRIVATE).contains(keysetName(roomId))
 
     /** Dipanggil hanya dari dalam blok `synchronized(this)` milik method publik di atas. */
     private fun keysetHandle(roomId: RoomId): KeysetHandle =
