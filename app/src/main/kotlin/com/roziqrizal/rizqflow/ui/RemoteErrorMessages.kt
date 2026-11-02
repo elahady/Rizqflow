@@ -49,6 +49,11 @@ fun RemoteError.familyRoomMessage(@StringRes fallback: Int): UiMessage {
         ServerErrorCodes.ALREADY_OWNER -> UiMessage(R.string.family_err_already_owner)
         ServerErrorCodes.MEMBER_NOT_FOUND -> UiMessage(R.string.family_err_member_not_found)
         ServerErrorCodes.INVALID_ROOM_ID -> UiMessage(R.string.family_err_invalid_room)
+        ServerErrorCodes.INVITE_REQUIRED -> UiMessage(R.string.family_err_invite_required)
+        ServerErrorCodes.INVITE_INVALID -> UiMessage(R.string.family_err_invite_invalid)
+        ServerErrorCodes.INVITE_EXPIRED -> UiMessage(R.string.family_err_invite_expired)
+        ServerErrorCodes.INVITE_USED -> UiMessage(R.string.family_err_invite_used)
+        ServerErrorCodes.ROOM_FULL -> UiMessage(R.string.family_err_room_full)
         else -> UiMessage(fallback)
     }
 }

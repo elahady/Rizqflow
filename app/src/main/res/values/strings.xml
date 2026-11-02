@@ -1410,6 +1410,14 @@
     <string name="family_err_already_owner">Anggota itu sudah menjadi pemilik ruang.</string>
     <string name="family_err_member_not_found">Anggota itu sudah tidak ada di ruang ini.</string>
     <string name="family_err_invalid_room">Server tidak mengenali ruang ini.</string>
+    <string name="family_err_invite_required">Undangan ini versi lama atau tidak lengkap. Minta pemilik ruang menampilkan QR baru.</string>
+    <string name="family_err_invite_invalid">Undangan tidak sah atau sudah dipakai. Minta pemilik ruang menampilkan QR baru.</string>
+    <string name="family_err_invite_expired">Undangan sudah kedaluwarsa (berlaku 7 hari). Minta pemilik ruang menampilkan QR baru.</string>
+    <string name="family_err_invite_used">Undangan itu sudah dipakai. Tutup lalu buka lagi untuk membuat QR baru.</string>
+    <string name="family_err_room_full">Ruang ini sudah berisi 5 anggota, jadi belum bisa menambah anggota baru.</string>
+    <string name="family_invite_preparing">Menyiapkan undangan…</string>
+    <string name="family_invite_prepare_failed">Gagal menyiapkan undangan. Periksa koneksi lalu coba lagi.</string>
+    <string name="family_invite_valid_days">Berlaku 7 hari dan hanya untuk satu orang.</string>
     <string name="family_leave_action">Keluar dari ruang</string>
     <string name="family_leave_confirm_title">Keluar dari ruang ini?</string>
     <string name="family_leave_confirm_body">Kamu berhenti mengirim dan menerima catatan ruang ini. Catatan yang sudah ada di ponsel ini tetap tersimpan dan tetap bisa kamu lihat, tetapi tidak lagi tersinkron. Catatan yang sudah kamu kirim tetap ada di ruang ini bagi anggota lain. Kamu bisa bergabung lagi kapan saja lewat undangan baru dari pemilik ruang.</string>

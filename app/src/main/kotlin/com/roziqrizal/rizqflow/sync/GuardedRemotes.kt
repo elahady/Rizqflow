@@ -79,8 +79,11 @@ internal class GuardedRoomMembershipRemote(
     private val inner: RoomMembershipRemote,
     private val session: ServerSession,
 ) : RoomMembershipRemote {
-    override suspend fun join(apiToken: String, roomId: String): RemoteResult<Unit> =
-        session.observe(apiToken, inner.join(apiToken, roomId))
+    override suspend fun join(apiToken: String, roomId: String, inviteHash: String?): RemoteResult<Unit> =
+        session.observe(apiToken, inner.join(apiToken, roomId, inviteHash))
+
+    override suspend fun registerInvite(apiToken: String, roomId: String, inviteHash: String): RemoteResult<Unit> =
+        session.observe(apiToken, inner.registerInvite(apiToken, roomId, inviteHash))
 
     override suspend fun members(apiToken: String, roomId: String): RemoteResult<List<RoomMemberInfo>> =
         session.observe(apiToken, inner.members(apiToken, roomId))

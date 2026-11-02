@@ -144,7 +144,9 @@ class FailingSyncRemote(private val error: RemoteError) : SyncRemote {
 }
 
 class FailingRoomMembershipRemote(private val error: RemoteError) : RoomMembershipRemote {
-    override suspend fun join(apiToken: String, roomId: String): RemoteResult<Unit> = RemoteResult.Failure(error)
+    override suspend fun join(apiToken: String, roomId: String, inviteHash: String?): RemoteResult<Unit> = RemoteResult.Failure(error)
+
+    override suspend fun registerInvite(apiToken: String, roomId: String, inviteHash: String): RemoteResult<Unit> = RemoteResult.Failure(error)
 
     override suspend fun members(apiToken: String, roomId: String): RemoteResult<List<RoomMemberInfo>> =
         RemoteResult.Failure(error)

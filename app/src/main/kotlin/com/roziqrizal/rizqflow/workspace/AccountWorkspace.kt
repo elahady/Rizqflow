@@ -6,6 +6,7 @@ import com.roziqrizal.rizqflow.BuildConfig
 import com.roziqrizal.rizqflow.billing.PurchaseStore
 import com.roziqrizal.rizqflow.data.LocalLedger
 import com.roziqrizal.rizqflow.data.crypto.AndroidKeystoreAccountKeyProvider
+import com.roziqrizal.rizqflow.data.crypto.AndroidKeystoreMemberSecretStore
 import com.roziqrizal.rizqflow.data.crypto.AndroidKeystoreRoomKeyProvider
 import com.roziqrizal.rizqflow.data.remote.ApiBaseUrl
 import com.roziqrizal.rizqflow.data.remote.RetrofitAccountRemote
@@ -64,6 +65,7 @@ import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyRemote
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyService
 import com.roziqrizal.rizqflow.domain.sync.RecoveryStatusStore
 import com.roziqrizal.rizqflow.domain.sync.RoomKeyProvider
+import com.roziqrizal.rizqflow.domain.sync.MemberSecretStore
 import com.roziqrizal.rizqflow.domain.sync.RoomMemberKeyRedistribution
 import com.roziqrizal.rizqflow.domain.sync.RoomMembershipRemote
 import com.roziqrizal.rizqflow.domain.sync.SharedRoomLeaver
@@ -138,6 +140,8 @@ class AccountWorkspace private constructor(
     /** Keadaan sesi server akun ini: token, masa berlaku, dan "perlu sambungkan ulang" (Tahap 12). */
     val serverSession: ServerSession,
     val roomKeyProvider: RoomKeyProvider,
+    /** `member_secret` undangan ruang bersama (key_grant langkah 2): rahasia sendiri sebagai anggota, dan rahasia terbitan sebagai pemilik. */
+    val memberSecretStore: MemberSecretStore,
     private val syncRemote: SyncRemote,
     val roomMembershipRemote: RoomMembershipRemote,
     val purchaseRemote: PurchaseRemote,
@@ -482,6 +486,7 @@ class AccountWorkspace private constructor(
                 apiTokenStore = tokenStore,
                 serverSession = session,
                 roomKeyProvider = AndroidKeystoreRoomKeyProvider(context),
+                memberSecretStore = AndroidKeystoreMemberSecretStore(context),
                 syncRemote = session.guard(RetrofitSyncRemote(apiService)),
                 roomMembershipRemote = session.guard(RetrofitRoomMembershipRemote(apiService)),
                 purchaseRemote = session.guard(RetrofitPurchaseRemote(apiService)),

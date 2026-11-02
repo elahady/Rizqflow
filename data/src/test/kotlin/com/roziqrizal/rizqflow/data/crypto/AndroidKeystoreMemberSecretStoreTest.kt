@@ -205,4 +205,24 @@ class AndroidKeystoreMemberSecretStoreTest {
         assertFalse(warnings.single().contains(Base64.getEncoder().encodeToString(secret)))
         assertFalse(warnings.single().contains(secret.joinToString("") { "%02x".format(it) }))
     }
+
+    @Test
+    fun `issuedSecrets mengembalikan semua rahasia terbitan beserta ikatannya per ruang`() {
+        val store = newStore()
+        val roomId = RoomId("ruang-1")
+        val secretA = ByteArray(32) { it.toByte() }
+        val secretB = ByteArray(32) { (it + 1).toByte() }
+        val idA = store.recordIssuedSecret(roomId, secretA)
+        val idB = store.recordIssuedSecret(roomId, secretB)
+        store.recordIssuedSecret(RoomId("ruang-lain"), ByteArray(32) { 9 })
+        store.bindIssuedSecretToMember(roomId, idB, "siti")
+
+        val issued = store.issuedSecrets(roomId)
+
+        assertEquals(listOf(idA, idB), issued.map { it.id })
+        assertEquals(listOf(null, "siti"), issued.map { it.memberId })
+        assertContentEquals(secretA, issued[0].secret)
+        assertContentEquals(secretB, issued[1].secret)
+        assertEquals(emptyList(), newStore().issuedSecrets(RoomId("belum-ada")))
+    }
 }

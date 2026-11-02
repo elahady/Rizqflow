@@ -6,6 +6,7 @@ import com.google.crypto.tink.Aead
 import com.google.crypto.tink.aead.AeadConfig
 import com.google.crypto.tink.integration.android.AndroidKeystoreKmsClient
 import com.roziqrizal.rizqflow.domain.model.RoomId
+import com.roziqrizal.rizqflow.domain.sync.IssuedMemberSecret
 import com.roziqrizal.rizqflow.domain.sync.MemberSecretStore
 import java.security.GeneralSecurityException
 import java.security.ProviderException
@@ -61,6 +62,9 @@ class AndroidKeystoreMemberSecretStore(
 
     override fun issuedSecretFor(roomId: RoomId, memberId: String): ByteArray? =
         readIssuedRecords(roomId).lastOrNull { it.memberId == memberId }?.let { Base64.getDecoder().decode(it.secretBase64) }
+
+    override fun issuedSecrets(roomId: RoomId): List<IssuedMemberSecret> =
+        readIssuedRecords(roomId).map { IssuedMemberSecret(it.id, it.memberId, Base64.getDecoder().decode(it.secretBase64)) }
 
     private fun readIssuedRecords(roomId: RoomId): List<IssuedSecretRecord> {
         val bytes = readBlob(roomId, KEY_ISSUED_SECRETS, AAD_ISSUED) ?: return emptyList()

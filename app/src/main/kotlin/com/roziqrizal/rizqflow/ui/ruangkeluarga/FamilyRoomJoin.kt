@@ -8,6 +8,7 @@ import com.roziqrizal.rizqflow.domain.model.RoomId
 import com.roziqrizal.rizqflow.domain.model.RoomKind
 import com.roziqrizal.rizqflow.domain.sync.RemoteError
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
+import com.roziqrizal.rizqflow.domain.sync.MemberSecretKdf
 import com.roziqrizal.rizqflow.domain.sync.RoomInvite
 import com.roziqrizal.rizqflow.domain.sync.SharedRoomRole
 import com.roziqrizal.rizqflow.sync.isUnauthorized
@@ -48,6 +49,43 @@ suspend fun joinSharedRoom(workspace: AccountWorkspace, invite: RoomInvite): Fam
     val session = workspace.serverSession
     if (session.token() == null) return FamilyJoinResult.NotSignedIn
 
+    // Hash undangan diturunkan dari rahasia di QR (QR lama v1/v2 tanpa rahasia: tanpa hash, jadi ditolak server
+    // 403 invite_required bila ruang sudah berpenghuni). Rahasianya sendiri tidak pernah meninggalkan perangkat.
+    val inviteHash = invite.memberSecret?.let(MemberSecretKdf::inviteHash)
+
+    // Token dibaca ulang di dalam panggilan: 401 karena token baru saja diputar (permintaan membawa token lama)
+    // diulang sekali dengan token baru, bukan dilaporkan sebagai kegagalan (lihat retryOnceIfRotated).
+    val result = session.retryOnceIfRotated(
+        isUnauthorized = { it?.isUnauthorized() == true },
+        call = {
+            val token = session.token()
+            if (token == null) null else workspace.roomMembershipRemote.join(token, invite.roomId.value, inviteHash)
+        },
+    )
+    return when (result) {
+        null -> FamilyJoinResult.NotSignedIn
+        is RemoteResult.Success -> {
+            // Lokal baru disiapkan SETELAH server menerima: undangan yang ditolak (kedaluwarsa, sudah dipakai) tidak
+            // meninggalkan ruang yatim di perangkat ini. `join` idempoten, jadi bila langkah lokal di bawah terputus,
+            // memindai ulang QR yang sama tetap berhasil (anggota yang sudah ada tidak butuh undangan lagi).
+            prepareLocalRoom(workspace, invite)
+            // Ruang kini bersama: sinkron otomatis (buka aplikasi dan simpan pengeluaran) mulai berlaku untuk ruang ini.
+            workspace.sharedRoomActivation.markActive(invite.roomId, SharedRoomRole.MEMBER)
+            FamilyJoinResult.Success(invite.roomId)
+        }
+        is RemoteResult.Failure ->
+            if (result.error.opensSyncPaywall()) FamilyJoinResult.SyncRequired else FamilyJoinResult.Failed(result.error)
+    }
+}
+
+/** Slot warna netral (lihat `Color.kt`, slot 1-3 dipakai pola Tiga hak) — tidak perlu mencari slot bebas untuk satu ruang. */
+private const val FAMILY_ROOM_COLOR_SLOT = 4
+
+/**
+ * Menyiapkan sisi perangkat ini untuk ruang yang baru diterima server: ruang lokal (bila belum ada), kunci ruang dari QR,
+ * dan rahasia anggota (calon kunci AEAD `key_grant` saat kunci ruang dirotasi; null untuk QR lama tanpa rahasia).
+ */
+private suspend fun prepareLocalRoom(workspace: AccountWorkspace, invite: RoomInvite) {
     if (workspace.repositories.rooms.find(invite.roomId) == null) {
         val active = workspace.repositories.rooms.activeRooms()
         val room = Room(
@@ -64,27 +102,5 @@ suspend fun joinSharedRoom(workspace: AccountWorkspace, invite: RoomInvite): Fam
     }
 
     workspace.roomKeyProvider.importRoomKey(invite.roomId, invite.exportedRoomKey)
-
-    // Token dibaca ulang di dalam panggilan: 401 karena token baru saja diputar (permintaan membawa token lama)
-    // diulang sekali dengan token baru, bukan dilaporkan sebagai kegagalan (lihat retryOnceIfRotated).
-    val result = session.retryOnceIfRotated(
-        isUnauthorized = { it?.isUnauthorized() == true },
-        call = {
-            val token = session.token()
-            if (token == null) null else workspace.roomMembershipRemote.join(token, invite.roomId.value)
-        },
-    )
-    return when (result) {
-        null -> FamilyJoinResult.NotSignedIn
-        is RemoteResult.Success -> {
-            // Ruang kini bersama: sinkron otomatis (buka aplikasi dan simpan pengeluaran) mulai berlaku untuk ruang ini.
-            workspace.sharedRoomActivation.markActive(invite.roomId, SharedRoomRole.MEMBER)
-            FamilyJoinResult.Success(invite.roomId)
-        }
-        is RemoteResult.Failure ->
-            if (result.error.opensSyncPaywall()) FamilyJoinResult.SyncRequired else FamilyJoinResult.Failed(result.error)
-    }
+    invite.memberSecret?.let { workspace.memberSecretStore.saveOwnSecret(invite.roomId, it) }
 }
-
-/** Slot warna netral (lihat `Color.kt`, slot 1-3 dipakai pola Tiga hak) — tidak perlu mencari slot bebas untuk satu ruang. */
-private const val FAMILY_ROOM_COLOR_SLOT = 4

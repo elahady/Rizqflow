@@ -21,7 +21,9 @@ class SharedRoomLeaverTest {
     private class RecordingRemote(var answer: RemoteResult<Unit>) : RoomMembershipRemote {
         val leaveCalls = mutableListOf<Pair<String, String>>()
 
-        override suspend fun join(apiToken: String, roomId: String): RemoteResult<Unit> = error("tidak dipakai")
+        override suspend fun join(apiToken: String, roomId: String, inviteHash: String?): RemoteResult<Unit> = error("tidak dipakai")
+
+        override suspend fun registerInvite(apiToken: String, roomId: String, inviteHash: String): RemoteResult<Unit> = error("tidak dipakai")
 
         override suspend fun members(apiToken: String, roomId: String): RemoteResult<List<RoomMemberInfo>> = error("tidak dipakai")
 
@@ -99,7 +101,9 @@ class SharedRoomLeaverTest {
         val inRemote = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
         val slowRemote = object : RoomMembershipRemote {
-            override suspend fun join(apiToken: String, roomId: String): RemoteResult<Unit> = error("tidak dipakai")
+            override suspend fun join(apiToken: String, roomId: String, inviteHash: String?): RemoteResult<Unit> = error("tidak dipakai")
+
+        override suspend fun registerInvite(apiToken: String, roomId: String, inviteHash: String): RemoteResult<Unit> = error("tidak dipakai")
 
             override suspend fun members(apiToken: String, roomId: String): RemoteResult<List<RoomMemberInfo>> = error("tidak dipakai")
 

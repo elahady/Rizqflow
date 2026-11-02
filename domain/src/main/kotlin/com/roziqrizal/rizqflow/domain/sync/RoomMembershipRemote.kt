@@ -8,7 +8,21 @@ package com.roziqrizal.rizqflow.domain.sync
  * saja anggotanya — server menolak (lihat [RemoteError]) bila pemanggil sendiri belum jadi anggota.
  */
 interface RoomMembershipRemote {
-    suspend fun join(apiToken: String, roomId: String): RemoteResult<Unit>
+    /**
+     * Bergabung ke ruang (`POST /rooms/{roomId}/join`). [inviteHash] = [MemberSecretKdf.inviteHash] dari rahasia di QR
+     * undangan: wajib bagi non-anggota di ruang yang sudah berpenghuni (server menjawab 403 [ServerErrorCodes.INVITE_REQUIRED],
+     * [ServerErrorCodes.INVITE_INVALID], atau [ServerErrorCodes.INVITE_EXPIRED] sebagai [RemoteError.Rejected], 422 [ServerErrorCodes.ROOM_FULL]).
+     * Anggota yang sudah ada dan pembuat ruang (ruang masih kosong) tidak butuh undangan, jadi null.
+     */
+    suspend fun join(apiToken: String, roomId: String, inviteHash: String? = null): RemoteResult<Unit>
+
+    /**
+     * PEMILIK mendaftarkan [inviteHash] sebelum QR-nya ditampilkan (`POST /rooms/{roomId}/invites`, 201). Sekali pakai,
+     * kedaluwarsa 7 hari. Bukan pemilik: [RemoteError.Rejected] berkode [ServerErrorCodes.NOT_ROOM_OWNER]; hash yang sudah
+     * dipakai: [ServerErrorCodes.INVITE_USED]. Undangan menunggu yang terlalu banyak tidak pernah ditolak: server menyingkirkan
+     * yang paling lama (belum dipakai), jadi membuka sheet QR berulang kali aman.
+     */
+    suspend fun registerInvite(apiToken: String, roomId: String, inviteHash: String): RemoteResult<Unit>
 
     suspend fun members(apiToken: String, roomId: String): RemoteResult<List<RoomMemberInfo>>
 
@@ -51,6 +65,8 @@ data class RoomMemberInfo(
     val owner: Boolean = false,
     val userId: Long? = null,
     val memberId: String? = null,
+    /** `invite_hash` undangan yang dipakai anggota ini bergabung (key_grant langkah 2); null untuk pembuat ruang atau server lama. */
+    val inviteHash: String? = null,
 )
 
 /**

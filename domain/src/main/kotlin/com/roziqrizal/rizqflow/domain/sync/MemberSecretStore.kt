@@ -51,4 +51,13 @@ interface MemberSecretStore {
 
     /** PEMILIK: `member_secret` yang sudah terkait ke [memberId] (lihat [bindIssuedSecretToMember]); null bila belum/tidak ada. */
     fun issuedSecretFor(roomId: RoomId, memberId: String): ByteArray?
+
+    /**
+     * PEMILIK: semua rahasia yang pernah diterbitkan untuk [roomId] (terikat atau belum), dipakai
+     * [IssuedSecretBinder] mencocokkan `invite_hash` di daftar anggota dengan rahasia yang menurunkannya.
+     */
+    fun issuedSecrets(roomId: RoomId): List<IssuedMemberSecret>
 }
+
+/** Satu rahasia yang diterbitkan pemilik: [id] lokal, [memberId] bila sudah terikat ke anggota, dan [secret] mentahnya. */
+class IssuedMemberSecret(val id: String, val memberId: String?, val secret: ByteArray)

@@ -92,6 +92,16 @@ interface RizqflowApiService {
     suspend fun joinRoom(
         @Header("Authorization") bearerToken: String,
         @Path("roomId") roomId: String,
+        /** `{"invite_hash": "..."}` atau badan kosong (anggota yang sudah ada, atau pembuat ruang). */
+        @Body body: RequestBody,
+    ): Response<ResponseBody>
+
+    /** Pemilik mendaftarkan hash undangan sebelum QR tampil: 201 sukses; 403 bukan pemilik; 409 hash sudah dipakai; 422 terlalu banyak. */
+    @POST("rooms/{roomId}/invites")
+    suspend fun registerRoomInvite(
+        @Header("Authorization") bearerToken: String,
+        @Path("roomId") roomId: String,
+        @Body body: RequestBody,
     ): Response<ResponseBody>
 
     @GET("rooms/{roomId}/members")
@@ -359,10 +369,16 @@ data class RoomMemberDto(
     @SerialName("user_id") val userId: Long? = null,
     /** Id anggota buram, sama dengan `author` baris sync (peran-anggota.md E.1); null dari server lama. */
     @SerialName("member_id") val memberId: String? = null,
+    /** Hash undangan yang dipakai anggota ini bergabung; null untuk pembuat ruang atau server lama. */
+    @SerialName("invite_hash") val inviteHash: String? = null,
 )
 
 @Serializable
 data class RoomMembersResponseDto(val members: List<RoomMemberDto>)
+
+/** Badan `POST /rooms/{id}/join` (opsional) dan `POST /rooms/{id}/invites` (wajib): hanya hash, tidak pernah rahasianya. */
+@Serializable
+data class RoomInviteHashDto(@SerialName("invite_hash") val inviteHash: String)
 
 /** Badan `POST /purchases/claim`: `{"purchases":[{"product_id":"...","purchase_token":"..."}]}`. */
 @Serializable

@@ -62,6 +62,11 @@ class RemoteErrorMessagesTest {
         assertEquals(UiMessage(R.string.family_err_already_owner), message(ServerErrorCodes.ALREADY_OWNER))
         assertEquals(UiMessage(R.string.family_err_member_not_found), message(ServerErrorCodes.MEMBER_NOT_FOUND))
         assertEquals(UiMessage(R.string.family_err_invalid_room), message(ServerErrorCodes.INVALID_ROOM_ID))
+        assertEquals(UiMessage(R.string.family_err_invite_required), message(ServerErrorCodes.INVITE_REQUIRED))
+        assertEquals(UiMessage(R.string.family_err_invite_invalid), message(ServerErrorCodes.INVITE_INVALID))
+        assertEquals(UiMessage(R.string.family_err_invite_expired), message(ServerErrorCodes.INVITE_EXPIRED))
+        assertEquals(UiMessage(R.string.family_err_invite_used), message(ServerErrorCodes.INVITE_USED))
+        assertEquals(UiMessage(R.string.family_err_room_full), message(ServerErrorCodes.ROOM_FULL))
     }
 
     @Test
@@ -122,6 +127,8 @@ class RemoteErrorMessagesTest {
             "remote_rate_limited", "remote_rate_limited_seconds", "remote_rate_limited_minutes", "msg_rate_limited",
             "family_err_not_member", "family_err_not_owner", "family_err_owner_cannot_leave",
             "family_err_owner_cannot_be_removed", "family_err_member_not_found", "family_err_invalid_room",
+            "family_err_invite_required", "family_err_invite_invalid", "family_err_invite_expired", "family_err_invite_used",
+            "family_err_room_full", "family_invite_preparing", "family_invite_prepare_failed", "family_invite_valid_days",
             "family_leave_action", "family_leave_confirm_title", "family_leave_confirm_body", "family_leave_confirm_action",
             "family_leave_done", "family_leave_failed", "family_owner_cannot_leave_note", "family_left_info",
         )

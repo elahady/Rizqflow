@@ -42,6 +42,69 @@ class RetrofitRoomMembershipRemoteTest {
     }
 
     @Test
+    fun `join tanpa hash mengirim badan kosong dan dengan hash mengirim hanya hash undangan`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(204))
+        server.enqueue(MockResponse().setResponseCode(204))
+        val hash = "a".repeat(64)
+
+        remote.join(apiToken = "abc123", roomId = "ruang-1")
+        remote.join(apiToken = "abc123", roomId = "ruang-1", inviteHash = hash)
+
+        assertEquals("", server.takeRequest().body.readUtf8())
+        assertEquals("""{"invite_hash":"$hash"}""", server.takeRequest().body.readUtf8())
+    }
+
+    @Test
+    fun `join berundangan ditolak dipetakan per kode tanpa membuka paywall`() = runBlocking {
+        for ((status, code) in listOf(403 to "invite_required", 403 to "invite_invalid", 403 to "invite_expired", 422 to "room_full")) {
+            server.enqueue(MockResponse().setResponseCode(status).setBody("""{"message":"pesan server mentah","code":"$code"}"""))
+
+            val result = remote.join(apiToken = "abc123", roomId = "ruang-1", inviteHash = "b".repeat(64))
+
+            assertEquals(RemoteResult.Failure(RemoteError.Rejected("pesan server mentah", code)), result, code)
+        }
+    }
+
+    @Test
+    fun `registerInvite mengirim POST bertoken dengan hash saja`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(201).setBody("""{"expires_at":"2026-11-10T00:00:00+00:00"}"""))
+        val hash = "c".repeat(64)
+
+        val result = remote.registerInvite(apiToken = "abc123", roomId = "ruang-1", inviteHash = hash)
+
+        assertEquals(RemoteResult.Success(Unit), result)
+        val sent = server.takeRequest()
+        assertEquals("POST", sent.method)
+        assertEquals("/rooms/ruang-1/invites", sent.path)
+        assertEquals("Bearer abc123", sent.getHeader("Authorization"))
+        assertEquals("""{"invite_hash":"$hash"}""", sent.body.readUtf8())
+    }
+
+    @Test
+    fun `registerInvite oleh bukan pemilik dan hash terpakai dipetakan per kode`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(403).setBody("""{"message":"x","code":"not_room_owner"}"""))
+        server.enqueue(MockResponse().setResponseCode(409).setBody("""{"message":"x","code":"invite_used"}"""))
+
+        assertEquals(RemoteResult.Failure(RemoteError.Rejected("x", "not_room_owner")), remote.registerInvite("t", "r", "d".repeat(64)))
+        assertEquals(RemoteResult.Failure(RemoteError.Rejected("x", "invite_used")), remote.registerInvite("t", "r", "d".repeat(64)))
+    }
+
+    @Test
+    fun `members membaca invite_hash anggota, null untuk pembuat ruang`() = runBlocking {
+        val hash = "e".repeat(64)
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "application/json")
+                .setBody("""{"members":[{"name":"A","email":"a@x.test","you":true,"owner":true,"member_id":"m1","invite_hash":null},{"name":"B","email":"b@x.test","you":false,"member_id":"m2","invite_hash":"$hash"}]}"""),
+        )
+
+        val result = remote.members(apiToken = "t", roomId = "r") as RemoteResult.Success
+
+        assertEquals(listOf(null, hash), result.value.map { it.inviteHash })
+    }
+
+    @Test
     fun `join tanpa langganan Sync mengembalikan SyncRequired`() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(403).setBody("""{"message":"Butuh langganan Sync."}"""))
 

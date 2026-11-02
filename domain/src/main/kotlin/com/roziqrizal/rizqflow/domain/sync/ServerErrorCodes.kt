@@ -29,6 +29,21 @@ object ServerErrorCodes {
     /** 422: id ruang tidak sah (1 sampai 100 karakter). */
     const val INVALID_ROOM_ID = "invalid_room_id"
 
+    /** 403 pada `join`: ruang sudah berpenghuni dan pemanggil tidak membawa `invite_hash` (QR lama tanpa rahasia, atau bekas anggota). */
+    const val INVITE_REQUIRED = "invite_required"
+
+    /** 403 pada `join`: undangan tak dikenal, sudah dipakai, atau milik ruang lain. */
+    const val INVITE_INVALID = "invite_invalid"
+
+    /** 403 pada `join`: undangan lewat 7 hari; pemilik harus menampilkan QR baru. */
+    const val INVITE_EXPIRED = "invite_expired"
+
+    /** 409 pada `invites`: hash itu sudah dipakai anggota; pakai rahasia baru. */
+    const val INVITE_USED = "invite_used"
+
+    /** 422 pada `join`: ruang sudah berisi 5 anggota. */
+    const val ROOM_FULL = "room_full"
+
     /** 429: batas laju; badan galat membawa `retry_after` (detik) dan responsnya header `Retry-After`. */
     const val RATE_LIMITED = "rate_limited"
 
@@ -52,6 +67,11 @@ object ServerErrorCodes {
         OWNER_CANNOT_LEAVE,
         ALREADY_OWNER,
         INVALID_ROOM_ID,
+        INVITE_REQUIRED,
+        INVITE_INVALID,
+        INVITE_EXPIRED,
+        INVITE_USED,
+        ROOM_FULL,
         CURSOR_EXPIRED,
     )
 }

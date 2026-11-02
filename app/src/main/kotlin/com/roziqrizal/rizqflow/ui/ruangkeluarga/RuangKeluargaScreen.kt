@@ -1,7 +1,5 @@
 package com.roziqrizal.rizqflow.ui.ruangkeluarga
 
-import android.graphics.BitmapFactory
-import android.util.Base64
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -41,7 +39,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
@@ -61,8 +58,8 @@ import com.roziqrizal.rizqflow.domain.model.RoomKind
 import com.roziqrizal.rizqflow.domain.money.Money
 import com.roziqrizal.rizqflow.domain.sync.LeaveRoomOutcome
 import com.roziqrizal.rizqflow.domain.sync.RemoteError
+import com.roziqrizal.rizqflow.domain.sync.IssuedSecretBinder
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
-import com.roziqrizal.rizqflow.domain.sync.RoomInvite
 import com.roziqrizal.rizqflow.domain.sync.RoomMemberInfo
 import com.roziqrizal.rizqflow.domain.sync.RoomPermissions
 import com.roziqrizal.rizqflow.domain.sync.SharedMemberCache
@@ -90,7 +87,6 @@ import com.roziqrizal.rizqflow.ui.theme.rizqflow
 import com.roziqrizal.rizqflow.ui.theme.spacing
 import com.roziqrizal.rizqflow.workspace.AccountWorkspace
 import kotlinx.coroutines.launch
-import qrcode.QRCode
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneOffset
@@ -293,6 +289,9 @@ fun RuangKeluargaScreen(
             is RemoteResult.Success -> {
                 members = result.value
                 loadError = null
+                // Pemilik: ikat rahasia undangan ke anggota yang memakainya (hash di daftar anggota cocok dengan rahasia
+                // terbitan). Murni lokal dan idempoten; anggota biasa tidak punya rahasia terbitan, jadi tidak ada efeknya.
+                IssuedSecretBinder(workspace.memberSecretStore).bind(roomId, result.value)
                 // Penandaan ACTIVE menyalakan sinkron otomatis untuk ruang ini. Perannya diambil dari bendera owner
                 // server (pembuat ruang = pemilik, keputusan pemilik #1) dan menimpa peran lokal yang berbeda — dulu
                 // siapa pun yang membuka layar ini tercatat OWNER tanpa syarat.
@@ -872,13 +871,46 @@ fun RuangKeluargaScreen(
                 )
                 // rotationEpoch di kunci remember: QR ini membaca kunci ruang TERKINI (exportRoomKey), jadi
                 // wajib dibangun ulang setelah rotasi walau roomId/roomName tidak berubah.
-                val qrBitmap = remember(roomId, roomName, rotationEpoch) {
-                    val invite = RoomInvite(roomId, roomName.orEmpty(), workspace.roomKeyProvider.exportRoomKey(roomId))
-                    val payload = Base64.encodeToString(invite.encode(), Base64.NO_WRAP)
-                    val pngBytes = QRCode.ofSquares().build(payload).render().getBytes()
-                    BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.size).asImageBitmap()
+                // Undangan terdaftar (key_grant langkah 2): QR baru dengan rahasia segar didaftarkan ke server lebih
+                // dulu (hanya hash-nya), baru dirender. Sekali pakai, 7 hari; tiap sheet dibuka = undangan baru.
+                var inviteQr by remember(roomId, roomName, rotationEpoch) { mutableStateOf<InviteQrResult?>(null) }
+                LaunchedEffect(roomId, roomName, rotationEpoch) {
+                    inviteQr = buildInviteQr(workspace, roomId, roomName.orEmpty())
                 }
-                Image(bitmap = qrBitmap, contentDescription = null, modifier = Modifier.padding(top = 16.dp).size(240.dp))
+                when (val qr = inviteQr) {
+                    null -> {
+                        CircularProgressIndicator(modifier = Modifier.padding(top = 24.dp))
+                        Text(
+                            stringResource(R.string.family_invite_preparing),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+
+                    is InviteQrResult.Ready -> {
+                        Image(bitmap = qr.bitmap, contentDescription = null, modifier = Modifier.padding(top = 16.dp).size(240.dp))
+                        Text(
+                            stringResource(R.string.family_invite_valid_days),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+
+                    InviteQrResult.NotSignedIn -> Text(
+                        stringResource(R.string.family_join_not_signed_in),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
+
+                    is InviteQrResult.Failed -> Text(
+                        qr.message.resolve(resources),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
+                }
                 TextButton(onClick = { inviteSheet = false; justRotated = false }, modifier = Modifier.padding(top = 16.dp)) {
                     Text(stringResource(R.string.catat_date_cancel))
                 }
