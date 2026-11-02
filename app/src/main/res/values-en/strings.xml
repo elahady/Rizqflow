@@ -1330,6 +1330,7 @@
     <string name="synchist_kind_unsupported_version">Needs a newer app version</string>
     <string name="synchist_kind_tampered">Data could not be read</string>
     <string name="synchist_kind_overwritten">A change on this phone was replaced</string>
+    <string name="synchist_kind_unauthorized_author">Envelope ignored (not from the Owner)</string>
     <string name="synchist_type_room">Room</string>
     <string name="synchist_type_account">Account</string>
     <string name="synchist_type_category">Category</string>

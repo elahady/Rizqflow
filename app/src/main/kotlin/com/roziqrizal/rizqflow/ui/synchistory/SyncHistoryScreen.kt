@@ -482,6 +482,7 @@ internal fun issueKindText(kind: SyncIssueKind): Int = when (kind) {
     SyncIssueKind.UNSUPPORTED_VERSION -> R.string.synchist_kind_unsupported_version
     SyncIssueKind.TAMPERED_OR_CORRUPT -> R.string.synchist_kind_tampered
     SyncIssueKind.OVERWRITTEN -> R.string.synchist_kind_overwritten
+    SyncIssueKind.UNAUTHORIZED_AUTHOR -> R.string.synchist_kind_unauthorized_author
 }
 
 /** Nama jenis data untuk pengguna dari nama kabel (`record_type`); jenis yang tidak dikenal menjadi "Data lainnya". */

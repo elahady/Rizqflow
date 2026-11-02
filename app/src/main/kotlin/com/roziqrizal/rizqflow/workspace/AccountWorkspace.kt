@@ -30,6 +30,7 @@ import com.roziqrizal.rizqflow.data.sync.PreRestoreBackup
 import com.roziqrizal.rizqflow.data.sync.PreRestoreCleaner
 import com.roziqrizal.rizqflow.data.sync.PureWorkspaceReplacer
 import com.roziqrizal.rizqflow.data.sync.RecurringRuleSyncHandler
+import com.roziqrizal.rizqflow.data.sync.RoomSharedRecordStore
 import com.roziqrizal.rizqflow.data.sync.RoomSyncHandler
 import com.roziqrizal.rizqflow.data.sync.RoomWorkspacePurityChecker
 import com.roziqrizal.rizqflow.data.sync.SharedPrefsRecoveryStatusStore
@@ -49,6 +50,8 @@ import com.roziqrizal.rizqflow.domain.sync.AccountKeyProvider
 import com.roziqrizal.rizqflow.domain.sync.AccountRemote
 import com.roziqrizal.rizqflow.domain.sync.ApiTokenStore
 import com.roziqrizal.rizqflow.domain.sync.DeviceRemote
+import com.roziqrizal.rizqflow.domain.sync.EnvelopeService
+import com.roziqrizal.rizqflow.domain.sync.EnvelopeSyncHandler
 import com.roziqrizal.rizqflow.domain.sync.FullResync
 import com.roziqrizal.rizqflow.domain.sync.LocalSyncHistoryReader
 import com.roziqrizal.rizqflow.domain.sync.NewDeviceRecoveryAdvisor
@@ -194,7 +197,19 @@ class AccountWorkspace private constructor(
     val smartInput = SmartInputService(local.transactions)
     val demo = DemoData(setup, ledger, management, favorites, local.rooms)
 
-    /** Sync push/pull ruang keluarga, hanya transaksi (Tahap 9, mesin Tahap 2) — lihat [SyncCoordinator]. */
+    /**
+     * Status kotor/LWW amplop lewat tabel `sync_record` yang SAMA dengan cakupan pribadi (peran-anggota.md E.2/H
+     * langkah 8) — lihat KDoc [com.roziqrizal.rizqflow.domain.sync.SharedRecordStore].
+     */
+    val sharedRecordStore = RoomSharedRecordStore(local.db)
+
+    /** Penangan `envelope` (amplop bulanan, peran-anggota.md H langkah 8) — ditambahkan ke [sync] lewat `extraHandlers`. */
+    val envelopeSync = EnvelopeSyncHandler(sharedRecordStore, local.family, local.family, issues = local.syncStore)
+
+    /** Menulis amplop dari sheet "Atur amplop" (hanya Pemilik, ditegakkan UI) dan menandainya kotor untuk [envelopeSync]. */
+    val envelopes = EnvelopeService(local.family, sharedRecordStore, local.syncClock)
+
+    /** Sync push/pull ruang keluarga: transaksi (Tahap 9, mesin Tahap 2) dan amplop (H langkah 8) — lihat [SyncCoordinator]. */
     val sync = SyncCoordinator(
         transactions = local.transactions,
         rooms = local.rooms,
@@ -213,6 +228,7 @@ class AccountWorkspace private constructor(
         // `sharedRoomActivation` dideklarasikan di bawah; aman karena lambda ini hanya dipanggil belakangan, setelah
         // konstruksi AccountWorkspace selesai (sama seperti sharedRoomLeaver merujuk sharedRoomActivation.markLeft).
         onNotRoomMember = { roomId -> sharedRoomActivation.markRemoved(roomId) },
+        extraHandlers = listOf(envelopeSync),
     )
 
     /**

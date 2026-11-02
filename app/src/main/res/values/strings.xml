@@ -1323,6 +1323,7 @@
     <string name="synchist_kind_unsupported_version">Butuh versi aplikasi yang lebih baru</string>
     <string name="synchist_kind_tampered">Data tidak terbaca</string>
     <string name="synchist_kind_overwritten">Perubahan di ponsel digantikan</string>
+    <string name="synchist_kind_unauthorized_author">Amplop diabaikan (bukan dari Pemilik)</string>
     <string name="synchist_type_room">Ruang</string>
     <string name="synchist_type_account">Akun</string>
     <string name="synchist_type_category">Kategori</string>
