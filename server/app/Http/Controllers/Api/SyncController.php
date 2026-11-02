@@ -104,6 +104,21 @@ class SyncController extends Controller
             }
         }
 
+        // Rekaman key_grant (record_type luar "g", key_grant langkah 4): keyset kunci ruang baru yang disegel per
+        // anggota. Hanya PEMILIK ruang yang boleh menerbitkannya; anggota biasa yang mendorong "g" akan
+        // membiarkan siapa pun menyisipkan keyset palsu ke anggota lain. Isi tetap buram bagi server.
+        foreach ($data['entries'] as $entry) {
+            if (($entry['record_type'] ?? null) === 'g') {
+                $roomId = $entry['room_id'] ?? null;
+                if ($roomId === null || ! RoomMember::where('room_id', $roomId)->where('user_id', $userId)->where('is_owner', true)->exists()) {
+                    return response()->json([
+                        'message' => 'Hanya pemilik ruang yang bisa menerbitkan kunci baru untuk anggota.',
+                        'code' => 'not_room_owner',
+                    ], 403);
+                }
+            }
+        }
+
         try {
             // Satu transaksi DB per batch (Tahap 2 bagian G): gagal di tengah tidak meninggalkan separuh baris.
             [$ids, $ruangBaru] = DB::transaction(function () use ($data, $userId) {
