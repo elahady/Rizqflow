@@ -126,7 +126,16 @@ class FullResyncTest {
 
         FullResync(store, cursors(), { success }, { SyncResult.Success(0, 0, 0) }).run()
 
-        // FakeSyncStore melempar untuk operasi tulis data apa pun; satu-satunya tulis di store adalah kursor pribadi.
-        assertEquals(listOf<Pair<SyncScope, Long>>(SyncScope.Personal to 0L), store.cursorWrites)
+        // FakeSyncStore melempar untuk operasi tulis data apa pun; satu-satunya tulis di store adalah kursor
+        // pribadi dan kursor tabel (SyncScope.SharedRoom) tiap ruang bersama AKTIF (Tahap 9 lanjutan: reset harus
+        // menyentuh kedua penyimpanan kursor ruang, lihat KDoc FullResync.run dan SyncCoordinator.scopedCursors).
+        assertEquals(
+            listOf(
+                SyncScope.Personal to 0L,
+                SyncScope.SharedRoom(roomA) to 0L,
+                SyncScope.SharedRoom(roomB) to 0L,
+            ),
+            store.cursorWrites,
+        )
     }
 }

@@ -174,10 +174,25 @@ class PersonalSyncCoordinator(
         var applied = 0
         var skipped = 0
         var deferred = 0
+        // Pagar sekali: 410 cursor_expired mengatur ulang kursor cakupan INI ke 0 dan tarik ulang, sekali saja (kontrak
+        // klien butir 5) — mencegah loop tanpa ujung bila server terus menjawab 410 (seharusnya tidak pernah terjadi
+        // karena 0 selalu di bawah watermark manapun).
+        var cursorResetUsed = false
 
         while (true) {
-            val page = when (val result = syncRemote.pull(apiToken, deviceId, cursor)) {
-                is RemoteResult.Failure -> return result
+            // Cakupan pribadi (kontrak klien butir 1 dan 3): scope="a" dan roomId=null. Server lama (tanpa dukungan
+            // pull per cakupan) mengabaikan param ini dan menjawab aliran gabungan tanpa gema; baris ruang bersama di
+            // dalamnya tetap disaring di bawah (row.roomId != null), jadi fallback itu aman tanpa kode cabang terpisah.
+            val page = when (val result = syncRemote.pullScoped(apiToken, deviceId, SyncScope.Personal.wire, roomId = null, after = cursor)) {
+                is RemoteResult.Failure -> {
+                    if (!cursorResetUsed && result.error.rejectionCode() == ServerErrorCodes.CURSOR_EXPIRED) {
+                        cursorResetUsed = true
+                        cursor = 0L
+                        store.setCursor(SyncScope.Personal, 0L)
+                        continue
+                    }
+                    return result
+                }
                 is RemoteResult.Success -> result.value
             }
             page.serverTimeMs?.let { clock.setServerOffset(it - clock.rawDeviceNowMillis()) }

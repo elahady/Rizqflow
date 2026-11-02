@@ -773,6 +773,7 @@
     <string name="family_sync_action">Sinkronkan sekarang</string>
     <string name="family_sync_result">%1$d transaksi terkirim, %2$d diterima</string>
     <string name="family_sync_failed">Gagal sinkron. Periksa koneksi lalu coba lagi.</string>
+    <string name="family_removed_from_room">Kamu sudah bukan anggota ruang ini. Sinkron untuk ruang ini dihentikan.</string>
     <string name="family_invite_sheet_title">Pindai QR ini di perangkat anggota</string>
     <string name="family_invite_sheet_hint">Tunjukkan QR ini saat bertemu langsung dengan anggota yang diundang — tidak dikirim lewat jaringan.</string>
     <string name="family_scan_title">Pindai Undangan</string>

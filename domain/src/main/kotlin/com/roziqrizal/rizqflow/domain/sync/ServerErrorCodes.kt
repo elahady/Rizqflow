@@ -30,6 +30,13 @@ object ServerErrorCodes {
     const val RATE_LIMITED = "rate_limited"
 
     /**
+     * 410 pada `GET /api/sync/pull` ber-cakupan (dan pull lama): `after` di bawah watermark kompaksi cakupan itu.
+     * Klien atur ulang kursor CAKUPAN ITU SAJA ke 0 dan tarik ulang (docs/server-sync.md "Kompaksi dan 410"; kontrak
+     * klien butir 5) — tanpa menghapus data lokal, dan tanpa menyentuh kursor cakupan lain.
+     */
+    const val CURSOR_EXPIRED = "cursor_expired"
+
+    /**
      * Kode yang dipetakan ke [RemoteError.Rejected] APAPUN status HTTP-nya, termasuk 404 (yang tanpa daftar ini tetap
      * [RemoteError.Unexpected], karena 404 polos berarti rute belum ada atau proxy yang menjawab). 403 dan 422 selalu
      * [RemoteError.Rejected] (403 hanya bila kodenya bukan [SYNC_REQUIRED]).
@@ -41,6 +48,7 @@ object ServerErrorCodes {
         OWNER_CANNOT_BE_REMOVED,
         OWNER_CANNOT_LEAVE,
         INVALID_ROOM_ID,
+        CURSOR_EXPIRED,
     )
 }
 

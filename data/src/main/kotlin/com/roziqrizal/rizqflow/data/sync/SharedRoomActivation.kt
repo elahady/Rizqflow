@@ -53,6 +53,19 @@ class SharedRoomActivation(private val syncStore: SyncStore) {
     }
 
     /**
+     * Menandai ruang REMOVED setelah server menjawab `not_room_member` SELAMA SINKRON (Tahap 9 lanjutan, kontrak
+     * klien server-sync.md butir 5) — bukan lewat tombol "Keluar" eksplisit ([markLeft]), tetapi ditemukan ketika
+     * perangkat ini ternyata sudah bukan anggota (dikeluarkan pemilik di perangkat lain, atau tidak pernah bergabung
+     * dengan sah). Berperilaku sama dengan [markLeft] (hanya ubah status, data lokal tidak disentuh, idempoten),
+     * dipisah namanya saja supaya "Riwayat sinkron"/diagnostik bisa membedakan nanti kalau perlu.
+     */
+    suspend fun markRemoved(roomId: RoomId) {
+        val existing = syncStore.sharedRoom(roomId) ?: return
+        if (existing.status == SharedRoomStatus.REMOVED) return
+        syncStore.saveSharedRoom(existing.copy(status = SharedRoomStatus.REMOVED))
+    }
+
+    /**
      * Menandai ruang ACTIVE dengan peran DARI SERVER ([role] dari bendera `owner` di `GET /rooms/{roomId}/members`):
      * berbeda dari [markActive], peran yang sudah tersimpan DITIMPA bila berbeda, karena server satu-satunya sumber
      * kebenaran siapa pemilik ruang (keputusan pemilik #1). Menutup celah lama ketika siapa pun yang membuka layar

@@ -29,6 +29,9 @@ internal const val ENVELOPE_RECORD_TYPE = "r"
 /** Nama lama untuk [ENVELOPE_RECORD_TYPE] di jalur ruang bersama. */
 internal const val SHARED_RECORD_TYPE = ENVELOPE_RECORD_TYPE
 
+/** Nilai param `scope` untuk pull ber-cakupan RUANG BERSAMA (docs/server-sync.md); BEDA dari [SyncScope.SharedRoom.wire] lokal (`"r:<roomId>"`). */
+internal const val SCOPE_WIRE_ROOM = "r"
+
 /**
  * Jenis masalah sinkron untuk amplop yang ditolak: tipe di dalam amplop yang tidak dikenal (biasanya dari versi
  * aplikasi yang lebih baru, "perbarui aplikasi") berbeda dari data yang rusak atau dipalsukan (dekripsi gagal, bingkai
@@ -109,16 +112,46 @@ class SyncCoordinator(
     private val clock: SyncClock = SyncClock(),
     private val issueStore: SyncStore? = null,
     private val nowMillis: () -> Long = System::currentTimeMillis,
+    /**
+     * Kursor per cakupan di tabel `sync_cursor` (Tahap 9 lanjutan, docs/server-sync.md kontrak klien butir 1-2),
+     * MENGGANTIKAN [cursorStore] begitu tersedia — null (bawaan) berarti perilaku lama tidak berubah sama sekali.
+     * Baca: nilai di [scopedCursors] dipakai hanya bila > 0; nilai 0 (tabel belum pernah diisi, termasuk sesudah
+     * [FullResync] mengatur ulang ke 0) jatuh ke [cursorStore] — migrasi satu kali yang aman TANPA kode migrasi
+     * terpisah, karena [cursorStore] (SharedPreferences) sudah memegang posisi pull ruang ini sejak sebelum tabel ini
+     * ada (kontrak butir 7: ruang memang sudah mulai dari 0 di sini, tidak pernah berbagi kursor global dengan
+     * cakupan pribadi). Tulis: SELALU ke KEDUANYA, supaya [cursorStore] tetap benar untuk `LocalSyncHistoryReader`
+     * dan supaya pembacaan di atas tidak pernah melihat dua sumber yang berbeda setelah tulisan pertama.
+     */
+    private val scopedCursors: SyncStore? = null,
+    /**
+     * Dipanggil begitu server menjawab `not_room_member` (403) untuk ruang ini (kontrak klien butir 5): BUKAN
+     * paywall, dan bukan galat jaringan biasa — pemanggil (produksi: `SharedRoomActivation.markRemoved`) menandai
+     * ruang lokal berhenti disinkron. Bawaan no-op supaya tes lama yang tidak peduli hal ini tidak perlu diubah.
+     */
+    private val onNotRoomMember: suspend (RoomId) -> Unit = {},
 ) {
     suspend fun syncNow(roomId: RoomId, deviceId: String): SyncResult {
         val apiToken = apiTokenStore.read() ?: return SyncResult.NotSignedIn
         val aead = roomKeys.getOrCreateRoomKey(roomId)
 
         when (val pushed = push(roomId, deviceId, apiToken, aead)) {
-            is RemoteResult.Failure -> return SyncResult.Failed(pushed.error)
+            is RemoteResult.Failure -> {
+                if (pushed.error.rejectionCode() == ServerErrorCodes.NOT_ROOM_MEMBER) {
+                    onNotRoomMember(roomId)
+                    return SyncResult.RemovedFromRoom
+                }
+                return SyncResult.Failed(pushed.error)
+            }
             is RemoteResult.Success -> {
                 return when (val pulled = pull(roomId, deviceId, apiToken, aead)) {
-                    is RemoteResult.Failure -> SyncResult.Failed(pulled.error)
+                    is RemoteResult.Failure -> {
+                        if (pulled.error.rejectionCode() == ServerErrorCodes.NOT_ROOM_MEMBER) {
+                            onNotRoomMember(roomId)
+                            SyncResult.RemovedFromRoom
+                        } else {
+                            SyncResult.Failed(pulled.error)
+                        }
+                    }
                     is RemoteResult.Success -> SyncResult.Success(
                         pushed = pushed.value,
                         applied = pulled.value.applied,
@@ -233,15 +266,41 @@ class SyncCoordinator(
         )
     }
 
+    /** [scopedCursors] bila ada, jatuh ke [cursorStore] bila tabel belum pernah diisi (> 0) untuk cakupan ini. */
+    private suspend fun readCursor(roomId: RoomId, scope: SyncScope.SharedRoom): Long {
+        val fromTable = scopedCursors?.cursor(scope) ?: 0L
+        return if (fromTable > 0L) fromTable else cursorStore.read(roomId.value)
+    }
+
+    /** Menulis ke KEDUA penyimpanan (lihat KDoc [scopedCursors]), supaya tidak ada sumber yang tertinggal. */
+    private suspend fun writeCursor(roomId: RoomId, scope: SyncScope.SharedRoom, value: Long) {
+        cursorStore.save(roomId.value, value)
+        scopedCursors?.setCursor(scope, value)
+    }
+
     private suspend fun pull(roomId: RoomId, deviceId: String, apiToken: String, aead: SyncAead): RemoteResult<PullOutcome> {
         val scope = SyncScope.SharedRoom(roomId)
-        var cursor = cursorStore.read(roomId.value)
+        var cursor = readCursor(roomId, scope)
         var applied = 0
         var skipped = 0
+        // Pagar sekali, sama alasannya dengan PersonalSyncCoordinator: 410 cursor_expired mengatur ulang kursor
+        // RUANG INI SAJA ke 0 (kontrak klien butir 5), tidak pernah cakupan lain, dan hanya dicoba sekali per panggilan.
+        var cursorResetUsed = false
 
         while (true) {
-            val page = when (val result = syncRemote.pull(apiToken, deviceId, cursor)) {
-                is RemoteResult.Failure -> return result
+            // Cakupan ruang bersama (kontrak klien butir 1-3): scope="r", roomId=roomId.value. Server lama mengabaikan
+            // param ini dan menjawab aliran gabungan tanpa gema; baris ruang LAIN di dalamnya tetap disaring di bawah
+            // (downloaded.roomId != roomId.value), jadi fallback itu sudah aman seperti sebelum pull per cakupan ada.
+            val page = when (val result = syncRemote.pullScoped(apiToken, deviceId, SCOPE_WIRE_ROOM, roomId.value, cursor)) {
+                is RemoteResult.Failure -> {
+                    if (!cursorResetUsed && result.error.rejectionCode() == ServerErrorCodes.CURSOR_EXPIRED) {
+                        cursorResetUsed = true
+                        cursor = 0L
+                        writeCursor(roomId, scope, 0L)
+                        continue
+                    }
+                    return result
+                }
                 is RemoteResult.Success -> result.value
             }
             page.serverTimeMs?.let { clock.setServerOffset(it - clock.rawDeviceNowMillis()) }
@@ -263,7 +322,7 @@ class SyncCoordinator(
             }
 
             cursor = page.nextAfter
-            cursorStore.save(roomId.value, cursor)
+            writeCursor(roomId, scope, cursor)
             if (!page.hasMore) break
         }
 
@@ -516,4 +575,13 @@ sealed interface SyncResult {
 
     /** Belum pernah masuk dengan Google / token API belum ada — tidak pernah terjadi diam-diam. */
     data object NotSignedIn : SyncResult
+
+    /**
+     * Server menjawab `not_room_member` (403) selama push atau pull ruang ini (Tahap 9 lanjutan, kontrak klien butir
+     * 5): perangkat ini sudah bukan anggota — tidak pernah bergabung, sudah keluar, atau sudah dikeluarkan pemilik
+     * (server tidak membedakan ketiganya). BUKAN paywall dan bukan galat jaringan: [SyncCoordinator] sudah memanggil
+     * `onNotRoomMember` sebelum mengembalikan ini, jadi pemanggil tidak perlu menandai apa pun lagi, hanya berhenti
+     * menyinkronkan ruang ini (daftar ruang ACTIVE pada panggilan berikutnya sudah tidak memuatnya).
+     */
+    data object RemovedFromRoom : SyncResult
 }

@@ -23,23 +23,43 @@ class RetrofitSyncRemote(private val service: RizqflowApiService) : SyncRemote {
         }
 
     override suspend fun pull(apiToken: String, deviceId: String, after: Long, limit: Int): RemoteResult<SyncPullResult> =
-        safeCall {
-            val response = service.pull(bearer(apiToken), after, limit, deviceId)
-            val body = response.body()
-            if (response.isSuccessful && body != null) {
-                val decoded = body.decodeJson(PullResponseDto.serializer())
-                RemoteResult.Success(
-                    SyncPullResult(
-                        entries = decoded.entries.map { it.toDomain() },
-                        nextAfter = decoded.nextAfter,
-                        hasMore = decoded.hasMore,
-                        serverTimeMs = decoded.serverTimeMs,
-                    ),
-                )
-            } else {
-                response.toFailure()
-            }
+        safeCall { pullInternal(apiToken, deviceId, after, limit, scope = null, roomId = null) }
+
+    override suspend fun pullScoped(
+        apiToken: String,
+        deviceId: String,
+        scope: String,
+        roomId: String?,
+        after: Long,
+        limit: Int,
+    ): RemoteResult<SyncPullResult> = safeCall { pullInternal(apiToken, deviceId, after, limit, scope, roomId) }
+
+    private suspend fun pullInternal(
+        apiToken: String,
+        deviceId: String,
+        after: Long,
+        limit: Int,
+        scope: String?,
+        roomId: String?,
+    ): RemoteResult<SyncPullResult> {
+        val response = service.pull(bearer(apiToken), after, limit, deviceId, scope, roomId)
+        val body = response.body()
+        return if (response.isSuccessful && body != null) {
+            val decoded = body.decodeJson(PullResponseDto.serializer())
+            RemoteResult.Success(
+                SyncPullResult(
+                    entries = decoded.entries.map { it.toDomain() },
+                    nextAfter = decoded.nextAfter,
+                    hasMore = decoded.hasMore,
+                    serverTimeMs = decoded.serverTimeMs,
+                    scope = decoded.scope,
+                    roomId = decoded.roomId,
+                ),
+            )
+        } else {
+            response.toFailure()
         }
+    }
 }
 
 private fun SyncLogEntryUpload.toDto() = SyncEntryUploadDto(

@@ -49,7 +49,13 @@ class FullResync(
     suspend fun run(): FullResyncOutcome {
         val activeRooms = store.sharedRooms().filter { it.status == SharedRoomStatus.ACTIVE }.map { it.roomId }
         store.setCursor(SyncScope.Personal, 0)
-        for (roomId in activeRooms) cursors.save(roomId.value, 0)
+        for (roomId in activeRooms) {
+            cursors.save(roomId.value, 0)
+            // Tahap 9 lanjutan: SyncCoordinator boleh membaca kursor ruang dari tabel sync_cursor (SyncStore) bila
+            // dirakit dengan itu (lihat KDoc SyncCoordinator.scopedCursors) — reset harus menyentuh KEDUA penyimpanan,
+            // supaya sisa kursor lama di tabel tidak "menang" dan membatalkan sinkron ulang penuh ini.
+            store.setCursor(SyncScope.SharedRoom(roomId), 0)
+        }
 
         val personalResult = personal()
         if (personalResult !is PersonalSyncResult.Success) return FullResyncOutcome(personalResult, emptyMap())

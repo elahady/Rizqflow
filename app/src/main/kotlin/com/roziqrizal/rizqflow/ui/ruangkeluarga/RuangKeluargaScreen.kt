@@ -235,6 +235,10 @@ fun RuangKeluargaScreen(
                     else -> notifier.show(result.error.familyRoomMessage(R.string.family_sync_failed).resolve(resources))
                 }
 
+                // Server bilang perangkat ini sudah bukan anggota ruang ini (ditemukan selama sinkron, bukan tombol
+                // "Keluar"). Bukan paywall: SyncCoordinator sudah menandai ruang REMOVED di perangkat ini.
+                SyncResult.RemovedFromRoom -> notifier.show(resources.getString(R.string.family_removed_from_room))
+
                 SyncResult.NotSignedIn -> signedIn = false
             }
             syncing = false

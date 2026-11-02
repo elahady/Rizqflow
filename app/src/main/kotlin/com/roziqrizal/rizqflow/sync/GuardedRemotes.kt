@@ -61,6 +61,18 @@ internal class GuardedSyncRemote(
 
     override suspend fun pull(apiToken: String, deviceId: String, after: Long, limit: Int): RemoteResult<SyncPullResult> =
         session.observe(apiToken, inner.pull(apiToken, deviceId, after, limit))
+
+    // Diteruskan eksplisit (bukan dibiarkan memakai bawaan interface): bawaan memanggil this.pull (lewat polimorfisme
+    // akan kembali ke override di atas, yang TIDAK pernah mengirim scope/room_id) — tanpa ini pull per cakupan tidak
+    // pernah benar-benar terjadi di produksi walau RetrofitSyncRemote di baliknya sudah mendukungnya.
+    override suspend fun pullScoped(
+        apiToken: String,
+        deviceId: String,
+        scope: String,
+        roomId: String?,
+        after: Long,
+        limit: Int,
+    ): RemoteResult<SyncPullResult> = session.observe(apiToken, inner.pullScoped(apiToken, deviceId, scope, roomId, after, limit))
 }
 
 internal class GuardedRoomMembershipRemote(

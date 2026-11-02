@@ -117,6 +117,8 @@ class SharedRoomAutoSync(
         try {
             when (val result = sync(roomId)) {
                 is SyncResult.Failed -> log("sinkron otomatis gagal: ${result.error}")
+                // Bukan galat: SyncCoordinator sudah menandai ruang REMOVED, jadi tidak ikut lagi di putaran berikutnya.
+                SyncResult.RemovedFromRoom -> log("ruang ${roomId.value} sudah bukan milik akun ini, sinkron dihentikan")
                 SyncResult.NotSignedIn, is SyncResult.Success -> Unit
             }
         } catch (e: CancellationException) {

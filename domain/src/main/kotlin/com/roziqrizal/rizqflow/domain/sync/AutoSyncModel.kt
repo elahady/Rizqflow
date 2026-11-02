@@ -76,6 +76,9 @@ fun SyncResult.toScopeOutcome(): ScopeSyncOutcome = when (this) {
     is SyncResult.Success -> ScopeSyncOutcome.Done(pushed, applied)
     is SyncResult.Failed -> ScopeSyncOutcome.Failed(error)
     SyncResult.NotSignedIn -> ScopeSyncOutcome.NotSignedIn
+    // Bukan kegagalan jaringan: SyncCoordinator sudah menandai ruang berhenti disinkron sebelum sampai sini, jadi
+    // backoff/pesan galat tidak perlu (daftar ruang ACTIVE pada run berikutnya sudah tidak memuatnya).
+    SyncResult.RemovedFromRoom -> ScopeSyncOutcome.Done(pushed = 0, applied = 0)
 }
 
 /**

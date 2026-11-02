@@ -76,6 +76,22 @@ private class FakeSyncRemote : SyncRemote {
      */
     var dropAckOnNextPush = false
 
+    /**
+     * true: server "baru" (Tahap 9 lanjutan) — [pullScoped] benar-benar menyaring per cakupan dan mengisi gema
+     * `scope`/`room_id`. false (bawaan): server LAMA — [pullScoped] (lewat bawaan interface [SyncRemote]) jatuh ke
+     * [pull] biasa (aliran gabungan, tanpa gema), dipakai menguji "deteksi server lama" (kontrak klien butir 3).
+     */
+    var supportsScopedPull = false
+
+    /** FIFO: tiap elemen dikeluarkan satu kali oleh [pullScoped] BERIKUTNYA (dipakai menguji 410 `cursor_expired`). */
+    val scopedFailQueue: MutableList<RemoteError> = mutableListOf()
+
+    /** Bila diisi id ruang: [pullScoped] untuk RUANG ITU SAJA menjawab 403 `not_room_member`; ruang lain normal. */
+    var notRoomMemberForRoomId: String? = null
+
+    /** `after` yang benar-benar dikirim pada panggilan [pullScoped] TERAKHIR — bukti kursor awal yang dipakai klien. */
+    var lastAfterSeen: Long = -1L
+
     override suspend fun push(apiToken: String, entries: List<SyncLogEntryUpload>): RemoteResult<SyncPushResult> {
         failWith?.let { return RemoteResult.Failure(it) }
         val dropAck = dropAckOnNextPush
@@ -107,6 +123,25 @@ private class FakeSyncRemote : SyncRemote {
         val page = stored.filter { it.id > after }.sortedBy { it.id }.take(limit)
         return RemoteResult.Success(SyncPullResult(page, page.lastOrNull()?.id ?: after, page.size == limit, serverTimeMs))
     }
+
+    override suspend fun pullScoped(apiToken: String, deviceId: String, scope: String, roomId: String?, after: Long, limit: Int): RemoteResult<SyncPullResult> {
+        lastAfterSeen = after
+        if (!supportsScopedPull) return pull(apiToken, deviceId, after, limit)
+        failWith?.let { return RemoteResult.Failure(it) }
+        if (scope == "r" && roomId == notRoomMemberForRoomId) {
+            return RemoteResult.Failure(RemoteError.Rejected("Kamu bukan anggota ruang ini.", ServerErrorCodes.NOT_ROOM_MEMBER))
+        }
+        if (scopedFailQueue.isNotEmpty()) return RemoteResult.Failure(scopedFailQueue.removeAt(0))
+        val filtered = when (scope) {
+            "a" -> stored.filter { it.roomId == null }
+            "r" -> stored.filter { it.roomId == roomId }
+            else -> stored
+        }
+        val page = filtered.filter { it.id > after }.sortedBy { it.id }.take(limit)
+        return RemoteResult.Success(
+            SyncPullResult(page, page.lastOrNull()?.id ?: after, page.size == limit, serverTimeMs, scope = scope, roomId = roomId),
+        )
+    }
 }
 
 private class FakeApiTokenStore(private var token: String? = "token-1") : ApiTokenStore {
@@ -121,6 +156,35 @@ private class FakeSyncCursorStore : SyncCursorStore {
     private val cursors = mutableMapOf<String, Long>()
     override fun read(roomId: String) = cursors[roomId] ?: 0L
     override fun save(roomId: String, cursor: Long) { cursors[roomId] = cursor }
+}
+
+/** [SyncStore] yang HANYA mendukung kursor (tabel `sync_cursor`); metode lain melempar supaya pemakaian tak sengaja ketahuan. */
+private class CursorOnlySyncStore : SyncStore {
+    val cursors = mutableMapOf<SyncScope, Long>()
+    override suspend fun cursor(scope: SyncScope): Long = cursors[scope] ?: 0L
+    override suspend fun setCursor(scope: SyncScope, afterId: Long) { cursors[scope] = afterId }
+
+    override suspend fun meta(scope: SyncScope, type: SyncRecordType, recordId: String): SyncRecordMeta? = error("tidak dipakai")
+    override suspend fun markDirty(scope: SyncScope, type: SyncRecordType, recordId: String, deleted: Boolean, clock: SyncClock): Long? = error("tidak dipakai")
+    override suspend fun dirtyRecords(scope: SyncScope, limit: Int): List<SyncRecordMeta> = error("tidak dipakai")
+    override suspend fun dirtyCount(scope: SyncScope): Int = error("tidak dipakai")
+    override suspend fun markPushed(scope: SyncScope, sent: List<SentVersion>): Int = error("tidak dipakai")
+    override suspend fun applyIncoming(
+        scope: SyncScope,
+        type: SyncRecordType,
+        recordId: String,
+        incoming: IncomingVersion,
+        localDeviceId: String,
+        applyBlock: suspend () -> Unit,
+    ): ApplyDecision = error("tidak dipakai")
+    override suspend fun recordIssue(issue: SyncIssue): Long = error("tidak dipakai")
+    override suspend fun resolveIssue(id: Long) = error("tidak dipakai")
+    override suspend fun incrementIssueAttempts(id: Long) = error("tidak dipakai")
+    override suspend fun issues(scope: SyncScope?): List<SyncIssue> = error("tidak dipakai")
+    override suspend fun pruneIssues(nowMillis: Long, maxRows: Int, maxAgeMillis: Long): Int = error("tidak dipakai")
+    override suspend fun sharedRoom(roomId: RoomId): SharedRoomInfo? = error("tidak dipakai")
+    override suspend fun sharedRooms(): List<SharedRoomInfo> = error("tidak dipakai")
+    override suspend fun saveSharedRoom(info: SharedRoomInfo) = error("tidak dipakai")
 }
 
 /** Kunci ruang AES-GCM JDK sungguhan (sama untuk semua ruang) supaya uji AAD amplop bermakna. */
@@ -182,7 +246,13 @@ class SyncCoordinatorTest {
         tokenStore: ApiTokenStore = FakeApiTokenStore(),
         clock: SyncClock = SyncClock(deviceNowMillis = { 0L }),
         keys: RoomKeyProvider = FakeRoomKeyProvider(),
-    ) = SyncCoordinator(ledger, ledger, ledger, keys, remote, FakeTransactionSyncCodec(), tokenStore, FakeSyncCursorStore(), clock)
+        cursorStore: SyncCursorStore = FakeSyncCursorStore(),
+        scopedCursors: SyncStore? = null,
+        onNotRoomMember: suspend (RoomId) -> Unit = {},
+    ) = SyncCoordinator(
+        ledger, ledger, ledger, keys, remote, FakeTransactionSyncCodec(), tokenStore, cursorStore, clock,
+        issueStore = null, nowMillis = System::currentTimeMillis, scopedCursors = scopedCursors, onNotRoomMember = onNotRoomMember,
+    )
 
     private fun seedRoomAndAccount(ledger: InMemoryLedger) {
         ledger.roomRows[roomId] = Room(roomId, "Keluarga", RoomKind.MENCUKUPI, "home", 1, sortOrder = 0)
@@ -878,5 +948,109 @@ class SyncCoordinatorTest {
         deviceB.syncNow(roomId, deviceId = "device-b")
         assertEquals("baru", ledgerB.transactionRows[TransactionId("tx-1")]?.note)
         assertEquals(Money(12_000), ledgerB.transactionRows[TransactionId("tx-1")]?.amount)
+    }
+
+    // ------------------------------------------------------------------ pull per cakupan (Tahap 9 lanjutan)
+
+    @Test
+    fun `kursor cakupan ruang bersama tersimpan terpisah per ruang, tidak pernah tertukar`() = runSuspend {
+        val ledgerA = InMemoryLedger()
+        seedRoomAndAccount(ledgerA)
+        seedSecondRoom(ledgerA)
+        ledgerA.transactionRows[TransactionId("tx-a")] = expense("tx-a", 10_000)
+        ledgerA.transactionRows[TransactionId("tx-b")] = expense("tx-b", 20_000).copy(roomId = roomB, categoryId = categoryB)
+        val remote = FakeSyncRemote()
+        val scoped = CursorOnlySyncStore()
+        val e = engine(ledgerA, remote, scopedCursors = scoped)
+
+        e.syncNow(roomId, "device-a")
+        e.syncNow(roomB, "device-a")
+
+        val cursorA = scoped.cursor(SyncScope.SharedRoom(roomId))
+        val cursorB = scoped.cursor(SyncScope.SharedRoom(roomB))
+        assertEquals(1L, cursorA, "satu-satunya baris ruang-keluarga (tx-a, id server 1)")
+        assertEquals(2L, cursorB, "satu-satunya baris room-diri (tx-b, id server 2) — BUKAN next_after cakupan lain")
+    }
+
+    @Test
+    fun `server lama tanpa gema scope dipakai sebagai fallback, baris ruang lain di aliran gabungan tidak ikut diterapkan`() = runSuspend {
+        val ledgerA = InMemoryLedger()
+        seedRoomAndAccount(ledgerA)
+        val remote = FakeSyncRemote() // supportsScopedPull = false (bawaan): server lama, tanpa gema scope/room_id.
+        ledgerA.transactionRows[TransactionId("tx-1")] = expense("tx-1", 50_000)
+        engine(ledgerA, remote).syncNow(roomId, deviceId = "device-a")
+        // Baris ruang LAIN kebetulan ikut di aliran gabungan server lama yang sama (klien tidak pernah memintanya).
+        remote.seedRawEntry(expense("tx-x", 1_000), "Dompet", "Lain", "device-z", 500L, roomId = "ruang-lain")
+
+        val ledgerB = InMemoryLedger()
+        seedRoomAndAccount(ledgerB)
+        val result = engine(ledgerB, remote).syncNow(roomId, deviceId = "device-b") as SyncResult.Success
+
+        assertEquals(1, result.applied, "hanya baris ruang ini; baris ruang lain di aliran gabungan tidak diterapkan sebagai ruang ini")
+        assertTrue(TransactionId("tx-x") !in ledgerB.transactionRows)
+    }
+
+    @Test
+    fun `kursor ruang yang sudah ada sejak sebelum pull per cakupan dipakai sebagai titik mulai, bukan nol`() = runSuspend {
+        val ledgerA = InMemoryLedger()
+        seedRoomAndAccount(ledgerA)
+        val remote = FakeSyncRemote().apply { supportsScopedPull = true }
+        // 7 baris lama ruang ini yang SUDAH diterima perangkat ini sebelum pembaruan (kursor legacy SharedPreferences = 7).
+        repeat(7) { i -> remote.seedRawEntry(expense("old-$i", 1_000), "Dompet", "Belanja", "device-lama", (i + 1) * 100L, roomId.value) }
+        val legacyCursor = FakeSyncCursorStore().apply { save(roomId.value, 7L) }
+        val scoped = CursorOnlySyncStore() // tabel sync_cursor belum pernah diisi untuk ruang ini (0 = "belum pernah").
+
+        engine(ledgerA, remote, cursorStore = legacyCursor, scopedCursors = scoped).syncNow(roomId, "device-a")
+
+        assertEquals(7L, remote.lastAfterSeen, "mulai dari kursor legacy (7), BUKAN 0 — tidak menarik ulang 7 baris yang sudah pernah diterima")
+        assertEquals(7L, scoped.cursor(SyncScope.SharedRoom(roomId)), "tabel sync_cursor ikut terisi dari nilai legacy pada kesempatan pertama")
+    }
+
+    @Test
+    fun `410 cursor_expired mengatur ulang kursor RUANG INI saja, ruang lain tidak tersentuh`() = runSuspend {
+        val ledgerA = InMemoryLedger()
+        seedRoomAndAccount(ledgerA)
+        seedSecondRoom(ledgerA)
+        ledgerA.transactionRows[TransactionId("tx-a")] = expense("tx-a", 10_000)
+        ledgerA.transactionRows[TransactionId("tx-b")] = expense("tx-b", 20_000).copy(roomId = roomB, categoryId = categoryB)
+        val remote = FakeSyncRemote().apply { supportsScopedPull = true }
+        val scoped = CursorOnlySyncStore()
+        val legacy = FakeSyncCursorStore()
+        val e = engine(ledgerA, remote, cursorStore = legacy, scopedCursors = scoped)
+
+        e.syncNow(roomId, "device-a")
+        e.syncNow(roomB, "device-a")
+        val cursorABefore = scoped.cursor(SyncScope.SharedRoom(roomId))
+        val cursorBBefore = scoped.cursor(SyncScope.SharedRoom(roomB))
+        assertTrue(cursorABefore > 0 && cursorBBefore > 0)
+
+        // Server menjawab 410 HANYA pada pull ruang A berikutnya (mis. perangkat ini tertinggal dan dikompaksi).
+        remote.scopedFailQueue += RemoteError.Rejected("kedaluwarsa", ServerErrorCodes.CURSOR_EXPIRED)
+        val result = e.syncNow(roomId, "device-a")
+
+        assertTrue(result is SyncResult.Success, "410 ditangani di dalam pull (atur ulang + tarik ulang sekali), bukan diteruskan sebagai gagal")
+        assertEquals(cursorABefore, scoped.cursor(SyncScope.SharedRoom(roomId)), "kursor ruang A kembali ke ujung log server (tidak hilang, tidak macet di 0)")
+        assertEquals(cursorABefore, legacy.read(roomId.value), "kursor legacy ruang A juga ikut diperbarui")
+        assertEquals(cursorBBefore, scoped.cursor(SyncScope.SharedRoom(roomB)), "kursor ruang B SAMA SEKALI tidak tersentuh oleh reset ruang A")
+    }
+
+    @Test
+    fun `403 not_room_member menghentikan hanya ruang itu, ruang lain tetap tersinkron seperti biasa`() = runSuspend {
+        val ledgerA = InMemoryLedger()
+        seedRoomAndAccount(ledgerA)
+        seedSecondRoom(ledgerA)
+        ledgerA.transactionRows[TransactionId("tx-a")] = expense("tx-a", 10_000)
+        ledgerA.transactionRows[TransactionId("tx-b")] = expense("tx-b", 20_000).copy(roomId = roomB, categoryId = categoryB)
+        val remote = FakeSyncRemote().apply { supportsScopedPull = true; notRoomMemberForRoomId = roomId.value }
+        val removedRooms = mutableListOf<RoomId>()
+        val e = engine(ledgerA, remote, onNotRoomMember = { removedRooms += it })
+
+        val resultA = e.syncNow(roomId, "device-a")
+        val resultB = e.syncNow(roomB, "device-a")
+
+        assertEquals(SyncResult.RemovedFromRoom, resultA, "bukan paywall dan bukan galat jaringan biasa")
+        assertEquals(listOf(roomId), removedRooms, "pemanggil (SharedRoomActivation.markRemoved di produksi) diberi tahu persis ruang mana")
+        val successB = resultB as SyncResult.Success // ruang lain tidak terganggu oleh penolakan ruang A
+        assertEquals(1, successB.pushed)
     }
 }

@@ -65,12 +65,19 @@ interface RizqflowApiService {
         @Body body: RequestBody,
     ): Response<ResponseBody>
 
+    /**
+     * [scope]/[roomId] (Tahap 9 lanjutan, opsional): pull per cakupan (`scope=a` cakupan pribadi, `roomId` null;
+     * `scope=r` dan [roomId] untuk satu ruang bersama). Null di keduanya (bawaan) = pull lama tanpa param, persis
+     * seperti sebelum Tahap 9 lanjutan — Retrofit menghilangkan `@Query` yang nilainya null dari URL.
+     */
     @GET("sync/pull")
     suspend fun pull(
         @Header("Authorization") bearerToken: String,
         @Query("after") after: Long,
         @Query("limit") limit: Int,
         @Query("device_id") deviceId: String,
+        @Query("scope") scope: String? = null,
+        @Query("room_id") roomId: String? = null,
     ): Response<ResponseBody>
 
     /**
@@ -270,12 +277,18 @@ data class SyncEntryDownloadDto(
     val author: String? = null,
 )
 
+/**
+ * [scope]/[roomId] (Tahap 9 lanjutan): gema dari param `scope`/`room_id` yang diminta — hanya diisi server yang
+ * mendukung pull per cakupan; null dari server lama (docs/server-sync.md kontrak klien butir 3, "Periksa gema").
+ */
 @Serializable
 data class PullResponseDto(
     val entries: List<SyncEntryDownloadDto>,
     @SerialName("next_after") val nextAfter: Long,
     @SerialName("has_more") val hasMore: Boolean,
     @SerialName("server_time_ms") val serverTimeMs: Long? = null,
+    val scope: String? = null,
+    @SerialName("room_id") val roomId: String? = null,
 )
 
 /**

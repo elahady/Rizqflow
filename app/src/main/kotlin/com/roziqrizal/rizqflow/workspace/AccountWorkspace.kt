@@ -206,6 +206,13 @@ class AccountWorkspace private constructor(
         cursorStore = syncCursorStore,
         // Baris ruang bersama yang gagal dibuka/diterapkan dicatat di sync_issue (tampil di "Riwayat sinkron").
         issueStore = local.syncStore,
+        // Tahap 9 lanjutan: kursor per cakupan ruang bersama pindah ke tabel sync_cursor (sama dengan cakupan
+        // pribadi), jatuh ke syncCursorStore (SharedPreferences) hanya untuk ruang yang belum pernah ditarik lewat
+        // mesin ini sejak pembaruan ini — lihat KDoc SyncCoordinator.scopedCursors.
+        scopedCursors = local.syncStore,
+        // `sharedRoomActivation` dideklarasikan di bawah; aman karena lambda ini hanya dipanggil belakangan, setelah
+        // konstruksi AccountWorkspace selesai (sama seperti sharedRoomLeaver merujuk sharedRoomActivation.markLeft).
+        onNotRoomMember = { roomId -> sharedRoomActivation.markRemoved(roomId) },
     )
 
     /**

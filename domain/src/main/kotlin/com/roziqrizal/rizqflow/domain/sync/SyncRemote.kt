@@ -19,6 +19,26 @@ interface SyncRemote {
      * server di `sync_devices` sebagai kursor per perangkat; dasar retensi/kedaluwarsa kursor Tahap 7.
      */
     suspend fun pull(apiToken: String, deviceId: String, after: Long = 0, limit: Int = 200): RemoteResult<SyncPullResult>
+
+    /**
+     * Pull per cakupan (Tahap 9 lanjutan, docs/server-sync.md "Pull per cakupan dan waktu per cakupan", bagian
+     * "Kontrak klien untuk agen Android berikutnya"). [scope] = `"a"` (pribadi, [roomId] WAJIB null) atau `"r"`
+     * ([roomId] WAJIB id ruang). Bawaan antarmuka ini (dipakai implementasi/tiruan yang belum diperbarui untuk pull
+     * ber-cakupan) hanya meneruskan ke [pull] LAMA tanpa `scope`/`room_id` — mensimulasikan server lama dengan setia:
+     * [SyncPullResult.scope]/[SyncPullResult.roomId] pada hasilnya tetap null, dan pemanggil WAJIB memeriksa gema itu
+     * (kontrak klien butir 3: tanpa gema, jangan menerapkan barisnya sebagai satu cakupan — pakai pull lama, kursor
+     * global) sebelum mempercayai bahwa jawabannya sudah tersaring server. [RetrofitSyncRemote] menimpa ini untuk
+     * benar-benar mengirim param dan membaca gema server; [PersonalSyncCoordinator] dan [SyncCoordinator] memanggil
+     * ini (bukan [pull]) untuk pull cakupan pribadi/ruang bersama.
+     */
+    suspend fun pullScoped(
+        apiToken: String,
+        deviceId: String,
+        scope: String,
+        roomId: String?,
+        after: Long = 0,
+        limit: Int = 200,
+    ): RemoteResult<SyncPullResult> = pull(apiToken, deviceId, after, limit)
 }
 
 /** Satu baris yang dikirim ke server lewat [SyncRemote.push]. [payload] sudah terenkripsi pemanggil. */
@@ -60,9 +80,17 @@ data class SyncLogEntryDownload(
     val author: String? = null,
 )
 
+/**
+ * [scope]/[roomId] (Tahap 9 lanjutan): GEMA dari `scope`/`room_id` yang diminta [SyncRemote.pullScoped], hanya terisi
+ * oleh server yang mendukung pull per cakupan. Null dari server lama atau dari [SyncRemote.pull] biasa — pemanggil
+ * yang meminta pull ber-cakupan WAJIB memeriksa field ini sama dengan yang diminta sebelum menganggap [entries] sudah
+ * tersaring satu cakupan (kontrak klien butir 3, docs/server-sync.md).
+ */
 data class SyncPullResult(
     val entries: List<SyncLogEntryDownload>,
     val nextAfter: Long,
     val hasMore: Boolean,
     val serverTimeMs: Long? = null,
+    val scope: String? = null,
+    val roomId: String? = null,
 )

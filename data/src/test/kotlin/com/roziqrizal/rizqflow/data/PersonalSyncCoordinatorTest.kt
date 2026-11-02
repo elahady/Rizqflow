@@ -30,7 +30,9 @@ import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyRemote
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyService
 import com.roziqrizal.rizqflow.domain.sync.RecoveryStatus
 import com.roziqrizal.rizqflow.domain.sync.RecoveryStatusStore
+import com.roziqrizal.rizqflow.domain.sync.RemoteError
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
+import com.roziqrizal.rizqflow.domain.sync.ServerErrorCodes
 import com.roziqrizal.rizqflow.domain.sync.SyncAead
 import com.roziqrizal.rizqflow.domain.sync.SyncEnvelope
 import com.roziqrizal.rizqflow.domain.sync.SyncIssueKind
@@ -98,6 +100,14 @@ internal class MemoryPersonalRemote(private val pageSize: Int = 200, private val
     val stored = mutableListOf<SyncLogEntryDownload>()
     private var nextId = 1L
 
+    /**
+     * Tiap panggilan `pull`/`pullScoped` mengeluarkan SATU galat dari depan antrean ini dulu (FIFO) sebelum jawaban
+     * normal — dipakai menguji 410 `cursor_expired` ([PersonalSyncCoordinator] harus mengatur ulang kursor cakupan
+     * pribadi ke 0 dan menarik ulang) dan pagar sekalinya. [MemoryPersonalRemote] tidak menimpa `pullScoped` (server
+     * lama, kontrak klien butir 3): bawaan interface meneruskan ke `pull` ini, jadi antrean ini berlaku untuk keduanya.
+     */
+    val failQueue: MutableList<RemoteError> = mutableListOf()
+
     override suspend fun push(apiToken: String, entries: List<SyncLogEntryUpload>): RemoteResult<SyncPushResult> {
         val ids = entries.map { e ->
             val id = nextId++
@@ -108,6 +118,7 @@ internal class MemoryPersonalRemote(private val pageSize: Int = 200, private val
     }
 
     override suspend fun pull(apiToken: String, deviceId: String, after: Long, limit: Int): RemoteResult<SyncPullResult> {
+        if (failQueue.isNotEmpty()) return RemoteResult.Failure(failQueue.removeAt(0))
         val sorted = stored.filter { it.id > after }.sortedBy { it.id }
         val page = sorted.take(pageSize)
         val entries = shuffleSeed?.let { page.shuffled(Random(it)) } ?: page
@@ -241,6 +252,49 @@ class PersonalSyncCoordinatorTest {
         val pulledExpense = b.transactions.find(expenseId)
         assertEquals(20_000L, pulledExpense?.amount?.minor)
         assertEquals(a.local.rooms.rules().map { it.roomId to it.share }.toSet(), b.rooms.rules().map { it.roomId to it.share }.toSet())
+    }
+
+    // ------------------------------------------------------------------ pull per cakupan (Tahap 9 lanjutan)
+
+    @Test
+    fun `410 cursor_expired mengatur ulang hanya kursor cakupan pribadi, lalu menarik ulang sekali tanpa menghapus data`() = runBlocking {
+        val expenseId = a.expense(10_000)
+        val remote = MemoryPersonalRemote()
+        val configured = RecoveryStatus.Configured(Instant.now())
+        // Pull terjadi SEBELUM push di satu syncNow (lihat PersonalSyncCoordinator.syncNow): sinkron pertama hanya
+        // mengirim baris ini (server masih kosong saat ditarik), kursor baru maju pada sinkron KEDUA yang melihatnya.
+        engineFor(a.local, remote, configured).syncNow("device-a")
+        engineFor(a.local, remote, configured).syncNow("device-a")
+        val tip = a.local.syncStore.cursor(SyncScope.Personal)
+        assertTrue(tip > 0, "kursor sudah maju setelah sinkron melihat baris sendiri di server")
+
+        // Sinkron berikutnya (mis. perangkat lama yang kembali setelah kompaksi): server menjawab 410 SEKALI.
+        remote.failQueue += RemoteError.Rejected("kursor kedaluwarsa", ServerErrorCodes.CURSOR_EXPIRED)
+        val result = engineFor(a.local, remote, configured).syncNow("device-a")
+
+        val success = assertIs<PersonalSyncResult.Success>(result, "410 ditangani di dalam pull, bukan diteruskan sebagai gagal")
+        assertEquals(0, success.skipped)
+        // Kursor kembali ke ujung log server (bukan macet di 0), dan data lokal tidak hilang (baris sendiri
+        // dilewati sebagai echo pada tarik ulang biasa, jadi "applied" tidak harus > 0 di sini).
+        assertEquals(tip, a.local.syncStore.cursor(SyncScope.Personal))
+        assertEquals(10_000L, a.local.transactions.find(expenseId)?.amount?.minor)
+    }
+
+    @Test
+    fun `410 cursor_expired yang terjadi dua kali berturut-turut dalam satu syncNow tidak membuat loop tanpa ujung`() = runBlocking {
+        a.expense(5_000)
+        val remote = MemoryPersonalRemote()
+        val configured = RecoveryStatus.Configured(Instant.now())
+        engineFor(a.local, remote, configured).syncNow("device-a")
+
+        // Pagar sekali (lihat KDoc PersonalSyncCoordinator.pull): dua galat BERTURUT-TURUT dalam satu panggilan
+        // syncNow (satu sebelum reset, satu lagi tepat sesudahnya) berarti reset kedua TIDAK dicoba lagi; galat
+        // kedua diteruskan apa adanya, bukan direset lagi tanpa batas.
+        remote.failQueue += RemoteError.Rejected("kursor kedaluwarsa", ServerErrorCodes.CURSOR_EXPIRED)
+        remote.failQueue += RemoteError.Rejected("kursor kedaluwarsa", ServerErrorCodes.CURSOR_EXPIRED)
+        val result = engineFor(a.local, remote, configured).syncNow("device-a")
+
+        assertTrue(result is PersonalSyncResult.Failed, "galat kedua diteruskan apa adanya, bukan direset lagi")
     }
 
     @Test
