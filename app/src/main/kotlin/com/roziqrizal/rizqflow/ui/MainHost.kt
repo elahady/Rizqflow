@@ -116,6 +116,7 @@ import com.roziqrizal.rizqflow.push.revokeBestEffort
 import com.roziqrizal.rizqflow.domain.sync.PushRegistrationOutcome
 import com.roziqrizal.rizqflow.sync.forgetStatusDurably
 import com.roziqrizal.rizqflow.sync.recoveryRow
+import com.roziqrizal.rizqflow.domain.sync.SharedRoomStatus
 import com.roziqrizal.rizqflow.sync.restoreAvailable
 import com.roziqrizal.rizqflow.ui.recovery.NewDeviceRestoreScreen
 import com.roziqrizal.rizqflow.ui.recovery.PreRestoreRevertScreen
@@ -662,11 +663,10 @@ fun MainHost(
         // Di mode demo ruang kerja aktifnya milik akun demo yang tidak punya token: menghapus "akun" dari sini hanya
         // akan keluar tanpa menghapus apa pun di server. Baris disembunyikan sampai pengguna keluar dari demo.
         onDeleteAccount = if (demo) null else ({ deleteAccountSheet = true }),
-        // Penguncian Sync di klien (Tahap 9): tanpa langganan Sync, pemindai tidak dibuka dan paywall Sync yang tampil.
-        onOpenFamilyScan = {
-            if (workspace.entitlements.isEnabled(Feature.SHARED_FAMILY_ROOM)) familyScanOpen = true
-            else openPaywall(Feature.SHARED_FAMILY_ROOM)
-        },
+        // Keputusan pemilik I-8 (peran-anggota.md): pemindai TIDAK digerbang Sync lokal lagi — anggota tanpa Sync
+        // sendiri boleh memindai dan bergabung bila PEMILIK ruang itu punya Sync, dan hanya server (lewat join,
+        // lihat FamilyRoomJoin.joinSharedRoom) yang tahu itu. Sebelumnya di sini: tanpa Sync, pemindai tidak dibuka.
+        onOpenFamilyScan = { familyScanOpen = true },
         onOpenSyncPaywall = { openPaywall(Feature.ENCRYPTED_SYNC) },
         syncOwned = Plan.SYNC in ownedPlans,
         onReconnect = if (offerReconnect) onReconnectServer else null,
@@ -1120,10 +1120,17 @@ fun MainHost(
                     onArchived = ::announceRoomArchived,
                     onOpenZakat = { zakatRoom = it.value },
                     onOpenRole = { roleRoom = it.value },
-                    // Penguncian Sync di klien (Tahap 9): tanpa langganan Sync, Ruang Keluarga tidak dibuka.
-                    onOpenFamily = {
-                        if (workspace.entitlements.isEnabled(Feature.SHARED_FAMILY_ROOM)) familyRoom = it.value
-                        else openPaywall(Feature.SHARED_FAMILY_ROOM)
+                    // Penguncian Sync di klien (Tahap 9), dengan pengecualian I-8 (peran-anggota.md): anggota yang
+                    // sudah ACTIVE di ruang ini lewat Sync pemilik boleh membukanya tanpa Sync sendiri juga.
+                    onOpenFamily = { room ->
+                        if (workspace.entitlements.isEnabled(Feature.SHARED_FAMILY_ROOM)) {
+                            familyRoom = room.value
+                        } else {
+                            scope.launch {
+                                if (workspace.sharedRoomActivation.statusOf(room) == SharedRoomStatus.ACTIVE) familyRoom = room.value
+                                else openPaywall(Feature.SHARED_FAMILY_ROOM)
+                            }
+                        }
                     },
                 )
                 SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp))

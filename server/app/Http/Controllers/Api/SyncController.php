@@ -15,6 +15,7 @@ use App\Models\SyncScopeActivity;
 use App\Models\SyncScopeWatermark;
 use App\Push\RoomActivityNotifier;
 use App\Support\MemberId;
+use App\Support\SharedRoomOwner;
 use App\Support\SyncQuotaExceeded;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -59,10 +60,6 @@ class SyncController extends Controller
 
     public function push(Request $request): JsonResponse
     {
-        if ($denied = $this->denyWithoutSync($request)) {
-            return $denied;
-        }
-
         $data = $request->validate([
             'entries' => ['required', 'array', 'min:1', 'max:'.self::MAX_BATCH],
             'entries.*.room_id' => ['nullable', 'string', 'max:100'],
@@ -76,6 +73,20 @@ class SyncController extends Controller
             // (dihitung dari changed_at bila tidak dikirim).
             'entries.*.changed_at_ms' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        // Gerbang Sync (keputusan pemilik I-8, dipindah ke sini setelah body tervalidasi): baris ruang bersama
+        // dibuka oleh Sync PEMILIK ruang itu, bukan Sync pengirim sendiri. Klien sungguhan tidak pernah mencampur
+        // cakupan dalam satu batch (PersonalSyncCoordinator vs SyncCoordinator, lihat SyncCoordinator.push),
+        // jadi batch yang (secara tak lazim) mencampur beberapa room_id atau mencampur pribadi+ruang tetap wajib
+        // Sync pengirim sendiri sebagai jalan aman, sama seperti sebelumnya.
+        $entryRoomIds = array_unique(array_map(static fn (array $entry) => $entry['room_id'] ?? null, $data['entries']));
+        $sharedRoomId = count($entryRoomIds) === 1 ? $entryRoomIds[0] : null;
+        $allowed = $sharedRoomId !== null
+            ? $request->user()->entitlements()->allowsSharedRoom(SharedRoomOwner::entitlementsOf($sharedRoomId))
+            : $this->denyWithoutSync($request) === null;
+        if (! $allowed) {
+            return response()->json(['message' => 'Butuh langganan Sync.', 'code' => 'sync_required'], 403);
+        }
 
         $userId = $request->user()->id;
 
@@ -233,7 +244,10 @@ class SyncController extends Controller
      */
     public function pull(Request $request): JsonResponse
     {
-        if ($denied = $this->denyWithoutSync($request)) {
+        // Gerbang Sync: untuk cakupan ruang bersama (`scope=r`) dipindah ke bawah, SETELAH scope diketahui
+        // (keputusan pemilik I-8: Sync PEMILIK ruang itu yang menentukan, bukan Sync peminta sendiri). Cakupan
+        // pribadi dan pull lama (tanpa `scope`) tetap memeriksa Sync peminta sendiri di sini, tanpa berubah.
+        if ($request->query('scope') !== 'r' && ($denied = $this->denyWithoutSync($request))) {
             return $denied;
         }
 
@@ -299,6 +313,13 @@ class SyncController extends Controller
                         'message' => 'Kamu bukan anggota ruang ini.',
                         'code' => 'not_room_member',
                     ], 403);
+                }
+
+                // Gerbang Sync untuk ruang ini (keputusan pemilik I-8, lihat catatan di atas method ini):
+                // dibuka oleh Sync pemilik ruang, bukan Sync peminta sendiri.
+                $allowed = $request->user()->entitlements()->allowsSharedRoom(SharedRoomOwner::entitlementsOf($roomId));
+                if (! $allowed) {
+                    return response()->json(['message' => 'Butuh langganan Sync.', 'code' => 'sync_required'], 403);
                 }
             }
         }

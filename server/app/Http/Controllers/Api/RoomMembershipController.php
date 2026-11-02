@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\RoomMember;
-use App\Support\Feature;
 use App\Support\MemberId;
+use App\Support\SharedRoomOwner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -37,7 +37,7 @@ class RoomMembershipController extends Controller
      */
     public function join(Request $request, string $roomId): JsonResponse
     {
-        if ($denied = $this->denyWithoutSharedRoom($request) ?? $this->denyInvalidRoomId($roomId)) {
+        if ($denied = $this->denyWithoutSharedRoom($request, $roomId) ?? $this->denyInvalidRoomId($roomId)) {
             return $denied;
         }
 
@@ -118,7 +118,7 @@ class RoomMembershipController extends Controller
      */
     public function remove(Request $request, string $roomId, string $userId): JsonResponse
     {
-        if ($denied = $this->denyWithoutSharedRoom($request) ?? $this->denyInvalidRoomId($roomId)) {
+        if ($denied = $this->denyWithoutSharedRoom($request, $roomId) ?? $this->denyInvalidRoomId($roomId)) {
             return $denied;
         }
 
@@ -171,7 +171,7 @@ class RoomMembershipController extends Controller
      */
     public function makeOwner(Request $request, string $roomId, string $userId): JsonResponse
     {
-        if ($denied = $this->denyWithoutSharedRoom($request) ?? $this->denyInvalidRoomId($roomId)) {
+        if ($denied = $this->denyWithoutSharedRoom($request, $roomId) ?? $this->denyInvalidRoomId($roomId)) {
             return $denied;
         }
 
@@ -212,7 +212,7 @@ class RoomMembershipController extends Controller
 
     public function members(Request $request, string $roomId): JsonResponse
     {
-        if ($denied = $this->denyWithoutSharedRoom($request) ?? $this->denyInvalidRoomId($roomId)) {
+        if ($denied = $this->denyWithoutSharedRoom($request, $roomId) ?? $this->denyInvalidRoomId($roomId)) {
             return $denied;
         }
 
@@ -245,10 +245,15 @@ class RoomMembershipController extends Controller
         return response()->json(['members' => $members]);
     }
 
-    /** Satu-satunya tempat yang menjawab "boleh atau tidak" untuk ruang keluarga — lihat Support\Entitlements. */
-    private function denyWithoutSharedRoom(Request $request): ?JsonResponse
+    /**
+     * Satu-satunya tempat yang menjawab "boleh atau tidak" untuk ruang keluarga — lihat Support\Entitlements.
+     * Dibuka oleh Sync PEMILIK ruang [roomId] (keputusan pemilik I-8), bukan Sync peminta sendiri — lihat
+     * Entitlements::allowsSharedRoom.
+     */
+    private function denyWithoutSharedRoom(Request $request, string $roomId): ?JsonResponse
     {
-        if ($request->user()->entitlements()->isEnabled(Feature::SharedFamilyRoom)) {
+        $allowed = $request->user()->entitlements()->allowsSharedRoom(SharedRoomOwner::entitlementsOf($roomId));
+        if ($allowed) {
             return null;
         }
 

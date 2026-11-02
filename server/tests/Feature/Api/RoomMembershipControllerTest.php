@@ -448,13 +448,69 @@ class RoomMembershipControllerTest extends TestCase
         $this->assertTrue(RoomMember::where('user_id', $owner->id)->where('room_id', self::ROOM)->value('is_owner'));
     }
 
+    // ---- gerbang langganan keluarga (keputusan pemilik I-8, peran-anggota.md): Sync PEMILIK ruang, bukan peminta sendiri
+
+    public function test_a_member_without_their_own_sync_can_join_an_existing_room_whose_owner_has_sync(): void
+    {
+        $owner = $this->syncUser();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+
+        $this->app['auth']->forgetGuards();
+        $noSync = User::factory()->create(['plans' => []]);
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+
+        $this->assertDatabaseHas('room_members', ['user_id' => $noSync->id, 'room_id' => self::ROOM, 'is_owner' => false]);
+    }
+
+    public function test_a_member_without_their_own_sync_can_list_members_of_a_room_whose_owner_has_sync(): void
+    {
+        $owner = $this->syncUser();
+        $noSync = User::factory()->create(['plans' => []]);
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        $this->app['auth']->forgetGuards();
+        // join sendiri bukti baris sebelumnya; di sini pemilik mendaftarkan noSync lewat join juga (dua baris independen).
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($noSync))->getJson('/api/rooms/'.self::ROOM.'/members')
+            ->assertOk()->assertJsonCount(2, 'members');
+    }
+
+    public function test_joining_a_brand_new_room_still_requires_the_joiners_own_sync(): void
+    {
+        // Ruang belum punya anggota sama sekali: belum ada "pemilik" untuk dibaca Sync-nya, peminta akan jadi
+        // pemilik begitu baris ini tercatat, jadi Sync-nya sendiri yang dicek (Entitlements::allowsSharedRoom).
+        $noSync = User::factory()->create(['plans' => []]);
+
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/ruang-benar-benar-baru/join')
+            ->assertForbidden()->assertJsonPath('code', 'sync_required');
+        $this->assertDatabaseMissing('room_members', ['user_id' => $noSync->id, 'room_id' => 'ruang-benar-benar-baru']);
+    }
+
+    public function test_access_is_denied_again_once_the_owners_sync_lapses(): void
+    {
+        $owner = $this->syncUser();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        // Paket pemilik turun SETELAH ruang dibuat: anggota baru yang belum pernah punya Sync sendiri kini ditolak.
+        $owner->forceFill(['plans' => []])->save();
+
+        $this->app['auth']->forgetGuards();
+        $noSync = User::factory()->create(['plans' => []]);
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/'.self::ROOM.'/join')
+            ->assertForbidden()->assertJsonPath('code', 'sync_required');
+        $this->assertDatabaseMissing('room_members', ['user_id' => $noSync->id, 'room_id' => self::ROOM]);
+    }
+
     public function test_error_responses_carry_stable_codes(): void
     {
         [$owner, $member] = $this->roomWithOwnerAndMember();
         $stranger = $this->syncUser();
         $noSync = User::factory()->create(['plans' => []]);
 
-        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/'.self::ROOM.'/join')
+        // Keputusan pemilik I-8: akses dibuka oleh Sync PEMILIK ruang, bukan Sync peminta sendiri. self::ROOM sudah
+        // punya pemilik ber-Sync (roomWithOwnerAndMember), jadi $noSync BOLEH join ruang itu (lihat butir tersendiri
+        // di bawah); sync_required di sini harus diuji di ruang BARU yang belum punya pemilik sama sekali.
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/ruang-baru-tanpa-pemilik/join')
             ->assertForbidden()->assertJsonPath('code', 'sync_required');
         $this->app['auth']->forgetGuards();
         $this->withHeaders($this->authHeader($stranger))->getJson('/api/rooms/'.self::ROOM.'/members')

@@ -240,8 +240,13 @@ fun RuangKeluargaScreen(
             left = true
             return@LaunchedEffect
         }
-        // Dicek sebelum request apa pun (join, anggota): tanpa Sync, tidak ada yang dikirim ke server.
-        if (!workspace.entitlements.isEnabled(Feature.SHARED_FAMILY_ROOM)) {
+        // Dicek sebelum request apa pun (join, anggota): tanpa Sync, tidak ada yang dikirim ke server — KECUALI
+        // perangkat ini sudah tercatat ACTIVE di ruang ini (keputusan pemilik I-8, peran-anggota.md): anggota
+        // yang bergabung lewat Sync PEMILIK ruang tidak punya Sync sendiri, tapi server sudah mengonfirmasinya
+        // sebelumnya (join sewaktu itu berhasil). Server tetap menegakkan ulang di tiap panggilan (sync_required
+        // bila Sync pemilik kemudian berakhir, dipetakan ke paywall yang sama lewat opensSyncPaywall()).
+        val alreadyActiveMember = workspace.sharedRoomActivation.statusOf(roomId) == SharedRoomStatus.ACTIVE
+        if (!workspace.entitlements.isEnabled(Feature.SHARED_FAMILY_ROOM) && !alreadyActiveMember) {
             leaveForSyncPaywall()
             return@LaunchedEffect
         }
@@ -251,13 +256,18 @@ fun RuangKeluargaScreen(
     }
 
     fun syncNow() {
-        // Dicek sebelum request: paket yang sudah turun di tengah sesi tidak boleh menjalankan sinkron.
-        if (!workspace.entitlements.isEnabled(Feature.ENCRYPTED_SYNC)) {
-            leaveForSyncPaywall()
-            return
-        }
         syncing = true
         scope.launch {
+            // Dicek sebelum request: paket yang sudah turun di tengah sesi tidak boleh menjalankan sinkron —
+            // kecuali anggota ini sudah ACTIVE di ruang ini lewat Sync pemilik (keputusan pemilik I-8): sync
+            // ruang ini (join + syncSharedRoomNow di bawah) tidak menyentuh Sync pribadi.
+            if (!workspace.entitlements.isEnabled(Feature.ENCRYPTED_SYNC) &&
+                workspace.sharedRoomActivation.statusOf(roomId) != SharedRoomStatus.ACTIVE
+            ) {
+                leaveForSyncPaywall()
+                syncing = false
+                return@launch
+            }
             val session = workspace.serverSession
             val deviceId = DeviceId.read(context)
             // Sama seperti loadMembers: 401 karena token baru saja diputar diulang sekali, bukan "sesi berakhir".

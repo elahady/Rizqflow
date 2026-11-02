@@ -34,4 +34,16 @@ class Entitlements
 
         return $limit === null || $currentRoomCount < $limit;
     }
+
+    /**
+     * Akses ruang keluarga bersama (join, daftar anggota, push/pull baris ruang itu): dibuka oleh Sync milik
+     * PEMILIK ruang (peran-anggota.md I-8/E.1 butir 4, monetisasi.md "satu langganan Sync mencakup keluarga
+     * sampai 5 anggota, bukan per orang"), BUKAN Sync milik peminta sendiri. [$ownerEntitlements] null berarti
+     * ruang itu belum punya anggota sama sekali (ruang baru): [$this] (Entitlements peminta) dipakai sebagai
+     * gantinya, karena peminta akan jadi pemilik begitu `join`/push pertamanya tercatat (RoomMember::tambahAnggota).
+     */
+    public function allowsSharedRoom(?self $ownerEntitlements): bool
+    {
+        return ($ownerEntitlements ?? $this)->isEnabled(Feature::SharedFamilyRoom);
+    }
 }

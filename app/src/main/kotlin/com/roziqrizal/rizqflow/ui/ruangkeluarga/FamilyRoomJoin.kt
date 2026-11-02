@@ -1,6 +1,5 @@
 package com.roziqrizal.rizqflow.ui.ruangkeluarga
 
-import com.roziqrizal.rizqflow.domain.entitlement.Feature
 import com.roziqrizal.rizqflow.domain.ledger.Category
 import com.roziqrizal.rizqflow.domain.ledger.Room
 import com.roziqrizal.rizqflow.domain.ledger.RoomTemplates
@@ -41,8 +40,11 @@ sealed interface FamilyJoinResult {
  * keanggotaan tetap terdaftar bila pemanggilan pertama sempat gagal karena offline.
  */
 suspend fun joinSharedRoom(workspace: AccountWorkspace, invite: RoomInvite): FamilyJoinResult {
-    // Dicek sebelum apa pun di perangkat berubah (ruang dan kunci belum dibuat): tanpa Sync, paywall Sync saja.
-    if (!workspace.entitlements.isEnabled(Feature.SHARED_FAMILY_ROOM)) return FamilyJoinResult.SyncRequired
+    // Sengaja TIDAK memeriksa Feature.SHARED_FAMILY_ROOM lokal di sini (keputusan pemilik I-8,
+    // peran-anggota.md): anggota tanpa Sync sendiri tetap boleh bergabung bila PEMILIK ruang itu punya
+    // Sync — hanya server yang tahu itu (lewat GET members/join). Tanpa Sync di mana pun (termasuk
+    // pemilik), server menjawab 403 sync_required, dipetakan ke FamilyJoinResult.SyncRequired di bawah
+    // lewat opensSyncPaywall() seperti biasa.
     val session = workspace.serverSession
     if (session.token() == null) return FamilyJoinResult.NotSignedIn
 

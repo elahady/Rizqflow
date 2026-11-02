@@ -171,6 +171,69 @@ class SyncControllerTest extends TestCase
         $this->withHeaders($headers)->getJson('/api/sync/pull')->assertForbidden();
     }
 
+    // ---- gerbang langganan keluarga (keputusan pemilik I-8): Sync PEMILIK ruang, bukan pengirim/penarik sendiri
+
+    public function test_push_to_an_existing_shared_room_is_allowed_without_the_senders_own_sync_if_the_owner_has_sync(): void
+    {
+        $owner = $this->syncUser();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/sync/push', [
+            'entries' => [['room_id' => 'ruang-keluarga-1', 'record_type' => 'transaction', 'record_id' => 'tx-owner', 'device_id' => 'pixel-1', 'payload' => 'a', 'changed_at' => '2026-10-19T10:00:00Z']],
+        ])->assertOk();
+
+        $this->app['auth']->forgetGuards();
+        $noSync = User::factory()->create(['plans' => []]);
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/sync/push', [
+            'entries' => [['room_id' => 'ruang-keluarga-1', 'record_type' => 'transaction', 'record_id' => 'tx-nosync', 'device_id' => 'pixel-2', 'payload' => 'b', 'changed_at' => '2026-10-19T11:00:00Z']],
+        ])->assertOk();
+
+        $this->assertSame(1, RoomMember::where('user_id', $noSync->id)->where('room_id', 'ruang-keluarga-1')->count());
+    }
+
+    public function test_push_to_a_brand_new_room_still_requires_the_senders_own_sync(): void
+    {
+        $noSync = User::factory()->create(['plans' => []]);
+
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/sync/push', [
+            'entries' => [['room_id' => 'ruang-benar-benar-baru', 'record_type' => 'transaction', 'record_id' => 'tx-1', 'device_id' => 'pixel-1', 'payload' => 'a', 'changed_at' => '2026-10-19T10:00:00Z']],
+        ])->assertForbidden()->assertJsonPath('code', 'sync_required');
+
+        $this->assertSame(0, RoomMember::where('room_id', 'ruang-benar-benar-baru')->count());
+    }
+
+    public function test_pull_scoped_to_a_shared_room_is_allowed_without_the_callers_own_sync_if_the_owner_has_sync(): void
+    {
+        $owner = $this->syncUser();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/sync/push', [
+            'entries' => [['room_id' => 'ruang-keluarga-1', 'record_type' => 'transaction', 'record_id' => 'tx-owner', 'device_id' => 'pixel-1', 'payload' => 'dari-owner', 'changed_at' => '2026-10-19T10:00:00Z']],
+        ])->assertOk();
+
+        $this->app['auth']->forgetGuards();
+        $noSync = User::factory()->create(['plans' => []]);
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+
+        $this->app['auth']->forgetGuards();
+        $response = $this->withHeaders($this->authHeader($noSync))->getJson('/api/sync/pull?scope=r&room_id=ruang-keluarga-1&device_id=pixel-2');
+
+        $response->assertOk()->assertJsonCount(1, 'entries');
+        $this->assertSame('dari-owner', $response->json('entries.0.payload'));
+    }
+
+    public function test_pull_scope_a_still_requires_the_callers_own_sync_even_as_a_member_of_a_shared_room(): void
+    {
+        $owner = $this->syncUser();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/sync/push', [
+            'entries' => [['room_id' => 'ruang-keluarga-1', 'record_type' => 'transaction', 'record_id' => 'tx-owner', 'device_id' => 'pixel-1', 'payload' => 'a', 'changed_at' => '2026-10-19T10:00:00Z']],
+        ])->assertOk();
+
+        $this->app['auth']->forgetGuards();
+        $noSync = User::factory()->create(['plans' => []]);
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($noSync))->getJson('/api/sync/pull?scope=a&device_id=pixel-2')
+            ->assertForbidden()->assertJsonPath('code', 'sync_required');
+    }
+
     public function test_push_requires_authentication(): void
     {
         $this->postJson('/api/sync/push', ['entries' => []])->assertUnauthorized();
