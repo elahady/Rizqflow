@@ -1,22 +1,13 @@
 package com.roziqrizal.rizqflow.domain.sync
 
 import com.roziqrizal.rizqflow.domain.ledger.AccountRepository
-import com.roziqrizal.rizqflow.domain.ledger.Category
-import com.roziqrizal.rizqflow.domain.ledger.MoneyTransaction
-import com.roziqrizal.rizqflow.domain.ledger.PendingSyncTransaction
 import com.roziqrizal.rizqflow.domain.ledger.RoomRepository
-import com.roziqrizal.rizqflow.domain.ledger.RoomTemplates
 import com.roziqrizal.rizqflow.domain.ledger.TransactionRepository
-import com.roziqrizal.rizqflow.domain.model.CategoryId
 import com.roziqrizal.rizqflow.domain.model.RoomId
 import com.roziqrizal.rizqflow.domain.model.TransactionId
-import com.roziqrizal.rizqflow.domain.model.TransactionKind
-import com.roziqrizal.rizqflow.domain.model.TransactionOrigin
-import kotlinx.serialization.json.JsonObject
 import java.time.DateTimeException
 import java.time.Instant
 import java.util.Base64
-import java.util.UUID
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -42,7 +33,6 @@ internal fun SyncEnvelopeException.issueKind(): SyncIssueKind =
 
 /** Kolom luar `record_type` format lama (amplop ad hoc sebelum 2026-11-01); hanya dibaca, tidak ditulis lagi. */
 internal const val LEGACY_RECORD_TYPE_TRANSACTION = "transaction"
-private const val FALLBACK_CATEGORY_NAME = "Lain-lain"
 
 /**
  * Sync push/pull per cakupan (Tahap 2 sync-desain.md, menggantikan `SyncEngine` lama). Untuk putaran
@@ -59,11 +49,14 @@ private const val FALLBACK_CATEGORY_NAME = "Lain-lain"
  * payload [TransactionSyncCodec] dengan AAD = id) tetap DIBACA lewat [codec] supaya riwayat yang sudah terkirim
  * tidak hilang, tetapi tidak pernah ditulis lagi.
  *
- * Mesin ini sengaja belum memakai [SyncRecordHandler]/[SyncStore] untuk status kotor dan LWW: kontrak itu menaruh
- * LWW, penulis, dan kotor di `sync_record`, sedangkan status kotor ruang bersama masih tinggal di
- * `money_transaction.synced_at` dan `pending_room_tombstone`. Memindahkannya butuh migrasi data lokal tersendiri
- * (rancangan di sync-desain.md bagian I Tahap 2 butir (d)); amplop di kabel sudah sama. [SyncStore] hanya dipakai
- * untuk buku catatan masalah ([issueStore]).
+ * **Mesin generik per tipe (2026-11-02, Tahap 2 lanjutan "cakupan ruang bersama ke mesin generik"):** dispatch
+ * pull/push kini lewat [SharedRoomSyncHandler] ([handlersByType]), bukan hardcode ke transaksi — menambah tipe baru
+ * (amplop, `key_grant`) berarti menambah satu penangan ke [extraHandlers], tanpa mengubah kelas ini. Status kotor
+ * dan LWW tetap TIDAK lewat [SyncStore.applyIncoming]/[SyncRecordType] (itu khusus cakupan pribadi — lihat KDoc
+ * [SharedRecordType] soal kenapa dua enum terpisah): [SharedExpenseSyncHandler] membaca/menulis status kotor lewat
+ * `TransactionRepository`, yang di baliknya SUDAH memakai `sync_record` sejak skema v11 (lihat
+ * `LocalTransactionRepository`), dan LWW tetap di `TransactionRepository.applyFromSync`. [SyncStore] di sini
+ * ([issueStore]) hanya dipakai untuk buku catatan masalah.
  *
  * Perbaikan Tahap 2 atas `SyncEngine` lama (sync-desain.md bagian 0, keputusan pemilik #0):
  * - **Akun anggota virtual** (bagian B/E): pengeluaran anggota lain tidak lagi dicocokkan ke akun
@@ -129,7 +122,15 @@ class SyncCoordinator(
      * ruang lokal berhenti disinkron. Bawaan no-op supaya tes lama yang tidak peduli hal ini tidak perlu diubah.
      */
     private val onNotRoomMember: suspend (RoomId) -> Unit = {},
+    /**
+     * Penangan TAMBAHAN selain [SharedExpenseSyncHandler] (bawaan, selalu ada) — Tahap 2 lanjutan "mesin generik":
+     * amplop dan `key_grant` menambah elemen di sini, tanpa mengubah kelas ini.
+     */
+    extraHandlers: List<SharedRoomSyncHandler> = emptyList(),
 ) {
+    private val expenseHandler = SharedExpenseSyncHandler(transactions, rooms, accounts)
+    private val handlersByType: Map<SharedRecordType, SharedRoomSyncHandler> = (listOf(expenseHandler) + extraHandlers).associateBy { it.type }
+
     suspend fun syncNow(roomId: RoomId, deviceId: String): SyncResult {
         val apiToken = apiTokenStore.read() ?: return SyncResult.NotSignedIn
         val aead = roomKeys.getOrCreateRoomKey(roomId)
@@ -162,93 +163,59 @@ class SyncCoordinator(
         }
     }
 
+    /**
+     * Mengumpulkan rekaman kotor dari SEMUA [handlersByType] (Tahap 2 lanjutan "mesin generik"), membungkusnya jadi
+     * amplop, dan mengirim satu batch. Rekaman yang gagal dibungkus (praktis hanya payload melebihi 64 KB) tetap
+     * kotor dan tidak ikut dikirim: syncNow tidak pernah melempar, satu rekaman rusak tidak menahan rekaman lain.
+     */
     private suspend fun push(roomId: RoomId, deviceId: String, apiToken: String, aead: SyncAead): RemoteResult<Int> {
-        val pending = transactions.pendingSync(roomId)
-        // Tombstone yang masih menunggu untuk transaksi yang kini punya versi hidup baru di ruang ini (urungkan hapus,
-        // kembali ke ruang ini setelah dipindah keluar) sudah gugur: dua-duanya dikirim bersamaan, tombstone yang capnya
-        // lebih besar menang dan versi hidup hilang. Repositori sudah menggugurkannya saat menulis; ini jaring pengaman.
-        val pendingIds = pending.mapTo(HashSet()) { it.transaction.id }
-        val (superseded, pendingDeletes) = transactions.pendingTombstones(roomId).partition { it.transactionId in pendingIds }
-        if (superseded.isNotEmpty()) transactions.clearPendingTombstones(roomId, superseded.map { it.transactionId })
-        if (pending.isEmpty() && pendingDeletes.isEmpty()) return RemoteResult.Success(0)
-
         val scope = SyncScope.SharedRoom(roomId)
-        val accountNames = accounts.allAccounts().associate { it.id to it.name }
-        val categoryNames = rooms.allCategories().filter { it.roomId == roomId }.associate { it.id to it.name }
+        val outgoing = handlersByType.values.flatMap { handler -> handler.collectDirty(roomId).map { handler.type to it } }
+        if (outgoing.isEmpty()) return RemoteResult.Success(0)
 
-        // Rekaman yang gagal dibungkus (praktis hanya payload melebihi 64 KB) tetap pending dan tidak ikut dikirim:
-        // syncNow tidak pernah melempar, dan satu rekaman rusak tidak menahan rekaman lain.
-        val sentLive = mutableListOf<PendingSyncTransaction>()
-        val liveUploads = pending.mapNotNull { entry ->
-            val transaction = entry.transaction
-            // Penjepitan jam (Tahap 2, sync-desain.md bagian D "Jam salah"): cap yang DIKIRIM dipakai
-            // lewat SyncClock.stamp(), bukan cap lokal mentah (entry.changedAtMillis bisa jauh ke depan
-            // bila jam perangkat salah). stamp() = max(jam perangkat + offset server, cap lokal + 1) —
-            // offset dikoreksi dari server_time_ms setiap putaran berhasil (lihat bawah), jadi perangkat
-            // yang jamnya salah mengirim cap yang sudah terkoreksi begitu pernah sekali tersambung ke
-            // server; sebelum itu (belum pernah tersambung) belum bisa dikoreksi — lihat KDoc [SyncClock].
+        // Per penangan: rekaman yang BENAR-BENAR terkirim (bungkus sukses), cap waktu ASLI (sebelum SyncClock.stamp)
+        // — markPushed membandingkan ini dengan apa yang [collectDirty] baca, bukan apa yang dikirim ke kabel.
+        val sentByType = mutableMapOf<SharedRecordType, MutableList<OutgoingRecord>>()
+        val uploads = outgoing.mapNotNull { (type, record) ->
+            // Penjepitan jam (Tahap 2, sync-desain.md bagian D "Jam salah"): cap yang DIKIRIM dipakai lewat
+            // SyncClock.stamp(), bukan cap lokal mentah (bisa jauh ke depan bila jam perangkat salah). stamp() =
+            // max(jam perangkat + offset server, cap lokal + 1) — offset dikoreksi dari server_time_ms setiap
+            // putaran berhasil (lihat bawah), jadi perangkat yang jamnya salah mengirim cap yang sudah terkoreksi
+            // begitu pernah sekali tersambung ke server; sebelum itu belum bisa dikoreksi — lihat KDoc [SyncClock].
             // Cap yang sama masuk AAD amplop, jadi server tidak bisa menggantinya tanpa menggagalkan dekripsi.
-            val changedAtMillis = clock.stamp(entry.changedAtMillis)
-            val data = SharedExpensePayload.encode(
-                transaction = transaction,
-                accountName = accountNames[transaction.accountId] ?: "",
-                categoryName = transaction.categoryId?.let { categoryNames[it] },
-            )
-            seal(scope, aead, transaction.id, data, changedAtMillis, deleted = false, deviceId)
-                ?.also { sentLive += entry }
+            val stampedForWire = record.copy(changedAtMillis = clock.stamp(record.changedAtMillis))
+            seal(scope, aead, type, stampedForWire, deviceId)?.also { sentByType.getOrPut(type) { mutableListOf() }.add(record) }
         }
-
-        // Tombstone (Tahap 9, roadmap.md "Sinkron penghapusan transaksi di ruang yang dibagi"): baris asli sudah
-        // hilang secara lokal, jadi `d` kosong — tetapi id transaksi ikut terenkripsi di bidang `id` amplop
-        // (kolom luar hanya wireId), dan `deleted` ikut AAD sehingga server tidak bisa memalsukan tombstone.
-        // Cap tombstone ikut dijepit lewat SyncClock.stamp() sama seperti baris hidup di atas.
-        val sentDeletes = mutableListOf<TransactionId>()
-        val tombstoneUploads = pendingDeletes.mapNotNull { tombstone ->
-            val changedAtMillis = clock.stamp(tombstone.deletedAtMillis)
-            seal(scope, aead, tombstone.transactionId, JsonObject(emptyMap()), changedAtMillis, deleted = true, deviceId)
-                ?.also { sentDeletes += tombstone.transactionId }
-        }
-
-        val uploads = liveUploads + tombstoneUploads
         if (uploads.isEmpty()) return RemoteResult.Success(0)
 
         return when (val result = syncRemote.push(apiToken, uploads)) {
             is RemoteResult.Failure -> result
             is RemoteResult.Success -> {
                 result.value.serverTimeMs?.let { clock.setServerOffset(it - clock.rawDeviceNowMillis()) }
-                // Bersyarat: hanya versi yang BENAR-BENAR terkirim yang ditandai. Suntingan yang masuk selama push berjalan
-                // (updated_at berubah dan synced_at dikosongkan) tetap pending dan terkirim di putaran berikutnya.
-                transactions.markSyncedIfUnchanged(sentLive, System.currentTimeMillis())
-                transactions.clearPendingTombstones(roomId, sentDeletes)
+                // Bersyarat per penangan: hanya versi yang BENAR-BENAR tidak berubah sejak dikumpulkan yang ditandai
+                // terkirim. Suntingan yang masuk selama push berjalan tetap kotor dan terkirim di putaran berikutnya.
+                for ((type, sent) in sentByType) handlersByType.getValue(type).markPushed(roomId, sent)
                 RemoteResult.Success(uploads.size)
             }
         }
     }
 
     /**
-     * Amplop umum (sync-desain.md bagian C) untuk satu versi pengeluaran ruang bersama. Kolom luar: `record_type`
+     * Amplop umum (sync-desain.md bagian C) untuk satu rekaman [SharedRoomSyncHandler]. Kolom luar: `record_type`
      * konstan [SHARED_RECORD_TYPE] dan `record_id` = [SyncEnvelope.wireId] (keputusan pemilik #7: tipe dan id
      * transaksi tidak terbaca server). Null bila amplop tidak bisa dibuat (mis. melebihi batas 64 KB).
      */
-    private fun seal(
-        scope: SyncScope.SharedRoom,
-        aead: SyncAead,
-        id: TransactionId,
-        data: JsonObject,
-        changedAtMillis: Long,
-        deleted: Boolean,
-        deviceId: String,
-    ): SyncLogEntryUpload? {
+    private fun seal(scope: SyncScope.SharedRoom, aead: SyncAead, type: SharedRecordType, record: OutgoingRecord, deviceId: String): SyncLogEntryUpload? {
         val sealed = try {
             SyncEnvelope.seal(
                 aead = aead,
                 scope = scope,
-                type = SharedRecordType.SHARED_EXPENSE.wire,
-                id = id.value,
-                version = SharedExpensePayload.VERSION,
-                data = data,
-                changedAtMillis = changedAtMillis,
-                deleted = deleted,
+                type = type.wire,
+                id = record.recordId,
+                version = record.version,
+                data = record.data,
+                changedAtMillis = record.changedAtMillis,
+                deleted = record.deleted,
                 deviceId = deviceId,
             )
         } catch (e: SyncEnvelopeException) {
@@ -260,9 +227,9 @@ class SyncCoordinator(
             recordId = sealed.wireId,
             deviceId = deviceId,
             payload = Base64.getEncoder().encodeToString(sealed.ciphertext),
-            deleted = deleted,
-            changedAt = Instant.ofEpochMilli(changedAtMillis).toString(),
-            changedAtMillis = changedAtMillis,
+            deleted = record.deleted,
+            changedAt = Instant.ofEpochMilli(record.changedAtMillis).toString(),
+            changedAtMillis = record.changedAtMillis,
         )
     }
 
@@ -403,7 +370,9 @@ class SyncCoordinator(
     /**
      * Baris format amplop umum ([SHARED_RECORD_TYPE]). Semua kolom luar (scope ruang ini, wireId, cap milidetik,
      * `deleted`, perangkat) masuk AAD, jadi baris yang dipindah ke ruang lain, diputar ulang dengan cap baru, atau
-     * tombstone palsu gagal dibuka dan dilewati. Versi `d` lebih tinggi dari yang dikenal tidak diterapkan separuh.
+     * tombstone palsu gagal dibuka dan dilewati. Dispatch ke [handlersByType] menurut tipe DI DALAM amplop (Tahap 2
+     * lanjutan "mesin generik"): tipe tak dikenal atau tanpa penangan terdaftar, dan versi `d` lebih tinggi dari
+     * yang dikenal penangan itu, ditolak sebagai `UNSUPPORTED_VERSION` tanpa diterapkan separuh.
      */
     private suspend fun applyEnvelope(scope: SyncScope.SharedRoom, row: SyncLogEntryDownload, aead: SyncAead, record: Boolean): RowOutcome {
         val changedAtMillis = try {
@@ -428,30 +397,33 @@ class SyncCoordinator(
             // payload bukan base64 yang sah
             return reject(scope, row, SyncIssueKind.TAMPERED_OR_CORRUPT, "payload bukan base64 yang sah", record)
         }
-        if (SharedRecordType.fromWire(opened.type) != SharedRecordType.SHARED_EXPENSE) {
-            return reject(scope, row, SyncIssueKind.UNSUPPORTED_VERSION, "tipe rekaman tidak dikenal", record)
-        }
-        if (opened.version > SharedExpensePayload.VERSION) {
+        val handler = SharedRecordType.fromWire(opened.type)?.let { handlersByType[it] }
+            ?: return reject(scope, row, SyncIssueKind.UNSUPPORTED_VERSION, "tipe rekaman tidak dikenal", record)
+        if (opened.version > handler.knownVersion) {
             return reject(scope, row, SyncIssueKind.UNSUPPORTED_VERSION, "versi payload ${opened.version} lebih baru dari yang dikenal", record)
         }
 
-        val id = TransactionId(opened.id)
-        if (row.deleted) {
-            transactions.applyFromSync(id, null, changedAtMillis, deleted = true, fromRoom = scope.roomId)
-            return RowOutcome.APPLIED
+        val decoded = DecodedRecord(opened.type, opened.id, opened.version, opened.data)
+        val missing = handler.missingReferences(scope.roomId, decoded)
+        if (missing.isNotEmpty()) {
+            if (record) recordIssue(scope, row, SyncIssueKind.DEFERRED_MISSING_REF, missing.joinToString(","), rawRowOf(row, changedAtMillis))
+            return RowOutcome.DEFERRED
         }
-        val decoded = try {
-            SharedExpensePayload.decode(opened.id, opened.data)
+        val applied = try {
+            handler.apply(scope.roomId, decoded, changedAtMillis, authorOf(row))
+            true
         } catch (e: TransactionSyncPayloadCorrupt) {
-            return reject(scope, row, SyncIssueKind.TAMPERED_OR_CORRUPT, "isi pengeluaran tidak sah", record)
+            false
         }
-        return applyDecoded(scope, row, id, decoded, changedAtMillis, record)
+        if (!applied) return reject(scope, row, SyncIssueKind.TAMPERED_OR_CORRUPT, "isi pengeluaran tidak sah", record)
+        return RowOutcome.APPLIED
     }
 
     /**
      * Baris format lama (sebelum amplop umum, 2026-11-01): `record_type` = `transaction`, `record_id` = id transaksi
      * terbaca, payload [TransactionSyncCodec] dengan AAD = id saja, tombstone berpayload kosong. Tetap dibaca supaya
-     * riwayat yang sudah terkirim tidak hilang; tidak pernah ditulis lagi. Aturan penerapannya sama dengan jalur baru.
+     * riwayat yang sudah terkirim tidak hilang; tidak pernah ditulis lagi. Format ini hanya pernah membawa
+     * pengeluaran (mendahului [SharedRoomSyncHandler]), jadi langsung ke [expenseHandler], bukan dispatch generik.
      */
     private suspend fun applyLegacy(roomId: RoomId, row: SyncLogEntryDownload, aead: SyncAead, record: Boolean): RowOutcome {
         val scope = SyncScope.SharedRoom(roomId)
@@ -472,97 +444,19 @@ class SyncCoordinator(
         } catch (e: Exception) {
             return reject(scope, row, SyncIssueKind.TAMPERED_OR_CORRUPT, "baris format lama tidak bisa dibuka (${e.javaClass.simpleName})", record)
         }
-        return applyDecoded(scope, row, id, decoded, changedAtMillis, record)
+        // "Lain-lain" hanya dibutuhkan bila nama kategori kosong/null, sama seperti applyEnvelope (lihat
+        // SharedExpenseSyncHandler.missingReferences).
+        if (decoded.categoryName.isNullOrBlank() && !expenseHandler.hasFallbackCategory(roomId)) {
+            if (record) recordIssue(scope, row, SyncIssueKind.DEFERRED_MISSING_REF, "ruang belum punya kategori Lain-lain", rawRowOf(row, changedAtMillis))
+            return RowOutcome.DEFERRED
+        }
+        expenseHandler.applyDecodedTransaction(roomId, id, decoded, changedAtMillis, authorOf(row))
+        return RowOutcome.APPLIED
     }
 
     // Penulis buram (bagian B R3): server menentukan; perangkat lama tanpa field ini jatuh
     // ke device_id supaya akun virtual tetap terbentuk, hanya kurang stabil lintas perangkat penulis.
     private fun authorOf(row: SyncLogEntryDownload): String = row.author ?: row.deviceId
-
-    /**
-     * @return [RowOutcome.APPLIED], atau [RowOutcome.DEFERRED] bila (sangat jarang) ruang ini bahkan tidak punya
-     *   kategori "Lain-lain" sama sekali: baris disimpan di `sync_issue` beserta baris mentahnya dan dicoba lagi
-     *   di akhir pull berikutnya ([retryDeferred]). Akun tak dikenal tidak lagi mungkin (akun virtual selalu dibuat);
-     *   kategori tak dikenal pun tidak lagi jatuh ke "Lain-lain" — lihat [findOrCreateSharedCategory].
-     */
-    private suspend fun applyDecoded(
-        scope: SyncScope.SharedRoom,
-        row: SyncLogEntryDownload,
-        id: TransactionId,
-        decoded: DecodedSyncTransaction,
-        changedAtMillis: Long,
-        record: Boolean,
-    ): RowOutcome {
-        val roomId = scope.roomId
-        // Akun anggota virtual (Tahap 2, keputusan pemilik #0): TIDAK PERNAH mencocokkan ke akun nyata
-        // penerima. Satu akun virtual per (ruang, penulis, nama akun), idempoten lewat id deterministik.
-        val account = accounts.findOrCreateVirtualMember(roomId, authorOf(row), decoded.accountName)
-
-        val categoriesInRoom = rooms.allCategories().filter { it.roomId == roomId }
-        val categoryId = findOrCreateSharedCategory(roomId, categoriesInRoom, decoded.categoryName)
-        if (categoryId == null) {
-            if (record) recordIssue(scope, row, SyncIssueKind.DEFERRED_MISSING_REF, "ruang belum punya kategori Lain-lain", rawRowOf(row, changedAtMillis))
-            return RowOutcome.DEFERRED
-        }
-
-        val transaction = MoneyTransaction(
-            id = id,
-            kind = TransactionKind.EXPENSE,
-            amount = decoded.amount,
-            accountId = account.id,
-            roomId = roomId,
-            categoryId = categoryId.id,
-            occurredOn = decoded.occurredOn,
-            note = decoded.note,
-            // SHARED (bukan IMPORT): pengeluaran anggota lain di ruang bersama bukan data pribadi pengguna ini, jadi
-            // pencatat dan backfill sinkron entitas penuh (sync-desain.md, Tahap 1) mengecualikannya dari cakupan pribadi.
-            // Tidak ada kode yang membaca origin untuk saldo, jatah, riwayat, laporan, atau ekspor; hanya tulis.
-            origin = TransactionOrigin.SHARED,
-            createdAtMillis = changedAtMillis,
-            updatedAtMillis = changedAtMillis,
-        )
-        transactions.applyFromSync(id, transaction, changedAtMillis, deleted = false)
-        return RowOutcome.APPLIED
-    }
-
-    /**
-     * Kategori ruang bersama dikenali lewat nama ternormalisasi (bagian B R2, keputusan pemilik):
-     * dicari dulu di [categoriesInRoom]; kalau tidak ketemu, DIBUAT baru di [roomId] (bukan jatuh ke
-     * "Lain-lain" — itu perilaku lama Tahap 2 yang sengaja ditutup di sini). Normalisasi NFKC + trim +
-     * rapatkan spasi + huruf kecil (bagian B R2, [SharedRoomNameNormalization]) menyamakan variasi
-     * kapital/spasi, jadi kategori sistem `Zakat mal`/`Tak terlacak` yang sudah ada di ruang ini
-     * dicocokkan lewat nama seperti kategori lain dan TIDAK PERNAH dibuat dobel.
-     *
-     * [rawName] kosong atau cuma spasi (null maupun string) adalah kasus BERBEDA dari "tidak
-     * ditemukan": selalu jatuh ke "Lain-lain", tidak pernah membuat kategori baru bernama kosong.
-     *
-     * @return null hanya bila ruang ini bahkan tidak punya kategori "Lain-lain" (seharusnya mustahil:
-     *   setiap ruang dibuat dengan kategori itu, lihat `RoomTemplates`/`WorkspaceSetup`).
-     */
-    private suspend fun findOrCreateSharedCategory(roomId: RoomId, categoriesInRoom: List<Category>, rawName: String?): Category? {
-        val trimmed = rawName?.trim()
-        if (trimmed.isNullOrEmpty()) {
-            val fallbackNormalized = SharedRoomNameNormalization.normalize(FALLBACK_CATEGORY_NAME)
-            return categoriesInRoom.firstOrNull { SharedRoomNameNormalization.normalize(it.name) == fallbackNormalized }
-        }
-
-        val normalized = SharedRoomNameNormalization.normalize(trimmed)
-        categoriesInRoom.firstOrNull { SharedRoomNameNormalization.normalize(it.name) == normalized }?.let { return it }
-
-        // Tidak ketemu: buat baru. Nama tampilan tetap nama asli dari pengirim (hanya dipotong bila
-        // melebihi batas panjang kategori), normalisasi di atas hanya dipakai untuk PENCARIAN.
-        val isSystem = normalized == SharedRoomNameNormalization.normalize(RoomTemplates.ZAKAT) ||
-            normalized == SharedRoomNameNormalization.normalize(RoomTemplates.UNTRACKED)
-        val created = Category(
-            id = CategoryId(UUID.randomUUID().toString()),
-            roomId = roomId,
-            name = trimmed.take(Category.NAME_MAX),
-            isSystem = isSystem,
-            sortOrder = (categoriesInRoom.maxOfOrNull { it.sortOrder } ?: -1) + 1,
-        )
-        rooms.saveCategory(created)
-        return created
-    }
 
     private data class PullOutcome(val applied: Int, val skipped: Int)
 }

@@ -249,9 +249,11 @@ class SyncCoordinatorTest {
         cursorStore: SyncCursorStore = FakeSyncCursorStore(),
         scopedCursors: SyncStore? = null,
         onNotRoomMember: suspend (RoomId) -> Unit = {},
+        extraHandlers: List<SharedRoomSyncHandler> = emptyList(),
     ) = SyncCoordinator(
         ledger, ledger, ledger, keys, remote, FakeTransactionSyncCodec(), tokenStore, cursorStore, clock,
         issueStore = null, nowMillis = System::currentTimeMillis, scopedCursors = scopedCursors, onNotRoomMember = onNotRoomMember,
+        extraHandlers = extraHandlers,
     )
 
     private fun seedRoomAndAccount(ledger: InMemoryLedger) {

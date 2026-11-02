@@ -335,7 +335,7 @@ Ukuran S kecil, M sedang, L besar. Tiap langkah diuji dan di-commit sendiri, dan
 4. **(S) Android: hak Pemilik dan pencatat di UI.** `RoomRole` + `RoomPermissions`; label peran; sembunyikan Undang dan Keluarkan untuk pencatat; Keluar dari ruang; keluarkan per anggota.
 5. **(M) Rincian terpakai per anggota** (tanpa amplop, hanya turunan transaksi) di Ruang keluarga dan Detail ruang. Bisa dirilis sendiri walau amplop ditunda.
 6. **(M atau L, bergantung I-8) Gerbang langganan keluarga** di server (`Support\Entitlements`) dan sumber entitlement kedua di Android.
-7. **(L, prasyarat) Cakupan ruang bersama ke mesin generik** (sudah tercatat sebagai utang Tahap 2; dibutuhkan juga oleh `key_grant` Tahap 5).
+7. **(L, prasyarat) Cakupan ruang bersama ke mesin generik** (sudah tercatat sebagai utang Tahap 2; dibutuhkan juga oleh `key_grant` Tahap 5). **Selesai 2026-11-02** — `SharedRoomSyncHandler` baru, `SyncCoordinator` dispatch per tipe; rincian di roadmap.md Tahap 9 "Tahap 2, mesin generik" dan sync-desain.md bagian I butir (d). Hanya terbukti lewat tes otomatis.
 8. **(M) Amplop.** Rekaman `envelope`, migrasi Room (`shared_member`, `shared_envelope`), `EnvelopeRules`, `EnvelopeSyncHandler`, penegakan `author` (D.4), sheet Atur amplop.
 9. **(S) Peringatan lembut** di Catat dan status di Denah/Detail ruang.
 10. **(M) Golden bersama** `envelope.v1.json` dibaca Kotlin dan PHP, plus vektor rekaman terenkripsi.
