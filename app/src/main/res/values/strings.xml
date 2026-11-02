@@ -1388,6 +1388,10 @@
     <string name="family_leave_failed">Belum bisa keluar dari ruang. Periksa koneksi lalu coba lagi.</string>
     <string name="family_owner_cannot_leave_note">Kamu pemilik ruang ini, jadi tidak bisa keluar. Pemilik tetap menjadi anggota selama ruangnya ada.</string>
     <string name="family_left_info">Kamu sudah keluar dari ruang ini. Catatan yang ada di ponsel ini tetap tersimpan, tetapi tidak lagi tersinkron. Untuk bergabung lagi, minta undangan baru dari pemilik ruang lalu pindai QR-nya dari menu Lainnya.</string>
+    <string name="family_history_confirm_title">Riwayat ruang ini ikut dibagikan?</string>
+    <string name="family_history_confirm_body">Ruang ini punya %1$d transaksi tercatat, dari %2$s sampai %3$s. Semuanya ikut terkirim ke anggota lain, kecuali kamu pilih mulai dari hari ini.</string>
+    <string name="family_history_confirm_share_all">Bagikan semua riwayat</string>
+    <string name="family_history_confirm_from_today">Mulai dari hari ini</string>
     <string name="menu_prerestore_revert">Kembalikan data sebelum pemulihan</string>
     <string name="menu_prerestore_revert_sub">Ada salinan otomatis dari sebelum kamu memulihkan dari server</string>
     <string name="prerestore_title">Kembalikan data sebelum pemulihan</string>

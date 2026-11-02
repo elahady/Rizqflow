@@ -30,9 +30,11 @@ class SharedRoomActivation(private val syncStore: SyncStore) {
                 joinedAtMillis = existing?.joinedAtMillis ?: nowMillis,
             ),
         )
-        // Riwayat pengeluaran sebelum ruang dibagi ikut terkirim (keputusan #4, sekarang tanpa pilihan "mulai hari ini"):
-        // ditandai kotor di cakupan ruang. Selalu dijalankan, bukan hanya saat peralihan status: idempoten, dan menutup
-        // celah bila aplikasi mati di antara penyimpanan status dan penandaan.
+        // Riwayat pengeluaran sebelum ruang dibagi ikut terkirim (keputusan #4): ditandai kotor di cakupan ruang. Jalur
+        // ini (anggota baru lewat undangan) tidak punya pilihan "mulai hari ini" dengan sengaja: ruangnya baru dibuat
+        // di perangkat ini saat bergabung, jadi tidak ada riwayat lokal untuk ruang itu sama sekali — dialognya hanya
+        // relevan di jalur pemilik, lihat [applyServerRole]. Selalu dijalankan, bukan hanya saat peralihan status:
+        // idempoten, dan menutup celah bila aplikasi mati di antara penyimpanan status dan penandaan.
         syncStore.markSharedRoomHistoryDirty(roomId)
     }
 
@@ -70,8 +72,15 @@ class SharedRoomActivation(private val syncStore: SyncStore) {
      * berbeda dari [markActive], peran yang sudah tersimpan DITIMPA bila berbeda, karena server satu-satunya sumber
      * kebenaran siapa pemilik ruang (keputusan pemilik #1). Menutup celah lama ketika siapa pun yang membuka layar
      * Ruang Keluarga tercatat OWNER secara lokal. Waktu bergabung yang sudah tersimpan dipertahankan.
+     *
+     * [historyStartMillis] (keputusan pemilik #4, sync-desain.md bagian J): hanya relevan untuk jalur PEMILIK yang
+     * mengaktifkan ruang pertama kali (pemilik satu-satunya yang mungkin punya riwayat lokal sebelum ruang dibagi —
+     * jalur anggota baru lewat [markActive] tidak punya riwayat apa pun untuk ruang itu). Null (bawaan) membagikan
+     * SELURUH riwayat ruang, sama seperti perilaku sebelum keputusan ini ada. Diisi tanggal ("mulai hari ini"): hanya
+     * pengeluaran dengan tanggal transaksi >= nilai itu ikut ditandai kotor. UI (RuangKeluargaScreen) yang menampilkan
+     * dialog konfirmasi dan menentukan nilainya; fungsi ini sendiri tidak pernah menolak atau menunda aktivasi.
      */
-    suspend fun applyServerRole(roomId: RoomId, role: SharedRoomRole, nowMillis: Long = System.currentTimeMillis()) {
+    suspend fun applyServerRole(roomId: RoomId, role: SharedRoomRole, historyStartMillis: Long? = null, nowMillis: Long = System.currentTimeMillis()) {
         val existing = syncStore.sharedRoom(roomId)
         if (existing != null && existing.role == role && existing.status == SharedRoomStatus.ACTIVE) return
         syncStore.saveSharedRoom(
@@ -82,6 +91,6 @@ class SharedRoomActivation(private val syncStore: SyncStore) {
                 joinedAtMillis = existing?.joinedAtMillis ?: nowMillis,
             ),
         )
-        syncStore.markSharedRoomHistoryDirty(roomId)
+        syncStore.markSharedRoomHistoryDirty(roomId, historyStartMillis)
     }
 }

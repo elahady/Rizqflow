@@ -26,6 +26,8 @@ import com.roziqrizal.rizqflow.domain.sync.SyncScope
 import com.roziqrizal.rizqflow.domain.sync.SyncStore
 import com.roziqrizal.rizqflow.domain.sync.isSyncApplying
 import kotlinx.coroutines.withContext
+import java.time.Instant
+import java.time.ZoneOffset
 
 /**
  * Implementasi Room dari [SyncStore] (Tahap 1 sync-desain.md). Semua operasi majemuk berjalan dalam
@@ -193,8 +195,12 @@ class RoomSyncStore(
         SharedRoomEntity(info.roomId.value, info.role.name, info.status.name, info.joinedAtMillis),
     )
 
-    override suspend fun markSharedRoomHistoryDirty(roomId: RoomId) {
-        db.withTransaction { dao.backfillSharedRoomExpenses(SyncScope.SharedRoom(roomId).wire, roomId.value) }
+    override suspend fun markSharedRoomHistoryDirty(roomId: RoomId, sinceMillis: Long?) {
+        // occurred_on tersimpan sebagai epoch day (LocalDate.toEpochDay(), lihat Mappers.kt), bukan milidetik; sinceMillis
+        // (awal hari di zona waktu perangkat, UTC-encoded sama seperti CatatFlow) dikonversi ke epoch day di sini, bukan
+        // di SQL, supaya pembagian hari tidak bergantung aturan pembagian bulat SQLite.
+        val sinceDay = sinceMillis?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toEpochDay() }
+        db.withTransaction { dao.backfillSharedRoomExpenses(SyncScope.SharedRoom(roomId).wire, roomId.value, sinceDay) }
     }
 }
 

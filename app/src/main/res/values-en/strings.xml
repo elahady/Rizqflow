@@ -1395,6 +1395,10 @@
     <string name="family_leave_failed">Can\'t leave the room yet. Check your connection and try again.</string>
     <string name="family_owner_cannot_leave_note">You own this room, so you can\'t leave it. The owner stays a member for as long as the room exists.</string>
     <string name="family_left_info">You have left this room. Entries on this phone stay saved but no longer sync. To rejoin, ask the room owner for a new invite and scan its QR from the More menu.</string>
+    <string name="family_history_confirm_title">Share this room\'s history too?</string>
+    <string name="family_history_confirm_body">This room has %1$d recorded transactions, from %2$s to %3$s. All of them will be sent to other members, unless you choose to start from today.</string>
+    <string name="family_history_confirm_share_all">Share all history</string>
+    <string name="family_history_confirm_from_today">Start from today</string>
     <string name="menu_prerestore_revert">Restore data from before recovery</string>
     <string name="menu_prerestore_revert_sub">There is an automatic copy from before you recovered from the server</string>
     <string name="prerestore_title">Restore data from before recovery</string>

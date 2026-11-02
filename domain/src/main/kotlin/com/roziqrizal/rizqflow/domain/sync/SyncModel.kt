@@ -293,6 +293,11 @@ interface SyncStore {
      * riwayat ruang terkirim begitu ruang mulai dibagi (sync-desain.md bagian A, butir 2.3). Pengeluaran yang sudah punya
      * rekaman (terkirim atau menunggu) tidak disentuh, jadi aman dipanggil berulang. Bawaan kosong untuk penyimpanan
      * palsu di tes yang tidak menyimpan rekaman ruang bersama.
+     *
+     * [sinceMillis] null (bawaan) menandai SELURUH riwayat, sama seperti sebelumnya. Diisi (keputusan pemilik #4, opsi
+     * "mulai hari ini"): hanya pengeluaran dengan tanggal transaksi (bukan waktu ditulis ke database) >= [sinceMillis]
+     * yang ditandai kotor; sisanya tidak pernah terkirim. Pemanggil (lihat `SharedRoomActivation.applyServerRole`)
+     * yang menentukan nilainya, biasanya awal hari ini di zona waktu perangkat.
      */
-    suspend fun markSharedRoomHistoryDirty(roomId: RoomId) {}
+    suspend fun markSharedRoomHistoryDirty(roomId: RoomId, sinceMillis: Long? = null) {}
 }

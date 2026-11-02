@@ -307,6 +307,13 @@ class InMemoryLedger(private val nowMillis: () -> Long = System::currentTimeMill
         return RoomTotals(allocated, spent)
     }
 
+    // Keputusan pemilik #4: dasar dialog konfirmasi "riwayat ruang ikut dibagikan?" saat ruang mulai dibagi.
+    override suspend fun historyStats(roomId: RoomId): RoomHistoryStats? {
+        val own = transactionRows.values.filter { it.roomId == roomId && it.kind == TransactionKind.EXPENSE && it.origin != TransactionOrigin.SHARED }
+        if (own.isEmpty()) return null
+        return RoomHistoryStats(own.size, own.minOf { it.occurredOn }, own.maxOf { it.occurredOn })
+    }
+
     // ---- TransactionRepository: sync (Tahap 9)
     override suspend fun pendingSync(roomId: RoomId): List<PendingSyncTransaction> =
         transactionRows.values

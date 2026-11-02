@@ -17,6 +17,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.time.LocalDate
+import java.time.ZoneOffset
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
@@ -52,6 +54,16 @@ class SharedRoomSyncRecordTest {
         val result = f.ledger.recordExpense(NewExpense(Money.rupiah(amount), f.accountId(), room.id, category.id, f.today))
         return (assertIs<LedgerResult.Success<*>>(result)).value as MoneyTransaction
     }
+
+    /** Sama seperti [spend], tapi dengan tanggal transaksi (`occurred_on`) tertentu — dasar tes keputusan #4. */
+    private suspend fun spendOn(room: Room, date: LocalDate, amount: Long = 25_000): MoneyTransaction {
+        val category = f.local.rooms.categories(room.id).first()
+        val result = f.ledger.recordExpense(NewExpense(Money.rupiah(amount), f.accountId(), room.id, category.id, date))
+        return (assertIs<LedgerResult.Success<*>>(result)).value as MoneyTransaction
+    }
+
+    /** Konversi tanggal ke milidetik dengan konvensi yang sama dengan `RoomSyncStore`/`CatatFlow` (UTC, bukan zona perangkat). */
+    private fun LocalDate.sinceMillis(): Long = atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
 
     private fun shared() = f.rows().filter { it.scope.startsWith("r:") }
 
@@ -190,6 +202,60 @@ class SharedRoomSyncRecordTest {
         assertTrue(!afterReactivation.dirty, "aktivasi ulang tidak mengotori rekaman yang sudah terkirim")
         assertEquals(sent.changedAt, afterReactivation.changedAt)
         assertEquals(2, shared().size)
+    }
+
+    @Test
+    fun `markSharedRoomHistoryDirty tanpa sinceMillis menandai seluruh riwayat (perilaku lama tidak berubah)`() = runBlocking<Unit> {
+        val keluarga = room("Keluarga")
+        val lama = spendOn(keluarga, LocalDate.of(2025, 1, 1))
+        val baru = spendOn(keluarga, LocalDate.of(2026, 10, 25))
+
+        f.local.syncStore.markSharedRoomHistoryDirty(keluarga.id, sinceMillis = null)
+
+        assertEquals(setOf(lama.id.value, baru.id.value), shared().map { it.id }.toSet())
+    }
+
+    @Test
+    fun `markSharedRoomHistoryDirty dengan sinceMillis hanya menandai transaksi pada atau setelah tanggal itu`() = runBlocking<Unit> {
+        val keluarga = room("Keluarga")
+        val sebelum = spendOn(keluarga, LocalDate.of(2026, 10, 24))
+        val tepatCutoff = spendOn(keluarga, LocalDate.of(2026, 10, 25))
+        val sesudah = spendOn(keluarga, LocalDate.of(2026, 10, 26))
+
+        f.local.syncStore.markSharedRoomHistoryDirty(keluarga.id, sinceMillis = LocalDate.of(2026, 10, 25).sinceMillis())
+
+        assertEquals(
+            setOf(tepatCutoff.id.value, sesudah.id.value),
+            shared().map { it.id }.toSet(),
+            "transaksi pada atau setelah tanggal cutoff ikut, sebelumnya tidak",
+        )
+        assertNull(record(keluarga, sebelum.id.value), "transaksi sebelum cutoff tidak punya rekaman sinkron sama sekali, bukan sekadar bersih")
+    }
+
+    @Test
+    fun `applyServerRole dengan historyStartMillis hanya membagikan riwayat sejak tanggal itu`() = runBlocking<Unit> {
+        val keluarga = room("Keluarga")
+        val lama = spendOn(keluarga, LocalDate.of(2026, 9, 1))
+        val baru = spendOn(keluarga, LocalDate.of(2026, 10, 25))
+
+        SharedRoomActivation(f.local.syncStore).applyServerRole(
+            keluarga.id,
+            SharedRoomRole.OWNER,
+            historyStartMillis = LocalDate.of(2026, 10, 25).sinceMillis(),
+        )
+
+        assertEquals(setOf(baru.id.value), shared().map { it.id }.toSet())
+        assertNull(record(keluarga, lama.id.value))
+    }
+
+    @Test
+    fun `applyServerRole tanpa historyStartMillis tetap membagikan seluruh riwayat (bawaan tidak berubah)`() = runBlocking<Unit> {
+        val keluarga = room("Keluarga")
+        val lama = spendOn(keluarga, LocalDate.of(2025, 1, 1))
+
+        SharedRoomActivation(f.local.syncStore).applyServerRole(keluarga.id, SharedRoomRole.OWNER)
+
+        assertEquals(setOf(lama.id.value), shared().map { it.id }.toSet())
     }
 
     @Test

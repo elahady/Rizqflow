@@ -151,6 +151,13 @@ interface RoomRepository {
 /** Jatah dan terpakai per ruang untuk satu rentang hari. Ruang tanpa baris dianggap nol. */
 data class RoomTotals(val allocated: Map<RoomId, Money>, val spent: Map<RoomId, Money>)
 
+/**
+ * Jumlah dan rentang tanggal pengeluaran buatan sendiri (`origin <> 'SHARED'`) di sebuah ruang — dasar dialog
+ * konfirmasi "riwayat ruang ikut dibagikan?" saat ruang mulai dibagi (keputusan pemilik #4, sync-desain.md bagian J).
+ * Lihat [TransactionRepository.historyStats].
+ */
+data class RoomHistoryStats(val count: Int, val oldest: LocalDate, val newest: LocalDate)
+
 /** Satu transaksi menunggu dikirim ke sync (Tahap 9) — lihat [TransactionRepository.pendingSync]. */
 data class PendingSyncTransaction(
     val transaction: MoneyTransaction,
@@ -214,6 +221,13 @@ interface TransactionRepository {
 
     /** Jatah (alokasi dari pemasukan) dan terpakai (pengeluaran) per ruang antara dua hari (inklusif). */
     suspend fun roomTotals(from: LocalDate, to: LocalDate): RoomTotals
+
+    /**
+     * Jumlah dan rentang tanggal pengeluaran buatan sendiri (`origin <> SHARED`) di [roomId] — dasar dialog konfirmasi
+     * saat ruang mulai dibagi (keputusan pemilik #4: "ikut dibagikan, dengan konfirmasi eksplisit jumlah transaksi dan
+     * rentang tanggal"). Null bila ruang belum punya pengeluaran buatan sendiri (ruang kosong: aktifkan tanpa dialog).
+     */
+    suspend fun historyStats(roomId: RoomId): RoomHistoryStats?
 
     /** Pengeluaran di [roomId] yang belum terkirim ke sync (Tahap 9, kolom `synced_at` null). */
     suspend fun pendingSync(roomId: RoomId): List<PendingSyncTransaction>

@@ -97,15 +97,20 @@ interface SyncDao {
      * Riwayat pengeluaran buatan sendiri di ruang [roomId] yang belum punya rekaman `shared_expense` di cakupan [scope]
      * (`r:<roomId>`): ditandai kotor dengan `changed_at` = `updated_at` transaksi (minimal 1). `INSERT OR IGNORE`, jadi
      * rekaman yang sudah ada (terkirim, menunggu, atau tombstone) tidak tertimpa dan hasilnya idempoten.
+     *
+     * [sinceDay] null (bawaan dari pemanggil) menandai seluruh riwayat. Diisi (keputusan pemilik #4, opsi "mulai hari
+     * ini"): hanya baris dengan `occurred_on` (tanggal transaksi, epoch day — BUKAN `updated_at`/waktu ditulis ke
+     * database) >= [sinceDay] yang ditandai; konversi dari milidetik ke epoch day dilakukan pemanggil (`RoomSyncStore`).
      */
     @Query(
         """
         INSERT OR IGNORE INTO sync_record (scope, record_type, record_id, changed_at, deleted, dirty, pushed_changed_at, author, device_id)
         SELECT :scope, 'shared_expense', id, MAX(updated_at, 1), 0, 1, NULL, NULL, NULL
-        FROM money_transaction WHERE room_id = :roomId AND kind = 'EXPENSE' AND origin <> 'SHARED'
+        FROM money_transaction
+        WHERE room_id = :roomId AND kind = 'EXPENSE' AND origin <> 'SHARED' AND (:sinceDay IS NULL OR occurred_on >= :sinceDay)
         """,
     )
-    suspend fun backfillSharedRoomExpenses(scope: String, roomId: String)
+    suspend fun backfillSharedRoomExpenses(scope: String, roomId: String, sinceDay: Long?)
 
     @Query("SELECT after_id FROM sync_cursor WHERE scope = :scope")
     suspend fun cursor(scope: String): Long?

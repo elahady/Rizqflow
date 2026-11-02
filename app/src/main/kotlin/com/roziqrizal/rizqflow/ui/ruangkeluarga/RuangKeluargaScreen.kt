@@ -45,6 +45,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.roziqrizal.rizqflow.R
 import com.roziqrizal.rizqflow.domain.entitlement.Feature
+import com.roziqrizal.rizqflow.domain.ledger.RoomHistoryStats
 import com.roziqrizal.rizqflow.domain.model.RoomId
 import com.roziqrizal.rizqflow.domain.sync.LeaveRoomOutcome
 import com.roziqrizal.rizqflow.domain.sync.RemoteError
@@ -64,11 +65,21 @@ import com.roziqrizal.rizqflow.sync.sessionEndedBy
 import com.roziqrizal.rizqflow.ui.Notifier
 import com.roziqrizal.rizqflow.ui.UiMessage
 import com.roziqrizal.rizqflow.ui.familyRoomMessage
+import com.roziqrizal.rizqflow.ui.formatDate
 import com.roziqrizal.rizqflow.ui.paywall.opensSyncPaywall
 import com.roziqrizal.rizqflow.ui.theme.spacing
 import com.roziqrizal.rizqflow.workspace.AccountWorkspace
 import kotlinx.coroutines.launch
 import qrcode.QRCode
+import java.time.LocalDate
+import java.time.ZoneOffset
+
+/**
+ * Keputusan menunggu untuk dialog "riwayat ruang ikut dibagikan?" (keputusan pemilik #4, sync-desain.md bagian J):
+ * [role] disimpan supaya [applyServerRole][com.roziqrizal.rizqflow.data.sync.SharedRoomActivation.applyServerRole]
+ * tetap dipanggil dengan peran yang benar setelah pengguna memilih, bukan hanya saat ruang baru pertama dibagikan.
+ */
+private data class HistoryShareConfirm(val role: SharedRoomRole, val stats: RoomHistoryStats)
 
 /**
  * Kelola ruang keluarga (Tahap 9, roadmap.md "Ruang keluarga bersama"): daftar anggota, undang
@@ -123,9 +134,32 @@ fun RuangKeluargaScreen(
     var leaveConfirm by remember { mutableStateOf(false) }
     var leaving by remember { mutableStateOf(false) }
     var left by remember { mutableStateOf(false) }
+    // Dialog "riwayat ruang ikut dibagikan?" (keputusan pemilik #4): hanya tampil saat ruang baru pertama kali
+    // diaktifkan oleh PEMILIK (lihat activateRoom). null = tidak ada keputusan menunggu.
+    var historyConfirm by remember { mutableStateOf<HistoryShareConfirm?>(null) }
     // Peran perangkat ini MENURUT SERVER (bendera owner di daftar anggota), bukan siapa yang membuka layar.
     val isOwner = members?.ownRole() == SharedRoomRole.OWNER
     val removable = members?.removableMembers().orEmpty()
+
+    /**
+     * Mengaktifkan ruang dengan [role] dari server, menunda keputusan "riwayat ikut dibagikan?" lewat dialog bila ruang
+     * BELUM ACTIVE (keputusan pemilik #4) — satu-satunya jalur yang mungkin punya riwayat lokal sebelum dibagi, karena
+     * jalur anggota baru (FamilyRoomJoin.markActive) sudah menandai ACTIVE lebih dulu dan tidak punya riwayat ruang itu
+     * sama sekali. Ruang yang sudah ACTIVE memanggil applyServerRole langsung, tanpa dialog ulang (sekadar sinkron
+     * peran). Ruang kosong (0 transaksi buatan sendiri) diaktifkan langsung juga: tidak ada riwayat untuk dipilih.
+     */
+    suspend fun activateRoom(role: SharedRoomRole) {
+        if (workspace.sharedRoomActivation.statusOf(roomId) == SharedRoomStatus.ACTIVE) {
+            workspace.sharedRoomActivation.applyServerRole(roomId, role)
+            return
+        }
+        val stats = workspace.repositories.transactions.historyStats(roomId)
+        if (stats == null) {
+            workspace.sharedRoomActivation.applyServerRole(roomId, role)
+        } else {
+            historyConfirm = HistoryShareConfirm(role, stats)
+        }
+    }
 
     suspend fun loadMembers() {
         val session = workspace.serverSession
@@ -157,7 +191,7 @@ fun RuangKeluargaScreen(
                 // Penandaan ACTIVE menyalakan sinkron otomatis untuk ruang ini. Perannya diambil dari bendera owner
                 // server (pembuat ruang = pemilik, keputusan pemilik #1) dan menimpa peran lokal yang berbeda — dulu
                 // siapa pun yang membuka layar ini tercatat OWNER tanpa syarat.
-                result.value.ownRole()?.let { workspace.sharedRoomActivation.applyServerRole(roomId, it) }
+                result.value.ownRole()?.let { activateRoom(it) }
             }
 
             // "Sesi berakhir" hanya dinyatakan bila ServerSession benar-benar menyatakannya (token sudah dibersihkan dan
@@ -440,6 +474,39 @@ fun RuangKeluargaScreen(
                 }) { Text(stringResource(R.string.family_leave_confirm_action)) }
             },
             dismissButton = { TextButton(onClick = { leaveConfirm = false }) { Text(stringResource(R.string.catat_date_cancel)) } },
+        )
+    }
+
+    historyConfirm?.let { pending ->
+        val today = remember { LocalDate.now() }
+        AlertDialog(
+            onDismissRequest = { historyConfirm = null },
+            title = { Text(stringResource(R.string.family_history_confirm_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.family_history_confirm_body,
+                        pending.stats.count,
+                        formatDate(pending.stats.oldest, today),
+                        formatDate(pending.stats.newest, today),
+                    ),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    historyConfirm = null
+                    scope.launch { workspace.sharedRoomActivation.applyServerRole(roomId, pending.role) }
+                }) { Text(stringResource(R.string.family_history_confirm_share_all)) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    historyConfirm = null
+                    // Awal hari ini di zona waktu perangkat, dikodekan sebagai milidetik UTC (konvensi yang sama
+                    // dengan CatatFlow.toPickerMillis): transaksi dengan tanggal transaksi SEBELUM hari ini tidak ikut.
+                    val startOfToday = LocalDate.now().atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+                    scope.launch { workspace.sharedRoomActivation.applyServerRole(roomId, pending.role, historyStartMillis = startOfToday) }
+                }) { Text(stringResource(R.string.family_history_confirm_from_today)) }
+            },
         )
     }
 

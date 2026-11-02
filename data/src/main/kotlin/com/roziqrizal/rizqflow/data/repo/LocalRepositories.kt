@@ -24,6 +24,7 @@ import com.roziqrizal.rizqflow.domain.ledger.MoneyTransaction
 import com.roziqrizal.rizqflow.domain.ledger.PendingSyncTransaction
 import com.roziqrizal.rizqflow.domain.ledger.PendingTombstone
 import com.roziqrizal.rizqflow.domain.ledger.Room
+import com.roziqrizal.rizqflow.domain.ledger.RoomHistoryStats
 import com.roziqrizal.rizqflow.domain.ledger.RoomRepository
 import com.roziqrizal.rizqflow.domain.ledger.RoomTotals
 import com.roziqrizal.rizqflow.domain.ledger.TransactionRepository
@@ -492,6 +493,13 @@ class LocalTransactionRepository(
         allocated = db.transactions().allocatedPerRoom(from.toEpochDay(), to.toEpochDay()).associate { RoomId(it.roomId) to Money.rupiah(it.total) },
         spent = db.transactions().spentPerRoom(from.toEpochDay(), to.toEpochDay()).associate { RoomId(it.roomId) to Money.rupiah(it.total) },
     )
+
+    // Keputusan pemilik #4: dasar dialog konfirmasi "riwayat ruang ikut dibagikan?" saat ruang mulai dibagi.
+    override suspend fun historyStats(roomId: RoomId): RoomHistoryStats? {
+        val row = db.transactions().historyStats(roomId.value)
+        if (row.count <= 0) return null
+        return RoomHistoryStats(row.count, LocalDate.ofEpochDay(requireNotNull(row.oldest)), LocalDate.ofEpochDay(requireNotNull(row.newest)))
+    }
 
     // ---- Sync ruang keluarga (Tahap 9). Status "menunggu kirim" ada di sync_record (cakupan r:<ruang>, tipe shared_expense).
     private val sharedType = SharedRecordType.SHARED_EXPENSE.wire

@@ -15,6 +15,17 @@ data class RoomTotal(
     val total: Long,
 )
 
+/**
+ * Hasil [TransactionDao.historyStats]: agregat SQL tanpa `GROUP BY` selalu mengembalikan satu baris, jadi [count] = 0
+ * (ruang kosong) dibedakan dari "tidak ada baris" di repositori, bukan di sini; [oldest]/[newest] null hanya bila
+ * [count] 0.
+ */
+data class RoomHistoryStatsRow(
+    val count: Int,
+    val oldest: Long?,
+    val newest: Long?,
+)
+
 @Dao
 interface AccountDao {
     @Upsert
@@ -264,6 +275,18 @@ interface TransactionDao {
     /** Pengeluaran di [roomId] yang belum terkirim ke sync (Tahap 9) — lihat `TransactionRepository.pendingSync`. */
     @Query("SELECT * FROM money_transaction WHERE room_id = :roomId AND kind = 'EXPENSE' AND synced_at IS NULL")
     suspend fun pendingSync(roomId: String): List<TransactionEntity>
+
+    /**
+     * Jumlah dan rentang `occurred_on` pengeluaran buatan sendiri (`origin <> 'SHARED'`) di [roomId] — lihat
+     * `TransactionRepository.historyStats` (keputusan pemilik #4, dasar dialog konfirmasi saat ruang mulai dibagi).
+     */
+    @Query(
+        """
+        SELECT COUNT(*) AS count, MIN(occurred_on) AS oldest, MAX(occurred_on) AS newest
+        FROM money_transaction WHERE room_id = :roomId AND kind = 'EXPENSE' AND origin <> 'SHARED'
+        """,
+    )
+    suspend fun historyStats(roomId: String): RoomHistoryStatsRow
 
     @Query("UPDATE money_transaction SET synced_at = :atMillis WHERE id IN (:ids)")
     suspend fun markSynced(ids: List<String>, atMillis: Long)

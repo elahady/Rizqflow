@@ -42,6 +42,7 @@ import com.roziqrizal.rizqflow.domain.model.RoomId
 import com.roziqrizal.rizqflow.domain.model.RoomKind
 import com.roziqrizal.rizqflow.domain.model.TransactionId
 import com.roziqrizal.rizqflow.domain.model.TransactionKind
+import com.roziqrizal.rizqflow.domain.model.TransactionOrigin
 import com.roziqrizal.rizqflow.domain.money.Currency
 import com.roziqrizal.rizqflow.domain.money.Money
 import kotlinx.coroutines.runBlocking
@@ -465,6 +466,44 @@ class LocalLedgerTest {
         val okt = runBlocking { local.transactions.roomTotals(LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31)) }
         assertEquals(rupiah(1_200_000), okt.allocated[room("Keluarga").id])
         assertEquals(rupiah(40_000), okt.spent[room("Keluarga").id])
+    }
+
+    // ------------------------------------------------------------------ Riwayat ruang sebelum dibagi (keputusan #4)
+
+    @Test
+    fun `jumlah dan rentang tanggal riwayat ruang hanya menghitung pengeluaran buatan sendiri`() {
+        standard()
+        val keluarga = room("Keluarga")
+        runBlocking {
+            service.recordExpense(NewExpense(rupiah(10_000), account().id, keluarga.id, category("Keluarga", "Sekolah").id, LocalDate.of(2026, 9, 1)))
+            service.recordExpense(NewExpense(rupiah(20_000), account().id, keluarga.id, category("Keluarga", "Sekolah").id, LocalDate.of(2026, 10, 15)))
+            // Baris pasangan anggota lain (origin SHARED) bukan riwayat MILIK pemilik dan tidak boleh ikut terhitung.
+            service.recordExpense(
+                NewExpense(
+                    rupiah(5_000),
+                    account().id,
+                    keluarga.id,
+                    category("Keluarga", "Sekolah").id,
+                    LocalDate.of(2026, 10, 20),
+                    origin = TransactionOrigin.SHARED,
+                ),
+            )
+        }
+
+        val stats = runBlocking { local.transactions.historyStats(keluarga.id) }
+
+        assertNotNull(stats)
+        assertEquals(2, stats.count)
+        assertEquals(LocalDate.of(2026, 9, 1), stats.oldest)
+        assertEquals(LocalDate.of(2026, 10, 15), stats.newest)
+    }
+
+    @Test
+    fun `ruang tanpa pengeluaran buatan sendiri tidak punya statistik riwayat`() {
+        standard()
+        val keluarga = room("Keluarga")
+
+        assertNull(runBlocking { local.transactions.historyStats(keluarga.id) })
     }
 
     @Test
