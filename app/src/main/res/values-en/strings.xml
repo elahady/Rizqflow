@@ -786,6 +786,23 @@
     <string name="family_transfer_done">%1$s is now the owner of this room.</string>
     <string name="family_transfer_failed">Could not transfer ownership. Check your connection and try again.</string>
     <string name="family_rotate_key_sheet_hint">This QR already uses the new key. Show it only to the members who STAY, in person — never to the member who was removed.</string>
+
+    <!-- Monthly envelope (peran-anggota.md D, H step 8) -->
+    <string name="family_envelope_section_title">Envelope %1$s</string>
+    <string name="family_envelope_empty">No envelope set for this month yet</string>
+    <string name="family_envelope_allocated">Allowance %1$s</string>
+    <string name="family_envelope_spent">Spent %1$s</string>
+    <string name="family_envelope_action">Set envelope</string>
+    <string name="family_envelope_remaining">%1$s</string>
+    <string name="envelope_sheet_title">Envelope %1$s</string>
+    <string name="envelope_sheet_subtitle">Effective from %1$s until changed</string>
+    <string name="envelope_sheet_total">Total envelope %1$s</string>
+    <string name="envelope_sheet_allocated_hint">Flowed from your income to %1$s this month: %2$s</string>
+    <string name="envelope_sheet_over_hint">Envelope is %1$s more than what you flowed in</string>
+    <string name="envelope_sheet_save">Save</string>
+    <string name="room_detail_my_envelope">Your envelope: %1$s</string>
+    <string name="room_detail_allocated_from_income">Flowed from your income %1$s</string>
+
     <string name="family_members_error">Couldn\'t load members. Check your connection and try again.</string>
     <string name="family_retry">Try again</string>
     <string name="family_invite_action">Invite a member</string>

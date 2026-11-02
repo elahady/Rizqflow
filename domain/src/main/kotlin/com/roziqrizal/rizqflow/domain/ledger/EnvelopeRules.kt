@@ -2,6 +2,10 @@ package com.roziqrizal.rizqflow.domain.ledger
 
 import com.roziqrizal.rizqflow.domain.model.RoomKind
 import com.roziqrizal.rizqflow.domain.money.Money
+import java.time.YearMonth
+
+/** Bentuk `yyyymm` (D.2) dari [YearMonth] — dipakai UI dan [EnvelopeRules] supaya "bulan" amplop selalu satu representasi. */
+fun YearMonth.toEnvelopeMonth(): Int = year * 100 + monthValue
 
 /**
  * Hitungan amplop bulanan (peran-anggota.md D.3, H langkah 8): jatah dan terpakai PER ANGGOTA di satu ruang

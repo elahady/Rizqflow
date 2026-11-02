@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +22,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -42,19 +45,27 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.roziqrizal.rizqflow.R
 import com.roziqrizal.rizqflow.domain.entitlement.Feature
+import com.roziqrizal.rizqflow.domain.ledger.AmountPad
+import com.roziqrizal.rizqflow.domain.ledger.EnvelopeRules
 import com.roziqrizal.rizqflow.domain.ledger.MemberSpend
 import com.roziqrizal.rizqflow.domain.ledger.RoomDetailLoader
 import com.roziqrizal.rizqflow.domain.ledger.RoomHistoryStats
+import com.roziqrizal.rizqflow.domain.ledger.RoomStatus
+import com.roziqrizal.rizqflow.domain.ledger.toEnvelopeMonth
 import com.roziqrizal.rizqflow.domain.model.RoomId
+import com.roziqrizal.rizqflow.domain.model.RoomKind
+import com.roziqrizal.rizqflow.domain.money.Money
 import com.roziqrizal.rizqflow.domain.sync.LeaveRoomOutcome
 import com.roziqrizal.rizqflow.domain.sync.RemoteError
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.RoomInvite
 import com.roziqrizal.rizqflow.domain.sync.RoomMemberInfo
 import com.roziqrizal.rizqflow.domain.sync.RoomPermissions
+import com.roziqrizal.rizqflow.domain.sync.SharedMemberCache
 import com.roziqrizal.rizqflow.domain.sync.SharedRoomRole
 import com.roziqrizal.rizqflow.domain.sync.SharedRoomStatus
 import com.roziqrizal.rizqflow.domain.sync.SyncResult
@@ -67,10 +78,15 @@ import com.roziqrizal.rizqflow.sync.retryOnceIfRotated
 import com.roziqrizal.rizqflow.sync.sessionEndedBy
 import com.roziqrizal.rizqflow.ui.Notifier
 import com.roziqrizal.rizqflow.ui.UiMessage
+import com.roziqrizal.rizqflow.ui.denah.statusIcon
+import com.roziqrizal.rizqflow.ui.denah.statusTint
 import com.roziqrizal.rizqflow.ui.familyRoomMessage
 import com.roziqrizal.rizqflow.ui.formatDate
+import com.roziqrizal.rizqflow.ui.formatMonth
 import com.roziqrizal.rizqflow.ui.formatRupiah
+import com.roziqrizal.rizqflow.ui.onboarding.AmountKeypad
 import com.roziqrizal.rizqflow.ui.paywall.opensSyncPaywall
+import com.roziqrizal.rizqflow.ui.theme.rizqflow
 import com.roziqrizal.rizqflow.ui.theme.spacing
 import com.roziqrizal.rizqflow.workspace.AccountWorkspace
 import kotlinx.coroutines.launch
@@ -154,11 +170,80 @@ fun RuangKeluargaScreen(
     // Rincian terpakai per anggota (peran-anggota.md D.3, H langkah 5): murni turunan transaksi, belum amplop.
     // Kosong = belum dimuat ATAU ruang belum pernah dipakai bulan ini; keduanya tampil sama (bagian disembunyikan).
     var memberSpend by remember { mutableStateOf<List<MemberSpend>>(emptyList()) }
+    // Jatah yang dialirkan dari rezeki SAYA ke ruang ini bulan ini (D.5, baris info di sheet "Atur amplop").
+    var myAllocated by remember { mutableStateOf(Money.zero()) }
+    // Amplop bulan ini (D, H langkah 8): null sebelum pernah dimuat; lihat loadEnvelopeSummary.
+    var envelopeSummary by remember { mutableStateOf<EnvelopeRules.RoomSummary?>(null) }
+    val canManageEnvelope = RoomPermissions.canManageEnvelope(members?.ownRole())
+    var envelopeSheet by remember { mutableStateOf(false) }
+    // Digit mentah (AmountPad) per anggota sedang diedit di sheet "Atur amplop"; selected = baris yang menerima papan angka.
+    var envelopeDigits by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var envelopeSelected by remember { mutableStateOf<String?>(null) }
+    var savingEnvelope by remember { mutableStateOf(false) }
 
     suspend fun loadMemberSpend() {
         val detail = RoomDetailLoader(workspace.repositories.rooms, workspace.repositories.transactions, workspace.repositories.accounts)
             .load(roomId, YearMonth.now(), LocalDate.now())
         memberSpend = detail?.memberSpend.orEmpty()
+        myAllocated = detail?.card?.allocated ?: Money.zero()
+    }
+
+    /**
+     * Ringkasan amplop bulan ini (D.3): anggota aktif menurut cache `shared_member` ([replaceAll] di [loadMembers]),
+     * terpakai per anggota dari [memberSpend] (penulis null = saya, dipetakan ke [SharedMemberCache.isMe]).
+     */
+    suspend fun loadEnvelopeSummary() {
+        val cached = workspace.repositories.family.all(roomId)
+        if (cached.isEmpty()) {
+            envelopeSummary = null
+            return
+        }
+        val myId = cached.firstOrNull { it.isMe }?.memberId
+        val activeIds = cached.filter { it.status == SharedRoomStatus.ACTIVE }.map { it.memberId }.toSet()
+        val spentByMemberId = memberSpend.mapNotNull { spend ->
+            val author = spend.author
+            val id = if (author == null) myId else author.takeIf { it.isNotEmpty() }
+            id?.let { it to spend.spent }
+        }.toMap()
+        val entries = workspace.envelopes.entries(roomId)
+        val room = workspace.repositories.rooms.find(roomId)
+        val month = YearMonth.now()
+        envelopeSummary = EnvelopeRules.summarize(
+            month = month.toEnvelopeMonth(),
+            entries = entries,
+            activeMemberIds = activeIds,
+            spentByMember = spentByMemberId,
+            totalSpentRoom = workspace.repositories.transactions.roomTotals(month.atDay(1), month.atEndOfMonth()).spent[roomId] ?: Money.zero(),
+            roomKind = room?.kind ?: RoomKind.MENCUKUPI,
+        )
+    }
+
+    fun memberLabel(memberId: String?): String = when {
+        memberId == null -> resources.getString(R.string.family_member_spend_unknown)
+        memberId == members?.firstOrNull { it.you }?.memberId -> resources.getString(R.string.family_member_spend_me)
+        else -> members?.firstOrNull { it.memberId == memberId }?.let { it.name ?: it.email }
+            ?: resources.getString(R.string.family_member_spend_other, memberId.take(6))
+    }
+
+    fun openEnvelopeSheet() {
+        val activeIds = members.orEmpty().mapNotNull { it.memberId }.toSet()
+        val currentEntries = envelopeSummary?.members?.associate { it.memberId to it.envelope.minor }.orEmpty()
+        envelopeDigits = activeIds.associateWith { id -> currentEntries[id]?.takeIf { it > 0 }?.toString() ?: "" }
+        envelopeSelected = members.orEmpty().firstOrNull { it.you }?.memberId ?: activeIds.firstOrNull()
+        envelopeSheet = true
+    }
+
+    fun saveEnvelope() {
+        savingEnvelope = true
+        scope.launch {
+            val month = YearMonth.now().toEnvelopeMonth()
+            for ((memberId, digits) in envelopeDigits) {
+                workspace.envelopes.setEnvelope(roomId, memberId, month, AmountPad.toRupiah(digits).minor)
+            }
+            loadEnvelopeSummary()
+            savingEnvelope = false
+            envelopeSheet = false
+        }
     }
 
     /**
@@ -212,6 +297,24 @@ fun RuangKeluargaScreen(
                 // server (pembuat ruang = pemilik, keputusan pemilik #1) dan menimpa peran lokal yang berbeda — dulu
                 // siapa pun yang membuka layar ini tercatat OWNER tanpa syarat.
                 result.value.ownRole()?.let { activateRoom(it) }
+                // Cache lokal (shared_member, peran-anggota.md E.2/H langkah 8): dipakai EnvelopeSyncHandler menegakkan
+                // D.4 dan layar ini sendiri menampilkan nama. Anggota tanpa memberId (server lama) tidak ikut dicache.
+                workspace.repositories.family.replaceAll(
+                    roomId,
+                    result.value.mapNotNull { member ->
+                        member.memberId?.let { id ->
+                            SharedMemberCache(
+                                memberId = id,
+                                label = member.name ?: member.email,
+                                role = if (member.owner) SharedRoomRole.OWNER else SharedRoomRole.MEMBER,
+                                status = SharedRoomStatus.ACTIVE,
+                                isMe = member.you,
+                                updatedAtMillis = System.currentTimeMillis(),
+                            )
+                        }
+                    },
+                )
+                loadEnvelopeSummary()
             }
 
             // "Sesi berakhir" hanya dinyatakan bila ServerSession benar-benar menyatakannya (token sudah dibersihkan dan
@@ -515,6 +618,67 @@ fun RuangKeluargaScreen(
                     }
                 }
 
+                // Amplop bulanan (peran-anggota.md D, H langkah 8): jatah, terpakai, dan progres per anggota.
+                // "Perlu perhatian" ikon+teks (bukan warna saja, D.6); tombol "Atur amplop" hanya untuk Pemilik.
+                Text(
+                    stringResource(R.string.family_envelope_section_title, formatMonth(YearMonth.now())),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = spacing.s5, bottom = spacing.s2),
+                )
+                val summary = envelopeSummary
+                if (summary == null || !summary.hasAnyEnvelope) {
+                    Text(stringResource(R.string.family_envelope_empty), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    Text(stringResource(R.string.family_envelope_allocated, formatRupiah(summary.totalEnvelope)), style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        stringResource(R.string.family_envelope_spent, formatRupiah(summary.totalSpentRoom)),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    summary.members.filter { it.hasEnvelope }.forEach { m ->
+                        Row(modifier = Modifier.fillMaxWidth().padding(top = spacing.s2)) {
+                            Text(memberLabel(m.memberId), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                            Text(
+                                if (m.remaining.isNegative) {
+                                    stringResource(R.string.denah_over, formatRupiah(-m.remaining.minor))
+                                } else {
+                                    "${formatRupiah(m.spent)} / ${formatRupiah(m.envelope)}"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        val color = if (m.status == RoomStatus.PERLU_PERHATIAN) MaterialTheme.rizqflow.statusWarning else MaterialTheme.colorScheme.primary
+                        LinearProgressIndicator(
+                            progress = { (m.progressBp ?: 0).coerceIn(0, 10_000) / 10_000f },
+                            modifier = Modifier.padding(top = spacing.s1).fillMaxWidth().height(8.dp),
+                            color = color,
+                            trackColor = color.copy(alpha = 0.2f),
+                            gapSize = 0.dp,
+                            drawStopIndicator = {},
+                        )
+                        if (m.status == RoomStatus.PERLU_PERHATIAN) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s1), modifier = Modifier.padding(top = spacing.s1)) {
+                                Icon(statusIcon(m.status), contentDescription = null, tint = statusTint(m.status), modifier = Modifier.size(16.dp))
+                                Text(
+                                    if (m.remaining.isNegative) {
+                                        stringResource(R.string.denah_over, formatRupiah(-m.remaining.minor))
+                                    } else {
+                                        stringResource(R.string.denah_remaining, formatRupiah(m.remaining))
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                        }
+                    }
+                }
+                if (canManageEnvelope) {
+                    OutlinedButton(
+                        onClick = ::openEnvelopeSheet,
+                        modifier = Modifier.padding(top = spacing.s3).fillMaxWidth().height(52.dp),
+                    ) { Text(stringResource(R.string.family_envelope_action)) }
+                }
+
                 // Keputusan pemilik #1 (sync-desain.md bagian J): hanya pemilik ruang yang mengundang dan mengeluarkan.
                 if (RoomPermissions.canInvite(members?.ownRole())) {
                     Button(
@@ -717,6 +881,87 @@ fun RuangKeluargaScreen(
                 Image(bitmap = qrBitmap, contentDescription = null, modifier = Modifier.padding(top = 16.dp).size(240.dp))
                 TextButton(onClick = { inviteSheet = false; justRotated = false }, modifier = Modifier.padding(top = 16.dp)) {
                     Text(stringResource(R.string.catat_date_cancel))
+                }
+            }
+        }
+    }
+
+    // Sheet "Atur amplop" (peran-anggota.md F, H langkah 8): hanya Pemilik (tombolnya saja yang disembunyikan untuk
+    // anggota lain — penegakan sungguhan ada di EnvelopeSyncHandler.apply, D.4). Nominal lewat papan angka yang sama
+    // dengan Catat (AmountKeypad); baris info "lebih besar dari yang dialirkan" hanya informasi, tidak menahan Simpan.
+    if (envelopeSheet) {
+        ModalBottomSheet(onDismissRequest = { envelopeSheet = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp).verticalScroll(rememberScrollState()),
+            ) {
+                Text(stringResource(R.string.envelope_sheet_title, roomName.orEmpty()), style = MaterialTheme.typography.titleLarge)
+                Text(
+                    stringResource(R.string.envelope_sheet_subtitle, formatMonth(YearMonth.now())),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = spacing.s1, bottom = spacing.s3),
+                )
+
+                members.orEmpty().forEach memberLoop@{ member ->
+                    val id = member.memberId ?: return@memberLoop
+                    val digits = envelopeDigits[id].orEmpty()
+                    val selected = envelopeSelected == id
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(role = Role.Button) { envelopeSelected = id }
+                            .padding(vertical = spacing.s2),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            member.name?.let { "$it${if (member.you) " (${stringResource(R.string.family_member_spend_me)})" else ""}" } ?: member.email,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            formatRupiah(AmountPad.toRupiah(digits)),
+                            style = if (selected) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
+                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                    HorizontalDivider()
+                }
+
+                val totalMinor = envelopeDigits.values.sumOf { AmountPad.toRupiah(it).minor }
+                Text(
+                    stringResource(R.string.envelope_sheet_total, formatRupiah(totalMinor)),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = spacing.s4),
+                )
+                Text(
+                    stringResource(R.string.envelope_sheet_allocated_hint, roomName.orEmpty(), formatRupiah(myAllocated)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = spacing.s1),
+                )
+                // D.5: info saja, tidak pernah menahan tombol Simpan.
+                if (totalMinor > myAllocated.minor) {
+                    Text(
+                        stringResource(R.string.envelope_sheet_over_hint, formatRupiah(totalMinor - myAllocated.minor)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = spacing.s2),
+                    )
+                }
+
+                envelopeSelected?.let { sel ->
+                    AmountKeypad(
+                        enabled = !savingEnvelope,
+                        onKey = { key -> envelopeDigits = envelopeDigits + (sel to AmountPad.apply(envelopeDigits[sel].orEmpty(), key)) },
+                        modifier = Modifier.padding(top = spacing.s4),
+                    )
+                }
+
+                Row(modifier = Modifier.fillMaxWidth().padding(top = spacing.s4), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = { envelopeSheet = false }, enabled = !savingEnvelope) { Text(stringResource(R.string.catat_date_cancel)) }
+                    Button(onClick = ::saveEnvelope, enabled = !savingEnvelope, modifier = Modifier.padding(start = spacing.s2)) {
+                        Text(stringResource(R.string.envelope_sheet_save))
+                    }
                 }
             }
         }

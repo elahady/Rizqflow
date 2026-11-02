@@ -805,6 +805,22 @@
     <string name="family_transfer_failed">Gagal memindahkan kepemilikan. Periksa koneksi lalu coba lagi.</string>
     <string name="family_rotate_key_sheet_hint">QR ini sudah pakai kunci baru. Tunjukkan hanya ke anggota yang TETAP, saat bertemu langsung — jangan ke anggota yang dikeluarkan.</string>
 
+    <!-- Amplop bulanan (peran-anggota.md D, H langkah 8) -->
+    <string name="family_envelope_section_title">Amplop %1$s</string>
+    <string name="family_envelope_empty">Belum ada amplop bulan ini</string>
+    <string name="family_envelope_allocated">Jatah %1$s</string>
+    <string name="family_envelope_spent">Terpakai %1$s</string>
+    <string name="family_envelope_action">Atur amplop</string>
+    <string name="family_envelope_remaining">%1$s</string>
+    <string name="envelope_sheet_title">Amplop %1$s</string>
+    <string name="envelope_sheet_subtitle">Berlaku mulai %1$s sampai diubah</string>
+    <string name="envelope_sheet_total">Total amplop %1$s</string>
+    <string name="envelope_sheet_allocated_hint">Dialirkan dari rezekimu ke %1$s bulan ini: %2$s</string>
+    <string name="envelope_sheet_over_hint">Amplop lebih besar %1$s dari yang dialirkan</string>
+    <string name="envelope_sheet_save">Simpan</string>
+    <string name="room_detail_my_envelope">Amplopmu: %1$s</string>
+    <string name="room_detail_allocated_from_income">Dialirkan dari rezekimu %1$s</string>
+
     <string name="role_title">Peran ruang</string>
     <string name="role_intro">Beri ruang ini sistem sendiri. Semua uang tetap dicatat sebagai pengeluaran biasa; peran hanya membantu menjaga disiplin.</string>
     <string name="role_pick_trader_title">Trader</string>

@@ -44,13 +44,16 @@ import androidx.compose.ui.unit.dp
 import com.roziqrizal.rizqflow.R
 import com.roziqrizal.rizqflow.domain.ledger.ArchiveUndo
 import com.roziqrizal.rizqflow.domain.ledger.CategorySpend
+import com.roziqrizal.rizqflow.domain.ledger.EnvelopeRules
 import com.roziqrizal.rizqflow.domain.ledger.LedgerResult
 import com.roziqrizal.rizqflow.domain.ledger.RoomDetail
 import com.roziqrizal.rizqflow.domain.ledger.RoomDetailLoader
 import com.roziqrizal.rizqflow.domain.ledger.RoomTransaction
+import com.roziqrizal.rizqflow.domain.ledger.toEnvelopeMonth
 import com.roziqrizal.rizqflow.domain.model.RoomId
 import com.roziqrizal.rizqflow.domain.model.RoomKind
 import com.roziqrizal.rizqflow.domain.model.TransactionId
+import com.roziqrizal.rizqflow.domain.sync.SharedRoomStatus
 import com.roziqrizal.rizqflow.domain.role.RoleKind
 import com.roziqrizal.rizqflow.domain.role.RoleOverview
 import com.roziqrizal.rizqflow.ui.Notifier
@@ -101,14 +104,46 @@ fun RoomDetailScreen(
     var role by remember { mutableStateOf<RoleOverview?>(null) }
     var loaded by remember { mutableStateOf(false) }
     var confirmingArchive by remember { mutableStateOf(false) }
+    // Amplopmu (peran-anggota.md H langkah 8): null bila ruang ini belum pernah dibagi dari perangkat ini (cache
+    // shared_member kosong, lihat RuangKeluargaScreen) ATAU bulan ini tidak punya amplop aktif untuk saya.
+    var myEnvelope by remember { mutableStateOf<EnvelopeRules.MemberStatus?>(null) }
+    var hasAnyEnvelope by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val spacing = MaterialTheme.spacing
 
     LaunchedEffect(roomId, month, refreshKey) {
         val repos = workspace.repositories
-        detail = RoomDetailLoader(repos.rooms, repos.transactions, repos.accounts).load(roomId, month, today)
+        val loadedDetail = RoomDetailLoader(repos.rooms, repos.transactions, repos.accounts).load(roomId, month, today)
+        detail = loadedDetail
         role = workspace.roles.overview(roomId, today)
+
+        // Dibaca dari cache LOKAL (shared_member), tanpa panggilan server — layar ini sengaja tidak memuat ulang
+        // daftar anggota (lihat KDoc memberSpend di RoomDetail/roomMemberBreakdown).
+        val cachedMembers = repos.family.all(roomId)
+        val myId = cachedMembers.firstOrNull { it.isMe }?.memberId
+        if (loadedDetail != null && myId != null) {
+            val activeIds = cachedMembers.filter { it.status == SharedRoomStatus.ACTIVE }.map { it.memberId }.toSet()
+            val spentByMemberId = loadedDetail.memberSpend.mapNotNull { spend ->
+                val author = spend.author
+                val id = if (author == null) myId else author.takeIf { it.isNotEmpty() }
+                id?.let { it to spend.spent }
+            }.toMap()
+            val entries = workspace.envelopes.entries(roomId)
+            val summary = EnvelopeRules.summarize(
+                month = month.toEnvelopeMonth(),
+                entries = entries,
+                activeMemberIds = activeIds,
+                spentByMember = spentByMemberId,
+                totalSpentRoom = loadedDetail.card.spent,
+                roomKind = loadedDetail.card.room.kind,
+            )
+            hasAnyEnvelope = summary.hasAnyEnvelope
+            myEnvelope = summary.members.firstOrNull { it.memberId == myId }?.takeIf { it.hasEnvelope }
+        } else {
+            hasAnyEnvelope = false
+            myEnvelope = null
+        }
         loaded = true
     }
     BackHandler(onBack = onClose)
@@ -153,6 +188,31 @@ fun RoomDetailScreen(
             }
 
             Summary(data)
+
+            // Amplopmu dan "Dialirkan dari rezekimu" (peran-anggota.md D.5 opsi B, F wireframe S11): baris kedua
+            // hanya tampil BERSAMA amplop, supaya tidak menduplikasi info saat ruang ini tidak (lagi) punya amplop.
+            myEnvelope?.let { mine ->
+                Text(
+                    stringResource(
+                        R.string.room_detail_my_envelope,
+                        if (mine.remaining.isNegative) {
+                            stringResource(R.string.denah_over, formatRupiah(-mine.remaining.minor))
+                        } else {
+                            stringResource(R.string.denah_remaining, formatRupiah(mine.remaining))
+                        },
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = spacing.s2),
+                )
+            }
+            if (hasAnyEnvelope && data.card.allocated.isPositive) {
+                Text(
+                    stringResource(R.string.room_detail_allocated_from_income, formatRupiah(data.card.allocated)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = spacing.s1),
+                )
+            }
 
             if (room.kind == RoomKind.MENUNAIKAN) {
                 Row(
