@@ -357,6 +357,8 @@ data class RoomMemberDto(
     val owner: Boolean = false,
     /** Id pengguna server, dipakai sebagai `{userId}` saat mengeluarkan anggota; null dari server lama. */
     @SerialName("user_id") val userId: Long? = null,
+    /** Id anggota buram, sama dengan `author` baris sync (peran-anggota.md E.1); null dari server lama. */
+    @SerialName("member_id") val memberId: String? = null,
 )
 
 @Serializable

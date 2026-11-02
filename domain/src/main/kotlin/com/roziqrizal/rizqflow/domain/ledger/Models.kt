@@ -37,6 +37,13 @@ data class Account(
      * pemilih akun, saldo, dan ekspor pribadi — lihat [AccountRepository.activeAccounts].
      */
     val sharedFrom: RoomId? = null,
+    /**
+     * Terisi hanya untuk akun anggota virtual: `author` baris sync yang membuatnya (sama dengan
+     * `member_id` di `GET members` server, lihat peran-anggota.md bagian E.1/E.2). Null untuk akun
+     * milik pengguna sendiri, dan untuk akun virtual yang dibuat sebelum kolom ini ada (Room versi
+     * 12) — keduanya digabung sebagai "anggota tidak dikenal" oleh [roomMemberBreakdown].
+     */
+    val sharedAuthor: String? = null,
 ) {
     init {
         require(name.isNotBlank() && name.length <= NAME_MAX) { "Nama akun 1 sampai $NAME_MAX karakter" }

@@ -7,6 +7,7 @@ import androidx.room.Room
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import com.roziqrizal.rizqflow.data.db.MIGRATION_10_11
+import com.roziqrizal.rizqflow.data.db.MIGRATION_11_12
 import com.roziqrizal.rizqflow.data.db.MIGRATION_1_2
 import com.roziqrizal.rizqflow.data.db.MIGRATION_2_3
 import com.roziqrizal.rizqflow.data.db.MIGRATION_3_4
@@ -59,7 +60,7 @@ class MigrationV11Test {
 
     private fun migrate(): RizqflowDatabase =
         Room.databaseBuilder(context, RizqflowDatabase::class.java, dbName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
             .build()
 
     private fun tx(raw: SQLiteDatabase, id: String, room: String, origin: String, updatedAt: Long, syncedAt: Long?, kind: String = "EXPENSE") {
@@ -161,7 +162,7 @@ class MigrationV11Test {
         val db = migrate()
         try {
             val sqlite = db.openHelper.writableDatabase
-            assertEquals(11, sqlite.version)
+            assertEquals(12, sqlite.version)
             val query: (String) -> android.database.Cursor = { sqlite.query(it) }
 
             assertEquals(expectedRecords(), sharedRecords(sqlite))
@@ -181,8 +182,8 @@ class MigrationV11Test {
                 assertEquals("ok", it.getString(0))
             }
 
-            // Skema sama dengan skema dari nol (11.json): migrasi ini tidak mengubah skema.
-            val scratch = SchemaTestSupport.buildFromSchema(context, 11, context.getDatabasePath(scratchName).path)
+            // Skema sama dengan skema dari nol (12.json: versi skema saat ini, migrasi 10 ke 11 ini sendiri tidak mengubah skema).
+            val scratch = SchemaTestSupport.buildFromSchema(context, 12, context.getDatabasePath(scratchName).path)
             try {
                 val expected = SchemaTestSupport.structure { scratch.rawQuery(it, null) }
                 val actual = SchemaTestSupport.structure(query)
@@ -231,7 +232,7 @@ class MigrationV11Test {
 
         val ledger = LocalLedger.open(context, accountId)
         try {
-            assertEquals(11, ledger.db.openHelper.writableDatabase.version)
+            assertEquals(12, ledger.db.openHelper.writableDatabase.version)
             val copy = File(dbFile.path + ".premigrate")
             assertTrue(copy.exists(), "pagar harus menyalin berkas v10 sebelum migrasi")
             assertContentEquals(original, copy.readBytes(), "salinan identik dengan berkas sebelum migrasi")

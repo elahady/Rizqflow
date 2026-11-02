@@ -14,6 +14,7 @@ import com.roziqrizal.rizqflow.data.db.MIGRATION_6_7
 import com.roziqrizal.rizqflow.data.db.MIGRATION_7_8
 import com.roziqrizal.rizqflow.data.db.MIGRATION_8_9
 import com.roziqrizal.rizqflow.data.db.MIGRATION_10_11
+import com.roziqrizal.rizqflow.data.db.MIGRATION_11_12
 import com.roziqrizal.rizqflow.data.db.MIGRATION_9_10
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
 import org.junit.After
@@ -60,7 +61,7 @@ class MigrationV8Test {
 
     private fun migrate(): RizqflowDatabase =
         Room.databaseBuilder(context, RizqflowDatabase::class.java, dbName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
             .build()
 
     /** Mengisi satu baris di tiap tabel v7 (urutan mengikuti kunci asing) dan [bulk] transaksi acak. */
@@ -155,7 +156,7 @@ class MigrationV8Test {
         val db = migrate()
         try {
             val sqlite = db.openHelper.writableDatabase
-            assertEquals(11, sqlite.version)
+            assertEquals(12, sqlite.version)
             val query: (String) -> android.database.Cursor = { sqlite.query(it) }
 
             // Jumlah baris per tabel lama sama, lewat loop generik atas sqlite_master v7.
@@ -190,9 +191,9 @@ class MigrationV8Test {
                 assertEquals(20003000L, it.getLong(0))
             }
 
-            // Skema hasil migrasi sama dengan skema dari nol (11.json: versi skema saat ini).
+            // Skema hasil migrasi sama dengan skema dari nol (12.json: versi skema saat ini).
             val scratchPath = context.getDatabasePath(scratchName).path
-            val scratch = SchemaTestSupport.buildFromSchema(context, 11, scratchPath)
+            val scratch = SchemaTestSupport.buildFromSchema(context, 12, scratchPath)
             try {
                 val expected = SchemaTestSupport.structure { scratch.rawQuery(it, null) }
                 val actual = SchemaTestSupport.structure(query)

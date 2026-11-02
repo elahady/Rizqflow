@@ -37,6 +37,14 @@ data class AccountEntity(
      * semua daftar dan hitungan akun nyata. Belum ada yang mengisinya sampai Tahap 2.
      */
     @ColumnInfo(name = "shared_from", defaultValue = "NULL") val sharedFrom: String? = null,
+    /**
+     * Versi 12 (peran-anggota.md bagian E.2, langkah 5): `author` baris sync yang membuat akun anggota
+     * virtual ini (sama dengan `member_id` di `GET members`) — null untuk akun pengguna sendiri dan
+     * untuk akun virtual yang dibuat sebelum kolom ini ada. Dipakai mengelompokkan "terpakai per
+     * anggota" tanpa membaca `sync_record`; satu anggota bisa punya lebih dari satu akun virtual
+     * (nama akun berbeda) yang semuanya berbagi [sharedAuthor] yang sama.
+     */
+    @ColumnInfo(name = "shared_author", defaultValue = "NULL") val sharedAuthor: String? = null,
 )
 
 @Entity(tableName = "room")

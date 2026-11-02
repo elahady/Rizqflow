@@ -101,13 +101,19 @@ class InMemoryLedger(private val nowMillis: () -> Long = System::currentTimeMill
 
     override suspend fun findOrCreateVirtualMember(roomId: RoomId, author: String, accountName: String): Account {
         val id = com.roziqrizal.rizqflow.domain.sync.VirtualMemberAccount.id(roomId, author, accountName)
-        accountRows[id]?.let { return it }
+        accountRows[id]?.let { existing ->
+            if (existing.sharedAuthor == author) return existing
+            val healed = existing.copy(sharedAuthor = author)
+            accountRows[id] = healed
+            return healed
+        }
         val account = Account(
             id = id,
             name = com.roziqrizal.rizqflow.domain.sync.VirtualMemberAccount.displayName(accountName, author),
             kind = com.roziqrizal.rizqflow.domain.model.AccountKind.CASH,
             openingBalance = Money.zero(),
             sharedFrom = roomId,
+            sharedAuthor = author,
         )
         accountRows[id] = account
         return account

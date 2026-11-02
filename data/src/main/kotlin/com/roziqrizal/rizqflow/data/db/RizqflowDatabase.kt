@@ -42,6 +42,10 @@ import androidx.room.RoomDatabase
  * Versi 11 (2026-11-02, Tahap 9, sync-desain.md butir 2.7): status kotor sinkron ruang bersama pindah dari `synced_at` dan
  * `pending_room_tombstone` ke `sync_record` cakupan `r:<roomId>`; lihat [MIGRATION_10_11]. Hanya isi yang berpindah, skema tidak
  * berubah, dan kolom/tabel lama dibiarkan (tidak lagi dibaca).
+ *
+ * Versi 12 (2026-11-02, peran-anggota.md bagian E.2/H langkah 5): kolom aditif `account.shared_author`, `author` baris
+ * sync yang membuat akun anggota virtual itu, dipakai mengelompokkan "terpakai per anggota" ruang bersama tanpa
+ * membaca `sync_record`; lihat [MIGRATION_11_12].
  */
 @Database(
     entities = [
@@ -71,7 +75,7 @@ import androidx.room.RoomDatabase
         SharedRoomEntity::class,
         PendingRoomTombstoneEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = true,
 )
 abstract class RizqflowDatabase : RoomDatabase() {

@@ -252,3 +252,18 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
         )
     }
 }
+
+/**
+ * Migrasi 11 ke 12 (2026-11-02, peran-anggota.md bagian E.2/H langkah 5 "Rincian terpakai per
+ * anggota"): satu kolom aditif, `account.shared_author` (`author` baris sync pembuat akun virtual itu, sama
+ * dengan `member_id` server). Akun virtual yang sudah ada sebelum migrasi ini tetap `NULL` sampai sync berikutnya
+ * menyentuh baris yang sama — `LocalAccountRepository.findOrCreateVirtualMember` kini self-healing, mengisi kolom
+ * ini juga untuk baris yang sudah ada, bukan hanya baris baru (id tidak berubah, hashnya tidak mengandung kolom ini).
+ * Sampai terisi, akun itu digabung sebagai "anggota tidak dikenal" oleh `roomMemberBreakdown` — belum ada pengguna
+ * sungguhan, jadi dampaknya nol di rilis 1.
+ */
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `account` ADD COLUMN `shared_author` TEXT DEFAULT NULL")
+    }
+}

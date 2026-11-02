@@ -767,6 +767,10 @@
     <string name="family_members_you">You</string>
     <string name="family_members_owner">Owner</string>
     <string name="family_members_pencatat">Recording member</string>
+    <string name="family_member_spend_title">Spent this month per member</string>
+    <string name="family_member_spend_me">Me</string>
+    <string name="family_member_spend_unknown">Unknown member</string>
+    <string name="family_member_spend_other">Member %1$s</string>
     <string name="family_remove_action">Remove member</string>
     <string name="family_remove_pick_title">Choose the member to remove</string>
     <string name="family_remove_confirm_title">Remove %1$s?</string>
@@ -788,6 +792,7 @@
     <string name="family_sync_action">Sync now</string>
     <string name="family_sync_result">%1$d transaction(s) sent, %2$d received</string>
     <string name="family_sync_failed">Sync failed. Check your connection and try again.</string>
+    <string name="family_removed_from_room">You are no longer a member of this room. Sync for this room has stopped.</string>
     <string name="family_invite_sheet_title">Scan this QR on the member\'s device</string>
     <string name="family_invite_sheet_hint">Show this QR when meeting the invited member in person — it is never sent over the network.</string>
     <string name="family_scan_title">Scan Invite</string>

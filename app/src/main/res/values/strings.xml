@@ -785,6 +785,10 @@
     <string name="family_join_failed">Gagal bergabung. Periksa koneksi lalu coba lagi.</string>
     <string name="family_members_owner">Pemilik</string>
     <string name="family_members_pencatat">Anggota pencatat</string>
+    <string name="family_member_spend_title">Terpakai bulan ini per anggota</string>
+    <string name="family_member_spend_me">Saya</string>
+    <string name="family_member_spend_unknown">Anggota tidak dikenal</string>
+    <string name="family_member_spend_other">Anggota %1$s</string>
     <string name="family_remove_action">Keluarkan anggota</string>
     <string name="family_remove_pick_title">Pilih anggota yang dikeluarkan</string>
     <string name="family_remove_confirm_title">Keluarkan %1$s?</string>

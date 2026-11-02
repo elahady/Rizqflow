@@ -17,7 +17,7 @@ class RoomDetailTest {
     private val sept = YearMonth.of(2026, 9)
 
     private fun load(f: LedgerFixture, room: String, month: YearMonth = sept, today: LocalDate = f.today) =
-        runSuspend { RoomDetailLoader(f.store, f.store).load(f.room(room).id, month, today) }!!
+        runSuspend { RoomDetailLoader(f.store, f.store, f.store).load(f.room(room).id, month, today) }!!
 
     private fun expense(f: LedgerFixture, room: String, category: String, amount: Long, day: Int, month: Int = 9, note: String? = null) =
         runSuspend { f.ledger.recordExpense(NewExpense(rupiah(amount), f.account.id, f.room(room).id, f.category(room, category).id, LocalDate.of(2026, month, day), note)) }
@@ -26,7 +26,7 @@ class RoomDetailTest {
     fun `ruang yang tidak ada menghasilkan null`() {
         val f = LedgerFixture().standard()
 
-        assertNull(runSuspend { RoomDetailLoader(f.store, f.store).load(RoomId("tidak-ada"), sept, f.today) })
+        assertNull(runSuspend { RoomDetailLoader(f.store, f.store, f.store).load(RoomId("tidak-ada"), sept, f.today) })
     }
 
     @Test

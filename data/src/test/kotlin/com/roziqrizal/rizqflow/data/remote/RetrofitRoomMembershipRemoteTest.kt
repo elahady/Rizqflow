@@ -98,6 +98,31 @@ class RetrofitRoomMembershipRemoteTest {
     }
 
     @Test
+    fun `members membaca member_id buram dari server, null bila server lama belum mengirimnya`() = runBlocking {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "application/json")
+                .setBody(
+                    """{"members":[{"user_id":7,"name":"Roziq","email":"roziq@example.com","you":true,"owner":true,"member_id":"abc123"},""" +
+                        """{"user_id":9,"name":null,"email":"partner@example.com","you":false,"owner":false}]}""",
+                ),
+        )
+
+        val result = remote.members(apiToken = "abc123", roomId = "ruang-keluarga-1")
+
+        assertEquals(
+            RemoteResult.Success(
+                listOf(
+                    RoomMemberInfo("Roziq", "roziq@example.com", you = true, owner = true, userId = 7, memberId = "abc123"),
+                    RoomMemberInfo(null, "partner@example.com", you = false, owner = false, userId = 9, memberId = null),
+                ),
+            ),
+            result,
+        )
+    }
+
+    @Test
     fun `remove mengirim DELETE ke anggota yang dipilih`() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(204))
 

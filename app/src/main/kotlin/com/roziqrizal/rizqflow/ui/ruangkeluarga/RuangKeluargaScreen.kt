@@ -45,6 +45,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.roziqrizal.rizqflow.R
 import com.roziqrizal.rizqflow.domain.entitlement.Feature
+import com.roziqrizal.rizqflow.domain.ledger.MemberSpend
+import com.roziqrizal.rizqflow.domain.ledger.RoomDetailLoader
 import com.roziqrizal.rizqflow.domain.ledger.RoomHistoryStats
 import com.roziqrizal.rizqflow.domain.model.RoomId
 import com.roziqrizal.rizqflow.domain.sync.LeaveRoomOutcome
@@ -67,12 +69,14 @@ import com.roziqrizal.rizqflow.ui.Notifier
 import com.roziqrizal.rizqflow.ui.UiMessage
 import com.roziqrizal.rizqflow.ui.familyRoomMessage
 import com.roziqrizal.rizqflow.ui.formatDate
+import com.roziqrizal.rizqflow.ui.formatRupiah
 import com.roziqrizal.rizqflow.ui.paywall.opensSyncPaywall
 import com.roziqrizal.rizqflow.ui.theme.spacing
 import com.roziqrizal.rizqflow.workspace.AccountWorkspace
 import kotlinx.coroutines.launch
 import qrcode.QRCode
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneOffset
 
 /**
@@ -147,6 +151,15 @@ fun RuangKeluargaScreen(
     val isOwner = members?.ownRole() == SharedRoomRole.OWNER
     val canManageMembers = RoomPermissions.canRemoveMembers(members?.ownRole())
     val removable = members?.removableMembers().orEmpty()
+    // Rincian terpakai per anggota (peran-anggota.md D.3, H langkah 5): murni turunan transaksi, belum amplop.
+    // Kosong = belum dimuat ATAU ruang belum pernah dipakai bulan ini; keduanya tampil sama (bagian disembunyikan).
+    var memberSpend by remember { mutableStateOf<List<MemberSpend>>(emptyList()) }
+
+    suspend fun loadMemberSpend() {
+        val detail = RoomDetailLoader(workspace.repositories.rooms, workspace.repositories.transactions, workspace.repositories.accounts)
+            .load(roomId, YearMonth.now(), LocalDate.now())
+        memberSpend = detail?.memberSpend.orEmpty()
+    }
 
     /**
      * Mengaktifkan ruang dengan [role] dari server, menunda keputusan "riwayat ikut dibagikan?" lewat dialog bila ruang
@@ -217,6 +230,9 @@ fun RuangKeluargaScreen(
     }
 
     LaunchedEffect(roomId, reloadKey) {
+        // Murni lokal (tidak butuh jaringan atau status LEFT/Sync): dimuat tanpa syarat, termasuk saat sudah keluar
+        // ruang (data historis bulan ini tetap ada di perangkat).
+        loadMemberSpend()
         // Sudah keluar dari ruang ini (status LEFT): tidak ada request apa pun, terutama bukan join otomatis di bawah,
         // yang akan mendaftarkan perangkat ini kembali. Bergabung lagi hanya lewat undangan baru.
         if (workspace.sharedRoomActivation.statusOf(roomId) == SharedRoomStatus.LEFT) {
@@ -463,6 +479,29 @@ fun RuangKeluargaScreen(
                             }
                         }
                         HorizontalDivider()
+                    }
+                }
+
+                // Rincian terpakai per anggota (peran-anggota.md D.3, H langkah 5): hanya tampil bila ruang ini
+                // sudah pernah dipakai lebih dari satu anggota bulan ini (satu baris saja = tidak berguna ditampilkan).
+                if (memberSpend.size > 1) {
+                    Text(
+                        stringResource(R.string.family_member_spend_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = spacing.s5, bottom = spacing.s2),
+                    )
+                    memberSpend.forEach { spend ->
+                        val author = spend.author
+                        val label = when {
+                            author == null -> stringResource(R.string.family_member_spend_me)
+                            author.isEmpty() -> stringResource(R.string.family_member_spend_unknown)
+                            else -> members?.firstOrNull { it.memberId == author }?.let { it.name ?: it.email }
+                                ?: stringResource(R.string.family_member_spend_other, author.take(6))
+                        }
+                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1)) {
+                            Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                            Text(formatRupiah(spend.spent), style = MaterialTheme.typography.bodyMedium)
+                        }
                     }
                 }
 

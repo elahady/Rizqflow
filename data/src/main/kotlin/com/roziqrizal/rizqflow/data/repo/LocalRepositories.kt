@@ -134,16 +134,26 @@ class LocalAccountRepository(private val db: RizqflowDatabase, private val recor
      * sini idempoten tanpa pencarian terpisah. Ditulis LANGSUNG lewat DAO, BUKAN [save] — akun virtual
      * bukan data pribadi pengguna ini dan tidak pernah boleh ditandai kotor untuk sync pribadi (`SyncRecorder`
      * hanya untuk akun nyata). Saldo awal selalu 0 dan tidak berarti apa pun (akun ini tidak pernah dibaca saldonya).
+     *
+     * [Account.sharedAuthor] (versi 12, peran-anggota.md E.2 langkah 5) diisi dari [author] setiap panggilan, termasuk
+     * saat baris SUDAH ADA (self-healing): akun virtual yang dibuat sebelum kolom ini ada punya [Account.sharedAuthor]
+     * null sampai sync berikutnya menyentuh baris yang sama, lalu terisi tanpa migrasi data terpisah.
      */
     override suspend fun findOrCreateVirtualMember(roomId: RoomId, author: String, accountName: String): Account {
         val id = VirtualMemberAccount.id(roomId, author, accountName)
-        find(id)?.let { return it }
+        find(id)?.let { existing ->
+            if (existing.sharedAuthor == author) return existing
+            val healed = existing.copy(sharedAuthor = author)
+            db.accounts().upsert(healed.toEntity())
+            return healed
+        }
         val account = Account(
             id = id,
             name = VirtualMemberAccount.displayName(accountName, author),
             kind = AccountKind.CASH,
             openingBalance = Money.zero(),
             sharedFrom = roomId,
+            sharedAuthor = author,
         )
         db.accounts().upsert(account.toEntity())
         return account

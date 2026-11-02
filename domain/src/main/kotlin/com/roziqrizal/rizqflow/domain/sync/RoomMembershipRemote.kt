@@ -41,6 +41,8 @@ interface RoomMembershipRemote {
 /**
  * Satu anggota ruang menurut server. [owner] dan [userId] datang dari `GET /rooms/{roomId}/members`; server lama
  * yang belum mengirimnya terbaca sebagai `false`/null (tidak pernah dianggap pemilik, tidak bisa dikeluarkan).
+ * [memberId] (sejak 2026-11-02) sama dengan `author` baris sync anggota ini (peran-anggota.md E.1) — dipakai
+ * mencocokkan nama anggota ke baris [com.roziqrizal.rizqflow.domain.ledger.MemberSpend]; null dari server lama.
  */
 data class RoomMemberInfo(
     val name: String?,
@@ -48,6 +50,7 @@ data class RoomMemberInfo(
     val you: Boolean,
     val owner: Boolean = false,
     val userId: Long? = null,
+    val memberId: String? = null,
 )
 
 /**

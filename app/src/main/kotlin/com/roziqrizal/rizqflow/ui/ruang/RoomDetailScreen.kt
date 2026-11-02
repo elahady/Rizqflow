@@ -107,7 +107,7 @@ fun RoomDetailScreen(
 
     LaunchedEffect(roomId, month, refreshKey) {
         val repos = workspace.repositories
-        detail = RoomDetailLoader(repos.rooms, repos.transactions).load(roomId, month, today)
+        detail = RoomDetailLoader(repos.rooms, repos.transactions, repos.accounts).load(roomId, month, today)
         role = workspace.roles.overview(roomId, today)
         loaded = true
     }
@@ -220,6 +220,25 @@ fun RoomDetailScreen(
                 Text(stringResource(R.string.room_detail_pos_empty), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             data.categories.forEach { PosRow(it, room.colorSlot) }
+
+            // Rincian terpakai per anggota (peran-anggota.md D.3, H langkah 5): hanya tampil bila ruang ini sudah
+            // pernah dipakai lebih dari satu anggota bulan ini. Nama anggota tidak diambil di layar ini (lihat Ruang
+            // Keluarga untuk nama sungguhan); anggota lain diberi label singkat dari id buramnya.
+            if (data.memberSpend.size > 1) {
+                Text(stringResource(R.string.family_member_spend_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = spacing.s5, bottom = spacing.s2))
+                data.memberSpend.forEach { spend ->
+                    val author = spend.author
+                    val label = when {
+                        author == null -> stringResource(R.string.family_member_spend_me)
+                        author.isEmpty() -> stringResource(R.string.family_member_spend_unknown)
+                        else -> stringResource(R.string.family_member_spend_other, author.take(6))
+                    }
+                    Row(modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1)) {
+                        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                        Text(formatRupiah(spend.spent), style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
 
             Text(stringResource(R.string.room_detail_recent), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = spacing.s5, bottom = spacing.s1))
             if (data.recent.isEmpty()) {

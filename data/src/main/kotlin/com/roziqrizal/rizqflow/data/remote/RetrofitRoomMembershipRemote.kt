@@ -23,7 +23,7 @@ class RetrofitRoomMembershipRemote(private val service: RizqflowApiService) : Ro
             val body = response.body()
             if (response.isSuccessful && body != null) {
                 val decoded = body.decodeJson(RoomMembersResponseDto.serializer())
-                RemoteResult.Success(decoded.members.map { RoomMemberInfo(it.name, it.email, it.you, it.owner, it.userId) })
+                RemoteResult.Success(decoded.members.map { RoomMemberInfo(it.name, it.email, it.you, it.owner, it.userId, it.memberId) })
             } else {
                 response.toFailure()
             }
