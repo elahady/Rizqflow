@@ -267,3 +267,32 @@ val MIGRATION_11_12 = object : Migration(11, 12) {
         db.execSQL("ALTER TABLE `account` ADD COLUMN `shared_author` TEXT DEFAULT NULL")
     }
 }
+
+/**
+ * Migrasi 12 ke 13 (2026-11-02, peran-anggota.md bagian E.2/H langkah 8 "Amplop"): dua tabel baru, aditif saja,
+ * tanpa menyentuh data lain.
+ *
+ * - `shared_member`: cache lokal daftar anggota ruang bersama ([SharedMemberEntity]), kosong sampai
+ *   `RuangKeluargaScreen` memuat ulang anggota dan mengisinya (tidak ada backfill dari data lama: server yang
+ *   jadi sumber kebenaran, bukan sesuatu yang sudah ada di perangkat).
+ * - `shared_envelope`: proyeksi lokal rekaman amplop ([SharedEnvelopeEntity]), juga kosong sampai amplop pertama
+ *   ditulis atau ditarik lewat sync.
+ */
+val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `shared_member` (`room_id` TEXT NOT NULL, `member_id` TEXT NOT NULL, " +
+                "`label` TEXT NOT NULL, `role` TEXT NOT NULL, `status` TEXT NOT NULL, `is_me` INTEGER NOT NULL, " +
+                "`updated_at` INTEGER NOT NULL, PRIMARY KEY(`room_id`, `member_id`), " +
+                "FOREIGN KEY(`room_id`) REFERENCES `room`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_shared_member_room_id` ON `shared_member` (`room_id`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `shared_envelope` (`room_id` TEXT NOT NULL, `member_id` TEXT NOT NULL, " +
+                "`from_month` INTEGER NOT NULL, `amount` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`room_id`, `member_id`, `from_month`), " +
+                "FOREIGN KEY(`room_id`) REFERENCES `room`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_shared_envelope_room_id` ON `shared_envelope` (`room_id`)")
+    }
+}

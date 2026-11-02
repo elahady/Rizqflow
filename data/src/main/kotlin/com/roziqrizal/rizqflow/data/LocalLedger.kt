@@ -12,6 +12,7 @@ import com.roziqrizal.rizqflow.data.db.MIGRATION_7_8
 import com.roziqrizal.rizqflow.data.db.MIGRATION_8_9
 import com.roziqrizal.rizqflow.data.db.MIGRATION_10_11
 import com.roziqrizal.rizqflow.data.db.MIGRATION_11_12
+import com.roziqrizal.rizqflow.data.db.MIGRATION_12_13
 import com.roziqrizal.rizqflow.data.db.MIGRATION_9_10
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
 import com.roziqrizal.rizqflow.data.sync.LocalChangeNotifier
@@ -19,6 +20,7 @@ import com.roziqrizal.rizqflow.data.sync.SharedRoomAutoSync
 import com.roziqrizal.rizqflow.data.repo.LocalAccountRepository
 import com.roziqrizal.rizqflow.data.repo.LocalBillRepository
 import com.roziqrizal.rizqflow.data.repo.LocalDebtRepository
+import com.roziqrizal.rizqflow.data.repo.LocalFamilyRepository
 import com.roziqrizal.rizqflow.data.repo.LocalFavoriteRepository
 import com.roziqrizal.rizqflow.data.repo.LocalRecurringRepository
 import com.roziqrizal.rizqflow.data.repo.LocalRoleRepository
@@ -81,6 +83,8 @@ class LocalLedger(
     val bills = LocalBillRepository(db, syncRecorder)
     val debts = LocalDebtRepository(db, syncRecorder)
     val settings = LocalSettingsRepository(db, syncRecorder)
+    /** Cache anggota ruang bersama dan amplop bulanan (peran-anggota.md H langkah 8); tidak memakai [syncRecorder] (cakupan pribadi). */
+    val family = LocalFamilyRepository(db)
 
     /** Berkas SQLite di balik database ini, dipakai apa adanya untuk cadangan (S20). */
     val databaseFile: File get() = File(db.openHelper.writableDatabase.path!!)
@@ -119,7 +123,7 @@ class LocalLedger(
                 context.applicationContext,
                 RizqflowDatabase::class.java,
                 databaseName,
-            ).openHelperFactory(guard.openHelperFactory()).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12).addCallback(guard.callback()).build()
+            ).openHelperFactory(guard.openHelperFactory()).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13).addCallback(guard.callback()).build()
             return LocalLedger(db)
         }
     }

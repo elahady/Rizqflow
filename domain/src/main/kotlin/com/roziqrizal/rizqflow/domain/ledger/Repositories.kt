@@ -279,6 +279,33 @@ interface TransactionRepository {
     )
 }
 
+/**
+ * Satu rekaman amplop (peran-anggota.md D.2): berlaku terus sampai diubah (`from_month`); `amount = 0` berarti
+ * amplop dihapus mulai bulan itu — lihat [EnvelopeRules][com.roziqrizal.rizqflow.domain.ledger.EnvelopeRules].
+ * Tidak membawa [RoomId] sendiri: semua metode [EnvelopeRepository] sudah dipilah per ruang, sama seperti repo
+ * lain di berkas ini.
+ */
+data class EnvelopeEntry(val memberId: String, val fromMonth: Int, val amount: Long)
+
+/**
+ * Penyimpanan proyeksi lokal amplop (tabel `shared_envelope`, peran-anggota.md E.2) — nilai saja. Versi dan
+ * `author` untuk sinkron tetap di `sync_record` lewat `SharedRecordStore`
+ * ([com.roziqrizal.rizqflow.domain.sync.EnvelopeSyncHandler] yang menggabungkan keduanya), bukan di sini —
+ * sama pembagian tugas dengan [TransactionRepository] (data) dan `SyncStore` (status kotor/LWW) untuk cakupan
+ * pribadi.
+ */
+interface EnvelopeRepository {
+    suspend fun find(roomId: RoomId, memberId: String, fromMonth: Int): EnvelopeEntry?
+
+    /** Semua rekaman amplop ruang ini, semua anggota, semua bulan (dasar `EnvelopeRules.summarize`). */
+    suspend fun entries(roomId: RoomId): List<EnvelopeEntry>
+
+    /** Menulis satu rekaman (baru, atau mengganti nilai `from_month` yang sama). TIDAK menandai kotor untuk
+     * sinkron; pemanggil ([com.roziqrizal.rizqflow.domain.sync.EnvelopeService]) yang menandainya.
+     */
+    suspend fun upsert(roomId: RoomId, entry: EnvelopeEntry)
+}
+
 /** Pengaturan generik kunci/nilai dan hari yang ditandai "Tidak ada". Dasar pengingat malam (S26). */
 interface SettingsRepository {
     suspend fun get(key: String): String?

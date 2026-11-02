@@ -15,6 +15,7 @@ import com.roziqrizal.rizqflow.data.db.MIGRATION_7_8
 import com.roziqrizal.rizqflow.data.db.MIGRATION_8_9
 import com.roziqrizal.rizqflow.data.db.MIGRATION_10_11
 import com.roziqrizal.rizqflow.data.db.MIGRATION_11_12
+import com.roziqrizal.rizqflow.data.db.MIGRATION_12_13
 import com.roziqrizal.rizqflow.data.db.MIGRATION_9_10
 import com.roziqrizal.rizqflow.data.db.PendingRoomTombstoneEntity
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
@@ -62,7 +63,7 @@ class MigrationV10Test {
 
     private fun migrate(): RizqflowDatabase =
         Room.databaseBuilder(context, RizqflowDatabase::class.java, dbName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
             .build()
 
     private fun populateV9(raw: SQLiteDatabase, bulk: Int, seed: Long) {
@@ -134,11 +135,12 @@ class MigrationV10Test {
         val db = migrate()
         try {
             val sqlite = db.openHelper.writableDatabase
-            assertEquals(12, sqlite.version)
+            assertEquals(13, sqlite.version)
             val query: (String) -> android.database.Cursor = { sqlite.query(it) }
 
-            // Himpunan tabel sama (tidak ada tabel baru, tidak ada sisa tabel sementara), dan hitungan baris tiap tabel sama.
-            assertEquals(v9Tables.sorted(), SchemaTestSupport.dataTables(query).sorted(), "daftar tabel berubah (tabel sementara tersisa?)")
+            // Himpunan tabel sama (tidak ada tabel baru dari migrasi INI, tidak ada sisa tabel sementara) PLUS tabel baru
+            // dari migrasi 12->13 (shared_member/shared_envelope) yang ikut berjalan di ujung rantai (lihat KDoc kelas ini).
+            assertEquals((v9Tables + listOf("shared_member", "shared_envelope")).sorted(), SchemaTestSupport.dataTables(query).sorted(), "daftar tabel berubah (tabel sementara tersisa?)")
             // sync_record sengaja berubah di sini: MIGRATION_10_11 (berjalan di ujung rantai) mengisinya, dan diuji di MigrationV11Test.
             val unchanged = v9Tables - "sync_record"
             for (table in unchanged) assertEquals(countsBefore.getValue(table), SchemaTestSupport.count(query, table), "jumlah baris $table")
@@ -154,8 +156,8 @@ class MigrationV10Test {
                 assertEquals("ok", it.getString(0))
             }
 
-            // Skema hasil migrasi sama dengan skema dari nol (12.json: versi skema saat ini), termasuk kunci utama gabungan dan indeksnya.
-            val scratch = SchemaTestSupport.buildFromSchema(context, 12, context.getDatabasePath(scratchName).path)
+            // Skema hasil migrasi sama dengan skema dari nol (13.json: versi skema saat ini), termasuk kunci utama gabungan dan indeksnya.
+            val scratch = SchemaTestSupport.buildFromSchema(context, 13, context.getDatabasePath(scratchName).path)
             try {
                 val expected = SchemaTestSupport.structure { scratch.rawQuery(it, null) }
                 val actual = SchemaTestSupport.structure(query)
@@ -223,7 +225,7 @@ class MigrationV10Test {
         val second = migrate()
         try {
             val s = second.openHelper.writableDatabase
-            assertEquals(12, s.version)
+            assertEquals(13, s.version)
             assertEquals(before, SchemaTestSupport.fingerprint({ s.query(it) }, "pending_room_tombstone", listOf("transaction_id", "room_id", "deleted_at")))
         } finally {
             second.close()
@@ -248,7 +250,7 @@ class MigrationV10Test {
             assertTrue(copy.exists(), "pagar harus menyalin berkas v9 sebelum migrasi pembangunan ulang tabel")
             assertContentEquals(original, copy.readBytes(), "salinan identik dengan berkas sebelum migrasi")
             SQLiteDatabase.openDatabase(copy.path, null, SQLiteDatabase.OPEN_READONLY).use { assertEquals(9, it.version) }
-            assertEquals(12, ledger.db.openHelper.readableDatabase.version)
+            assertEquals(13, ledger.db.openHelper.readableDatabase.version)
             ledger.db.openHelper.readableDatabase.query("SELECT COUNT(*) FROM pending_room_tombstone").use {
                 assertTrue(it.moveToFirst())
                 assertEquals(4, it.getInt(0))

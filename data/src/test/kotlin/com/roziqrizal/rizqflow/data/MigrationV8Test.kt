@@ -15,6 +15,7 @@ import com.roziqrizal.rizqflow.data.db.MIGRATION_7_8
 import com.roziqrizal.rizqflow.data.db.MIGRATION_8_9
 import com.roziqrizal.rizqflow.data.db.MIGRATION_10_11
 import com.roziqrizal.rizqflow.data.db.MIGRATION_11_12
+import com.roziqrizal.rizqflow.data.db.MIGRATION_12_13
 import com.roziqrizal.rizqflow.data.db.MIGRATION_9_10
 import com.roziqrizal.rizqflow.data.db.RizqflowDatabase
 import org.junit.After
@@ -32,10 +33,10 @@ import kotlin.test.assertTrue
  * dibangun dari 7.json (bukan salinan tangan), diisi di SEMUA tabel termasuk transaksi bersama `synced_at`,
  * lalu dibuka lewat jalur produksi (`Room.databaseBuilder(...).addMigrations(...)`) seperti [MigrationTest].
  *
- * `migrate()` ikut membawa [MIGRATION_8_9] (tombstone ruang bersama, Tahap 9) dan [MIGRATION_9_10] (kunci tombstone) karena Room selalu
- * membutuhkan jalur migrasi lengkap sampai versi [RizqflowDatabase] saat ini (9) untuk membuka
- * berkas versi lama — bukan berarti tes ini sengaja menguji dua migrasi sekaligus, hanya tidak
- * ada cara memisahkannya tanpa membuka database versi antara yang tidak pernah ada di produksi.
+ * `migrate()` ikut membawa semua migrasi sesudahnya (sampai [MIGRATION_12_13]) karena Room selalu membutuhkan jalur
+ * migrasi lengkap sampai versi [RizqflowDatabase] saat ini untuk membuka berkas versi lama — bukan berarti tes ini
+ * sengaja menguji migrasi-migrasi itu sekaligus, hanya tidak ada cara memisahkannya tanpa membuka database versi
+ * antara yang tidak pernah ada di produksi. [newTables] karena itu berisi SEMUA tabel baru dari v8 sampai v13.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -44,7 +45,7 @@ class MigrationV8Test {
     private val dbName = "migration-v8-test"
     private val scratchName = "migration-v8-scratch"
 
-    private val newTables = listOf("sync_record", "sync_cursor", "sync_issue", "shared_room", "pending_room_tombstone")
+    private val newTables = listOf("sync_record", "sync_cursor", "sync_issue", "shared_room", "pending_room_tombstone", "shared_member", "shared_envelope")
 
     @Before
     fun setUp() {
@@ -61,7 +62,7 @@ class MigrationV8Test {
 
     private fun migrate(): RizqflowDatabase =
         Room.databaseBuilder(context, RizqflowDatabase::class.java, dbName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
             .build()
 
     /** Mengisi satu baris di tiap tabel v7 (urutan mengikuti kunci asing) dan [bulk] transaksi acak. */
@@ -156,7 +157,7 @@ class MigrationV8Test {
         val db = migrate()
         try {
             val sqlite = db.openHelper.writableDatabase
-            assertEquals(12, sqlite.version)
+            assertEquals(13, sqlite.version)
             val query: (String) -> android.database.Cursor = { sqlite.query(it) }
 
             // Jumlah baris per tabel lama sama, lewat loop generik atas sqlite_master v7.
@@ -191,9 +192,9 @@ class MigrationV8Test {
                 assertEquals(20003000L, it.getLong(0))
             }
 
-            // Skema hasil migrasi sama dengan skema dari nol (12.json: versi skema saat ini).
+            // Skema hasil migrasi sama dengan skema dari nol (13.json: versi skema saat ini).
             val scratchPath = context.getDatabasePath(scratchName).path
-            val scratch = SchemaTestSupport.buildFromSchema(context, 12, scratchPath)
+            val scratch = SchemaTestSupport.buildFromSchema(context, 13, scratchPath)
             try {
                 val expected = SchemaTestSupport.structure { scratch.rawQuery(it, null) }
                 val actual = SchemaTestSupport.structure(query)

@@ -467,3 +467,48 @@ data class PendingRoomTombstoneEntity(
     @ColumnInfo(name = "room_id") val roomId: String,
     @ColumnInfo(name = "deleted_at") val deletedAt: Long,
 )
+
+/**
+ * Versi 13 (2026-11-02, peran-anggota.md bagian E.2/H langkah 8): dua tabel baru untuk amplop bulanan.
+ *
+ * [SharedMemberEntity] (`shared_member`): cache lokal daftar anggota ruang bersama dari `GET /api/rooms/{id}/members`
+ * (lihat [com.roziqrizal.rizqflow.domain.sync.SharedMemberRepository]). [role]/[status] menyimpan NAMA
+ * [com.roziqrizal.rizqflow.domain.sync.SharedRoomRole]/[com.roziqrizal.rizqflow.domain.sync.SharedRoomStatus] yang
+ * SUDAH ADA sejak versi 8 (`shared_room.role`/`status`) — tidak ada enum baru untuk cakupan rilis 1 (Pemilik/Anggota
+ * pencatat saja).
+ */
+@Entity(
+    tableName = "shared_member",
+    primaryKeys = ["room_id", "member_id"],
+    foreignKeys = [ForeignKey(RoomEntity::class, ["id"], ["room_id"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("room_id")],
+)
+data class SharedMemberEntity(
+    @ColumnInfo(name = "room_id") val roomId: String,
+    @ColumnInfo(name = "member_id") val memberId: String,
+    val label: String,
+    val role: String,
+    val status: String,
+    @ColumnInfo(name = "is_me") val isMe: Boolean,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+)
+
+/**
+ * [SharedEnvelopeEntity] (`shared_envelope`): proyeksi lokal rekaman amplop (D.2) — nilai saja; versi dan `author`
+ * untuk sinkron tetap di `sync_record` lewat `SharedRecordStore`
+ * ([com.roziqrizal.rizqflow.domain.sync.EnvelopeSyncHandler] yang menggabungkan keduanya), bukan kolom baru di sini
+ * (peran-anggota.md E.2: "versi dan author tetap di sync_record seperti rekaman lain"). `amount = 0` adalah baris
+ * HIDUP (amplop dihapus mulai bulan itu), bukan baris yang dihapus.
+ */
+@Entity(
+    tableName = "shared_envelope",
+    primaryKeys = ["room_id", "member_id", "from_month"],
+    foreignKeys = [ForeignKey(RoomEntity::class, ["id"], ["room_id"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("room_id")],
+)
+data class SharedEnvelopeEntity(
+    @ColumnInfo(name = "room_id") val roomId: String,
+    @ColumnInfo(name = "member_id") val memberId: String,
+    @ColumnInfo(name = "from_month") val fromMonth: Int,
+    val amount: Long,
+)

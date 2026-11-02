@@ -52,6 +52,13 @@ object SyncCoverage {
         "pending_room_tombstone" to Entry.Excluded(
             "sisa keadaan sinkron lokal sebelum skema v11 (kini status kotor ruang bersama ada di sync_record, tabel ini tidak dibaca lagi), bukan data keuangan",
         ),
+        "shared_member" to Entry.Excluded(
+            "cache lokal daftar anggota ruang bersama dari GET /rooms/{id}/members (peran-anggota.md H langkah 8); tidak pernah ditulis balik ke server",
+        ),
+        "shared_envelope" to Entry.Excluded(
+            "amplop bulanan (peran-anggota.md D.2/H langkah 8): disinkronkan ke cakupan RUANG BERSAMA lewat SharedRecordType.ENVELOPE " +
+                "(EnvelopeSyncHandler/SharedRecordStore, tabel sync_record yang sama), BUKAN lewat SyncRecordType cakupan pribadi yang diaudit berkas ini",
+        ),
     )
 
     /** Tabel sistem SQLite/Room yang bukan tabel data. */

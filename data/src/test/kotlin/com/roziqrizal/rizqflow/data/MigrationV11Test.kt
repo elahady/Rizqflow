@@ -8,6 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import com.roziqrizal.rizqflow.data.db.MIGRATION_10_11
 import com.roziqrizal.rizqflow.data.db.MIGRATION_11_12
+import com.roziqrizal.rizqflow.data.db.MIGRATION_12_13
 import com.roziqrizal.rizqflow.data.db.MIGRATION_1_2
 import com.roziqrizal.rizqflow.data.db.MIGRATION_2_3
 import com.roziqrizal.rizqflow.data.db.MIGRATION_3_4
@@ -60,7 +61,7 @@ class MigrationV11Test {
 
     private fun migrate(): RizqflowDatabase =
         Room.databaseBuilder(context, RizqflowDatabase::class.java, dbName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
             .build()
 
     private fun tx(raw: SQLiteDatabase, id: String, room: String, origin: String, updatedAt: Long, syncedAt: Long?, kind: String = "EXPENSE") {
@@ -162,13 +163,14 @@ class MigrationV11Test {
         val db = migrate()
         try {
             val sqlite = db.openHelper.writableDatabase
-            assertEquals(12, sqlite.version)
+            assertEquals(13, sqlite.version)
             val query: (String) -> android.database.Cursor = { sqlite.query(it) }
 
             assertEquals(expectedRecords(), sharedRecords(sqlite))
 
             // Rekaman cakupan pribadi tidak tersentuh, dan semua tabel selain sync_record identik (data lama utuh).
-            assertEquals(tables.sorted(), SchemaTestSupport.dataTables(query).sorted())
+            // (tables + shared_member/shared_envelope): dua tabel itu baru dari migrasi 12->13 di ujung rantai (lihat KDoc kelas ini), bukan dari migrasi 10->11.
+            assertEquals((tables + listOf("shared_member", "shared_envelope")).sorted(), SchemaTestSupport.dataTables(query).sorted())
             for (table in tables - "sync_record") {
                 assertEquals(countsBefore.getValue(table), SchemaTestSupport.count(query, table), "jumlah baris $table")
                 assertEquals(fingerprintsBefore.getValue(table), SchemaTestSupport.fingerprint(query, table, columns.getValue(table)), "isi tabel $table berubah")
@@ -182,8 +184,8 @@ class MigrationV11Test {
                 assertEquals("ok", it.getString(0))
             }
 
-            // Skema sama dengan skema dari nol (12.json: versi skema saat ini, migrasi 10 ke 11 ini sendiri tidak mengubah skema).
-            val scratch = SchemaTestSupport.buildFromSchema(context, 12, context.getDatabasePath(scratchName).path)
+            // Skema sama dengan skema dari nol (13.json: versi skema saat ini, migrasi 10 ke 11 ini sendiri tidak mengubah skema).
+            val scratch = SchemaTestSupport.buildFromSchema(context, 13, context.getDatabasePath(scratchName).path)
             try {
                 val expected = SchemaTestSupport.structure { scratch.rawQuery(it, null) }
                 val actual = SchemaTestSupport.structure(query)
@@ -232,7 +234,7 @@ class MigrationV11Test {
 
         val ledger = LocalLedger.open(context, accountId)
         try {
-            assertEquals(12, ledger.db.openHelper.writableDatabase.version)
+            assertEquals(13, ledger.db.openHelper.writableDatabase.version)
             val copy = File(dbFile.path + ".premigrate")
             assertTrue(copy.exists(), "pagar harus menyalin berkas v10 sebelum migrasi")
             assertContentEquals(original, copy.readBytes(), "salinan identik dengan berkas sebelum migrasi")

@@ -33,6 +33,9 @@ class RoomWorkspacePurityChecker(private val db: RizqflowDatabase) : WorkspacePu
         val ONBOARDING_TABLES: Set<String> = setOf("room", "account", "category", "allocation_rule", "app_setting")
 
         /** Keadaan sinkron lokal, bukan data pengguna. */
-        val LOCAL_STATE_TABLES: Set<String> = setOf("sync_record", "sync_cursor", "sync_issue", "shared_room", "pending_room_tombstone")
+        val LOCAL_STATE_TABLES: Set<String> = setOf(
+            "sync_record", "sync_cursor", "sync_issue", "shared_room", "pending_room_tombstone",
+            "shared_member", "shared_envelope",
+        )
     }
 }

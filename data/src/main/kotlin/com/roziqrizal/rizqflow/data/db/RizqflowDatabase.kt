@@ -46,6 +46,10 @@ import androidx.room.RoomDatabase
  * Versi 12 (2026-11-02, peran-anggota.md bagian E.2/H langkah 5): kolom aditif `account.shared_author`, `author` baris
  * sync yang membuat akun anggota virtual itu, dipakai mengelompokkan "terpakai per anggota" ruang bersama tanpa
  * membaca `sync_record`; lihat [MIGRATION_11_12].
+ *
+ * Versi 13 (2026-11-02, peran-anggota.md bagian E.2/H langkah 8): dua tabel baru, `shared_member` (cache daftar
+ * anggota ruang bersama dari server) dan `shared_envelope` (proyeksi lokal amplop bulanan); lihat [MIGRATION_12_13]
+ * dan KDoc [SharedMemberEntity]/[SharedEnvelopeEntity] di Entities.kt. Aditif saja.
  */
 @Database(
     entities = [
@@ -74,8 +78,10 @@ import androidx.room.RoomDatabase
         SyncIssueEntity::class,
         SharedRoomEntity::class,
         PendingRoomTombstoneEntity::class,
+        SharedMemberEntity::class,
+        SharedEnvelopeEntity::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = true,
 )
 abstract class RizqflowDatabase : RoomDatabase() {
@@ -90,4 +96,5 @@ abstract class RizqflowDatabase : RoomDatabase() {
     abstract fun bills(): BillDao
     abstract fun debts(): DebtDao
     abstract fun sync(): SyncDao
+    abstract fun family(): FamilyDao
 }

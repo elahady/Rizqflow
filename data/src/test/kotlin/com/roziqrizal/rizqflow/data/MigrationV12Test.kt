@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.roziqrizal.rizqflow.data.db.MIGRATION_10_11
 import com.roziqrizal.rizqflow.data.db.MIGRATION_11_12
+import com.roziqrizal.rizqflow.data.db.MIGRATION_12_13
 import com.roziqrizal.rizqflow.data.db.MIGRATION_1_2
 import com.roziqrizal.rizqflow.data.db.MIGRATION_2_3
 import com.roziqrizal.rizqflow.data.db.MIGRATION_3_4
@@ -59,7 +60,7 @@ class MigrationV12Test {
 
     private fun migrate(): RizqflowDatabase =
         Room.databaseBuilder(context, RizqflowDatabase::class.java, dbName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
             .build()
 
     private fun populateV11(raw: SQLiteDatabase) {
@@ -86,10 +87,11 @@ class MigrationV12Test {
         val db = migrate()
         try {
             val sqlite = db.openHelper.writableDatabase
-            assertEquals(12, sqlite.version)
+            assertEquals(13, sqlite.version)
             val query: (String) -> android.database.Cursor = { sqlite.query(it) }
 
-            assertEquals(tables.sorted(), SchemaTestSupport.dataTables(query).sorted(), "daftar tabel berubah")
+            // (tables + shared_member/shared_envelope): dua tabel itu baru dari migrasi 12->13 di ujung rantai (lihat KDoc kelas ini), bukan dari migrasi 11->12.
+            assertEquals((tables + listOf("shared_member", "shared_envelope")).sorted(), SchemaTestSupport.dataTables(query).sorted(), "daftar tabel berubah")
             for (table in tables) {
                 assertEquals(countsBefore.getValue(table), SchemaTestSupport.count(query, table), "jumlah baris $table")
                 // Kolom v11 (tanpa shared_author) tidak berubah sama sekali, termasuk akun virtual lama.
@@ -111,7 +113,7 @@ class MigrationV12Test {
                 assertEquals("ok", it.getString(0))
             }
 
-            val scratch = SchemaTestSupport.buildFromSchema(context, 12, context.getDatabasePath(scratchName).path)
+            val scratch = SchemaTestSupport.buildFromSchema(context, 13, context.getDatabasePath(scratchName).path)
             try {
                 val expected = SchemaTestSupport.structure { scratch.rawQuery(it, null) }
                 val actual = SchemaTestSupport.structure(query)
@@ -138,7 +140,7 @@ class MigrationV12Test {
 
         val second = migrate()
         try {
-            assertEquals(12, second.openHelper.writableDatabase.version)
+            assertEquals(13, second.openHelper.writableDatabase.version)
         } finally {
             second.close()
         }
@@ -157,7 +159,7 @@ class MigrationV12Test {
 
         val ledger = LocalLedger.open(context, accountId)
         try {
-            assertEquals(12, ledger.db.openHelper.writableDatabase.version)
+            assertEquals(13, ledger.db.openHelper.writableDatabase.version)
             val copy = File(dbFile.path + ".premigrate")
             assertTrue(copy.exists(), "pagar harus menyalin berkas v11 sebelum migrasi")
             assertContentEquals(original, copy.readBytes(), "salinan identik dengan berkas sebelum migrasi")
