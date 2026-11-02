@@ -137,6 +137,30 @@ class SyncCoordinatorBootstrapTest {
     }
 
     @Test
+    fun `pull pasangan tidak menggeser saldo akun nyata penerima walau nama akunnya sama`() = runBlocking {
+        // Kedua sisi punya akun "Dompet" dengan nama sama: pencocokan nama lama akan menggeser saldo Dompet milik B.
+        val remote = MemoryRemote()
+        val roomA = keluarga(a)
+        val category = a.local.rooms.categories(roomA.id).first()
+        a.ledger.recordExpense(
+            com.roziqrizal.rizqflow.domain.ledger.NewExpense(com.roziqrizal.rizqflow.domain.money.Money.rupiah(50_000), a.accountId(), roomA.id, category.id, a.today, "belanja"),
+        )
+        SharedRoomActivation(a.local.syncStore).markActive(roomA.id, SharedRoomRole.OWNER)
+        assertTrue(engine(a, remote).syncNow(roomA.id, "device-a") is SyncResult.Success)
+
+        val roomB = keluarga(b)
+        b.clearSync()
+        val realB = b.accountId()
+        val before = b.local.accounts.balance(realB)
+        assertTrue(engine(b, remote).syncNow(roomB.id, "device-b") is SyncResult.Success)
+
+        assertEquals(before, b.local.accounts.balance(realB), "saldo akun nyata penerima tidak boleh bergeser oleh baris SHARED")
+        val virtual = b.local.accounts.allAccountsIncludingMembers().first { it.sharedFrom != null }
+        assertEquals(com.roziqrizal.rizqflow.domain.money.Money.rupiah(-50_000), b.local.accounts.balance(virtual.id), "baris pasangan menempel di akun anggota virtual")
+        assertTrue(b.local.accounts.activeAccounts().none { it.sharedFrom != null }, "akun virtual tetap tersaring dari daftar akun")
+    }
+
+    @Test
     fun `transaksi pribadi milik sendiri tetap dijangkau markAllDirty bersama baris pasangan`() = runBlocking {
         val remote = MemoryRemote()
         val roomA = keluarga(a)
