@@ -23,6 +23,9 @@ import java.time.LocalDate
  */
 enum class SharedRecordType(val wire: String) {
     SHARED_EXPENSE("shared_expense"),
+
+    /** Amplop bulanan (peran-anggota.md D.2, H langkah 8); lihat [EnvelopePayload]. */
+    ENVELOPE("envelope"),
     ;
 
     companion object {

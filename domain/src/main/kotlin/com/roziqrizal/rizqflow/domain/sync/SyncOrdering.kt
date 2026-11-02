@@ -40,8 +40,12 @@ object SyncOrdering {
     /**
      * Memutuskan nasib versi [incoming]. Versi lokal tanpa id perangkat dianggap milik [localDeviceId]
      * (perangkat ini). Versi masuk hanya menang bila STRICT lebih besar; sama berarti echo/duplikat.
+     *
+     * [local] bertipe [SyncVersionMeta] (bukan [SyncRecordMeta] langsung) supaya penyimpanan versi di luar
+     * [SyncRecordType] (cakupan ruang bersama lewat `SharedRecordStore`, peran-anggota.md H langkah 8) bisa
+     * memakai ulang aturan urutan yang SAMA tanpa pura-pura punya [SyncRecordType] yang tidak relevan.
      */
-    fun decide(local: SyncRecordMeta?, incoming: IncomingVersion, localDeviceId: String): IncomingDecision {
+    fun decide(local: SyncVersionMeta?, incoming: IncomingVersion, localDeviceId: String): IncomingDecision {
         if (local == null) return IncomingDecision.APPLY
         val cmp = compare(
             incoming.changedAtMillis,

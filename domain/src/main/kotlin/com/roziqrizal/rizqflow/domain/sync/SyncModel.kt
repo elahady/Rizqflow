@@ -79,20 +79,33 @@ object SyncRecordIds {
     fun goldPrice(epochDay: Long) = "g:$epochDay"
 }
 
+/**
+ * Bagian [SyncRecordMeta] yang dibutuhkan [SyncOrdering] untuk memutuskan menang/kalah (bagian D): dipisah ke
+ * antarmuka supaya [SyncOrdering.decide] bisa dipakai ulang untuk versi rekaman di luar [SyncRecordType] (lihat
+ * `SharedRecordMeta` cakupan ruang bersama, peran-anggota.md H langkah 8) tanpa melebarkan [SyncRecordMeta] atau
+ * [SyncStore] sendiri — keduanya SENGAJA tetap terkunci ke [SyncRecordType] (cakupan pribadi).
+ */
+interface SyncVersionMeta {
+    val changedAtMillis: Long
+    val deleted: Boolean
+    val dirty: Boolean
+    val deviceId: String?
+}
+
 /** Versi sebuah rekaman di penyimpanan lokal (satu baris `sync_record`). */
 data class SyncRecordMeta(
     val scope: SyncScope,
     val type: SyncRecordType,
     val recordId: String,
-    val changedAtMillis: Long,
-    val deleted: Boolean,
-    val dirty: Boolean,
+    override val changedAtMillis: Long,
+    override val deleted: Boolean,
+    override val dirty: Boolean,
     /** `changed_at` terakhir yang sudah dikirim atau diterima; null bila belum pernah. */
     val pushedChangedAtMillis: Long?,
     val author: String?,
     /** Perangkat penulis versi ini; null = perangkat ini sendiri (diisi pemanggil saat membandingkan). */
-    val deviceId: String?,
-)
+    override val deviceId: String?,
+) : SyncVersionMeta
 
 /** Satu versi yang sudah dikirim ke server; dipakai [SyncStore.markPushed]. */
 data class SentVersion(val type: SyncRecordType, val recordId: String, val changedAtMillis: Long)
@@ -139,6 +152,14 @@ enum class SyncIssueKind {
     UNSUPPORTED_VERSION,
     TAMPERED_OR_CORRUPT,
     OVERWRITTEN,
+
+    /**
+     * Rekaman amplop (peran-anggota.md D.4) yang `author`-nya bukan Pemilik aktif ruang itu menurut cache
+     * `shared_member` lokal — penolakan PERMANEN (tidak dicoba lagi lewat `retryDeferred`, beda dari
+     * [DEFERRED_MISSING_REF]), karena server tidak bisa menegakkan "hanya Pemilik menulis amplop"
+     * (`record_type` disamarkan, keputusan #7); klien penerima yang menegakkannya.
+     */
+    UNAUTHORIZED_AUTHOR,
 }
 
 /** Satu baris masalah sinkron. [rawRow] hanya untuk diagnosis lokal; tidak pernah dikirim ke server. */

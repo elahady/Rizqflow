@@ -24,4 +24,10 @@ object RoomPermissions {
      * memindahkan kepemilikan dulu (lihat [canTransferOwnership]).
      */
     fun canLeave(role: SharedRoomRole?): Boolean = role == SharedRoomRole.MEMBER
+
+    /** Hanya pemilik yang mengatur amplop bulanan (peran-anggota.md D.4, C): server tidak bisa menegakkan ini
+     * (`record_type` disamarkan); klien penerima mengabaikan amplop dari penulis yang bukan pemilik — lihat
+     * [com.roziqrizal.rizqflow.domain.sync.EnvelopeSyncHandler.apply].
+     */
+    fun canManageEnvelope(role: SharedRoomRole?): Boolean = role == SharedRoomRole.OWNER
 }
