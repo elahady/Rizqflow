@@ -7,13 +7,15 @@ use App\Models\RoomMember;
 use App\Support\Feature;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Keanggotaan ruang yang dibagi (Tahap 9, roadmap.md "Ruang keluarga bersama"). [join] dipanggil
  * perangkat anggota baru segera setelah memindai undangan QR — sebelum mereka punya apa pun untuk
  * di-push, supaya pull pertama mereka sudah termasuk baris ruang itu. [members] menampilkan siapa
  * saja anggotanya; hanya anggota ruang itu sendiri yang boleh melihat daftarnya. [leave] adalah
- * anggota yang keluar sendiri; [remove] pemilik yang mengeluarkan anggota lain.
+ * anggota yang keluar sendiri; [remove] pemilik yang mengeluarkan anggota lain; [makeOwner] pemilik
+ * yang memindahkan kepemilikan ke anggota lain (setelah itu ia boleh keluar lewat [leave]).
  *
  * Semua galat yang dibuat di sini membawa `code` yang stabil (selain `message` untuk manusia) supaya
  * klien bisa membedakan kasus yang sama-sama 403/404/422.
@@ -39,8 +41,9 @@ class RoomMembershipController extends Controller
      *
      * - Hanya menghapus baris keanggotaan pemanggil; baris sync yang pernah ia tulis tetap di server
      *   (anggota lain masih membutuhkannya), dan yang bersangkutan berhenti menerima baris ruang itu.
-     * - Pemilik tidak boleh keluar: belum ada alur pindah kepemilikan, jadi ruang akan tanpa pemilik
-     *   dan tak seorang pun bisa mengeluarkan anggota lagi. Dijawab 422 `owner_cannot_leave`.
+     * - Pemilik tidak boleh keluar sebelum memindahkan kepemilikan (lihat [makeOwner]): kalau dibiarkan,
+     *   ruang akan tanpa pemilik dan tak seorang pun bisa mengeluarkan anggota lagi. Dijawab 422
+     *   `owner_cannot_leave`.
      * - Tidak butuh langganan Sync (seperti `DELETE /push-token`): pengguna yang langganannya berakhir
      *   tetap boleh melepaskan dirinya dari ruang. Tidak ada efek samping pada akun lain.
      * - Bukan anggota: 404 `not_room_member` (juga untuk ulangan setelah berhasil keluar).
@@ -118,6 +121,62 @@ class RoomMembershipController extends Controller
         $target->delete();
 
         return response()->json(status: 204);
+    }
+
+    /**
+     * Pemilik memindahkan kepemilikan ruang ke anggota lain (roadmap.md Tahap 9, "pindah kepemilikan").
+     *
+     * - Hanya pemilik SAAT INI yang boleh memanggil: 403 `not_room_owner` (sama dengan [remove]).
+     * - Target harus anggota aktif ruang itu: 404 `member_not_found`.
+     * - Target yang sudah pemilik ditolak 422 `already_owner` (tidak idempoten: pemanggil diberi tahu
+     *   bahwa tidak ada yang berubah, dan konsisten dengan 422 `owner_cannot_be_removed` di [remove]).
+     * - Hanya mengubah kolom `is_owner` pada dua baris anggota. Tidak mengeluarkan siapa pun dan tidak
+     *   menyentuh `sync_log_entries` atau kunci ruang: pemilik lama dan baru tetap anggota dengan kunci
+     *   yang sama. Pemilik lama lalu bisa memanggil [leave] seperti anggota biasa.
+     * - Atomik dan tanpa balapan: seluruh baris anggota ruang itu dikunci (`lockForUpdate`, diurutkan
+     *   `id`) dalam satu transaksi, lalu semua pemeriksaan diulang di dalam kunci. Dua permintaan
+     *   serentak tidak bisa menghasilkan dua pemilik atau nol pemilik. SQLite (tes) mengabaikan kunci
+     *   baris, tetapi transaksinya tetap berjalan serial.
+     */
+    public function makeOwner(Request $request, string $roomId, string $userId): JsonResponse
+    {
+        if ($denied = $this->denyWithoutSharedRoom($request) ?? $this->denyInvalidRoomId($roomId)) {
+            return $denied;
+        }
+
+        $callerId = $request->user()->id;
+
+        return DB::transaction(function () use ($roomId, $callerId, $userId): JsonResponse {
+            $anggota = RoomMember::where('room_id', $roomId)->orderBy('id')->lockForUpdate()->get();
+
+            $pemilikSaatIni = $anggota->first(fn (RoomMember $member) => (int) $member->user_id === $callerId && $member->is_owner);
+            if ($pemilikSaatIni === null) {
+                return response()->json([
+                    'message' => 'Hanya pemilik ruang yang bisa memindahkan kepemilikan.',
+                    'code' => 'not_room_owner',
+                ], 403);
+            }
+
+            $target = $anggota->first(fn (RoomMember $member) => (int) $member->user_id === (int) $userId);
+            if ($target === null) {
+                return response()->json([
+                    'message' => 'Anggota tidak ditemukan di ruang ini.',
+                    'code' => 'member_not_found',
+                ], 404);
+            }
+
+            if ($target->is_owner) {
+                return response()->json([
+                    'message' => 'Anggota itu sudah menjadi pemilik ruang.',
+                    'code' => 'already_owner',
+                ], 422);
+            }
+
+            $pemilikSaatIni->update(['is_owner' => false]);
+            $target->update(['is_owner' => true]);
+
+            return response()->json(status: 204);
+        });
     }
 
     public function members(Request $request, string $roomId): JsonResponse

@@ -11,7 +11,7 @@ object ServerErrorCodes {
     /** 403 pada `members`, atau 404 pada `leave`: pemanggil bukan anggota ruang itu. */
     const val NOT_ROOM_MEMBER = "not_room_member"
 
-    /** 403 pada `remove`: hanya pemilik ruang yang boleh mengeluarkan anggota. */
+    /** 403 pada `remove` dan `make-owner`: hanya pemilik ruang yang boleh mengeluarkan anggota atau memindahkan kepemilikan. */
     const val NOT_ROOM_OWNER = "not_room_owner"
 
     /** 404 pada `remove`: anggota yang dituju tidak ada di ruang itu. */
@@ -20,8 +20,11 @@ object ServerErrorCodes {
     /** 422 pada `remove`: pemilik ruang tidak bisa dikeluarkan. */
     const val OWNER_CANNOT_BE_REMOVED = "owner_cannot_be_removed"
 
-    /** 422 pada `leave`: pemilik ruang tidak bisa keluar (belum ada pindah kepemilikan). */
+    /** 422 pada `leave`: pemilik ruang tidak bisa keluar sebelum memindahkan kepemilikan. */
     const val OWNER_CANNOT_LEAVE = "owner_cannot_leave"
+
+    /** 422 pada `make-owner`: anggota yang dituju sudah menjadi pemilik ruang itu (tidak ada yang berubah). */
+    const val ALREADY_OWNER = "already_owner"
 
     /** 422: id ruang tidak sah (1 sampai 100 karakter). */
     const val INVALID_ROOM_ID = "invalid_room_id"
@@ -47,6 +50,7 @@ object ServerErrorCodes {
         MEMBER_NOT_FOUND,
         OWNER_CANNOT_BE_REMOVED,
         OWNER_CANNOT_LEAVE,
+        ALREADY_OWNER,
         INVALID_ROOM_ID,
         CURSOR_EXPIRED,
     )

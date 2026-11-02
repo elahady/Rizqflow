@@ -127,6 +127,11 @@ fun RuangKeluargaScreen(
     var removeSheet by remember { mutableStateOf(false) }
     var removeTarget by remember { mutableStateOf<RoomMemberInfo?>(null) }
     var removing by remember { mutableStateOf(false) }
+    // Pindah kepemilikan (Tahap 9, hanya pemilik): pilih anggota, konfirmasi, lalu muat ulang. Tidak merotasi kunci dan
+    // tidak membuat QR baru: pemilik lama tetap anggota dengan kunci yang sama. Peran lokal ikut berubah lewat loadMembers.
+    var transferSheet by remember { mutableStateOf(false) }
+    var transferTarget by remember { mutableStateOf<RoomMemberInfo?>(null) }
+    var transferring by remember { mutableStateOf(false) }
     var rotationEpoch by remember { mutableIntStateOf(0) }
     var justRotated by remember { mutableStateOf(false) }
     // Keluar dari ruang (anggota non-pemilik): konfirmasi jujur, cabut keanggotaan di server, tandai LEFT di perangkat.
@@ -323,6 +328,46 @@ fun RuangKeluargaScreen(
         }
     }
 
+    fun transferOwnership(member: RoomMemberInfo) {
+        val userId = member.userId ?: return
+        if (!workspace.entitlements.isEnabled(Feature.SHARED_FAMILY_ROOM)) {
+            leaveForSyncPaywall()
+            return
+        }
+        transferring = true
+        scope.launch {
+            val session = workspace.serverSession
+            val result = session.retryOnceIfRotated(
+                isUnauthorized = { it?.isUnauthorized() == true },
+                call = { session.token()?.let { token -> workspace.roomMembershipRemote.transferOwnership(token, roomId.value, userId) } },
+            )
+            when (result) {
+                null -> signedIn = false
+                is RemoteResult.Success -> {
+                    notifier.show(resources.getString(R.string.family_transfer_done, member.name ?: member.email))
+                    // Peran kita sendiri sudah berubah di server: muat ulang supaya tombol pemilik hilang dan peran lokal
+                    // ikut (loadMembers -> activateRoom).
+                    reloadKey++
+                }
+
+                is RemoteResult.Failure -> when {
+                    result.error.opensSyncPaywall() -> leaveForSyncPaywall()
+                    session.sessionEndedBy(result) -> {
+                        signedIn = false
+                        sessionEnded = true
+                    }
+
+                    else -> {
+                        notifier.show(result.error.familyRoomMessage(R.string.family_transfer_failed).resolve(resources))
+                        // Peran atau daftar mungkin basi (mis. pemilik sudah berganti di perangkat lain); muat ulang kecuali 429.
+                        if (!result.error.isRateLimited()) reloadKey++
+                    }
+                }
+            }
+            transferring = false
+        }
+    }
+
     fun leaveRoom() {
         leaving = true
         scope.launch {
@@ -441,6 +486,13 @@ fun RuangKeluargaScreen(
                         enabled = !removing,
                         modifier = Modifier.padding(top = spacing.s2).fillMaxWidth().height(52.dp),
                     ) { Text(stringResource(R.string.family_remove_action)) }
+                    // Pindah kepemilikan ke anggota lain (pemilik lama lalu boleh keluar). Dibatasi ke anggota yang sama
+                    // dengan daftar "Keluarkan anggota": diri sendiri dan pemilik tidak pernah ikut.
+                    OutlinedButton(
+                        onClick = { transferSheet = true },
+                        enabled = !transferring,
+                        modifier = Modifier.padding(top = spacing.s2).fillMaxWidth().height(52.dp),
+                    ) { Text(stringResource(R.string.family_transfer_action)) }
                 }
                 // Keluar dari ruang: hanya anggota biasa (peran MENURUT SERVER). Pemilik tidak bisa keluar (server menolak
                 // owner_cannot_leave), jadi alih-alih tombol yang pasti gagal ia mendapat penjelasan.
@@ -548,6 +600,47 @@ fun RuangKeluargaScreen(
                 }) { Text(stringResource(R.string.family_remove_confirm_action)) }
             },
             dismissButton = { TextButton(onClick = { removeTarget = null }) { Text(stringResource(R.string.catat_date_cancel)) } },
+        )
+    }
+
+    if (transferSheet) {
+        ModalBottomSheet(onDismissRequest = { transferSheet = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
+                Text(stringResource(R.string.family_transfer_pick_title), style = MaterialTheme.typography.titleLarge)
+                removable.forEach { member ->
+                    Text(
+                        member.name?.let { "$it (${member.email})" } ?: member.email,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                transferSheet = false
+                                transferTarget = member
+                            }
+                            .padding(vertical = 14.dp),
+                    )
+                    HorizontalDivider()
+                }
+                TextButton(onClick = { transferSheet = false }, modifier = Modifier.padding(top = 8.dp)) {
+                    Text(stringResource(R.string.catat_date_cancel))
+                }
+            }
+        }
+    }
+
+    transferTarget?.let { target ->
+        val label = target.name ?: target.email
+        AlertDialog(
+            onDismissRequest = { transferTarget = null },
+            title = { Text(stringResource(R.string.family_transfer_confirm_title, label)) },
+            text = { Text(stringResource(R.string.family_transfer_confirm_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    transferTarget = null
+                    transferOwnership(target)
+                }) { Text(stringResource(R.string.family_transfer_confirm_action)) }
+            },
+            dismissButton = { TextButton(onClick = { transferTarget = null }) { Text(stringResource(R.string.catat_date_cancel)) } },
         )
     }
 

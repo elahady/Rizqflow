@@ -59,6 +59,7 @@ class RemoteErrorMessagesTest {
         assertEquals(UiMessage(R.string.family_err_not_owner), message(ServerErrorCodes.NOT_ROOM_OWNER))
         assertEquals(UiMessage(R.string.family_err_owner_cannot_leave), message(ServerErrorCodes.OWNER_CANNOT_LEAVE))
         assertEquals(UiMessage(R.string.family_err_owner_cannot_be_removed), message(ServerErrorCodes.OWNER_CANNOT_BE_REMOVED))
+        assertEquals(UiMessage(R.string.family_err_already_owner), message(ServerErrorCodes.ALREADY_OWNER))
         assertEquals(UiMessage(R.string.family_err_member_not_found), message(ServerErrorCodes.MEMBER_NOT_FOUND))
         assertEquals(UiMessage(R.string.family_err_invalid_room), message(ServerErrorCodes.INVALID_ROOM_ID))
     }

@@ -26,6 +26,16 @@ interface RoomMembershipRemote {
      * lokal (menandai ruang tidak aktif) ada di [SharedRoomLeaver].
      */
     suspend fun leave(apiToken: String, roomId: String): RemoteResult<Unit>
+
+    /**
+     * Memindahkan kepemilikan ruang ke [targetUserId] (`POST /rooms/{roomId}/members/{userId}/make-owner`, 204). Hanya
+     * pemilik saat ini yang boleh: bukan pemilik dijawab [RemoteError.Rejected] berkode [ServerErrorCodes.NOT_ROOM_OWNER]
+     * (bukan paywall); target bukan anggota: [ServerErrorCodes.MEMBER_NOT_FOUND]; target sudah pemilik:
+     * [ServerErrorCodes.ALREADY_OWNER]. Tidak mengeluarkan siapa pun dan tidak butuh rotasi kunci: pemilik lama tetap
+     * anggota dan boleh [leave] setelah ini. Tidak ada cache lokal yang perlu diubah di sini (peran lokal dibaca ulang dari
+     * daftar anggota oleh pemanggil).
+     */
+    suspend fun transferOwnership(apiToken: String, roomId: String, targetUserId: Long): RemoteResult<Unit>
 }
 
 /**

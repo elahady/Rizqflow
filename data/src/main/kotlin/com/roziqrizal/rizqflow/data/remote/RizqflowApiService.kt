@@ -115,6 +115,14 @@ interface RizqflowApiService {
         @Path("roomId") roomId: String,
     ): Response<ResponseBody>
 
+    /** Memindahkan kepemilikan ruang ke anggota lain (hanya pemilik): 204 sukses; 403 `not_room_owner`; 404 `member_not_found`; 422 `already_owner`. */
+    @POST("rooms/{roomId}/members/{userId}/make-owner")
+    suspend fun makeRoomOwner(
+        @Header("Authorization") bearerToken: String,
+        @Path("roomId") roomId: String,
+        @Path("userId") userId: Long,
+    ): Response<ResponseBody>
+
     /** Salinan kunci akun terbungkus kode pemulihan (Tahap 13): unggah/ganti, ambil, hapus. Butuh Sync hanya untuk PUT. */
     @Headers("Content-Type: application/json")
     @PUT("account/recovery-key")

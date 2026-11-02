@@ -27,6 +27,9 @@ class SharedRoomLeaverTest {
 
         override suspend fun remove(apiToken: String, roomId: String, userId: Long): RemoteResult<Unit> = error("tidak dipakai")
 
+        override suspend fun transferOwnership(apiToken: String, roomId: String, targetUserId: Long): RemoteResult<Unit> =
+            error("tidak dipakai")
+
         override suspend fun leave(apiToken: String, roomId: String): RemoteResult<Unit> {
             leaveCalls += apiToken to roomId
             return answer
@@ -101,6 +104,9 @@ class SharedRoomLeaverTest {
             override suspend fun members(apiToken: String, roomId: String): RemoteResult<List<RoomMemberInfo>> = error("tidak dipakai")
 
             override suspend fun remove(apiToken: String, roomId: String, userId: Long): RemoteResult<Unit> = error("tidak dipakai")
+
+            override suspend fun transferOwnership(apiToken: String, roomId: String, targetUserId: Long): RemoteResult<Unit> =
+                error("tidak dipakai")
 
             override suspend fun leave(apiToken: String, roomId: String): RemoteResult<Unit> {
                 inRemote.complete(Unit)

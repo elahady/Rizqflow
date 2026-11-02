@@ -75,5 +75,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/rooms/{roomId}/leave', [RoomMembershipController::class, 'leave']);
         Route::get('/rooms/{roomId}/members', [RoomMembershipController::class, 'members']);
         Route::delete('/rooms/{roomId}/members/{userId}', [RoomMembershipController::class, 'remove'])->whereNumber('userId');
+        // Pemilik memindahkan kepemilikan ke anggota lain (422 `already_owner` bila targetnya sudah pemilik).
+        Route::post('/rooms/{roomId}/members/{userId}/make-owner', [RoomMembershipController::class, 'makeOwner'])->whereNumber('userId');
     });
 });

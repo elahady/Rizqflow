@@ -227,6 +227,56 @@ class RetrofitRoomMembershipRemoteTest {
     }
 
     @Test
+    fun `transferOwnership sukses mengirim POST bertoken ke anggota yang dipilih`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(204))
+
+        val result = remote.transferOwnership(apiToken = "abc123", roomId = "ruang-keluarga-1", targetUserId = 9)
+
+        assertEquals(RemoteResult.Success(Unit), result)
+        val sent = server.takeRequest()
+        assertEquals("POST", sent.method)
+        assertEquals("/rooms/ruang-keluarga-1/members/9/make-owner", sent.path)
+        assertEquals("Bearer abc123", sent.getHeader("Authorization"))
+    }
+
+    @Test
+    fun `transferOwnership oleh bukan pemilik ditolak not_room_owner tanpa membuka paywall`() = runBlocking {
+        server.enqueue(
+            MockResponse().setResponseCode(403)
+                .setBody("""{"message":"Hanya pemilik ruang yang bisa memindahkan kepemilikan.","code":"not_room_owner"}"""),
+        )
+
+        val result = remote.transferOwnership(apiToken = "abc123", roomId = "ruang-keluarga-1", targetUserId = 9)
+
+        assertEquals(
+            RemoteResult.Failure(RemoteError.Rejected("Hanya pemilik ruang yang bisa memindahkan kepemilikan.", "not_room_owner")),
+            result,
+        )
+    }
+
+    @Test
+    fun `transferOwnership ke anggota yang sudah pemilik 422 already_owner, dan target tak dikenal 404 member_not_found`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(422).setBody("""{"message":"Anggota itu sudah menjadi pemilik ruang.","code":"already_owner"}"""))
+        server.enqueue(MockResponse().setResponseCode(404).setBody("""{"message":"Anggota tidak ditemukan di ruang ini.","code":"member_not_found"}"""))
+
+        assertEquals(
+            RemoteResult.Failure(RemoteError.Rejected("Anggota itu sudah menjadi pemilik ruang.", "already_owner")),
+            remote.transferOwnership("abc123", "ruang-keluarga-1", 7),
+        )
+        assertEquals(
+            RemoteResult.Failure(RemoteError.Rejected("Anggota tidak ditemukan di ruang ini.", "member_not_found")),
+            remote.transferOwnership("abc123", "ruang-keluarga-1", 9),
+        )
+    }
+
+    @Test
+    fun `transferOwnership tanpa langganan Sync tetap SyncRequired`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(403).setBody("""{"message":"Butuh langganan Sync.","code":"sync_required"}"""))
+
+        assertEquals(RemoteResult.Failure(RemoteError.SyncRequired), remote.transferOwnership("abc123", "ruang-keluarga-1", 9))
+    }
+
+    @Test
     fun `server tidak terjangkau mengembalikan Unreachable, bukan melempar exception`() = runBlocking {
         server.shutdown()
 

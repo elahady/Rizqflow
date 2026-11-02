@@ -40,4 +40,10 @@ class RetrofitRoomMembershipRemote(private val service: RizqflowApiService) : Ro
             val response = service.leaveRoom(bearer(apiToken), roomId)
             if (response.isSuccessful) RemoteResult.Success(Unit) else response.toFailure()
         }
+
+    override suspend fun transferOwnership(apiToken: String, roomId: String, targetUserId: Long): RemoteResult<Unit> =
+        safeCall {
+            val response = service.makeRoomOwner(bearer(apiToken), roomId, targetUserId)
+            if (response.isSuccessful) RemoteResult.Success(Unit) else response.toFailure()
+        }
 }

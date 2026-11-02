@@ -791,6 +791,13 @@
     <string name="family_remove_confirm_action">Keluarkan</string>
     <string name="family_remove_done">%1$s dikeluarkan. Minta anggota yang tetap memindai QR baru ini.</string>
     <string name="family_remove_failed">Gagal mengeluarkan anggota. Periksa koneksi lalu coba lagi.</string>
+    <string name="family_transfer_action">Jadikan pemilik</string>
+    <string name="family_transfer_pick_title">Pilih anggota yang jadi pemilik baru</string>
+    <string name="family_transfer_confirm_title">Jadikan %1$s pemilik ruang?</string>
+    <string name="family_transfer_confirm_body">Kepemilikan ruang ini pindah ke anggota itu dan TIDAK bisa kamu batalkan sendiri. Hanya pemilik baru yang bisa mengembalikannya. Kamu tetap anggota ruang ini dan bisa keluar setelah ini. Kunci ruang dan transaksi tidak berubah.</string>
+    <string name="family_transfer_confirm_action">Jadikan pemilik</string>
+    <string name="family_transfer_done">%1$s sekarang pemilik ruang ini.</string>
+    <string name="family_transfer_failed">Gagal memindahkan kepemilikan. Periksa koneksi lalu coba lagi.</string>
     <string name="family_rotate_key_sheet_hint">QR ini sudah pakai kunci baru. Tunjukkan hanya ke anggota yang TETAP, saat bertemu langsung — jangan ke anggota yang dikeluarkan.</string>
 
     <string name="role_title">Peran ruang</string>
@@ -1378,6 +1385,7 @@
     <string name="family_err_not_owner">Hanya pemilik ruang yang bisa melakukan ini.</string>
     <string name="family_err_owner_cannot_leave">Pemilik tidak bisa keluar dari ruangnya sendiri.</string>
     <string name="family_err_owner_cannot_be_removed">Pemilik ruang tidak bisa dikeluarkan.</string>
+    <string name="family_err_already_owner">Anggota itu sudah menjadi pemilik ruang.</string>
     <string name="family_err_member_not_found">Anggota itu sudah tidak ada di ruang ini.</string>
     <string name="family_err_invalid_room">Server tidak mengenali ruang ini.</string>
     <string name="family_leave_action">Keluar dari ruang</string>
@@ -1386,7 +1394,7 @@
     <string name="family_leave_confirm_action">Keluar</string>
     <string name="family_leave_done">Kamu sudah keluar dari ruang ini.</string>
     <string name="family_leave_failed">Belum bisa keluar dari ruang. Periksa koneksi lalu coba lagi.</string>
-    <string name="family_owner_cannot_leave_note">Kamu pemilik ruang ini, jadi tidak bisa keluar. Pemilik tetap menjadi anggota selama ruangnya ada.</string>
+    <string name="family_owner_cannot_leave_note">Kamu pemilik ruang ini, jadi tidak bisa keluar. Pindahkan kepemilikan ke anggota lain lewat "Jadikan pemilik" dulu, lalu kamu bisa keluar seperti anggota biasa.</string>
     <string name="family_left_info">Kamu sudah keluar dari ruang ini. Catatan yang ada di ponsel ini tetap tersimpan, tetapi tidak lagi tersinkron. Untuk bergabung lagi, minta undangan baru dari pemilik ruang lalu pindai QR-nya dari menu Lainnya.</string>
     <string name="family_history_confirm_title">Riwayat ruang ini ikut dibagikan?</string>
     <string name="family_history_confirm_body">Ruang ini punya %1$d transaksi tercatat, dari %2$s sampai %3$s. Semuanya ikut terkirim ke anggota lain, kecuali kamu pilih mulai dari hari ini.</string>
