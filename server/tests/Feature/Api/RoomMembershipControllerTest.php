@@ -27,7 +27,7 @@ class RoomMembershipControllerTest extends TestCase
     {
         $user = $this->syncUser();
 
-        $this->withHeaders($this->authHeader($user))->postJson('/api/rooms/ruang-keluarga-1/join')
+        $this->withHeaders($this->authHeader($user))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))
             ->assertNoContent();
 
         $this->assertSame(1, RoomMember::where('user_id', $user->id)->where('room_id', 'ruang-keluarga-1')->count());
@@ -38,8 +38,8 @@ class RoomMembershipControllerTest extends TestCase
         $user = $this->syncUser();
         $headers = $this->authHeader($user);
 
-        $this->withHeaders($headers)->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
-        $this->withHeaders($headers)->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($headers)->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
+        $this->withHeaders($headers)->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         $this->assertSame(1, RoomMember::where('user_id', $user->id)->where('room_id', 'ruang-keluarga-1')->count());
     }
@@ -48,10 +48,10 @@ class RoomMembershipControllerTest extends TestCase
     {
         $owner = $this->syncUser();
         $partner = $this->syncUser();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         $this->app['auth']->forgetGuards();
         $response = $this->withHeaders($this->authHeader($owner))->getJson('/api/rooms/ruang-keluarga-1/members');
@@ -65,7 +65,7 @@ class RoomMembershipControllerTest extends TestCase
     {
         $owner = $this->syncUser();
         $stranger = $this->syncUser();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         $this->app['auth']->forgetGuards();
         $this->withHeaders($this->authHeader($stranger))->getJson('/api/rooms/ruang-keluarga-1/members')
@@ -77,30 +77,30 @@ class RoomMembershipControllerTest extends TestCase
         $user = User::factory()->create(['plans' => []]);
         $headers = $this->authHeader($user);
 
-        $this->withHeaders($headers)->postJson('/api/rooms/ruang-keluarga-1/join')->assertForbidden();
+        $this->withHeaders($headers)->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertForbidden();
         $this->withHeaders($headers)->getJson('/api/rooms/ruang-keluarga-1/members')->assertForbidden();
     }
 
     public function test_join_requires_authentication(): void
     {
-        $this->postJson('/api/rooms/ruang-keluarga-1/join')->assertUnauthorized();
+        $this->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertUnauthorized();
     }
 
     public function test_a_sixth_distinct_joiner_is_rejected_as_room_full(): void
     {
         $owner = $this->syncUser();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
         for ($i = 0; $i < 3; $i++) {
             $this->app['auth']->forgetGuards();
-            $this->withHeaders($this->authHeader($this->syncUser()))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+            $this->withHeaders($this->authHeader($this->syncUser()))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
         }
         // Lima anggota (owner + 4) sudah di ruang itu; monetisasi.md: maksimal 5 per ruang.
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($this->syncUser()))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($this->syncUser()))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
         $this->assertSame(5, RoomMember::where('room_id', 'ruang-keluarga-1')->count());
 
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($this->syncUser()))->postJson('/api/rooms/ruang-keluarga-1/join')
+        $this->withHeaders($this->authHeader($this->syncUser()))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))
             ->assertStatus(422)->assertJsonPath('code', 'room_full');
         $this->assertSame(5, RoomMember::where('room_id', 'ruang-keluarga-1')->count());
     }
@@ -109,29 +109,29 @@ class RoomMembershipControllerTest extends TestCase
     {
         $owner = $this->syncUser();
         $members = [];
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
         for ($i = 0; $i < 4; $i++) {
             $members[] = $member = $this->syncUser();
             $this->app['auth']->forgetGuards();
-            $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+            $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
         }
 
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($members[0]))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($members[0]))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
         $this->assertSame(5, RoomMember::where('room_id', 'ruang-keluarga-1')->count());
     }
 
     public function test_the_room_full_cap_does_not_affect_other_rooms(): void
     {
         $owner = $this->syncUser();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-penuh/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-penuh/join', $this->undangan('ruang-penuh'))->assertNoContent();
         for ($i = 0; $i < 4; $i++) {
             $this->app['auth']->forgetGuards();
-            $this->withHeaders($this->authHeader($this->syncUser()))->postJson('/api/rooms/ruang-penuh/join')->assertNoContent();
+            $this->withHeaders($this->authHeader($this->syncUser()))->postJson('/api/rooms/ruang-penuh/join', $this->undangan('ruang-penuh'))->assertNoContent();
         }
 
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($this->syncUser()))->postJson('/api/rooms/ruang-lain/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($this->syncUser()))->postJson('/api/rooms/ruang-lain/join', $this->undangan('ruang-lain'))->assertNoContent();
     }
 
     public function test_first_joiner_becomes_owner_and_later_joiners_do_not(): void
@@ -139,9 +139,9 @@ class RoomMembershipControllerTest extends TestCase
         $owner = $this->syncUser();
         $partner = $this->syncUser();
 
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         $this->assertTrue(RoomMember::where('user_id', $owner->id)->where('room_id', 'ruang-keluarga-1')->value('is_owner'));
         $this->assertFalse(RoomMember::where('user_id', $partner->id)->where('room_id', 'ruang-keluarga-1')->value('is_owner'));
@@ -151,11 +151,11 @@ class RoomMembershipControllerTest extends TestCase
     {
         $owner = $this->syncUser();
         $partner = $this->syncUser();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         $this->assertSame(1, RoomMember::where('room_id', 'ruang-keluarga-1')->where('is_owner', true)->count());
         $this->assertTrue(RoomMember::where('user_id', $owner->id)->where('room_id', 'ruang-keluarga-1')->value('is_owner'));
@@ -165,9 +165,9 @@ class RoomMembershipControllerTest extends TestCase
     {
         $owner = $this->syncUser();
         $partner = $this->syncUser();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         $this->app['auth']->forgetGuards();
         $response = $this->withHeaders($this->authHeader($partner))->getJson('/api/rooms/ruang-keluarga-1/members');
@@ -196,9 +196,9 @@ class RoomMembershipControllerTest extends TestCase
     {
         $owner = $this->syncUser();
         $partner = $this->syncUser();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         $this->app['auth']->forgetGuards();
         $members = collect($this->withHeaders($this->authHeader($owner))
@@ -221,9 +221,9 @@ class RoomMembershipControllerTest extends TestCase
     {
         $owner = $this->syncUser();
         $partner = $this->syncUser();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         $this->app['auth']->forgetGuards();
         $this->withHeaders($this->authHeader($owner))
@@ -239,11 +239,11 @@ class RoomMembershipControllerTest extends TestCase
         $owner = $this->syncUser();
         $partner = $this->syncUser();
         $third = $this->syncUser();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($third))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($third))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         $this->app['auth']->forgetGuards();
         $this->withHeaders($this->authHeader($partner))
@@ -259,9 +259,9 @@ class RoomMembershipControllerTest extends TestCase
         $owner = $this->syncUser();
         $partner = $this->syncUser();
         $stranger = $this->syncUser();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         $this->app['auth']->forgetGuards();
         $this->withHeaders($this->authHeader($stranger))
@@ -274,7 +274,7 @@ class RoomMembershipControllerTest extends TestCase
     public function test_owner_cannot_remove_themself(): void
     {
         $owner = $this->syncUser();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         $this->app['auth']->forgetGuards();
         $this->withHeaders($this->authHeader($owner))
@@ -288,7 +288,7 @@ class RoomMembershipControllerTest extends TestCase
     {
         $owner = $this->syncUser();
         $stranger = $this->syncUser();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         $this->app['auth']->forgetGuards();
         $this->withHeaders($this->authHeader($owner))
@@ -314,9 +314,9 @@ class RoomMembershipControllerTest extends TestCase
     {
         $owner = $this->syncUser();
         $member = $this->syncUser();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/join', $this->undangan(self::ROOM))->assertNoContent();
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/'.self::ROOM.'/join', $this->undangan(self::ROOM))->assertNoContent();
         $this->app['auth']->forgetGuards();
 
         return [$owner, $member];
@@ -381,7 +381,7 @@ class RoomMembershipControllerTest extends TestCase
     public function test_the_sole_owner_cannot_leave_either(): void
     {
         $owner = $this->syncUser();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/join', $this->undangan(self::ROOM))->assertNoContent();
         $this->app['auth']->forgetGuards();
 
         $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/leave')
@@ -409,9 +409,9 @@ class RoomMembershipControllerTest extends TestCase
     {
         [$owner, $member] = $this->roomWithOwnerAndMember();
         $third = $this->syncUser();
-        $this->withHeaders($this->authHeader($third))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($third))->postJson('/api/rooms/'.self::ROOM.'/join', $this->undangan(self::ROOM))->assertNoContent();
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/ruang-lain/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/ruang-lain/join', $this->undangan('ruang-lain'))->assertNoContent();
         $this->app['auth']->forgetGuards();
 
         $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/'.self::ROOM.'/leave')->assertNoContent();
@@ -442,7 +442,7 @@ class RoomMembershipControllerTest extends TestCase
         $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/'.self::ROOM.'/leave')->assertNoContent();
         $this->app['auth']->forgetGuards();
 
-        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/'.self::ROOM.'/join', $this->undangan(self::ROOM))->assertNoContent();
 
         $this->assertFalse(RoomMember::where('user_id', $member->id)->where('room_id', self::ROOM)->value('is_owner'));
         $this->assertTrue(RoomMember::where('user_id', $owner->id)->where('room_id', self::ROOM)->value('is_owner'));
@@ -453,11 +453,11 @@ class RoomMembershipControllerTest extends TestCase
     public function test_a_member_without_their_own_sync_can_join_an_existing_room_whose_owner_has_sync(): void
     {
         $owner = $this->syncUser();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/join', $this->undangan(self::ROOM))->assertNoContent();
 
         $this->app['auth']->forgetGuards();
         $noSync = User::factory()->create(['plans' => []]);
-        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/'.self::ROOM.'/join', $this->undangan(self::ROOM))->assertNoContent();
 
         $this->assertDatabaseHas('room_members', ['user_id' => $noSync->id, 'room_id' => self::ROOM, 'is_owner' => false]);
     }
@@ -466,10 +466,10 @@ class RoomMembershipControllerTest extends TestCase
     {
         $owner = $this->syncUser();
         $noSync = User::factory()->create(['plans' => []]);
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/join', $this->undangan(self::ROOM))->assertNoContent();
         $this->app['auth']->forgetGuards();
         // join sendiri bukti baris sebelumnya; di sini pemilik mendaftarkan noSync lewat join juga (dua baris independen).
-        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/'.self::ROOM.'/join', $this->undangan(self::ROOM))->assertNoContent();
 
         $this->app['auth']->forgetGuards();
         $this->withHeaders($this->authHeader($noSync))->getJson('/api/rooms/'.self::ROOM.'/members')
@@ -482,7 +482,7 @@ class RoomMembershipControllerTest extends TestCase
         // pemilik begitu baris ini tercatat, jadi Sync-nya sendiri yang dicek (Entitlements::allowsSharedRoom).
         $noSync = User::factory()->create(['plans' => []]);
 
-        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/ruang-benar-benar-baru/join')
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/ruang-benar-benar-baru/join', $this->undangan('ruang-benar-benar-baru'))
             ->assertForbidden()->assertJsonPath('code', 'sync_required');
         $this->assertDatabaseMissing('room_members', ['user_id' => $noSync->id, 'room_id' => 'ruang-benar-benar-baru']);
     }
@@ -490,13 +490,13 @@ class RoomMembershipControllerTest extends TestCase
     public function test_access_is_denied_again_once_the_owners_sync_lapses(): void
     {
         $owner = $this->syncUser();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/'.self::ROOM.'/join', $this->undangan(self::ROOM))->assertNoContent();
         // Paket pemilik turun SETELAH ruang dibuat: anggota baru yang belum pernah punya Sync sendiri kini ditolak.
         $owner->forceFill(['plans' => []])->save();
 
         $this->app['auth']->forgetGuards();
         $noSync = User::factory()->create(['plans' => []]);
-        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/'.self::ROOM.'/join')
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/'.self::ROOM.'/join', $this->undangan(self::ROOM))
             ->assertForbidden()->assertJsonPath('code', 'sync_required');
         $this->assertDatabaseMissing('room_members', ['user_id' => $noSync->id, 'room_id' => self::ROOM]);
     }
@@ -510,7 +510,7 @@ class RoomMembershipControllerTest extends TestCase
         // Keputusan pemilik I-8: akses dibuka oleh Sync PEMILIK ruang, bukan Sync peminta sendiri. self::ROOM sudah
         // punya pemilik ber-Sync (roomWithOwnerAndMember), jadi $noSync BOLEH join ruang itu (lihat butir tersendiri
         // di bawah); sync_required di sini harus diuji di ruang BARU yang belum punya pemilik sama sekali.
-        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/ruang-baru-tanpa-pemilik/join')
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/ruang-baru-tanpa-pemilik/join', $this->undangan('ruang-baru-tanpa-pemilik'))
             ->assertForbidden()->assertJsonPath('code', 'sync_required');
         $this->app['auth']->forgetGuards();
         $this->withHeaders($this->authHeader($stranger))->getJson('/api/rooms/'.self::ROOM.'/members')
@@ -617,7 +617,7 @@ class RoomMembershipControllerTest extends TestCase
     {
         [$owner, $member] = $this->roomWithOwnerAndMember();
         $third = $this->syncUser();
-        $this->withHeaders($this->authHeader($third))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($third))->postJson('/api/rooms/'.self::ROOM.'/join', $this->undangan(self::ROOM))->assertNoContent();
         $this->app['auth']->forgetGuards();
         $this->withHeaders($this->authHeader($owner))->postJson($this->makeOwnerUri($member->id))->assertNoContent();
         $this->app['auth']->forgetGuards();
@@ -633,7 +633,7 @@ class RoomMembershipControllerTest extends TestCase
     {
         [$owner, $member] = $this->roomWithOwnerAndMember();
         $third = $this->syncUser();
-        $this->withHeaders($this->authHeader($third))->postJson('/api/rooms/'.self::ROOM.'/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($third))->postJson('/api/rooms/'.self::ROOM.'/join', $this->undangan(self::ROOM))->assertNoContent();
         $this->app['auth']->forgetGuards();
 
         $this->withHeaders($this->authHeader($member))->postJson($this->makeOwnerUri($third->id))
@@ -684,9 +684,9 @@ class RoomMembershipControllerTest extends TestCase
     public function test_transfer_does_not_touch_other_rooms(): void
     {
         [$owner, $member] = $this->roomWithOwnerAndMember();
-        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-lain/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-lain/join', $this->undangan('ruang-lain'))->assertNoContent();
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/ruang-lain/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/ruang-lain/join', $this->undangan('ruang-lain'))->assertNoContent();
         $this->app['auth']->forgetGuards();
 
         $this->withHeaders($this->authHeader($owner))->postJson($this->makeOwnerUri($member->id))->assertNoContent();

@@ -168,6 +168,8 @@ class SyncCompactCommandTest extends TestCase
     {
         $pemilik = $this->syncUser();
         $anggota = $this->syncUser();
+        // Pemilik terdaftar lebih dulu: push tidak lagi mendaftarkan non-anggota ke ruang berpenghuni.
+        RoomMember::tambahAnggota($pemilik->id, 'ruang-1');
         RoomMember::tambahAnggota($anggota->id, 'ruang-1');
         $this->pull($anggota, 'pixel-anggota')->assertOk(); // anggota aktif, belum melewati apa pun
 

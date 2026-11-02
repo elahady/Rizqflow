@@ -30,6 +30,18 @@ class RoomMember extends Model
     }
 
     /**
+     * Boleh menulis ke ruang ini: sudah anggota, atau ruang belum punya anggota sama sekali (pendorong
+     * pertama membuatnya dan jadi pemilik lewat [tambahAnggota]). Non-anggota di ruang yang sudah
+     * berpenghuni harus bergabung lewat `join` dengan undangan terdaftar.
+     */
+    public static function bolehMenulis(int $userId, string $roomId): bool
+    {
+        $anggota = self::where('room_id', $roomId);
+
+        return (clone $anggota)->where('user_id', $userId)->exists() || ! $anggota->exists();
+    }
+
+    /**
      * Satu-satunya jalur menambah anggota (join QR dan push sync). Anggota pertama yang tercatat untuk
      * sebuah room_id jadi pemilik (keputusan 2026-10-27); anggota berikutnya hanya pencatat. Idempoten:
      * memanggil lagi untuk pasangan user/ruang yang sama tidak mengubah baris yang ada.

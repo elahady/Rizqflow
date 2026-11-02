@@ -182,11 +182,33 @@ class SyncControllerTest extends TestCase
 
         $this->app['auth']->forgetGuards();
         $noSync = User::factory()->create(['plans' => []]);
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
+
+        $this->app['auth']->forgetGuards();
         $this->withHeaders($this->authHeader($noSync))->postJson('/api/sync/push', [
             'entries' => [['room_id' => 'ruang-keluarga-1', 'record_type' => 'transaction', 'record_id' => 'tx-nosync', 'device_id' => 'pixel-2', 'payload' => 'b', 'changed_at' => '2026-10-19T11:00:00Z']],
         ])->assertOk();
 
         $this->assertSame(1, RoomMember::where('user_id', $noSync->id)->where('room_id', 'ruang-keluarga-1')->count());
+    }
+
+    public function test_push_to_a_room_that_already_has_members_does_not_register_a_non_member(): void
+    {
+        $owner = $this->syncUser();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/sync/push', [
+            'entries' => [['room_id' => 'ruang-keluarga-1', 'record_type' => 'transaction', 'record_id' => 'tx-owner', 'device_id' => 'pixel-1', 'payload' => 'a', 'changed_at' => '2026-10-19T10:00:00Z']],
+        ])->assertOk();
+
+        // Pengirim ber-Sync sendiri, tetapi tidak pernah diundang: push tidak lagi mendaftarkannya (bekas
+        // anggota yang dikeluarkan tidak boleh tercatat lagi lewat jalur ini).
+        $this->app['auth']->forgetGuards();
+        $asing = $this->syncUser();
+        $this->withHeaders($this->authHeader($asing))->postJson('/api/sync/push', [
+            'entries' => [['room_id' => 'ruang-keluarga-1', 'record_type' => 'transaction', 'record_id' => 'tx-asing', 'device_id' => 'pixel-9', 'payload' => 'x', 'changed_at' => '2026-10-19T11:00:00Z']],
+        ])->assertForbidden()->assertJsonPath('code', 'not_room_member');
+
+        $this->assertSame(0, RoomMember::where('user_id', $asing->id)->count());
+        $this->assertSame(0, SyncLogEntry::where('record_id', 'tx-asing')->count());
     }
 
     public function test_push_to_a_brand_new_room_still_requires_the_senders_own_sync(): void
@@ -209,7 +231,7 @@ class SyncControllerTest extends TestCase
 
         $this->app['auth']->forgetGuards();
         $noSync = User::factory()->create(['plans' => []]);
-        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         $this->app['auth']->forgetGuards();
         $response = $this->withHeaders($this->authHeader($noSync))->getJson('/api/sync/pull?scope=r&room_id=ruang-keluarga-1&device_id=pixel-2');
@@ -227,7 +249,7 @@ class SyncControllerTest extends TestCase
 
         $this->app['auth']->forgetGuards();
         $noSync = User::factory()->create(['plans' => []]);
-        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($noSync))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         $this->app['auth']->forgetGuards();
         $this->withHeaders($this->authHeader($noSync))->getJson('/api/sync/pull?scope=a&device_id=pixel-2')
@@ -284,7 +306,7 @@ class SyncControllerTest extends TestCase
         ])->assertOk();
 
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         $this->app['auth']->forgetGuards();
         $response = $this->withHeaders($this->authHeader($partner))->getJson('/api/sync/pull?device_id=pixel-uji');
@@ -307,7 +329,7 @@ class SyncControllerTest extends TestCase
         ])->assertOk();
 
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         $this->app['auth']->forgetGuards();
         $response = $this->withHeaders($this->authHeader($partner))->getJson('/api/sync/pull?device_id=pixel-uji');
@@ -384,7 +406,7 @@ class SyncControllerTest extends TestCase
         ])->assertOk();
 
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
 
         // Partner mencoba "menang" lewat id yang sama dengan cap waktu lebih baru — server menolak
         // baris ini walau isi payload dan device_id-nya bisa saja dipalsukan (kunci ruang sama untuk semua
@@ -408,7 +430,7 @@ class SyncControllerTest extends TestCase
             'entries' => [['room_id' => 'ruang-keluarga-1', 'record_type' => 'transaction', 'record_id' => 'tx-1', 'device_id' => 'pixel-owner', 'payload' => 'dari-owner', 'changed_at' => '2026-10-19T10:00:00Z']],
         ])->assertOk();
         $this->app['auth']->forgetGuards();
-        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->withHeaders($this->authHeader($partner))->postJson('/api/rooms/ruang-keluarga-1/join', $this->undangan('ruang-keluarga-1'))->assertNoContent();
         $this->app['auth']->forgetGuards();
         $this->withHeaders($this->authHeader($partner))->postJson('/api/sync/push', [
             'entries' => [['room_id' => 'ruang-keluarga-1', 'record_type' => 'transaction', 'record_id' => 'tx-own', 'device_id' => 'pixel-partner', 'payload' => 'punya partner', 'changed_at' => '2026-10-19T10:00:01Z']],

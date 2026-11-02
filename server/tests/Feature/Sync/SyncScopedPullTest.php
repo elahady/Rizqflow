@@ -77,6 +77,7 @@ class SyncScopedPullTest extends TestCase
         $this->push($saya, 'pribadi-saya', 'hp', 1000);
         $this->push($saya, 'ruang-saya', 'hp', 1000, 'ruang-a');
         $this->push($lain, 'pribadi-lain', 'hp-lain', 1000);
+        RoomMember::tambahAnggota($lain->id, 'ruang-a'); // push tidak lagi mendaftarkan non-anggota (key_grant langkah 1)
         $this->push($lain, 'ruang-lain', 'hp-lain', 1000, 'ruang-a');
 
         $response = $this->pullScoped($saya, 'hp', 'a')->assertOk();
@@ -144,6 +145,7 @@ class SyncScopedPullTest extends TestCase
         $pemilik = $this->syncUser();
         $anggota = $this->syncUser();
         $this->push($pemilik, 'dari-pemilik', 'hp-p', 1000, 'ruang-a');
+        RoomMember::tambahAnggota($anggota->id, 'ruang-a');
         $this->push($anggota, 'dari-anggota', 'hp-a', 1000, 'ruang-a');
         $this->pullScoped($anggota, 'hp-a', 'r', 'ruang-a')->assertOk();
 
@@ -176,6 +178,7 @@ class SyncScopedPullTest extends TestCase
         $pemilik = $this->syncUser();
         $anggota = $this->syncUser();
         $this->push($pemilik, 'dari-pemilik', 'hp-p', 1000, 'ruang-a');
+        RoomMember::tambahAnggota($anggota->id, 'ruang-a');
         $this->push($anggota, 'ruang-tulisan-anggota', 'hp-a', 1000, 'ruang-a');
         $this->withHeaders($this->authHeader($anggota))->postJson('/api/rooms/ruang-a/leave')->assertNoContent();
 

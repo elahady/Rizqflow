@@ -70,7 +70,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Keanggotaan ruang yang dibagi (ruang keluarga) — lihat RoomMembershipController.
     // Limiter `room-membership`: 60 per menit per akun, bersama untuk semua rute di bawah.
     Route::middleware('throttle:room-membership')->group(function () {
+        // Penggabung baru wajib `invite_hash` undangan terdaftar (403 `invite_required`/`invite_invalid`/
+        // `invite_expired`), kecuali ruang yang belum punya anggota: penggabung pertama jadi pemilik.
         Route::post('/rooms/{roomId}/join', [RoomMembershipController::class, 'join']);
+        // Pemilik mendaftarkan hash undangan sebelum QR tampil (sekali pakai, 7 hari).
+        Route::post('/rooms/{roomId}/invites', [RoomMembershipController::class, 'invite']);
         // Anggota keluar sendiri (pemilik tidak bisa; 422 `owner_cannot_leave`). Tanpa syarat Sync.
         Route::post('/rooms/{roomId}/leave', [RoomMembershipController::class, 'leave']);
         Route::get('/rooms/{roomId}/members', [RoomMembershipController::class, 'members']);

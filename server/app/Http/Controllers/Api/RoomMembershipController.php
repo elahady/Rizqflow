@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\RoomInvite;
 use App\Models\RoomMember;
 use App\Support\MemberId;
 use App\Support\SharedRoomOwner;
@@ -29,6 +30,9 @@ class RoomMembershipController extends Controller
     /** monetisasi.md: satu langganan Sync mencakup keluarga sampai 5 anggota (peran-anggota.md E.1 butir 3). */
     private const MAX_MEMBERS = 5;
 
+    /** SHA-256 dalam heksadesimal (huruf kecil atau besar; disimpan huruf kecil). */
+    private const INVITE_HASH_PATTERN = '/^[0-9a-fA-F]{64}$/';
+
     /**
      * Anggota baru bergabung (dari undangan QR) atau pengirim push sync yang belum tercatat
      * (bootstrap, lihat SyncController). Idempoten: anggota yang sudah tercatat tidak kena batas
@@ -41,30 +45,130 @@ class RoomMembershipController extends Controller
             return $denied;
         }
 
+        $data = $request->validate([
+            'invite_hash' => ['nullable', 'string', 'regex:'.self::INVITE_HASH_PATTERN],
+        ]);
+        $inviteHash = isset($data['invite_hash']) ? strtolower($data['invite_hash']) : null;
+
         $userId = $request->user()->id;
 
-        $penuh = DB::transaction(function () use ($roomId, $userId): bool {
+        /** @var JsonResponse|null $galat */
+        $galat = DB::transaction(function () use ($roomId, $userId, $inviteHash): ?JsonResponse {
             $anggota = RoomMember::where('room_id', $roomId)->lockForUpdate()->get();
             if ($anggota->contains(fn (RoomMember $member) => (int) $member->user_id === $userId)) {
-                return false;
+                // Sudah anggota: idempoten, undangan (kalau ada) tidak disentuh dan tidak dihabiskan.
+                return null;
             }
+
+            // Ruang yang belum punya anggota sama sekali dibuat oleh penggabung pertamanya, yang jadi
+            // pemilik (RoomMember::tambahAnggota) — tidak ada pemilik yang bisa menerbitkan undangan.
+            if ($anggota->isEmpty()) {
+                RoomMember::tambahAnggota($userId, $roomId);
+
+                return null;
+            }
+
+            // Selain itu, semua penggabung baru wajib membawa undangan terdaftar yang sah: tanpa masa
+            // tenggang (keputusan pemilik 2026-11-03). Ini juga yang menutup celah bekas anggota yang
+            // mendaftar ulang sendiri: undangannya sekali pakai dan sudah habis.
+            if ($inviteHash === null) {
+                return $this->inviteError('invite_required', 'Bergabung ke ruang ini butuh undangan dari pemilik ruang.');
+            }
+            $undangan = RoomInvite::where('room_id', $roomId)->where('invite_hash', $inviteHash)->lockForUpdate()->first();
+            if ($undangan === null || $undangan->isUsed()) {
+                return $this->inviteError('invite_invalid', 'Undangan tidak sah atau sudah dipakai.');
+            }
+            if ($undangan->isExpired()) {
+                return $this->inviteError('invite_expired', 'Undangan sudah kedaluwarsa. Minta pemilik ruang membuat undangan baru.');
+            }
+
             if ($anggota->count() >= self::MAX_MEMBERS) {
-                return true;
+                return response()->json([
+                    'message' => 'Ruang ini sudah penuh (maksimal '.self::MAX_MEMBERS.' anggota).',
+                    'code' => 'room_full',
+                ], 422);
             }
 
             RoomMember::tambahAnggota($userId, $roomId);
+            $undangan->update(['used_by_user_id' => $userId]);
 
-            return false;
+            return null;
         });
 
-        if ($penuh) {
-            return response()->json([
-                'message' => 'Ruang ini sudah penuh (maksimal '.self::MAX_MEMBERS.' anggota).',
-                'code' => 'room_full',
-            ], 422);
+        return $galat ?? response()->json(status: 204);
+    }
+
+    /**
+     * Pemilik mendaftarkan undangan sebelum QR-nya ditampilkan (key_grant langkah 1). Server hanya
+     * menerima `invite_hash` (SHA-256 heksadesimal dari HKDF(member_secret, "rizqflow-invite")); rahasia
+     * anggotanya tidak pernah dikirim. Sekali pakai dan kedaluwarsa [RoomInvite::LIFETIME_DAYS] hari.
+     *
+     * - Hanya pemilik ruang: 403 `not_room_owner`. Butuh Sync pemilik seperti endpoint ruang lain.
+     * - Idempoten untuk hash yang sama yang belum dipakai: masa berlakunya diperbarui (percobaan ulang
+     *   setelah jaringan putus tidak menghasilkan baris ganda). Hash yang sudah dipakai: 409 `invite_used`.
+     * - Undangan yang menunggu dibatasi [RoomInvite::MAX_PENDING] per ruang: 422 `too_many_invites`.
+     */
+    public function invite(Request $request, string $roomId): JsonResponse
+    {
+        if ($denied = $this->denyWithoutSharedRoom($request, $roomId) ?? $this->denyInvalidRoomId($roomId)) {
+            return $denied;
         }
 
-        return response()->json(status: 204);
+        $data = $request->validate([
+            'invite_hash' => ['required', 'string', 'regex:'.self::INVITE_HASH_PATTERN],
+        ]);
+        $inviteHash = strtolower($data['invite_hash']);
+        $userId = $request->user()->id;
+
+        return DB::transaction(function () use ($roomId, $userId, $inviteHash): JsonResponse {
+            $anggota = RoomMember::where('room_id', $roomId)->orderBy('id')->lockForUpdate()->get();
+            $pemilik = $anggota->first(fn (RoomMember $member) => (int) $member->user_id === $userId && $member->is_owner);
+            if ($pemilik === null) {
+                return response()->json([
+                    'message' => 'Hanya pemilik ruang yang bisa membuat undangan.',
+                    'code' => 'not_room_owner',
+                ], 403);
+            }
+
+            $kedaluwarsa = now()->addDays(RoomInvite::LIFETIME_DAYS);
+            $ada = RoomInvite::where('room_id', $roomId)->where('invite_hash', $inviteHash)->first();
+            if ($ada !== null) {
+                if ($ada->isUsed()) {
+                    return response()->json([
+                        'message' => 'Undangan itu sudah dipakai. Buat undangan baru dengan rahasia baru.',
+                        'code' => 'invite_used',
+                    ], 409);
+                }
+                $ada->update(['expires_at' => $kedaluwarsa]);
+
+                return response()->json(['expires_at' => $kedaluwarsa->toIso8601String()], 201);
+            }
+
+            $menunggu = RoomInvite::where('room_id', $roomId)
+                ->whereNull('used_by_user_id')
+                ->where('expires_at', '>', now())
+                ->count();
+            if ($menunggu >= RoomInvite::MAX_PENDING) {
+                return response()->json([
+                    'message' => 'Terlalu banyak undangan yang menunggu (maksimal '.RoomInvite::MAX_PENDING.').',
+                    'code' => 'too_many_invites',
+                ], 422);
+            }
+
+            RoomInvite::create([
+                'room_id' => $roomId,
+                'invite_hash' => $inviteHash,
+                'issued_by' => $userId,
+                'expires_at' => $kedaluwarsa,
+            ]);
+
+            return response()->json(['expires_at' => $kedaluwarsa->toIso8601String()], 201);
+        });
+    }
+
+    private function inviteError(string $code, string $message): JsonResponse
+    {
+        return response()->json(['message' => $message, 'code' => $code], 403);
     }
 
     /**
@@ -79,10 +183,9 @@ class RoomMembershipController extends Controller
      *   tetap boleh melepaskan dirinya dari ruang. Tidak ada efek samping pada akun lain.
      * - Bukan anggota: 404 `not_room_member` (juga untuk ulangan setelah berhasil keluar).
      *
-     * Catatan: server belum membedakan "keluar" dari "tidak pernah bergabung". Aplikasi yang masih
-     * `join` atau push ke ruang itu setelah keluar tercatat lagi sebagai anggota (celah yang sama
-     * dengan anggota yang dikeluarkan; perbaikannya bagian dari rencana undangan terdaftar di
-     * sync-desain.md bagian F, menunggu keputusan pemilik). Klien wajib berhenti menyinkronkan ruang itu.
+     * Baris keanggotaan dihapus fisik (bukan diberi status `removed`): setelah keluar, `join` dan push
+     * ke ruang itu ditolak (403 `invite_required`/`not_room_member`) sampai pemilik menerbitkan undangan
+     * baru, jadi aplikasi yang masih berjalan tidak bisa mendaftarkan dirinya lagi (key_grant langkah 1).
      */
     public function leave(Request $request, string $roomId): JsonResponse
     {
@@ -226,6 +329,12 @@ class RoomMembershipController extends Controller
             ], 403);
         }
 
+        // Undangan yang dipakai tiap anggota: pemilik memakainya untuk mengikat rahasia undangan ke anggota
+        // (key_grant langkah 2). Pemilik/pembuat ruang tidak memakai undangan, jadi null.
+        $undanganDipakai = RoomInvite::where('room_id', $roomId)
+            ->whereNotNull('used_by_user_id')
+            ->pluck('invite_hash', 'used_by_user_id');
+
         $members = RoomMember::where('room_id', $roomId)
             ->with('user:id,name,email')
             ->get()
@@ -240,6 +349,7 @@ class RoomMembershipController extends Controller
                 'you' => $member->user_id === $userId,
                 'owner' => $member->is_owner,
                 'role' => $member->is_owner ? 'owner' : 'member',
+                'invite_hash' => $undanganDipakai[$member->user_id] ?? null,
             ]);
 
         return response()->json(['members' => $members]);

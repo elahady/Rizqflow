@@ -148,6 +148,7 @@ class SyncScopeHistoryTest extends TestCase
         $pemilik = $this->syncUser();
         $anggota = $this->syncUser();
         $this->push($pemilik, [$this->entry('r-1', 'pixel-1', 'ruang-a')])->assertOk();
+        RoomMember::tambahAnggota($anggota->id, 'ruang-a'); // push tidak lagi mendaftarkan non-anggota (key_grant langkah 1)
         $this->push($anggota, [$this->entry('r-2', 'pixel-2', 'ruang-a')])->assertOk();
         $this->assertArrayHasKey('r:ruang-a', $this->scopes($this->history($anggota)));
 
@@ -225,6 +226,7 @@ class SyncScopeHistoryTest extends TestCase
         $this->push($pemilik, [$this->entry('r-1', 'pixel-1', 'ruang-a', 1000)])->assertOk();
 
         // Anggota lain mencoba menimpa rekaman milik penulis pertama: baris ditolak diam-diam.
+        RoomMember::tambahAnggota($penyusup->id, 'ruang-a');
         $this->push($penyusup, [$this->entry('r-1', 'pixel-2', 'ruang-a', 2000)])->assertOk();
 
         $this->assertDatabaseMissing('sync_scope_activity', ['user_id' => $penyusup->id, 'room_id' => 'ruang-a']);

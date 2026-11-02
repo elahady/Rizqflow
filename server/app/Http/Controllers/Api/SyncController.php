@@ -90,6 +90,20 @@ class SyncController extends Controller
 
         $userId = $request->user()->id;
 
+        // Push TIDAK lagi mendaftarkan non-anggota ke ruang yang sudah punya anggota (key_grant langkah 1,
+        // keputusan pemilik 2026-11-03): itu jalan bekas anggota yang dikeluarkan untuk tercatat lagi.
+        // Bergabung hanya lewat `join` dengan undangan terdaftar. Ruang yang belum punya anggota tetap
+        // dibuat oleh pendorong pertamanya (jadi pemilik), lihat RoomMember::tambahAnggota di bawah.
+        $roomIdsBatch = array_unique(array_filter(array_column($data['entries'], 'room_id')));
+        foreach ($roomIdsBatch as $roomId) {
+            if (! RoomMember::bolehMenulis($userId, $roomId)) {
+                return response()->json([
+                    'message' => 'Bukan anggota ruang ini.',
+                    'code' => 'not_room_member',
+                ], 403);
+            }
+        }
+
         try {
             // Satu transaksi DB per batch (Tahap 2 bagian G): gagal di tengah tidak meninggalkan separuh baris.
             [$ids, $ruangBaru] = DB::transaction(function () use ($data, $userId) {
