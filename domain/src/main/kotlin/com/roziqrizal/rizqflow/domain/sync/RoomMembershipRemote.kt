@@ -62,4 +62,4 @@ fun List<RoomMemberInfo>.ownRole(): SharedRoomRole? =
  * hanya pemilik yang mengeluarkan). Pemilik sendiri dan anggota tanpa [RoomMemberInfo.userId] tidak pernah ikut.
  */
 fun List<RoomMemberInfo>.removableMembers(): List<RoomMemberInfo> =
-    if (ownRole() != SharedRoomRole.OWNER) emptyList() else filter { !it.you && !it.owner && it.userId != null }
+    if (!RoomPermissions.canRemoveMembers(ownRole())) emptyList() else filter { !it.you && !it.owner && it.userId != null }

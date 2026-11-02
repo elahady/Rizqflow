@@ -52,6 +52,7 @@ import com.roziqrizal.rizqflow.domain.sync.RemoteError
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.RoomInvite
 import com.roziqrizal.rizqflow.domain.sync.RoomMemberInfo
+import com.roziqrizal.rizqflow.domain.sync.RoomPermissions
 import com.roziqrizal.rizqflow.domain.sync.SharedRoomRole
 import com.roziqrizal.rizqflow.domain.sync.SharedRoomStatus
 import com.roziqrizal.rizqflow.domain.sync.SyncResult
@@ -144,6 +145,7 @@ fun RuangKeluargaScreen(
     var historyConfirm by remember { mutableStateOf<HistoryShareConfirm?>(null) }
     // Peran perangkat ini MENURUT SERVER (bendera owner di daftar anggota), bukan siapa yang membuka layar.
     val isOwner = members?.ownRole() == SharedRoomRole.OWNER
+    val canManageMembers = RoomPermissions.canRemoveMembers(members?.ownRole())
     val removable = members?.removableMembers().orEmpty()
 
     /**
@@ -450,14 +452,12 @@ fun RuangKeluargaScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.weight(1f),
                             )
-                            if (member.owner) {
-                                Text(
-                                    stringResource(R.string.family_members_owner),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(end = spacing.s2),
-                                )
-                            }
+                            Text(
+                                stringResource(if (member.owner) R.string.family_members_owner else R.string.family_members_pencatat),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(end = spacing.s2),
+                            )
                             if (member.you) {
                                 Text(stringResource(R.string.family_members_you), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -467,7 +467,7 @@ fun RuangKeluargaScreen(
                 }
 
                 // Keputusan pemilik #1 (sync-desain.md bagian J): hanya pemilik ruang yang mengundang dan mengeluarkan.
-                if (isOwner) {
+                if (RoomPermissions.canInvite(members?.ownRole())) {
                     Button(
                         onClick = { inviteSheet = true },
                         modifier = Modifier.padding(top = spacing.s5).fillMaxWidth().height(52.dp),
@@ -480,7 +480,7 @@ fun RuangKeluargaScreen(
                 ) { Text(stringResource(R.string.family_sync_action)) }
                 // Keluarkan anggota (Tahap 9, server-sync.md "Mengeluarkan anggota"): pilih anggota, cabut
                 // keanggotaannya di server (DELETE /rooms/{roomId}/members/{userId}), lalu kunci baru dan QR ulang.
-                if (removable.isNotEmpty()) {
+                if (canManageMembers && removable.isNotEmpty()) {
                     OutlinedButton(
                         onClick = { removeSheet = true },
                         enabled = !removing,
@@ -496,7 +496,7 @@ fun RuangKeluargaScreen(
                 }
                 // Keluar dari ruang: hanya anggota biasa (peran MENURUT SERVER). Pemilik tidak bisa keluar (server menolak
                 // owner_cannot_leave), jadi alih-alih tombol yang pasti gagal ia mendapat penjelasan.
-                if (members?.ownRole() == SharedRoomRole.MEMBER) {
+                if (RoomPermissions.canLeave(members?.ownRole())) {
                     OutlinedButton(
                         onClick = { leaveConfirm = true },
                         enabled = !leaving,

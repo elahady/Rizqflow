@@ -766,6 +766,7 @@
     <string name="family_members_title">Members</string>
     <string name="family_members_you">You</string>
     <string name="family_members_owner">Owner</string>
+    <string name="family_members_pencatat">Recording member</string>
     <string name="family_remove_action">Remove member</string>
     <string name="family_remove_pick_title">Choose the member to remove</string>
     <string name="family_remove_confirm_title">Remove %1$s?</string>
