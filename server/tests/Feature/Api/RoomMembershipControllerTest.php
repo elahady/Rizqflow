@@ -86,6 +86,54 @@ class RoomMembershipControllerTest extends TestCase
         $this->postJson('/api/rooms/ruang-keluarga-1/join')->assertUnauthorized();
     }
 
+    public function test_a_sixth_distinct_joiner_is_rejected_as_room_full(): void
+    {
+        $owner = $this->syncUser();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        for ($i = 0; $i < 3; $i++) {
+            $this->app['auth']->forgetGuards();
+            $this->withHeaders($this->authHeader($this->syncUser()))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        }
+        // Lima anggota (owner + 4) sudah di ruang itu; monetisasi.md: maksimal 5 per ruang.
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($this->syncUser()))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->assertSame(5, RoomMember::where('room_id', 'ruang-keluarga-1')->count());
+
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($this->syncUser()))->postJson('/api/rooms/ruang-keluarga-1/join')
+            ->assertStatus(422)->assertJsonPath('code', 'room_full');
+        $this->assertSame(5, RoomMember::where('room_id', 'ruang-keluarga-1')->count());
+    }
+
+    public function test_rejoining_a_full_room_as_an_existing_member_still_works(): void
+    {
+        $owner = $this->syncUser();
+        $members = [];
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        for ($i = 0; $i < 4; $i++) {
+            $members[] = $member = $this->syncUser();
+            $this->app['auth']->forgetGuards();
+            $this->withHeaders($this->authHeader($member))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        }
+
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($members[0]))->postJson('/api/rooms/ruang-keluarga-1/join')->assertNoContent();
+        $this->assertSame(5, RoomMember::where('room_id', 'ruang-keluarga-1')->count());
+    }
+
+    public function test_the_room_full_cap_does_not_affect_other_rooms(): void
+    {
+        $owner = $this->syncUser();
+        $this->withHeaders($this->authHeader($owner))->postJson('/api/rooms/ruang-penuh/join')->assertNoContent();
+        for ($i = 0; $i < 4; $i++) {
+            $this->app['auth']->forgetGuards();
+            $this->withHeaders($this->authHeader($this->syncUser()))->postJson('/api/rooms/ruang-penuh/join')->assertNoContent();
+        }
+
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders($this->authHeader($this->syncUser()))->postJson('/api/rooms/ruang-lain/join')->assertNoContent();
+    }
+
     public function test_first_joiner_becomes_owner_and_later_joiners_do_not(): void
     {
         $owner = $this->syncUser();
@@ -127,6 +175,21 @@ class RoomMembershipControllerTest extends TestCase
         $response->assertOk();
         $this->assertTrue(collect($response->json('members'))->firstWhere('email', $owner->email)['owner']);
         $this->assertFalse(collect($response->json('members'))->firstWhere('email', $partner->email)['owner']);
+    }
+
+    public function test_members_includes_member_id_matching_the_sync_author_and_a_role(): void
+    {
+        [$owner, $partner] = $this->roomWithOwnerAndMember();
+        $this->pushRow($partner, 'tx-anggota');
+        $pulled = $this->withHeaders($this->authHeader($owner))->getJson('/api/sync/pull?device_id=dev-pull')->assertOk();
+        $this->app['auth']->forgetGuards();
+        $author = collect($pulled->json('entries'))->firstWhere('record_id', 'tx-anggota')['author'];
+
+        $members = collect($this->withHeaders($this->authHeader($owner))
+            ->getJson('/api/rooms/'.self::ROOM.'/members')->assertOk()->json('members'));
+        $this->assertSame($author, $members->firstWhere('email', $partner->email)['member_id']);
+        $this->assertSame('owner', $members->firstWhere('email', $owner->email)['role']);
+        $this->assertSame('member', $members->firstWhere('email', $partner->email)['role']);
     }
 
     public function test_members_includes_the_user_id_that_the_remove_endpoint_expects(): void

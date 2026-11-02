@@ -14,6 +14,7 @@ use App\Models\SyncRecordFloor;
 use App\Models\SyncScopeActivity;
 use App\Models\SyncScopeWatermark;
 use App\Push\RoomActivityNotifier;
+use App\Support\MemberId;
 use App\Support\SyncQuotaExceeded;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -376,7 +377,7 @@ class SyncController extends Controller
                 'changed_at_ms' => $entry->changed_at_ms,
                 // Penulis buram (Tahap 2 bagian B R3): id anggota (user_id) tidak pernah dikirim mentah;
                 // hash per ruang supaya tidak bisa dikorelasikan ke akun lain tanpa tahu room_id-nya.
-                'author' => self::opaqueAuthor($entry->room_id, $entry->user_id),
+                'author' => MemberId::dari($entry->room_id, $entry->user_id),
             ]),
             'next_after' => $nextAfter,
             'has_more' => $hasMore,
@@ -392,10 +393,5 @@ class SyncController extends Controller
         }
 
         return response()->json($jawaban);
-    }
-
-    private static function opaqueAuthor(?string $roomId, int $userId): string
-    {
-        return substr(hash('sha256', 'rizqflow-sync-author|'.($roomId ?? 'a').'|'.$userId), 0, 16);
     }
 }

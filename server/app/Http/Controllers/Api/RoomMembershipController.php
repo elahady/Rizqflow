@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\RoomMember;
 use App\Support\Feature;
+use App\Support\MemberId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,13 +26,43 @@ class RoomMembershipController extends Controller
     /** Sama dengan batas `entries.*.room_id` di SyncController::push: id yang lebih panjang tidak pernah bisa dipakai sync. */
     private const MAX_ROOM_ID_LENGTH = 100;
 
+    /** monetisasi.md: satu langganan Sync mencakup keluarga sampai 5 anggota (peran-anggota.md E.1 butir 3). */
+    private const MAX_MEMBERS = 5;
+
+    /**
+     * Anggota baru bergabung (dari undangan QR) atau pengirim push sync yang belum tercatat
+     * (bootstrap, lihat SyncController). Idempoten: anggota yang sudah tercatat tidak kena batas
+     * jumlah lagi saat `join` diulang. Dikunci dalam satu transaksi (pola sama dengan [makeOwner])
+     * supaya dua pendaftar ke-6 serentak tidak bisa sama-sama lolos batas.
+     */
     public function join(Request $request, string $roomId): JsonResponse
     {
         if ($denied = $this->denyWithoutSharedRoom($request) ?? $this->denyInvalidRoomId($roomId)) {
             return $denied;
         }
 
-        RoomMember::tambahAnggota($request->user()->id, $roomId);
+        $userId = $request->user()->id;
+
+        $penuh = DB::transaction(function () use ($roomId, $userId): bool {
+            $anggota = RoomMember::where('room_id', $roomId)->lockForUpdate()->get();
+            if ($anggota->contains(fn (RoomMember $member) => (int) $member->user_id === $userId)) {
+                return false;
+            }
+            if ($anggota->count() >= self::MAX_MEMBERS) {
+                return true;
+            }
+
+            RoomMember::tambahAnggota($userId, $roomId);
+
+            return false;
+        });
+
+        if ($penuh) {
+            return response()->json([
+                'message' => 'Ruang ini sudah penuh (maksimal '.self::MAX_MEMBERS.' anggota).',
+                'code' => 'room_full',
+            ], 422);
+        }
 
         return response()->json(status: 204);
     }
@@ -201,10 +232,14 @@ class RoomMembershipController extends Controller
             ->map(fn (RoomMember $member) => [
                 // Dipakai aplikasi pemilik sebagai {userId} di DELETE /rooms/{roomId}/members/{userId}.
                 'user_id' => $member->user_id,
+                // Sama dengan `author` baris sync ruang ini (peran-anggota.md E.1 butir 1); id internal
+                // di atas tetap ada untuk endpoint hapus/pindah-kepemilikan yang sudah ada, tidak diganti.
+                'member_id' => MemberId::dari($roomId, $member->user_id),
                 'name' => $member->user->name,
                 'email' => $member->user->email,
                 'you' => $member->user_id === $userId,
                 'owner' => $member->is_owner,
+                'role' => $member->is_owner ? 'owner' : 'member',
             ]);
 
         return response()->json(['members' => $members]);
