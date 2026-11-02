@@ -106,7 +106,8 @@ class RoomMembershipController extends Controller
      * - Hanya pemilik ruang: 403 `not_room_owner`. Butuh Sync pemilik seperti endpoint ruang lain.
      * - Idempoten untuk hash yang sama yang belum dipakai: masa berlakunya diperbarui (percobaan ulang
      *   setelah jaringan putus tidak menghasilkan baris ganda). Hash yang sudah dipakai: 409 `invite_used`.
-     * - Undangan yang menunggu dibatasi [RoomInvite::MAX_PENDING] per ruang: 422 `too_many_invites`.
+     * - Undangan yang menunggu dibatasi [RoomInvite::MAX_PENDING] per ruang: di atas batas, yang paling lama
+     *   (belum dipakai) disingkirkan, bukan ditolak. Yang kedaluwarsa dan belum dipakai dibuang saat penerbitan.
      */
     public function invite(Request $request, string $roomId): JsonResponse
     {
@@ -144,15 +145,15 @@ class RoomMembershipController extends Controller
                 return response()->json(['expires_at' => $kedaluwarsa->toIso8601String()], 201);
             }
 
-            $menunggu = RoomInvite::where('room_id', $roomId)
-                ->whereNull('used_by_user_id')
-                ->where('expires_at', '>', now())
-                ->count();
-            if ($menunggu >= RoomInvite::MAX_PENDING) {
-                return response()->json([
-                    'message' => 'Terlalu banyak undangan yang menunggu (maksimal '.RoomInvite::MAX_PENDING.').',
-                    'code' => 'too_many_invites',
-                ], 422);
+            // Kebersihan dan batas: undangan kedaluwarsa yang tak terpakai dibuang, dan di atas batas undangan
+            // menunggu yang paling lama disingkirkan (bukan ditolak). Aplikasi menerbitkan undangan baru setiap
+            // sheet QR dibuka; menolak pada batas akan mengunci pemilik yang membuka sheet berulang kali tanpa
+            // ada yang memindai, padahal QR yang lama tak terpakai itu memang tak perlu dipertahankan.
+            RoomInvite::where('room_id', $roomId)->whereNull('used_by_user_id')->where('expires_at', '<=', now())->delete();
+            $menunggu = RoomInvite::where('room_id', $roomId)->whereNull('used_by_user_id')->orderBy('id');
+            $lebih = $menunggu->count() - (RoomInvite::MAX_PENDING - 1);
+            if ($lebih > 0) {
+                RoomInvite::whereIn('id', (clone $menunggu)->limit($lebih)->pluck('id'))->delete();
             }
 
             RoomInvite::create([

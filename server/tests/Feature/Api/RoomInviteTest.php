@@ -131,19 +131,52 @@ class RoomInviteTest extends TestCase
         $this->assertSame(0, RoomInvite::count());
     }
 
-    public function test_pending_invites_are_capped_per_room(): void
+    public function test_beyond_the_pending_cap_the_oldest_unused_invite_is_dropped_instead_of_locking_the_owner_out(): void
     {
         $pemilik = $this->syncUser();
         $this->buatRuang($pemilik);
+        $hashes = [];
         for ($i = 0; $i < RoomInvite::MAX_PENDING; $i++) {
+            $this->terbitkan($pemilik, $hashes[] = $this->hash())->assertCreated();
+        }
+        $baru = $this->hash();
+
+        $this->terbitkan($pemilik, $baru)->assertCreated();
+
+        $this->assertSame(RoomInvite::MAX_PENDING, RoomInvite::count());
+        $this->assertSame(0, RoomInvite::where('invite_hash', $hashes[0])->count(), 'yang paling lama disingkirkan');
+        $this->assertSame(1, RoomInvite::where('invite_hash', $baru)->count());
+        $this->assertSame(1, RoomInvite::where('invite_hash', $hashes[1])->count());
+    }
+
+    public function test_an_invite_that_was_used_is_never_dropped_by_the_cap(): void
+    {
+        $pemilik = $this->syncUser();
+        $tamu = $this->syncUser();
+        $this->buatRuang($pemilik);
+        $dipakai = $this->hash();
+        $this->terbitkan($pemilik, $dipakai)->assertCreated();
+        $this->gabung($tamu, $dipakai)->assertNoContent();
+        for ($i = 0; $i < RoomInvite::MAX_PENDING + 3; $i++) {
             $this->terbitkan($pemilik, $this->hash())->assertCreated();
         }
 
-        $this->terbitkan($pemilik, $this->hash())->assertStatus(422)->assertJsonPath('code', 'too_many_invites');
+        // Yang sudah dipakai tetap ada: daftar anggota masih menunjukkan hash-nya (dasar key_grant).
+        $this->assertSame($tamu->id, RoomInvite::where('invite_hash', $dipakai)->firstOrFail()->used_by_user_id);
+        $this->assertSame(RoomInvite::MAX_PENDING, RoomInvite::whereNull('used_by_user_id')->count());
+    }
 
-        // Yang kedaluwarsa tidak dihitung menunggu lagi.
-        RoomInvite::query()->limit(1)->update(['expires_at' => now()->subMinute()]);
+    public function test_expired_unused_invites_are_swept_when_a_new_one_is_issued(): void
+    {
+        $pemilik = $this->syncUser();
+        $this->buatRuang($pemilik);
+        $this->terbitkan($pemilik, $kadaluwarsa = $this->hash())->assertCreated();
+        RoomInvite::query()->update(['expires_at' => now()->subMinute()]);
+
         $this->terbitkan($pemilik, $this->hash())->assertCreated();
+
+        $this->assertSame(0, RoomInvite::where('invite_hash', $kadaluwarsa)->count());
+        $this->assertSame(1, RoomInvite::count());
     }
 
     public function test_the_hash_is_stored_in_lower_case(): void
