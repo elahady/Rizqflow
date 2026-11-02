@@ -127,6 +127,12 @@ class SyncCoordinator(
      * amplop dan `key_grant` menambah elemen di sini, tanpa mengubah kelas ini.
      */
     extraHandlers: List<SharedRoomSyncHandler> = emptyList(),
+    /**
+     * `member_secret` milik perangkat ini sebagai anggota (key_grant langkah 5): dipakai membuka rekaman `key_grant` yang
+     * ditujukan kepadanya dan menandai baris yang gagal dibuka sebagai menunggu kunci ([SyncIssueKind.DEFERRED_KEY_MISSING]),
+     * bukan rusak. Null (bawaan, dan anggota yang bergabung dengan QR lama tanpa rahasia) berarti perilaku lama.
+     */
+    private val memberSecrets: MemberSecretStore? = null,
 ) {
     private val expenseHandler = SharedExpenseSyncHandler(transactions, rooms, accounts)
     private val handlersByType: Map<SharedRecordType, SharedRoomSyncHandler> = (listOf(expenseHandler) + extraHandlers).associateBy { it.type }
@@ -245,8 +251,11 @@ class SyncCoordinator(
         scopedCursors?.setCursor(scope, value)
     }
 
-    private suspend fun pull(roomId: RoomId, deviceId: String, apiToken: String, aead: SyncAead): RemoteResult<PullOutcome> {
+    private suspend fun pull(roomId: RoomId, deviceId: String, apiToken: String, initialAead: SyncAead): RemoteResult<PullOutcome> {
         val scope = SyncScope.SharedRoom(roomId)
+        // Berubah bila sebuah key_grant diimpor di tengah pull: baris sesudahnya dibuka dengan kunci yang baru.
+        var aead = initialAead
+        var grantImported = false
         var cursor = readCursor(roomId, scope)
         var applied = 0
         var skipped = 0
@@ -279,6 +288,16 @@ class SyncCoordinator(
                 // disinkron yang diterapkan, supaya transaksi ruang lain tidak masuk ke ruang ini (roadmap.md, Tahap 9).
                 if (downloaded.roomId != roomId.value) continue
 
+                // key_grant: bukan amplop umum (tidak disegel kunci ruang), jadi ditangani sebelum dispatch di bawah. Yang bukan
+                // untuk perangkat ini dilewati diam-diam; yang untuknya diimpor lalu kunci pull diganti.
+                if (downloaded.recordType == KeyGrant.RECORD_TYPE) {
+                    if (applyGrant(scope, downloaded)) {
+                        aead = roomKeys.getOrCreateRoomKey(roomId)
+                        grantImported = true
+                    }
+                    continue
+                }
+
                 val outcome = when (downloaded.recordType) {
                     SHARED_RECORD_TYPE -> applyEnvelope(scope, downloaded, aead, record = true)
                     LEGACY_RECORD_TYPE_TRANSACTION -> applyLegacy(roomId, downloaded, aead, record = true)
@@ -294,7 +313,7 @@ class SyncCoordinator(
         }
 
         // Baris yang ditunda (kursor sudah lewat) dicoba lagi di sini; yang berhasil tidak lagi terhitung dilewati.
-        val retried = retryDeferred(scope, aead)
+        val retried = retryDeferred(scope, aead, retryKeyMissing = grantImported)
         return RemoteResult.Success(PullOutcome(applied + retried, maxOf(0, skipped - retried)))
     }
 
@@ -334,9 +353,11 @@ class SyncCoordinator(
         DeferredPullRow(row.recordId, changedAtMillis, row.deleted, row.deviceId, row.author, row.id, row.payload).encode().toString()
 
     /** Mencoba lagi baris yang ditunda dari pull sebelumnya; mengembalikan berapa yang akhirnya berhasil diterapkan. */
-    private suspend fun retryDeferred(scope: SyncScope.SharedRoom, aead: SyncAead): Int {
+    private suspend fun retryDeferred(scope: SyncScope.SharedRoom, aead: SyncAead, retryKeyMissing: Boolean): Int {
         val store = issueStore ?: return 0
-        val candidates = store.issues(scope).filter { it.kind == SyncIssueKind.DEFERRED_MISSING_REF && it.rawRow != null }
+        val candidates = store.issues(scope).filter {
+            (it.kind == SyncIssueKind.DEFERRED_MISSING_REF || (retryKeyMissing && it.kind == SyncIssueKind.DEFERRED_KEY_MISSING)) && it.rawRow != null
+        }
         var applied = 0
         for (issue in candidates) {
             val raw = DeferredPullRow.decode(issue.rawRow!!) ?: continue
@@ -392,6 +413,12 @@ class SyncCoordinator(
                 isKnownType = { SharedRecordType.fromWire(it) != null },
             )
         } catch (e: SyncEnvelopeException) {
+            // Dekripsi gagal pada anggota yang bisa menerima key_grant (punya rahasia sendiri): paling mungkin kunci ruang
+            // baru belum tiba, bukan data rusak. Disimpan untuk dicoba lagi begitu sebuah grant berhasil diimpor.
+            if (e.reason == EnvelopeError.DECRYPT_FAILED && issueStore != null && memberSecrets?.readOwnSecret(scope.roomId) != null) {
+                if (record) recordIssue(scope, row, SyncIssueKind.DEFERRED_KEY_MISSING, "kunci ruang yang baru belum diterima", rawRowOf(row, changedAtMillis))
+                return RowOutcome.DEFERRED
+            }
             return reject(scope, row, issueKindOf(e), e.message, record)
         } catch (e: IllegalArgumentException) {
             // payload bukan base64 yang sah
@@ -457,6 +484,61 @@ class SyncCoordinator(
     // Penulis buram (bagian B R3): server menentukan; perangkat lama tanpa field ini jatuh
     // ke device_id supaya akun virtual tetap terbentuk, hanya kurang stabil lintas perangkat penulis.
     private fun authorOf(row: SyncLogEntryDownload): String = row.author ?: row.deviceId
+
+    /**
+     * Pemilik menerbitkan [KeyGrant] untuk SETIAP rahasia di [memberSecrets] (key_grant langkah 4): keyset kunci ruang
+     * yang SEKARANG (biasanya baru dirotasi lewat [RoomMemberKeyRedistribution]) disegel per anggota dan dikirim dalam
+     * satu push khusus, sebelum baris lain apa pun yang memakai kunci baru. Server hanya menerima push "g" dari pemilik
+     * (403 `not_room_owner`). Idempoten: keyset yang sama menghasilkan `record_id` yang sama, jadi memanggil ulang
+     * (mis. setelah jaringan putus) aman. Mengembalikan jumlah grant terkirim; tidak melempar.
+     */
+    suspend fun publishKeyGrants(roomId: RoomId, deviceId: String, memberSecrets: List<ByteArray>): RemoteResult<Int> {
+        val apiToken = apiTokenStore.read() ?: return RemoteResult.Failure(RemoteError.Unauthorized)
+        if (memberSecrets.isEmpty()) return RemoteResult.Success(0)
+        val keyset = roomKeys.exportRoomKey(roomId)
+        val stamped = clock.stamp(nowMillis())
+        val uploads = memberSecrets.map { secret ->
+            val sealed = KeyGrant.seal(secret, roomId, keyset)
+            SyncLogEntryUpload(
+                roomId = roomId.value,
+                recordType = KeyGrant.RECORD_TYPE,
+                recordId = sealed.recordId,
+                deviceId = deviceId,
+                payload = Base64.getEncoder().encodeToString(sealed.frame),
+                deleted = false,
+                changedAt = Instant.ofEpochMilli(stamped).toString(),
+                changedAtMillis = stamped,
+            )
+        }
+        return when (val result = syncRemote.push(apiToken, uploads)) {
+            is RemoteResult.Failure -> result
+            is RemoteResult.Success -> {
+                result.value.serverTimeMs?.let { clock.setServerOffset(it - clock.rawDeviceNowMillis()) }
+                RemoteResult.Success(uploads.size)
+            }
+        }
+    }
+
+    /**
+     * Menerima satu baris `key_grant` (key_grant langkah 5). Mengembalikan true hanya bila grant itu untuk perangkat ini
+     * dan keyset-nya berhasil digabung ke kunci ruang ([RoomKeyProvider.importRoomKey]). Grant untuk anggota lain, atau
+     * perangkat tanpa rahasia sendiri, dilewati DIAM-DIAM (bukan masalah). Grant yang untuk perangkat ini tetapi tidak bisa
+     * dibuka atau diimpor dicatat sebagai masalah sinkron (`TAMPERED_OR_CORRUPT`) tanpa isi apa pun.
+     */
+    private suspend fun applyGrant(scope: SyncScope.SharedRoom, row: SyncLogEntryDownload): Boolean {
+        val secret = memberSecrets?.readOwnSecret(scope.roomId) ?: return false
+        if (!KeyGrant.belongsTo(secret, scope.roomId, row.recordId)) return false
+        return try {
+            val keyset = KeyGrant.open(secret, scope.roomId, row.recordId, Base64.getDecoder().decode(row.payload))
+            roomKeys.importRoomKey(scope.roomId, keyset)
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            recordIssue(scope, row, SyncIssueKind.TAMPERED_OR_CORRUPT, "key_grant untuk perangkat ini tidak bisa dibuka (${e.javaClass.simpleName})")
+            false
+        }
+    }
 
     private data class PullOutcome(val applied: Int, val skipped: Int)
 }

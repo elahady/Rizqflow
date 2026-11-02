@@ -59,6 +59,7 @@ import com.roziqrizal.rizqflow.domain.money.Money
 import com.roziqrizal.rizqflow.domain.sync.LeaveRoomOutcome
 import com.roziqrizal.rizqflow.domain.sync.RemoteError
 import com.roziqrizal.rizqflow.domain.sync.IssuedSecretBinder
+import com.roziqrizal.rizqflow.domain.sync.KeyGrantPlanner
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.RoomMemberInfo
 import com.roziqrizal.rizqflow.domain.sync.RoomPermissions
@@ -432,10 +433,28 @@ fun RuangKeluargaScreen(
                 is RemoteResult.Success -> {
                     // Keanggotaan sudah dicabut di server; kunci ruang dirotasi dan QR baru disiapkan untuk anggota yang tetap.
                     workspace.memberRemoval.rotateAndPrepareInvite(roomId, roomName.orEmpty())
-                    rotationEpoch++ // memaksa QR di bawah dibangun ulang dari kunci yang baru dirotasi
-                    justRotated = true
-                    inviteSheet = true
-                    notifier.show(resources.getString(R.string.family_remove_done, member.name ?: member.email))
+                    // Distribusi kunci baru (key_grant langkah 4-6): anggota yang tetap dan punya rahasia terikat menerima keyset lewat
+                    // log ruang; sisanya (QR lama, atau undangan belum terikat) harus memindai QR baru. Bila penerbitan gagal, semua
+                    // anggota yang tetap jatuh ke jalur QR ini.
+                    val remaining = members.orEmpty().filter { !it.you && it.userId != userId }
+                    val plan = KeyGrantPlanner.plan(roomId, remaining, workspace.memberSecretStore)
+                    val published = if (plan.secrets.isEmpty()) null else workspace.publishKeyGrants(roomId, DeviceId.read(context), plan.secrets)
+                    val delivered = if (published is RemoteResult.Success) plan.covered.size else 0
+                    val needQr = remaining.size - delivered
+                    if (needQr > 0) {
+                        rotationEpoch++ // memaksa QR di bawah dibangun ulang dari kunci yang baru dirotasi
+                        justRotated = true
+                        inviteSheet = true
+                    }
+                    val who = member.name ?: member.email
+                    notifier.show(
+                        when {
+                            remaining.isEmpty() -> resources.getString(R.string.family_remove_done_alone, who)
+                            needQr == 0 -> resources.getString(R.string.family_remove_done_auto, who, delivered)
+                            delivered == 0 -> resources.getString(R.string.family_remove_done, who)
+                            else -> resources.getString(R.string.family_remove_done_auto_qr, who, delivered, needQr)
+                        },
+                    )
                     reloadKey++
                 }
 

@@ -64,6 +64,7 @@ import com.roziqrizal.rizqflow.domain.sync.PushTokenSync
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyRemote
 import com.roziqrizal.rizqflow.domain.sync.RecoveryKeyService
 import com.roziqrizal.rizqflow.domain.sync.RecoveryStatusStore
+import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.RoomKeyProvider
 import com.roziqrizal.rizqflow.domain.sync.MemberSecretStore
 import com.roziqrizal.rizqflow.domain.sync.RoomMemberKeyRedistribution
@@ -233,6 +234,8 @@ class AccountWorkspace private constructor(
         // konstruksi AccountWorkspace selesai (sama seperti sharedRoomLeaver merujuk sharedRoomActivation.markLeft).
         onNotRoomMember = { roomId -> sharedRoomActivation.markRemoved(roomId) },
         extraHandlers = listOf(envelopeSync),
+        // key_grant (langkah 5): rahasia sendiri sebagai anggota, untuk membuka grant dan menandai baris yang menunggu kunci.
+        memberSecrets = memberSecretStore,
     )
 
     /**
@@ -386,6 +389,13 @@ class AccountWorkspace private constructor(
      */
     suspend fun syncSharedRoomNow(roomId: RoomId, deviceId: String): SyncResult =
         local.autoSync.withRoomLock(roomId) { sync.syncNow(roomId, deviceId) }
+
+    /**
+     * Pemilik menerbitkan [KeyGrant] untuk anggota yang tetap setelah rotasi kunci (key_grant langkah 4): lewat kunci ruang yang
+     * sama dengan sinkron, supaya tidak berpapasan dengan putaran otomatis ruang itu. Lihat [SyncCoordinator.publishKeyGrants].
+     */
+    suspend fun publishKeyGrants(roomId: RoomId, deviceId: String, memberSecrets: List<ByteArray>): RemoteResult<Int> =
+        local.autoSync.withRoomLock(roomId) { sync.publishKeyGrants(roomId, deviceId, memberSecrets) }
 
     /**
      * Keadaan sinkron lokal untuk layar "Riwayat sinkron": baris kotor dan kursor per cakupan, plus daftar masalah

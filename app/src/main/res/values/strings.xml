@@ -795,6 +795,9 @@
     <string name="family_remove_confirm_body">Keanggotaannya di ruang ini dicabut di server, lalu kunci ruang diganti untuk transaksi berikutnya. Ia tidak bisa membaca transaksi baru, tetapi transaksi lama yang sudah ia tarik tetap ada di perangkatnya dan tetap bisa ia baca. Semua anggota yang TETAP harus memindai QR baru (langkah berikutnya) untuk terus ikut sinkron.</string>
     <string name="family_remove_confirm_action">Keluarkan</string>
     <string name="family_remove_done">%1$s dikeluarkan. Minta anggota yang tetap memindai QR baru ini.</string>
+    <string name="family_remove_done_auto">%1$s dikeluarkan. Kunci baru sudah dikirim otomatis ke %2$d anggota yang tetap.</string>
+    <string name="family_remove_done_auto_qr">%1$s dikeluarkan. Kunci baru terkirim otomatis ke %2$d anggota; %3$d anggota lain perlu memindai QR baru ini.</string>
+    <string name="family_remove_done_alone">%1$s dikeluarkan. Tidak ada anggota lain yang perlu menerima kunci baru.</string>
     <string name="family_remove_failed">Gagal mengeluarkan anggota. Periksa koneksi lalu coba lagi.</string>
     <string name="family_transfer_action">Jadikan pemilik</string>
     <string name="family_transfer_pick_title">Pilih anggota yang jadi pemilik baru</string>

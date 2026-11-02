@@ -777,6 +777,9 @@
     <string name="family_remove_confirm_body">Their membership in this room is revoked on the server, then the room key is replaced for future transactions. They cannot read new transactions, but older transactions they already pulled stay on their device and remain readable. Every member who STAYS must scan the new QR (next step) to keep syncing.</string>
     <string name="family_remove_confirm_action">Remove</string>
     <string name="family_remove_done">%1$s was removed. Ask the remaining members to scan this new QR.</string>
+    <string name="family_remove_done_auto">%1$s was removed. The new key was sent automatically to %2$d remaining members.</string>
+    <string name="family_remove_done_auto_qr">%1$s was removed. The new key was sent automatically to %2$d members; %3$d other members need to scan this new QR.</string>
+    <string name="family_remove_done_alone">%1$s was removed. No other member needs the new key.</string>
     <string name="family_remove_failed">Could not remove the member. Check your connection and try again.</string>
     <string name="family_transfer_action">Make owner</string>
     <string name="family_transfer_pick_title">Choose the member who becomes the new owner</string>

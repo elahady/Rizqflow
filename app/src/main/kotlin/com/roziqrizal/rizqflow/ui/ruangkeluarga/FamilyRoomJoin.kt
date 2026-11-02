@@ -10,6 +10,7 @@ import com.roziqrizal.rizqflow.domain.sync.RemoteError
 import com.roziqrizal.rizqflow.domain.sync.RemoteResult
 import com.roziqrizal.rizqflow.domain.sync.MemberSecretKdf
 import com.roziqrizal.rizqflow.domain.sync.RoomInvite
+import com.roziqrizal.rizqflow.domain.sync.SharedRoomStatus
 import com.roziqrizal.rizqflow.domain.sync.SharedRoomRole
 import com.roziqrizal.rizqflow.sync.isUnauthorized
 import com.roziqrizal.rizqflow.sync.retryOnceIfRotated
@@ -53,6 +54,11 @@ suspend fun joinSharedRoom(workspace: AccountWorkspace, invite: RoomInvite): Fam
     // 403 invite_required bila ruang sudah berpenghuni). Rahasianya sendiri tidak pernah meninggalkan perangkat.
     val inviteHash = invite.memberSecret?.let(MemberSecretKdf::inviteHash)
 
+    // Anggota yang SUDAH aktif lalu memindai ulang QR (mis. kunci dirotasi) tidak mengganti rahasia sendirinya: rahasia dari QR baru
+    // itu tidak pernah diikat pemilik (undangannya tidak dipakai server untuk anggota yang sudah ada), sehingga grant berikutnya
+    // yang disegel dengan rahasia lama tidak akan terbuka.
+    val alreadyActive = workspace.sharedRoomActivation.statusOf(invite.roomId) == SharedRoomStatus.ACTIVE
+
     // Token dibaca ulang di dalam panggilan: 401 karena token baru saja diputar (permintaan membawa token lama)
     // diulang sekali dengan token baru, bukan dilaporkan sebagai kegagalan (lihat retryOnceIfRotated).
     val result = session.retryOnceIfRotated(
@@ -68,7 +74,7 @@ suspend fun joinSharedRoom(workspace: AccountWorkspace, invite: RoomInvite): Fam
             // Lokal baru disiapkan SETELAH server menerima: undangan yang ditolak (kedaluwarsa, sudah dipakai) tidak
             // meninggalkan ruang yatim di perangkat ini. `join` idempoten, jadi bila langkah lokal di bawah terputus,
             // memindai ulang QR yang sama tetap berhasil (anggota yang sudah ada tidak butuh undangan lagi).
-            prepareLocalRoom(workspace, invite)
+            prepareLocalRoom(workspace, invite, replaceOwnSecret = !alreadyActive)
             // Ruang kini bersama: sinkron otomatis (buka aplikasi dan simpan pengeluaran) mulai berlaku untuk ruang ini.
             workspace.sharedRoomActivation.markActive(invite.roomId, SharedRoomRole.MEMBER)
             FamilyJoinResult.Success(invite.roomId)
@@ -85,7 +91,7 @@ private const val FAMILY_ROOM_COLOR_SLOT = 4
  * Menyiapkan sisi perangkat ini untuk ruang yang baru diterima server: ruang lokal (bila belum ada), kunci ruang dari QR,
  * dan rahasia anggota (calon kunci AEAD `key_grant` saat kunci ruang dirotasi; null untuk QR lama tanpa rahasia).
  */
-private suspend fun prepareLocalRoom(workspace: AccountWorkspace, invite: RoomInvite) {
+private suspend fun prepareLocalRoom(workspace: AccountWorkspace, invite: RoomInvite, replaceOwnSecret: Boolean) {
     if (workspace.repositories.rooms.find(invite.roomId) == null) {
         val active = workspace.repositories.rooms.activeRooms()
         val room = Room(
@@ -102,5 +108,7 @@ private suspend fun prepareLocalRoom(workspace: AccountWorkspace, invite: RoomIn
     }
 
     workspace.roomKeyProvider.importRoomKey(invite.roomId, invite.exportedRoomKey)
-    invite.memberSecret?.let { workspace.memberSecretStore.saveOwnSecret(invite.roomId, it) }
+    invite.memberSecret?.let {
+        if (replaceOwnSecret || workspace.memberSecretStore.readOwnSecret(invite.roomId) == null) workspace.memberSecretStore.saveOwnSecret(invite.roomId, it)
+    }
 }
